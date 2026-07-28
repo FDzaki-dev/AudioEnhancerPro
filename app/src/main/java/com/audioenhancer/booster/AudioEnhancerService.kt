@@ -61,9 +61,17 @@ class AudioEnhancerService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        // Saat user swipe app dari recent apps, langsung jadwalkan restart cepat
-        val restartIntent = Intent(applicationContext, RestartReceiver::class.java)
-        sendBroadcast(restartIntent)
+        // SEBELUMNYA di sini ada kode yang aktif restart foreground service via broadcast
+        // setiap kali app di-swipe dari recent apps. Itu dihapus karena JUSTRU jadi sumber
+        // ketidakpastian: mulai Android 12, start foreground service dari background context
+        // (seperti dari BroadcastReceiver setelah app tidak lagi foreground) dibatasi sistem —
+        // kadang diizinkan kadang ditolak diam-diam tergantung timing, sehingga notifikasi
+        // kadang muncul kadang hilang secara acak.
+        //
+        // Tidak perlu restart manual di sini sama sekali: service ini sudah punya
+        // android:stopWithTask="false" di Manifest + return START_STICKY, yang berarti
+        // Android SECARA DEFAULT tetap menjaga service ini hidup walau task di-swipe,
+        // tanpa perlu trik tambahan yang justru rawan gagal.
     }
 
     override fun onDestroy() {
