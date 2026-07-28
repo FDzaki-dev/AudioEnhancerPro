@@ -1,9 +1,11 @@
 package com.audioenhancer.booster
 
+import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,6 +15,8 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -36,6 +40,7 @@ class MainActivity : ComponentActivity() {
     private var bassSupported by mutableStateOf(true)
     private var virtualizerSupported by mutableStateOf(true)
     private var loudnessSupported by mutableStateOf(true)
+    private var notificationPermissionGranted by mutableStateOf(true)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -50,9 +55,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> notificationPermissionGranted = granted }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            notificationPermissionGranted = granted
+            if (!granted) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        requestNotificationPermissionIfNeeded()
 
         val intent = Intent(this, AudioEnhancerService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -87,12 +109,23 @@ class MainActivity : ComponentActivity() {
                             loudnessSupported = loudnessSupported,
                             initialBass = PrefsHelper.getBass(this@MainActivity).toFloat(),
                             initialVirtualizer = PrefsHelper.getVirtualizer(this@MainActivity).toFloat(),
-                            initialLoudness = PrefsHelper.getLoudness(this@MainActivity)
+                            initialLoudness = PrefsHelper.getLoudness(this@MainActivity),
+                            notificationPermissionGranted = notificationPermissionGranted,
+                            onOpenNotificationSettings = { openNotificationSettings() }
                         )
                     }
                 }
             }
         }
+    }
+
+    private fun openNotificationSettings() {
+        try {
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            }
+            startActivity(intent)
+        } catch (_: Exception) { }
     }
 
     private fun requestIgnoreBatteryOptimizations() {
@@ -104,6 +137,15 @@ class MainActivity : ComponentActivity() {
                 }
                 startActivity(intent)
             } catch (_: Exception) { }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            notificationPermissionGranted = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
         }
     }
 
@@ -178,7 +220,9 @@ fun BoosterScreen(
     loudnessSupported: Boolean = true,
     initialBass: Float = 500f,
     initialVirtualizer: Float = 500f,
-    initialLoudness: Float = 0f
+    initialLoudness: Float = 0f,
+    notificationPermissionGranted: Boolean = true,
+    onOpenNotificationSettings: () -> Unit = {}
 ) {
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
@@ -214,6 +258,26 @@ fun BoosterScreen(
         }
 
         ServiceStatusBadge()
+
+        if (!notificationPermissionGranted) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        "🔕 Notifikasi belum diizinkan",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        "Tanpa izin ini, notifikasi 'Audio Booster aktif' tidak akan muncul (service tetap jalan, tapi kamu tidak lihat indikatornya di status bar).",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
+                    Button(onClick = onOpenNotificationSettings) {
+                        Text("Buka Pengaturan Notifikasi")
+                    }
+                }
+            }
+        }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
