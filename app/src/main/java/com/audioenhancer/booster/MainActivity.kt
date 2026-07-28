@@ -13,6 +13,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -109,6 +110,46 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Composable
+private fun ServiceStatusBadge() {
+    var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+
+    // Cek status tiap 1 detik selagi layar ini terbuka, biar badge selalu akurat.
+    LaunchedEffect(Unit) {
+        while (true) {
+            isRunning = AudioEnhancerService.isRunning
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isRunning)
+                MaterialTheme.colorScheme.primaryContainer
+            else
+                MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(if (isRunning) androidx.compose.ui.graphics.Color(0xFF2ECC71) else androidx.compose.ui.graphics.Color(0xFFE74C3C))
+            )
+            Text(
+                if (isRunning) "Service berjalan di background — cek juga notifikasi 'Audio Booster aktif'"
+                else "Service TIDAK berjalan — coba tutup & buka ulang app",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+    }
+}
+
 private data class Preset(
     val label: String,
     val bass: Float,
@@ -168,6 +209,8 @@ fun BoosterScreen(
                 Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Bantuan / penjelasan fitur")
             }
         }
+
+        ServiceStatusBadge()
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
