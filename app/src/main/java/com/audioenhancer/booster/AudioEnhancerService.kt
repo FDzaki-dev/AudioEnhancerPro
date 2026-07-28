@@ -90,6 +90,16 @@ class AudioEnhancerService : Service() {
         try {
             loudnessEnhancer = LoudnessEnhancer(0).apply { enabled = true }
         } catch (e: Exception) { loudnessEnhancer = null }
+
+        // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
+        // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
+        restoreSavedSettings()
+    }
+
+    private fun restoreSavedSettings() {
+        setBassStrength(PrefsHelper.getBass(this).toShort())
+        setVirtualizerStrength(PrefsHelper.getVirtualizer(this).toShort())
+        setLoudnessGain(PrefsHelper.getLoudness(this))
     }
 
     private fun releaseEffects() {
@@ -104,14 +114,17 @@ class AudioEnhancerService : Service() {
 
     fun setBassStrength(strength: Short) { // 0..1000
         try { bassBoost?.setStrength(strength) } catch (_: Exception) {}
+        PrefsHelper.setBass(this, strength.toInt())
     }
 
     fun setVirtualizerStrength(strength: Short) { // 0..1000
         try { virtualizer?.setStrength(strength) } catch (_: Exception) {}
+        PrefsHelper.setVirtualizer(this, strength.toInt())
     }
 
     fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000
         try { loudnessEnhancer?.setTargetGain(gainMb.toInt()) } catch (_: Exception) {}
+        PrefsHelper.setLoudness(this, gainMb)
     }
 
     fun setEqualizerBand(band: Short, levelMb: Short) {

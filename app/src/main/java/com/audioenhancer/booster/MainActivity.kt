@@ -80,7 +80,10 @@ class MainActivity : ComponentActivity() {
                             onOpenHelp = { showOnboarding = true },
                             bassSupported = bassSupported,
                             virtualizerSupported = virtualizerSupported,
-                            loudnessSupported = loudnessSupported
+                            loudnessSupported = loudnessSupported,
+                            initialBass = PrefsHelper.getBass(this@MainActivity).toFloat(),
+                            initialVirtualizer = PrefsHelper.getVirtualizer(this@MainActivity).toFloat(),
+                            initialLoudness = PrefsHelper.getLoudness(this@MainActivity)
                         )
                     }
                 }
@@ -128,11 +131,14 @@ fun BoosterScreen(
     onOpenHelp: () -> Unit = {},
     bassSupported: Boolean = true,
     virtualizerSupported: Boolean = true,
-    loudnessSupported: Boolean = true
+    loudnessSupported: Boolean = true,
+    initialBass: Float = 500f,
+    initialVirtualizer: Float = 500f,
+    initialLoudness: Float = 0f
 ) {
-    var bass by remember { mutableStateOf(500f) }
-    var virtualizer by remember { mutableStateOf(500f) }
-    var loudness by remember { mutableStateOf(0f) }
+    var bass by remember { mutableStateOf(initialBass) }
+    var virtualizer by remember { mutableStateOf(initialVirtualizer) }
+    var loudness by remember { mutableStateOf(initialLoudness) }
     var activePreset by remember { mutableStateOf<String?>(null) }
 
     fun applyPreset(preset: Preset) {
