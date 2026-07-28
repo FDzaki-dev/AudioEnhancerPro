@@ -13,9 +13,15 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
@@ -49,11 +55,23 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    BoosterScreen(
-                        onBass = { service?.setBassStrength(it) },
-                        onVirtualizer = { service?.setVirtualizerStrength(it) },
-                        onLoudness = { service?.setLoudnessGain(it) }
-                    )
+                    var showOnboarding by remember {
+                        mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
+                    }
+
+                    if (showOnboarding) {
+                        OnboardingScreen(onFinish = {
+                            PrefsHelper.setOnboardingDone(this@MainActivity)
+                            showOnboarding = false
+                        })
+                    } else {
+                        BoosterScreen(
+                            onBass = { service?.setBassStrength(it) },
+                            onVirtualizer = { service?.setVirtualizerStrength(it) },
+                            onLoudness = { service?.setLoudnessGain(it) },
+                            onOpenHelp = { showOnboarding = true }
+                        )
+                    }
                 }
             }
         }
@@ -81,7 +99,8 @@ class MainActivity : ComponentActivity() {
 fun BoosterScreen(
     onBass: (Short) -> Unit,
     onVirtualizer: (Short) -> Unit,
-    onLoudness: (Float) -> Unit
+    onLoudness: (Float) -> Unit,
+    onOpenHelp: () -> Unit = {}
 ) {
     var bass by remember { mutableStateOf(500f) }
     var virtualizer by remember { mutableStateOf(500f) }
@@ -90,26 +109,91 @@ fun BoosterScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text("Audio Booster", style = MaterialTheme.typography.headlineMedium)
-        Text("Efek berlaku ke seluruh audio sistem", style = MaterialTheme.typography.bodySmall)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Audio Booster", style = MaterialTheme.typography.headlineMedium)
+                Text("Efek berlaku ke seluruh audio sistem", style = MaterialTheme.typography.bodySmall)
+            }
+            IconButton(onClick = onOpenHelp) {
+                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Bantuan / penjelasan fitur")
+            }
+        }
 
-        Text("Bass Boost: ${bass.toInt()}")
-        Slider(value = bass, onValueChange = { bass = it; onBass(it.toInt().toShort()) }, valueRange = 0f..1000f)
-
-        Text("Virtualizer / Kejernihan Stereo: ${virtualizer.toInt()}")
-        Slider(value = virtualizer, onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()) }, valueRange = 0f..1000f)
-
-        Text("Loudness Gain: ${loudness.toInt()} mB")
-        Slider(value = loudness, onValueChange = { loudness = it; onLoudness(it) }, valueRange = 0f..3000f)
-
-        Text(
-            "Catatan: jika HP kamu pakai MIUI/ColorOS/EMUI, aktifkan juga 'Autostart' " +
-            "dan matikan pembatasan baterai untuk app ini secara manual di pengaturan HP, " +
-            "supaya service tidak dimatikan sistem.",
-            style = MaterialTheme.typography.bodySmall
+        FeatureControl(
+            title = "🔊 Bass Boost",
+            helpText = "Menguatkan nada rendah supaya musik terasa lebih 'nendang'. 0 = mati.",
+            value = bass,
+            valueLabel = bass.toInt().toString(),
+            onValueChange = { bass = it; onBass(it.toInt().toShort()) },
+            valueRange = 0f..1000f
         )
+
+        FeatureControl(
+            title = "🌐 Virtualizer",
+            helpText = "Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset.",
+            value = virtualizer,
+            valueLabel = virtualizer.toInt().toString(),
+            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()) },
+            valueRange = 0f..1000f
+        )
+
+        FeatureControl(
+            title = "📢 Loudness Gain",
+            helpText = "Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.",
+            value = loudness,
+            valueLabel = "${loudness.toInt()} mB",
+            onValueChange = { loudness = it; onLoudness(it) },
+            valueRange = 0f..3000f
+        )
+
+        Card {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("🛡️ Kenapa perlu izin baterai & autostart?", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    "Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. " +
+                    "Di HP MIUI/ColorOS/EMUI, aktifkan juga 'Autostart' secara manual di pengaturan HP.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        TextButton(onClick = onOpenHelp) {
+            Text("Lihat penjelasan lengkap tiap fitur →")
+        }
+    }
+}
+
+@Composable
+private fun FeatureControl(
+    title: String,
+    helpText: String,
+    value: Float,
+    valueLabel: String,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(valueLabel, style = MaterialTheme.typography.bodyMedium)
+        }
+        Text(
+            helpText,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
     }
 }
