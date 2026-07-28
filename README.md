@@ -19,3 +19,31 @@ Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compos
 ```
 
 CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), hasil APK ada di tab Actions > Artifacts.
+
+## Setup Release Signing (APK release, bukan debug)
+
+1. **Buat keystore** (sekali saja, simpan file `.jks` ini baik-baik, jangan hilang/expose):
+   ```
+   keytool -genkeypair -v -keystore release.keystore -alias audioenhancerpro \
+     -keyalg RSA -keysize 2048 -validity 10000
+   ```
+   Ikuti prompt-nya (isi password keystore, password key, nama, dll).
+
+2. **Encode keystore ke base64** supaya bisa disimpan sebagai GitHub Secret:
+   ```
+   base64 -w0 release.keystore > release.keystore.b64
+   cat release.keystore.b64
+   ```
+   Copy seluruh isi output-nya.
+
+3. **Tambahkan 4 secrets** di GitHub repo: Settings > Secrets and variables > Actions > New repository secret:
+   | Name | Value |
+   |---|---|
+   | `KEYSTORE_BASE64` | isi dari `release.keystore.b64` |
+   | `KEYSTORE_PASSWORD` | password keystore yang dibuat di langkah 1 |
+   | `KEY_ALIAS` | `audioenhancerpro` (atau alias yang kamu pakai) |
+   | `KEY_PASSWORD` | password key yang dibuat di langkah 1 |
+
+4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu upload APK release yang sudah signed sebagai artifact bernama `audio-enhancer-pro-release-apk-signed`.
+
+Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal — job `build` (debug) tetap jalan normal.
