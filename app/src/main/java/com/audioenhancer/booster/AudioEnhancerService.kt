@@ -98,6 +98,10 @@ class AudioEnhancerService : Service() {
     }
 
     // ---- Kontrol dari UI ----
+    fun isBassSupported(): Boolean = bassBoost != null
+    fun isVirtualizerSupported(): Boolean = virtualizer != null
+    fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
+
     fun setBassStrength(strength: Short) { // 0..1000
         try { bassBoost?.setStrength(strength) } catch (_: Exception) {}
     }

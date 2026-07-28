@@ -13,6 +13,7 @@ import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -29,10 +30,17 @@ class MainActivity : ComponentActivity() {
     private var service: AudioEnhancerService? = null
     private var bound = false
 
+    private var bassSupported by mutableStateOf(true)
+    private var virtualizerSupported by mutableStateOf(true)
+    private var loudnessSupported by mutableStateOf(true)
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as AudioEnhancerService.LocalBinder).getService()
             bound = true
+            bassSupported = service?.isBassSupported() ?: true
+            virtualizerSupported = service?.isVirtualizerSupported() ?: true
+            loudnessSupported = service?.isLoudnessSupported() ?: true
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
@@ -69,7 +77,10 @@ class MainActivity : ComponentActivity() {
                             onBass = { service?.setBassStrength(it) },
                             onVirtualizer = { service?.setVirtualizerStrength(it) },
                             onLoudness = { service?.setLoudnessGain(it) },
-                            onOpenHelp = { showOnboarding = true }
+                            onOpenHelp = { showOnboarding = true },
+                            bassSupported = bassSupported,
+                            virtualizerSupported = virtualizerSupported,
+                            loudnessSupported = loudnessSupported
                         )
                     }
                 }
@@ -95,16 +106,41 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private data class Preset(
+    val label: String,
+    val bass: Float,
+    val virtualizer: Float,
+    val loudness: Float
+)
+
+private val presets = listOf(
+    Preset("Flat", bass = 0f, virtualizer = 0f, loudness = 0f),
+    Preset("Bass Heavy", bass = 900f, virtualizer = 300f, loudness = 500f),
+    Preset("Vocal Boost", bass = 200f, virtualizer = 600f, loudness = 800f),
+    Preset("Treble Boost", bass = 100f, virtualizer = 800f, loudness = 600f)
+)
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
     onVirtualizer: (Short) -> Unit,
     onLoudness: (Float) -> Unit,
-    onOpenHelp: () -> Unit = {}
+    onOpenHelp: () -> Unit = {},
+    bassSupported: Boolean = true,
+    virtualizerSupported: Boolean = true,
+    loudnessSupported: Boolean = true
 ) {
     var bass by remember { mutableStateOf(500f) }
     var virtualizer by remember { mutableStateOf(500f) }
     var loudness by remember { mutableStateOf(0f) }
+    var activePreset by remember { mutableStateOf<String?>(null) }
+
+    fun applyPreset(preset: Preset) {
+        bass = preset.bass; onBass(preset.bass.toInt().toShort())
+        virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
+        loudness = preset.loudness; onLoudness(preset.loudness)
+        activePreset = preset.label
+    }
 
     Column(
         modifier = Modifier
@@ -127,31 +163,65 @@ fun BoosterScreen(
             }
         }
 
+        if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                Text(
+                    "Sebagian efek tidak didukung chipset/HP ini dan otomatis dinonaktifkan di bawah. " +
+                    "Efek lain tetap berfungsi normal.",
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Column {
+            Text("Preset Cepat", fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                presets.forEach { preset ->
+                    FilterChip(
+                        selected = activePreset == preset.label,
+                        onClick = { applyPreset(preset) },
+                        label = { Text(preset.label) }
+                    )
+                }
+            }
+        }
+
         FeatureControl(
             title = "🔊 Bass Boost",
-            helpText = "Menguatkan nada rendah supaya musik terasa lebih 'nendang'. 0 = mati.",
+            helpText = if (bassSupported) "Menguatkan nada rendah supaya musik terasa lebih 'nendang'. 0 = mati."
+                       else "Tidak didukung di HP ini.",
             value = bass,
             valueLabel = bass.toInt().toString(),
-            onValueChange = { bass = it; onBass(it.toInt().toShort()) },
-            valueRange = 0f..1000f
+            onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null },
+            valueRange = 0f..1000f,
+            enabled = bassSupported
         )
 
         FeatureControl(
             title = "🌐 Virtualizer",
-            helpText = "Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset.",
+            helpText = if (virtualizerSupported) "Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset."
+                       else "Tidak didukung di HP ini.",
             value = virtualizer,
             valueLabel = virtualizer.toInt().toString(),
-            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()) },
-            valueRange = 0f..1000f
+            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null },
+            valueRange = 0f..1000f,
+            enabled = virtualizerSupported
         )
 
         FeatureControl(
             title = "📢 Loudness Gain",
-            helpText = "Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.",
+            helpText = if (loudnessSupported) "Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah."
+                       else "Tidak didukung di HP ini.",
             value = loudness,
             valueLabel = "${loudness.toInt()} mB",
-            onValueChange = { loudness = it; onLoudness(it) },
-            valueRange = 0f..3000f
+            onValueChange = { loudness = it; onLoudness(it); activePreset = null },
+            valueRange = 0f..3000f,
+            enabled = loudnessSupported
         )
 
         Card {
@@ -179,7 +249,8 @@ private fun FeatureControl(
     value: Float,
     valueLabel: String,
     onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float>
+    valueRange: ClosedFloatingPointRange<Float>,
+    enabled: Boolean = true
 ) {
     Column {
         Row(
@@ -194,6 +265,6 @@ private fun FeatureControl(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange)
+        Slider(value = value, onValueChange = onValueChange, valueRange = valueRange, enabled = enabled)
     }
 }

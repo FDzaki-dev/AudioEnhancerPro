@@ -29,7 +29,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // Hanya pakai signing config release kalau env var-nya tersedia (mis. di CI).
             // Kalau build lokal tanpa keystore, Gradle akan fallback tanpa signing (APK unsigned).
