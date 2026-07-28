@@ -23,6 +23,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -50,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.activity.enableEdgeToEdge()
 
         val intent = Intent(this, AudioEnhancerService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -62,7 +64,7 @@ class MainActivity : ComponentActivity() {
         requestIgnoreBatteryOptimizations()
 
         setContent {
-            MaterialTheme {
+            AudioEnhancerTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
@@ -139,7 +141,7 @@ private fun ServiceStatusBadge() {
                 modifier = Modifier
                     .size(10.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(if (isRunning) androidx.compose.ui.graphics.Color(0xFF2ECC71) else androidx.compose.ui.graphics.Color(0xFFE74C3C))
+                    .background(if (isRunning) androidx.compose.ui.graphics.Color(0xFF30D158) else androidx.compose.ui.graphics.Color(0xFFFF453A))
             )
             Text(
                 if (isRunning) "Service berjalan di background — cek juga notifikasi 'Audio Booster aktif'"

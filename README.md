@@ -20,6 +20,16 @@ Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compos
 
 CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), hasil APK ada di tab Actions > Artifacts.
 
+## Versioning APK Release (Otomatis)
+
+Nama file APK dan nama artifact di GitHub Actions **mengikuti `versionName` di `app/build.gradle.kts` secara otomatis** — tidak perlu diubah manual di workflow. Setiap kali mau rilis versi baru:
+
+1. Ubah `versionName` (misal `"1.5"` → `"1.6"`) dan naikkan `versionCode` (+1) di `app/build.gradle.kts`.
+2. Push ke `main`.
+3. Artifact hasil build otomatis bernama `AudioEnhancerPro-v1.6-release`, isinya `AudioEnhancerPro-v1.6-release.apk`.
+
+Hanya ada **1 artifact** yang dihasilkan tiap build: APK release yang sudah signed. Tidak ada lagi APK debug terpisah.
+
 ## Setup Release Signing (APK release, bukan debug)
 
 1. **Buat keystore** (sekali saja, simpan file `.jks` ini baik-baik, jangan hilang/expose):
