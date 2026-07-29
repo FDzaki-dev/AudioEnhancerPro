@@ -37,6 +37,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -265,8 +266,8 @@ private fun ServiceStatusBadge() {
                     .background(if (isRunning) androidx.compose.ui.graphics.Color(0xFF30D158) else androidx.compose.ui.graphics.Color(0xFFFF453A))
             )
             Text(
-                if (isRunning) "Service berjalan di background — cek juga notifikasi 'Audio Booster aktif'"
-                else "Service TIDAK berjalan — coba tutup & buka ulang app",
+                if (isRunning) stringResource(R.string.status_running)
+                else stringResource(R.string.status_not_running),
                 style = MaterialTheme.typography.bodySmall
             )
         }
@@ -278,13 +279,6 @@ private data class Preset(
     val bass: Float,
     val virtualizer: Float,
     val loudness: Float
-)
-
-private val presets = listOf(
-    Preset("Flat", bass = 0f, virtualizer = 0f, loudness = 0f),
-    Preset("Bass Heavy", bass = 900f, virtualizer = 300f, loudness = 500f),
-    Preset("Vocal Boost", bass = 200f, virtualizer = 600f, loudness = 800f),
-    Preset("Treble Boost", bass = 100f, virtualizer = 800f, loudness = 600f)
 )
 
 @Composable
@@ -317,6 +311,12 @@ fun BoosterScreen(
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {}
 ) {
+    val presets = listOf(
+        Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
+        Preset(stringResource(R.string.preset_bass_heavy), bass = 900f, virtualizer = 300f, loudness = 500f),
+        Preset(stringResource(R.string.preset_vocal_boost), bass = 200f, virtualizer = 600f, loudness = 800f),
+        Preset(stringResource(R.string.preset_treble_boost), bass = 100f, virtualizer = 800f, loudness = 600f)
+    )
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
     var loudness by remember { mutableStateOf(initialLoudness) }
@@ -350,13 +350,13 @@ fun BoosterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text("Audio Booster", style = MaterialTheme.typography.headlineMedium)
-                Text("Efek berlaku ke seluruh audio sistem", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.app_title), style = MaterialTheme.typography.headlineMedium)
+                Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 ThemeModeToggle(themeMode = themeMode, onThemeModeChange = onThemeModeChange)
                 IconButton(onClick = onOpenHelp) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Bantuan / penjelasan fitur")
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
                 }
             }
         }
@@ -367,17 +367,17 @@ fun BoosterScreen(
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
-                        "🔕 Notifikasi belum diizinkan",
+                        stringResource(R.string.notif_perm_title),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Text(
-                        "Tanpa izin ini, notifikasi 'Audio Booster aktif' tidak akan muncul (service tetap jalan, tapi kamu tidak lihat indikatornya di status bar).",
+                        stringResource(R.string.notif_perm_body),
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
                     Button(onClick = onOpenNotificationSettings) {
-                        Text("Buka Pengaturan Notifikasi")
+                        Text(stringResource(R.string.notif_perm_button))
                     }
                 }
             }
@@ -386,8 +386,7 @@ fun BoosterScreen(
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
                 Text(
-                    "Sebagian efek tidak didukung chipset/HP ini dan otomatis dinonaktifkan di bawah. " +
-                    "Efek lain tetap berfungsi normal.",
+                    stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -395,9 +394,7 @@ fun BoosterScreen(
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                 Text(
-                    "Chipset HP ini mendukung sebagian efek hanya sebagai on/off, tanpa kontrol kekuatan " +
-                    "bertingkat (slider). Efek itu sudah otomatis diaktifkan penuh — slidernya dinonaktifkan " +
-                    "karena memang tidak ada gunanya di HP ini.",
+                    stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -405,7 +402,7 @@ fun BoosterScreen(
         }
 
         Column {
-            Text("Preset Cepat", fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -422,11 +419,11 @@ fun BoosterScreen(
         }
 
         FeatureControl(
-            title = "🔊 Bass Boost",
+            title = stringResource(R.string.feature_bass_title),
             helpText = when {
-                !bassSupported -> "Tidak didukung di HP ini."
-                !bassStrengthSupported -> "Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat."
-                else -> "Menguatkan nada rendah supaya musik terasa lebih 'nendang'. 0 = mati."
+                !bassSupported -> stringResource(R.string.feature_help_unsupported)
+                !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                else -> stringResource(R.string.feature_bass_help_normal)
             },
             value = bass,
             valueLabel = bass.toInt().toString(),
@@ -436,11 +433,11 @@ fun BoosterScreen(
         )
 
         FeatureControl(
-            title = "🌐 Virtualizer",
+            title = stringResource(R.string.feature_virtualizer_title),
             helpText = when {
-                !virtualizerSupported -> "Tidak didukung di HP ini."
-                !virtualizerStrengthSupported -> "Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat."
-                else -> "Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset."
+                !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
+                !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                else -> stringResource(R.string.feature_virtualizer_help_normal)
             },
             value = virtualizer,
             valueLabel = virtualizer.toInt().toString(),
@@ -450,9 +447,9 @@ fun BoosterScreen(
         )
 
         FeatureControl(
-            title = "📢 Loudness Gain",
-            helpText = if (loudnessSupported) "Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah."
-                       else "Tidak didukung di HP ini.",
+            title = stringResource(R.string.feature_loudness_title),
+            helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
+                       else stringResource(R.string.feature_help_unsupported),
             value = loudness,
             valueLabel = "${loudness.toInt()} mB",
             onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
@@ -484,9 +481,9 @@ fun BoosterScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("🎨 Warna ikut wallpaper", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.dynamic_color_title), fontWeight = FontWeight.Bold)
                         Text(
-                            "Pakai palet warna Material You dari wallpaper HP, menggantikan tema biru khas app ini.",
+                            stringResource(R.string.dynamic_color_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -498,18 +495,17 @@ fun BoosterScreen(
 
         Card {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("🛡️ Kenapa perlu izin baterai & autostart?", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.battery_card_title), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    "Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. " +
-                    "Di HP MIUI/ColorOS/EMUI, aktifkan juga 'Autostart' secara manual di pengaturan HP.",
+                    stringResource(R.string.battery_card_body),
                     style = MaterialTheme.typography.bodySmall
                 )
             }
         }
 
         TextButton(onClick = onOpenHelp) {
-            Text("Lihat penjelasan lengkap tiap fitur →")
+            Text(stringResource(R.string.see_full_explanation))
         }
         }
     }
@@ -519,9 +515,9 @@ fun BoosterScreen(
 @Composable
 private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
     val (icon, description) = when (themeMode) {
-        PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to "Tema: Terang (tap untuk ganti ke Gelap)"
-        PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to "Tema: Gelap (tap untuk ganti ke Ikuti Sistem)"
-        else -> Icons.Filled.Brightness4 to "Tema: Ikuti Sistem (tap untuk ganti ke Terang)"
+        PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to stringResource(R.string.theme_desc_light)
+        PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to stringResource(R.string.theme_desc_dark)
+        else -> Icons.Filled.Brightness4 to stringResource(R.string.theme_desc_system)
     }
     IconButton(onClick = {
         val next = when (themeMode) {
@@ -561,16 +557,16 @@ private fun EqualizerSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("🎚️ Equalizer Manual", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
                     Text(
-                        "Atur tiap pita frekuensi secara detail (opsional)",
+                        stringResource(R.string.eq_subtitle),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                    contentDescription = if (expanded) "Tutup equalizer manual" else "Buka equalizer manual"
+                    contentDescription = if (expanded) stringResource(R.string.cd_eq_collapse) else stringResource(R.string.cd_eq_expand)
                 )
             }
 

@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
@@ -28,57 +29,46 @@ data class OnboardingPage(
     val detail: String? = null
 )
 
-private val onboardingPages = listOf(
-    OnboardingPage(
-        emoji = "🎧",
-        title = "Selamat datang di AudioEnhancerPro",
-        description = "Aplikasi ini meningkatkan kualitas & volume audio di seluruh sistem HP kamu — " +
-            "bukan cuma di dalam aplikasi ini saja, tapi juga saat kamu dengar musik, nonton video, " +
-            "atau main game di aplikasi lain."
-    ),
-    OnboardingPage(
-        emoji = "🔊",
-        title = "Bass Boost",
-        description = "Menambah kekuatan suara nada rendah (bass) supaya musik terasa lebih 'nendang'.",
-        detail = "Geser slider ke kanan untuk bass lebih kuat. Nilai 0 = mati, 1000 = maksimal. " +
-            "Cocok dipakai saat dengar musik EDM, hip-hop, atau lewat speaker kecil yang biasanya lemah di bass."
-    ),
-    OnboardingPage(
-        emoji = "🌐",
-        title = "Virtualizer (Kejernihan Stereo)",
-        description = "Membuat suara terasa lebih lebar dan 'mengelilingi' kamu, seperti efek surround.",
-        detail = "Efek ini paling terasa kalau kamu pakai earphone/headset. Kalau dengar lewat speaker HP, " +
-            "efeknya lebih halus. Naikkan pelan-pelan — nilai terlalu tinggi bisa bikin suara terdengar aneh di beberapa lagu."
-    ),
-    OnboardingPage(
-        emoji = "📢",
-        title = "Loudness Gain",
-        description = "Menambah volume audio melebihi batas normal sistem (boost tambahan di atas volume HP).",
-        detail = "Berguna kalau volume HP kamu sudah maksimal tapi masih kurang keras. " +
-            "Catatan: makin tinggi gain, makin besar juga risiko suara pecah (distorsi) — kalau terdengar pecah, turunkan lagi."
-    ),
-    OnboardingPage(
-        emoji = "🛡️",
-        title = "Kenapa app minta izin baterai?",
-        description = "Supaya booster tetap aktif walau HP di-lock atau app di-scroll dari recent apps.",
-        detail = "Android secara default mematikan aplikasi background untuk hemat baterai. " +
-            "Kalau app ini dimatikan sistem, efek boost ikut hilang. Izin 'abaikan optimasi baterai' mencegah itu. " +
-            "Di HP Xiaomi/Oppo/Vivo/Huawei, kamu mungkin juga perlu aktifkan 'Autostart' secara manual di pengaturan HP — " +
-            "app tidak bisa melakukan ini secara otomatis, itu kebijakan keamanan Android."
-    ),
-    OnboardingPage(
-        emoji = "🔔",
-        title = "Notifikasi yang selalu muncul",
-        description = "Selama booster aktif, kamu akan lihat notifikasi kecil yang tidak bisa di-swipe hilang.",
-        detail = "Ini bukan bug — notifikasi ini justru yang membuat Android tahu aplikasi sedang " +
-            "'bekerja penting' sehingga tidak gampang dimatikan. Tekan tombol 'Matikan' di notifikasi " +
-            "itu sendiri kalau kamu mau menghentikan booster sepenuhnya."
-    )
-)
-
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun OnboardingScreen(onFinish: () -> Unit) {
+    val onboardingPages = listOf(
+        OnboardingPage(
+            emoji = "🎧",
+            title = stringResource(R.string.ob1_title),
+            description = stringResource(R.string.ob1_desc)
+        ),
+        OnboardingPage(
+            emoji = "🔊",
+            title = stringResource(R.string.ob2_title),
+            description = stringResource(R.string.ob2_desc),
+            detail = stringResource(R.string.ob2_detail)
+        ),
+        OnboardingPage(
+            emoji = "🌐",
+            title = stringResource(R.string.ob3_title),
+            description = stringResource(R.string.ob3_desc),
+            detail = stringResource(R.string.ob3_detail)
+        ),
+        OnboardingPage(
+            emoji = "📢",
+            title = stringResource(R.string.ob4_title),
+            description = stringResource(R.string.ob4_desc),
+            detail = stringResource(R.string.ob4_detail)
+        ),
+        OnboardingPage(
+            emoji = "🛡️",
+            title = stringResource(R.string.ob5_title),
+            description = stringResource(R.string.ob5_desc),
+            detail = stringResource(R.string.ob5_detail)
+        ),
+        OnboardingPage(
+            emoji = "🔔",
+            title = stringResource(R.string.ob6_title),
+            description = stringResource(R.string.ob6_desc),
+            detail = stringResource(R.string.ob6_detail)
+        )
+    )
     val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
     val scope = rememberCoroutineScope()
 
@@ -94,7 +84,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             onClick = onFinish,
             modifier = Modifier.align(Alignment.End)
         ) {
-            Text("Lewati")
+            Text(stringResource(R.string.onboarding_skip))
         }
 
         HorizontalPager(
@@ -188,7 +178,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (isLastPage) "Mulai Pakai Aplikasi" else "Lanjut")
+            Text(if (isLastPage) stringResource(R.string.onboarding_start) else stringResource(R.string.onboarding_next))
         }
     }
     }

@@ -1,0 +1,93 @@
+<resources>
+    <string name="app_name">Audio Booster</string>
+
+    <!-- Status badge -->
+    <string name="status_running">Service running in background — also check the \'Audio Booster active\' notification</string>
+    <string name="status_not_running">Service is NOT running — try closing and reopening the app</string>
+
+    <!-- Header -->
+    <string name="app_title">Audio Booster</string>
+    <string name="app_subtitle">Effects apply to all system audio</string>
+    <string name="cd_help">Help / feature explanation</string>
+
+    <!-- Notification permission -->
+    <string name="notif_perm_title">🔕 Notification not allowed yet</string>
+    <string name="notif_perm_body">Without this permission, the \'Audio Booster active\' notification won\'t appear (the service still runs, you just won\'t see the status bar indicator).</string>
+    <string name="notif_perm_button">Open Notification Settings</string>
+
+    <!-- Chipset support banners -->
+    <string name="unsupported_banner">Some effects aren\'t supported by this device\'s chipset and are automatically disabled below. Other effects still work normally.</string>
+    <string name="strength_unsupported_banner">This chipset supports some effects only as on/off, without granular strength control (slider). Those effects are already enabled at full strength — their sliders are disabled because they wouldn\'t do anything on this device anyway.</string>
+
+    <!-- Presets -->
+    <string name="presets_title">Quick Presets</string>
+    <string name="preset_flat">Flat</string>
+    <string name="preset_bass_heavy">Bass Heavy</string>
+    <string name="preset_vocal_boost">Vocal Boost</string>
+    <string name="preset_treble_boost">Treble Boost</string>
+
+    <!-- Feature controls -->
+    <string name="feature_bass_title">🔊 Bass Boost</string>
+    <string name="feature_bass_help_normal">Boosts low tones so music feels more punchy. 0 = off.</string>
+    <string name="feature_virtualizer_title">🌐 Virtualizer</string>
+    <string name="feature_virtualizer_help_normal">Makes sound feel wider — most noticeable when using earphones/headsets.</string>
+    <string name="feature_loudness_title">📢 Loudness Gain</string>
+    <string name="feature_loudness_help_normal">Extra volume boost above the phone\'s normal limit. Lower it if the sound starts clipping.</string>
+    <string name="feature_help_unsupported">Not supported on this device.</string>
+    <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
+
+    <!-- Manual equalizer -->
+    <string name="eq_title">🎚️ Manual Equalizer</string>
+    <string name="eq_subtitle">Fine-tune each frequency band (optional)</string>
+    <string name="cd_eq_expand">Open manual equalizer</string>
+    <string name="cd_eq_collapse">Close manual equalizer</string>
+
+    <!-- Dynamic color -->
+    <string name="dynamic_color_title">🎨 Match wallpaper colors</string>
+    <string name="dynamic_color_desc">Use Material You colors from your wallpaper, replacing this app\'s signature blue theme.</string>
+
+    <!-- Battery card -->
+    <string name="battery_card_title">🛡️ Why does it need battery permission &amp; autostart?</string>
+    <string name="battery_card_body">So the booster keeps running even when your phone is locked or the app is swiped away from recent apps. On MIUI/ColorOS/EMUI phones, also enable \'Autostart\' manually in phone settings.</string>
+    <string name="see_full_explanation">See full explanation of each feature →</string>
+
+    <!-- Theme toggle -->
+    <string name="theme_desc_light">Theme: Light (tap to switch to Dark)</string>
+    <string name="theme_desc_dark">Theme: Dark (tap to switch to Follow System)</string>
+    <string name="theme_desc_system">Theme: Follow System (tap to switch to Light)</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_start">Start Using the App</string>
+    <string name="onboarding_next">Next</string>
+
+    <string name="ob1_title">Welcome to AudioEnhancerPro</string>
+    <string name="ob1_desc">This app boosts audio quality &amp; volume across your entire phone system — not just inside this app, but also when you listen to music, watch videos, or play games in other apps.</string>
+
+    <string name="ob2_title">Bass Boost</string>
+    <string name="ob2_desc">Adds low-tone (bass) power so music feels more punchy.</string>
+    <string name="ob2_detail">Slide right for stronger bass. 0 = off, 1000 = maximum. Great for EDM, hip-hop, or small speakers that are usually weak on bass.</string>
+
+    <string name="ob3_title">Virtualizer (Stereo Widening)</string>
+    <string name="ob3_desc">Makes sound feel wider and surround you, like a surround-sound effect.</string>
+    <string name="ob3_detail">This effect is most noticeable with earphones/headsets. Through phone speakers, the effect is subtler. Raise it gradually — too high a value can make some songs sound odd.</string>
+
+    <string name="ob4_title">Loudness Gain</string>
+    <string name="ob4_desc">Adds volume beyond the system\'s normal limit (extra boost on top of your phone volume).</string>
+    <string name="ob4_detail">Useful when your phone volume is already maxed out but still not loud enough. Note: the higher the gain, the higher the risk of distortion — if it sounds distorted, turn it back down.</string>
+
+    <string name="ob5_title">Why does the app ask for battery permission?</string>
+    <string name="ob5_desc">So the booster stays active even when your phone is locked or the app is swiped away from recent apps.</string>
+    <string name="ob5_detail">Android kills background apps by default to save battery. If this app gets killed, the boost effect disappears too. The \'ignore battery optimization\' permission prevents that. On Xiaomi/Oppo/Vivo/Huawei phones, you may also need to manually enable \'Autostart\' in phone settings — the app can\'t do this automatically, that\'s an Android security policy.</string>
+
+    <string name="ob6_title">A notification that\'s always there</string>
+    <string name="ob6_desc">While the booster is active, you\'ll see a small notification that can\'t be swiped away.</string>
+    <string name="ob6_detail">This isn\'t a bug — this notification is exactly what tells Android the app is doing \'important work\' so it doesn\'t get killed easily. Tap the \'Stop\' button in the notification itself if you want to fully stop the booster.</string>
+
+    <!-- Foreground service notification -->
+    <string name="notif_channel_name">Audio Booster Active</string>
+    <string name="notif_channel_desc">Shows the running status of the audio booster</string>
+    <string name="notif_title">Audio Booster active</string>
+    <string name="notif_text">Enhancing system audio quality &amp; volume</string>
+    <string name="notif_action_stop">Stop</string>
+</resources>

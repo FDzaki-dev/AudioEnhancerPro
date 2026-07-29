@@ -28,6 +28,12 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.17 - Batch 10: Lokalisasi/i18n (Indonesia + Inggris)
+- **Semua teks UI dipindah ke `strings.xml`** — sebelumnya 40+ string hardcode langsung di Kotlin (MainActivity, OnboardingScreen, notifikasi service). Mencakup: header, badge status, banner dukungan chipset, preset, semua feature control (Bass/Virtualizer/Loudness/Equalizer), kartu dynamic color & baterai, toggle tema, 6 halaman onboarding lengkap, sampai notifikasi foreground service (channel name, title, text, tombol "Matikan").
+- **Tambah `values-en/strings.xml`** — terjemahan Inggris lengkap untuk semua key yang sama. User dengan bahasa HP Inggris sekarang otomatis dapat UI Inggris; bahasa lain tetap fallback ke `values/strings.xml` (Indonesia, default).
+- Verifikasi: jumlah & nama key di `values/strings.xml` dan `values-en/strings.xml` **cocok 100%** (tidak ada key yang lupa diterjemahkan atau nyasar).
+- Bump `versionCode` → 17, `versionName` → "1.17".
+
 ## v1.16 - Batch 12: Material You (opt-in) + dukungan tablet/foldable
 - **Dynamic color (Material You), opt-in**: toggle baru "🎨 Warna ikut wallpaper" (hanya muncul di Android 12+/API 31+) — kalau diaktifkan, warna app ikut wallpaper HP (dynamicLightColorScheme/dynamicDarkColorScheme). **Default OFF** — palet biru khas iOS-style yang sudah dirancang sebagai identitas visual app tetap jadi default, dynamic color murni pilihan user yang mau lebih "nyatu" dengan tema HP-nya. Preferensi tersimpan permanen.
 - **Dukungan tablet/foldable**: konten utama (BoosterScreen & OnboardingScreen) sekarang dibatasi max-width 600dp dan ditengahkan di layar lebar — sebelumnya slider/kartu melebar penuh sampai ke tepi layar tablet yang bikin proporsi aneh. Di HP biasa (<600dp) perilakunya identik seperti sebelumnya, tidak ada perubahan visual.

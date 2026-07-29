@@ -178,9 +178,9 @@ class AudioEnhancerService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Audio Booster Aktif",
+                CHANNEL_ID, getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Menampilkan status booster audio yang sedang berjalan" }
+            ).apply { description = getString(R.string.notif_channel_desc) }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
         }
@@ -198,12 +198,12 @@ class AudioEnhancerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Audio Booster aktif")
-            .setContentText("Meningkatkan kualitas & volume audio sistem")
+            .setContentTitle(getString(R.string.notif_title))
+            .setContentText(getString(R.string.notif_text))
             .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
             .setOngoing(true)
             .setContentIntent(openPending)
-            .addAction(0, "Matikan", stopPending)
+            .addAction(0, getString(R.string.notif_action_stop), stopPending)
             .build()
     }
 }

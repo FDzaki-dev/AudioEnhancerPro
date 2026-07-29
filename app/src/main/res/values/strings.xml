@@ -1,3 +1,93 @@
 <resources>
     <string name="app_name">Audio Booster</string>
+
+    <!-- Status badge -->
+    <string name="status_running">Service berjalan di background — cek juga notifikasi \'Audio Booster aktif\'</string>
+    <string name="status_not_running">Service TIDAK berjalan — coba tutup &amp; buka ulang app</string>
+
+    <!-- Header -->
+    <string name="app_title">Audio Booster</string>
+    <string name="app_subtitle">Efek berlaku ke seluruh audio sistem</string>
+    <string name="cd_help">Bantuan / penjelasan fitur</string>
+
+    <!-- Izin notifikasi -->
+    <string name="notif_perm_title">🔕 Notifikasi belum diizinkan</string>
+    <string name="notif_perm_body">Tanpa izin ini, notifikasi \'Audio Booster aktif\' tidak akan muncul (service tetap jalan, tapi kamu tidak lihat indikatornya di status bar).</string>
+    <string name="notif_perm_button">Buka Pengaturan Notifikasi</string>
+
+    <!-- Banner dukungan chipset -->
+    <string name="unsupported_banner">Sebagian efek tidak didukung chipset/HP ini dan otomatis dinonaktifkan di bawah. Efek lain tetap berfungsi normal.</string>
+    <string name="strength_unsupported_banner">Chipset HP ini mendukung sebagian efek hanya sebagai on/off, tanpa kontrol kekuatan bertingkat (slider). Efek itu sudah otomatis diaktifkan penuh — slidernya dinonaktifkan karena memang tidak ada gunanya di HP ini.</string>
+
+    <!-- Preset -->
+    <string name="presets_title">Preset Cepat</string>
+    <string name="preset_flat">Flat</string>
+    <string name="preset_bass_heavy">Bass Heavy</string>
+    <string name="preset_vocal_boost">Vocal Boost</string>
+    <string name="preset_treble_boost">Treble Boost</string>
+
+    <!-- Kontrol fitur -->
+    <string name="feature_bass_title">🔊 Bass Boost</string>
+    <string name="feature_bass_help_normal">Menguatkan nada rendah supaya musik terasa lebih \'nendang\'. 0 = mati.</string>
+    <string name="feature_virtualizer_title">🌐 Virtualizer</string>
+    <string name="feature_virtualizer_help_normal">Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset.</string>
+    <string name="feature_loudness_title">📢 Loudness Gain</string>
+    <string name="feature_loudness_help_normal">Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.</string>
+    <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
+    <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
+
+    <!-- Equalizer manual -->
+    <string name="eq_title">🎚️ Equalizer Manual</string>
+    <string name="eq_subtitle">Atur tiap pita frekuensi secara detail (opsional)</string>
+    <string name="cd_eq_expand">Buka equalizer manual</string>
+    <string name="cd_eq_collapse">Tutup equalizer manual</string>
+
+    <!-- Dynamic color -->
+    <string name="dynamic_color_title">🎨 Warna ikut wallpaper</string>
+    <string name="dynamic_color_desc">Pakai palet warna Material You dari wallpaper HP, menggantikan tema biru khas app ini.</string>
+
+    <!-- Kartu baterai -->
+    <string name="battery_card_title">🛡️ Kenapa perlu izin baterai &amp; autostart?</string>
+    <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
+    <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
+
+    <!-- Toggle tema -->
+    <string name="theme_desc_light">Tema: Terang (tap untuk ganti ke Gelap)</string>
+    <string name="theme_desc_dark">Tema: Gelap (tap untuk ganti ke Ikuti Sistem)</string>
+    <string name="theme_desc_system">Tema: Ikuti Sistem (tap untuk ganti ke Terang)</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_skip">Lewati</string>
+    <string name="onboarding_start">Mulai Pakai Aplikasi</string>
+    <string name="onboarding_next">Lanjut</string>
+
+    <string name="ob1_title">Selamat datang di AudioEnhancerPro</string>
+    <string name="ob1_desc">Aplikasi ini meningkatkan kualitas &amp; volume audio di seluruh sistem HP kamu — bukan cuma di dalam aplikasi ini saja, tapi juga saat kamu dengar musik, nonton video, atau main game di aplikasi lain.</string>
+
+    <string name="ob2_title">Bass Boost</string>
+    <string name="ob2_desc">Menambah kekuatan suara nada rendah (bass) supaya musik terasa lebih \'nendang\'.</string>
+    <string name="ob2_detail">Geser slider ke kanan untuk bass lebih kuat. Nilai 0 = mati, 1000 = maksimal. Cocok dipakai saat dengar musik EDM, hip-hop, atau lewat speaker kecil yang biasanya lemah di bass.</string>
+
+    <string name="ob3_title">Virtualizer (Kejernihan Stereo)</string>
+    <string name="ob3_desc">Membuat suara terasa lebih lebar dan \'mengelilingi\' kamu, seperti efek surround.</string>
+    <string name="ob3_detail">Efek ini paling terasa kalau kamu pakai earphone/headset. Kalau dengar lewat speaker HP, efeknya lebih halus. Naikkan pelan-pelan — nilai terlalu tinggi bisa bikin suara terdengar aneh di beberapa lagu.</string>
+
+    <string name="ob4_title">Loudness Gain</string>
+    <string name="ob4_desc">Menambah volume audio melebihi batas normal sistem (boost tambahan di atas volume HP).</string>
+    <string name="ob4_detail">Berguna kalau volume HP kamu sudah maksimal tapi masih kurang keras. Catatan: makin tinggi gain, makin besar juga risiko suara pecah (distorsi) — kalau terdengar pecah, turunkan lagi.</string>
+
+    <string name="ob5_title">Kenapa app minta izin baterai?</string>
+    <string name="ob5_desc">Supaya booster tetap aktif walau HP di-lock atau app di-scroll dari recent apps.</string>
+    <string name="ob5_detail">Android secara default mematikan aplikasi background untuk hemat baterai. Kalau app ini dimatikan sistem, efek boost ikut hilang. Izin \'abaikan optimasi baterai\' mencegah itu. Di HP Xiaomi/Oppo/Vivo/Huawei, kamu mungkin juga perlu aktifkan \'Autostart\' secara manual di pengaturan HP — app tidak bisa melakukan ini secara otomatis, itu kebijakan keamanan Android.</string>
+
+    <string name="ob6_title">Notifikasi yang selalu muncul</string>
+    <string name="ob6_desc">Selama booster aktif, kamu akan lihat notifikasi kecil yang tidak bisa di-swipe hilang.</string>
+    <string name="ob6_detail">Ini bukan bug — notifikasi ini justru yang membuat Android tahu aplikasi sedang \'bekerja penting\' sehingga tidak gampang dimatikan. Tekan tombol \'Matikan\' di notifikasi itu sendiri kalau kamu mau menghentikan booster sepenuhnya.</string>
+
+    <!-- Notifikasi foreground service -->
+    <string name="notif_channel_name">Audio Booster Aktif</string>
+    <string name="notif_channel_desc">Menampilkan status booster audio yang sedang berjalan</string>
+    <string name="notif_title">Audio Booster aktif</string>
+    <string name="notif_text">Meningkatkan kualitas &amp; volume audio sistem</string>
+    <string name="notif_action_stop">Matikan</string>
 </resources>
