@@ -14,8 +14,12 @@ import androidx.core.app.NotificationCompat
 /**
  * Service utama: menempelkan efek audio ke sesi output global (session 0)
  * supaya boosting berlaku ke seluruh audio sistem, bukan hanya 1 aplikasi.
- * Berjalan sebagai foreground service (mediaPlayback) + START_STICKY + wakelock
- * supaya tidak mudah dibunuh oleh Android task manager.
+ * Berjalan sebagai foreground service (mediaPlayback) + START_STICKY supaya
+ * tidak mudah dibunuh oleh Android task manager.
+ *
+ * CATATAN: service ini TIDAK memegang PowerManager.WakeLock apa pun — jadi tidak
+ * ada beban baterai dari wakelock yang lupa dilepas. "Tidak mudah dibunuh" di sini
+ * murni dari kombinasi foreground service + START_STICKY, bukan dari wakelock.
  */
 class AudioEnhancerService : Service() {
 
