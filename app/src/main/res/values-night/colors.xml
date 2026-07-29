@@ -1,0 +1,4 @@
+<resources>
+    <!-- Varian gelap: background hitam pekat khas splash iOS-style -->
+    <color name="splash_background">#000000</color>
+</resources>

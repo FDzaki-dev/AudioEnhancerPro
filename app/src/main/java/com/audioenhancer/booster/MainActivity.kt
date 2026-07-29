@@ -17,13 +17,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -72,6 +77,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
@@ -87,7 +93,14 @@ class MainActivity : ComponentActivity() {
         requestIgnoreBatteryOptimizations()
 
         setContent {
-            AudioEnhancerTheme {
+            var themeMode by remember { mutableStateOf(PrefsHelper.getThemeMode(this@MainActivity)) }
+            val darkTheme = when (themeMode) {
+                PrefsHelper.THEME_MODE_LIGHT -> false
+                PrefsHelper.THEME_MODE_DARK -> true
+                else -> isSystemInDarkTheme()
+            }
+
+            AudioEnhancerTheme(darkTheme = darkTheme) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
@@ -110,8 +123,15 @@ class MainActivity : ComponentActivity() {
                             initialBass = PrefsHelper.getBass(this@MainActivity).toFloat(),
                             initialVirtualizer = PrefsHelper.getVirtualizer(this@MainActivity).toFloat(),
                             initialLoudness = PrefsHelper.getLoudness(this@MainActivity),
+                            initialActivePreset = PrefsHelper.getActivePreset(this@MainActivity),
+                            onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,
-                            onOpenNotificationSettings = { openNotificationSettings() }
+                            onOpenNotificationSettings = { openNotificationSettings() },
+                            themeMode = themeMode,
+                            onThemeModeChange = {
+                                themeMode = it
+                                PrefsHelper.setThemeMode(this@MainActivity, it)
+                            }
                         )
                     }
                 }
@@ -221,19 +241,26 @@ fun BoosterScreen(
     initialBass: Float = 500f,
     initialVirtualizer: Float = 500f,
     initialLoudness: Float = 0f,
+    initialActivePreset: String? = null,
+    onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
-    onOpenNotificationSettings: () -> Unit = {}
+    onOpenNotificationSettings: () -> Unit = {},
+    themeMode: Int = PrefsHelper.THEME_MODE_SYSTEM,
+    onThemeModeChange: (Int) -> Unit = {}
 ) {
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
     var loudness by remember { mutableStateOf(initialLoudness) }
-    var activePreset by remember { mutableStateOf<String?>(null) }
+    // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
+    // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
+    var activePreset by remember { mutableStateOf(initialActivePreset) }
 
     fun applyPreset(preset: Preset) {
         bass = preset.bass; onBass(preset.bass.toInt().toShort())
         virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
         loudness = preset.loudness; onLoudness(preset.loudness)
         activePreset = preset.label
+        onActivePresetChange(preset.label)
     }
 
     Column(
@@ -252,8 +279,11 @@ fun BoosterScreen(
                 Text("Audio Booster", style = MaterialTheme.typography.headlineMedium)
                 Text("Efek berlaku ke seluruh audio sistem", style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = onOpenHelp) {
-                Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Bantuan / penjelasan fitur")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ThemeModeToggle(themeMode = themeMode, onThemeModeChange = onThemeModeChange)
+                IconButton(onClick = onOpenHelp) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = "Bantuan / penjelasan fitur")
+                }
             }
         }
 
@@ -313,7 +343,7 @@ fun BoosterScreen(
                        else "Tidak didukung di HP ini.",
             value = bass,
             valueLabel = bass.toInt().toString(),
-            onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null },
+            onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
             valueRange = 0f..1000f,
             enabled = bassSupported
         )
@@ -324,7 +354,7 @@ fun BoosterScreen(
                        else "Tidak didukung di HP ini.",
             value = virtualizer,
             valueLabel = virtualizer.toInt().toString(),
-            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null },
+            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
             valueRange = 0f..1000f,
             enabled = virtualizerSupported
         )
@@ -335,7 +365,7 @@ fun BoosterScreen(
                        else "Tidak didukung di HP ini.",
             value = loudness,
             valueLabel = "${loudness.toInt()} mB",
-            onValueChange = { loudness = it; onLoudness(it); activePreset = null },
+            onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
             valueRange = 0f..3000f,
             enabled = loudnessSupported
         )
@@ -355,6 +385,26 @@ fun BoosterScreen(
         TextButton(onClick = onOpenHelp) {
             Text("Lihat penjelasan lengkap tiap fitur →")
         }
+    }
+}
+
+/** Satu tombol ikon yang berputar antar 3 mode: ikut sistem → terang → gelap → (ulang). */
+@Composable
+private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
+    val (icon, description) = when (themeMode) {
+        PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to "Tema: Terang (tap untuk ganti ke Gelap)"
+        PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to "Tema: Gelap (tap untuk ganti ke Ikuti Sistem)"
+        else -> Icons.Filled.Brightness4 to "Tema: Ikuti Sistem (tap untuk ganti ke Terang)"
+    }
+    IconButton(onClick = {
+        val next = when (themeMode) {
+            PrefsHelper.THEME_MODE_SYSTEM -> PrefsHelper.THEME_MODE_LIGHT
+            PrefsHelper.THEME_MODE_LIGHT -> PrefsHelper.THEME_MODE_DARK
+            else -> PrefsHelper.THEME_MODE_SYSTEM
+        }
+        onThemeModeChange(next)
+    }) {
+        Icon(icon, contentDescription = description)
     }
 }
 

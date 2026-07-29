@@ -11,8 +11,8 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "1.10"
+        versionCode = 11
+        versionName = "1.11"
     }
 
     signingConfigs {
@@ -68,4 +68,5 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }

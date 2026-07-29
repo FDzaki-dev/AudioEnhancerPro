@@ -1,0 +1,14 @@
+<resources>
+    <!--
+        Splash screen kustom (Android 12+ Splash Screen API) yang secara eksplisit
+        pakai icon aplikasi sendiri (@mipmap/ic_launcher), bukan icon default sistem.
+        Setelah splash selesai, tema otomatis dialihkan ke postSplashScreenTheme
+        (tema lama aplikasi) oleh library core-splashscreen — tidak perlu setTheme manual.
+    -->
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <item name="postSplashScreenTheme">@android:style/Theme.Material.Light.NoActionBar</item>
+    </style>
+</resources>

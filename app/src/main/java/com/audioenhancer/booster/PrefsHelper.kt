@@ -9,6 +9,13 @@ object PrefsHelper {
     private const val KEY_BASS = "bass_strength"
     private const val KEY_VIRTUALIZER = "virtualizer_strength"
     private const val KEY_LOUDNESS = "loudness_gain"
+    private const val KEY_ACTIVE_PRESET = "active_preset"
+    private const val KEY_THEME_MODE = "theme_mode"
+
+    /** 0 = ikut sistem, 1 = terang, 2 = gelap. */
+    const val THEME_MODE_SYSTEM = 0
+    const val THEME_MODE_LIGHT = 1
+    const val THEME_MODE_DARK = 2
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -40,5 +47,21 @@ object PrefsHelper {
 
     fun setLoudness(context: Context, value: Float) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putFloat(KEY_LOUDNESS, value).apply()
+    }
+
+    // --- Preset aktif: supaya chip preset yang terpilih tidak hilang saat app dibuka ulang ---
+    fun getActivePreset(context: Context): String? =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_ACTIVE_PRESET, null)
+
+    fun setActivePreset(context: Context, label: String?) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_ACTIVE_PRESET, label).apply()
+    }
+
+    // --- Mode tema manual: override system theme kalau user memilih terang/gelap secara eksplisit ---
+    fun getThemeMode(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_THEME_MODE, THEME_MODE_SYSTEM)
+
+    fun setThemeMode(context: Context, mode: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_THEME_MODE, mode).apply()
     }
 }

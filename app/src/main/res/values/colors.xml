@@ -1,0 +1,4 @@
+<resources>
+    <!-- Warna latar splash screen (Android 12+) — selaras dengan tema terang Apple-style di Theme.kt -->
+    <color name="splash_background">#F2F2F7</color>
+</resources>

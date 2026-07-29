@@ -12,10 +12,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 import kotlinx.coroutines.launch
 
 /** Satu halaman penjelasan fitur di onboarding. */
@@ -94,8 +96,22 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             modifier = Modifier.weight(1f)
         ) { pageIndex ->
             val page = onboardingPages[pageIndex]
+
+            // Jarak halaman ini dari halaman yang sedang aktif di layar (0 = penuh di tengah,
+            // 1 = sepenuhnya di luar layar) — dipakai untuk crossfade + scale halus saat swipe,
+            // menggantikan perpindahan instan/patah sebelumnya.
+            val pageOffset = ((pagerState.currentPage - pageIndex) + pagerState.currentPageOffsetFraction)
+            val transitionFraction = 1f - abs(pageOffset).coerceIn(0f, 1f)
+
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        alpha = 0.4f + (0.6f * transitionFraction)
+                        val scale = 0.88f + (0.12f * transitionFraction)
+                        scaleX = scale
+                        scaleY = scale
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
