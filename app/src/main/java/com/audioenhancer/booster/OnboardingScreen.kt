@@ -82,7 +82,13 @@ fun OnboardingScreen(onFinish: () -> Unit) {
     val pagerState = rememberPagerState(pageCount = { onboardingPages.size })
     val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp)) {
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .widthIn(max = 600.dp)
+            .padding(24.dp)
+    ) {
 
         TextButton(
             onClick = onFinish,
@@ -184,5 +190,6 @@ fun OnboardingScreen(onFinish: () -> Unit) {
         ) {
             Text(if (isLastPage) "Mulai Pakai Aplikasi" else "Lanjut")
         }
+    }
     }
 }

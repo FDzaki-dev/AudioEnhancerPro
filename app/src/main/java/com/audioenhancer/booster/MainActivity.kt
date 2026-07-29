@@ -134,13 +134,14 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var themeMode by remember { mutableStateOf(PrefsHelper.getThemeMode(this@MainActivity)) }
+            var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }
             val darkTheme = when (themeMode) {
                 PrefsHelper.THEME_MODE_LIGHT -> false
                 PrefsHelper.THEME_MODE_DARK -> true
                 else -> isSystemInDarkTheme()
             }
 
-            AudioEnhancerTheme(darkTheme = darkTheme) {
+            AudioEnhancerTheme(darkTheme = darkTheme, useDynamicColor = useDynamicColor) {
                 Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
@@ -183,6 +184,11 @@ class MainActivity : ComponentActivity() {
                             onThemeModeChange = {
                                 themeMode = it
                                 PrefsHelper.setThemeMode(this@MainActivity, it)
+                            },
+                            useDynamicColor = useDynamicColor,
+                            onUseDynamicColorChange = {
+                                useDynamicColor = it
+                                PrefsHelper.setUseDynamicColor(this@MainActivity, it)
                             }
                         )
                     }
@@ -307,7 +313,9 @@ fun BoosterScreen(
     notificationPermissionGranted: Boolean = true,
     onOpenNotificationSettings: () -> Unit = {},
     themeMode: Int = PrefsHelper.THEME_MODE_SYSTEM,
-    onThemeModeChange: (Int) -> Unit = {}
+    onThemeModeChange: (Int) -> Unit = {},
+    useDynamicColor: Boolean = false,
+    onUseDynamicColorChange: (Boolean) -> Unit = {}
 ) {
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
@@ -324,13 +332,18 @@ fun BoosterScreen(
         onActivePresetChange(preset.label)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
-    ) {
+    // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
+    // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
+    // tetap sama seperti sebelumnya (full width).
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 600.dp)
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -461,6 +474,28 @@ fun BoosterScreen(
             )
         }
 
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            Card {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("🎨 Warna ikut wallpaper", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Pakai palet warna Material You dari wallpaper HP, menggantikan tema biru khas app ini.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = useDynamicColor, onCheckedChange = onUseDynamicColorChange)
+                }
+            }
+        }
+
         Card {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("🛡️ Kenapa perlu izin baterai & autostart?", fontWeight = FontWeight.Bold)
@@ -475,6 +510,7 @@ fun BoosterScreen(
 
         TextButton(onClick = onOpenHelp) {
             Text("Lihat penjelasan lengkap tiap fitur →")
+        }
         }
     }
 }

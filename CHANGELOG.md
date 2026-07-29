@@ -28,6 +28,13 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.16 - Batch 12: Material You (opt-in) + dukungan tablet/foldable
+- **Dynamic color (Material You), opt-in**: toggle baru "🎨 Warna ikut wallpaper" (hanya muncul di Android 12+/API 31+) — kalau diaktifkan, warna app ikut wallpaper HP (dynamicLightColorScheme/dynamicDarkColorScheme). **Default OFF** — palet biru khas iOS-style yang sudah dirancang sebagai identitas visual app tetap jadi default, dynamic color murni pilihan user yang mau lebih "nyatu" dengan tema HP-nya. Preferensi tersimpan permanen.
+- **Dukungan tablet/foldable**: konten utama (BoosterScreen & OnboardingScreen) sekarang dibatasi max-width 600dp dan ditengahkan di layar lebar — sebelumnya slider/kartu melebar penuh sampai ke tepi layar tablet yang bikin proporsi aneh. Di HP biasa (<600dp) perilakunya identik seperti sebelumnya, tidak ada perubahan visual.
+- Bump `versionCode` → 16, `versionName` → "1.16".
+
+### Dicoret dari roadmap (murni manfaat developer, bukan user): arsitektur/ViewModel, linter/KDoc, testing tambahan — tetap belum dikerjakan sesuai arahan, fokus cuma yang kerasa ke user.
+
 ## v1.15 - Penutup audit: klarifikasi wakelock + keputusan foreground service type
 - **Wakelock**: dicek langsung ke kode — ternyata **tidak ada `PowerManager.WakeLock` yang benar-benar dipegang** oleh `AudioEnhancerService`. Yang ada cuma komentar dokumentasi lama yang menyebut "wakelock" padahal tidak pernah diimplementasikan (kemungkinan sisa draft awal). Komentar itu sudah diperbaiki supaya akurat — "tidak mudah dibunuh" itu murni dari kombinasi foreground service + `START_STICKY`, bukan wakelock. Tidak ada perubahan perilaku baterai karena memang tidak ada apa-apa yang perlu dihapus.
 - **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: **sengaja dibiarkan seperti sekarang** (keputusan sadar) — karena tidak ada rencana publish ke Play Store, risiko penolakan review tidak relevan, dan `specialUse` (API 34+) lebih ribet buat manfaat yang tidak dibutuhkan saat ini.

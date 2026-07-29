@@ -11,6 +11,7 @@ object PrefsHelper {
     private const val KEY_LOUDNESS = "loudness_gain"
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
 
     /** 0 = ikut sistem, 1 = terang, 2 = gelap. */
     const val THEME_MODE_SYSTEM = 0
@@ -71,5 +72,13 @@ object PrefsHelper {
 
     fun setEqualizerBandLevel(context: Context, band: Int, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt("eq_band_$band", value).apply()
+    }
+
+    // --- Dynamic color (Material You): opt-in, default false supaya identitas visual app terjaga ---
+    fun getUseDynamicColor(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_DYNAMIC_COLOR, false)
+
+    fun setUseDynamicColor(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_DYNAMIC_COLOR, enabled).apply()
     }
 }
