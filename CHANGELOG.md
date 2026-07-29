@@ -28,6 +28,13 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.20 - Fix bug nyata: ikon status bar tidak sync sama tema manual
+- **Bug**: `enableEdgeToEdge()` cuma dipanggil sekali di `onCreate()`, sebelum toggle tema manual (dari v1.11) sempat diresolve. Akibatnya kalau tema aktual app (hasil override manual) berlawanan dari tema sistem — misal sistem terang tapi kamu paksa Dark — warna ikon status bar/nav bar TIDAK ikut berubah, tetap ngikut sistem. Hasilnya ikon jadi nyaris tidak kelihatan (gelap-di-atas-gelap atau terang-di-atas-terang).
+- **Fix**: tambah `SideEffect` yang sync ulang `isAppearanceLightStatusBars`/`isAppearanceLightNavigationBars` via `WindowCompat` setiap kali `darkTheme` yang SEBENARNYA aktif berubah — bukan cuma dibaca sekali dari sistem di awal. Sekarang ikon status bar selalu kontras dengan background app, apapun kombinasi tema sistem vs override manual.
+- Bump `versionCode` → 20, `versionName` → "1.20".
+
+### Audit ulang menyeluruh: bagian frontend lain sudah tuntas (di luar 5 item yang sudah disepakati tidak urgent: rotasi/config change, font scaling besar, landscape phone, RTL, kontras tombol biru).
+
 ## v1.19 - Haptic feedback + Loading/Error state eksplisit
 - **Haptic feedback halus** di titik-titik interaksi utama:
   - Semua slider (Bass/Virtualizer/Loudness/Equalizer per-band) — getar halus saat jari dilepas (bukan tiap tick geser, biar tidak berisik/annoying)

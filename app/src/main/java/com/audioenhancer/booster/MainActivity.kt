@@ -18,6 +18,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
@@ -160,6 +161,16 @@ class MainActivity : ComponentActivity() {
                 PrefsHelper.THEME_MODE_LIGHT -> false
                 PrefsHelper.THEME_MODE_DARK -> true
                 else -> isSystemInDarkTheme()
+            }
+
+            // Ikon status bar/nav bar (terang/gelap) di-sync ulang tiap kali darkTheme berubah —
+            // bukan cuma sekali dibaca dari system di awal. Tanpa ini, kalau user override tema
+            // manual berlawanan dari sistem (misal sistem terang, dipaksa Dark), ikon status bar
+            // bisa nyaris tidak kelihatan karena warnanya tetap mengikuti sistem, bukan tema aktif.
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
             }
 
             AudioEnhancerTheme(darkTheme = darkTheme, useDynamicColor = useDynamicColor) {
