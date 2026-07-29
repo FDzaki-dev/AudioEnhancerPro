@@ -44,7 +44,7 @@ private val DarkColors = darkColorScheme(
     onError = Color.White,
     errorContainer = Color(0xFF3A0E0C),
     onErrorContainer = Color(0xFFFFD5D1),
-    outline = Color(0xFF48484A)
+    outline = Color(0xFF676767)
 )
 
 private val LightColors = lightColorScheme(
@@ -64,7 +64,7 @@ private val LightColors = lightColorScheme(
     onError = Color.White,
     errorContainer = Color(0xFFFFE4E1),
     onErrorContainer = Color(0xFF410E0B),
-    outline = Color(0xFFD1D1D6)
+    outline = Color(0xFF949494)
 )
 
 // Tracking huruf agak rapat di judul-judul besar — mendekati kesan SF Pro Display.

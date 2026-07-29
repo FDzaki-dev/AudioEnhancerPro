@@ -28,6 +28,15 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.18 - Batch 9: Aksesibilitas (a11y) — TalkBack &amp; kontras WCAG
+- **Semua slider sekarang punya label TalkBack**: sebelumnya screen reader cuma baca angka polos tanpa konteks ("500", doang). Sekarang setiap slider (Bass, Virtualizer, Loudness, dan tiap band Equalizer) diberi `contentDescription` gabungan nama fitur + nilainya, lewat 1 titik perbaikan di `FeatureControl` (dipakai semua slider).
+- **Toggle "Warna ikut wallpaper" sekarang 1 target sentuh utuh**: sebelumnya cuma `Switch` kecil yang bisa di-tap, teks di sampingnya tidak ikut jadi bagian tombol. Sekarang seluruh baris (judul+deskripsi+switch) jadi satu target tap & satu node TalkBack dengan role Switch yang benar, sekalian bikin area sentuh lebih besar/gampang buat semua orang.
+- **Audit kontras warna WCAG** (dihitung manual pakai rumus luminance resmi WCAG di kedua tema):
+  - Ditemukan `outline` (warna border) di kedua tema gagal standar non-text contrast 3:1 — light theme cuma 1.52:1, dark theme cuma 1.86:1. **Sudah diperbaiki**: light theme → 3.03:1, dark theme → 3.01:1. Warna brand utama (biru khas app) sama sekali tidak disentuh.
+  - Semua pasangan warna teks lain (onSurface/surface, onBackground/background, dst) sudah lolos AA (≥4.5:1) di kedua tema, tidak perlu perubahan.
+- **⚠️ Temuan yang SENGAJA belum diubah** (bukan bug baru, tapi worth diketahui): teks putih di atas warna biru brand (`primary`, dipakai di tombol) kontrasnya 4.02:1 (light) / 3.65:1 (dark) — lolos WCAG AA untuk teks besar tapi berada di ambang batas untuk teks kecil. Ini menyentuh warna brand utama yang sengaja dipertahankan sebagai identitas visual, jadi tidak diubah sepihak — kasih tahu kalau mau saya perbaiki (opsinya: gelapkan sedikit biru khusus untuk background tombol).
+- Bump `versionCode` → 18, `versionName` → "1.18".
+
 ## v1.17 - Batch 10: Lokalisasi/i18n (Indonesia + Inggris)
 - **Semua teks UI dipindah ke `strings.xml`** — sebelumnya 40+ string hardcode langsung di Kotlin (MainActivity, OnboardingScreen, notifikasi service). Mencakup: header, badge status, banner dukungan chipset, preset, semua feature control (Bass/Virtualizer/Loudness/Equalizer), kartu dynamic color & baterai, toggle tema, 6 halaman onboarding lengkap, sampai notifikasi foreground service (channel name, title, text, tombol "Matikan").
 - **Tambah `values-en/strings.xml`** — terjemahan Inggris lengkap untuk semua key yang sama. User dengan bahasa HP Inggris sekarang otomatis dapat UI Inggris; bahasa lain tetap fallback ke `values/strings.xml` (Indonesia, default).
