@@ -1,7 +1,6 @@
 package com.audioenhancer.booster
 
 import android.app.*
-import android.content.Context
 import android.content.Intent
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
@@ -10,7 +9,6 @@ import android.media.audiofx.Virtualizer
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
-import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 
 /**
@@ -39,12 +37,10 @@ class AudioEnhancerService : Service() {
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
-    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
-        acquireWakeLock()
         attachEffects()
     }
 
@@ -76,7 +72,6 @@ class AudioEnhancerService : Service() {
 
     override fun onDestroy() {
         releaseEffects()
-        wakeLock?.let { if (it.isHeld) it.release() }
         isRunning = false
         super.onDestroy()
     }
@@ -140,14 +135,6 @@ class AudioEnhancerService : Service() {
     }
 
     fun getEqualizer(): Equalizer? = equalizer
-
-    private fun acquireWakeLock() {
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "AudioBooster::ServiceWakeLock"
-        ).apply { setReferenceCounted(false); acquire(10 * 60 * 60 * 1000L) }
-    }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
