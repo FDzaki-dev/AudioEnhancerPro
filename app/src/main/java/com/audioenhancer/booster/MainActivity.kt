@@ -559,7 +559,7 @@ private fun EqualizerSection(
     }
 }
 
-private fun formatFreqLabel(hz: Int): String =
+internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
 @Composable
