@@ -84,6 +84,12 @@
     <string name="ob6_desc">Selama booster aktif, kamu akan lihat notifikasi kecil yang tidak bisa di-swipe hilang.</string>
     <string name="ob6_detail">Ini bukan bug — notifikasi ini justru yang membuat Android tahu aplikasi sedang \'bekerja penting\' sehingga tidak gampang dimatikan. Tekan tombol \'Matikan\' di notifikasi itu sendiri kalau kamu mau menghentikan booster sepenuhnya.</string>
 
+    <!-- Status koneksi service (loading/error eksplisit) -->
+    <string name="connection_loading">Menyambungkan ke service audio…</string>
+    <string name="connection_error_title">⚠️ Gagal menyambung ke service audio</string>
+    <string name="connection_error_body">App tidak bisa terhubung ke background service yang menjalankan efek audio. Coba tutup paksa &amp; buka ulang app.</string>
+    <string name="connection_retry">Coba Lagi</string>
+
     <!-- Notifikasi foreground service -->
     <string name="notif_channel_name">Audio Booster Aktif</string>
     <string name="notif_channel_desc">Menampilkan status booster audio yang sedang berjalan</string>

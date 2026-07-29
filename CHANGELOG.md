@@ -28,6 +28,21 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.19 - Haptic feedback + Loading/Error state eksplisit
+- **Haptic feedback halus** di titik-titik interaksi utama:
+  - Semua slider (Bass/Virtualizer/Loudness/Equalizer per-band) — getar halus saat jari dilepas (bukan tiap tick geser, biar tidak berisik/annoying)
+  - Terapkan preset cepat — 1 getar konfirmasi
+  - Toggle tema (sistem/terang/gelap) — 1 getar tiap ganti
+  - Toggle "Warna ikut wallpaper" — 1 getar, sekalian seluruh baris (bukan cuma switch kecil) jadi target getar+tap
+  - Expand/collapse kartu Equalizer Manual — 1 getar
+- **Loading state eksplisit**: begitu app dibuka, muncul kartu kecil dengan spinner "Menyambungkan ke service audio…" selama proses `bindService()` masih berlangsung — sebelumnya user tidak tahu app "lagi nyambung" atau "sudah connected tapi ga ada apa-apa untuk ditampilkan".
+- **Error state eksplisit**: kalau `bindService()` gagal total (return `false`) atau melempar exception, muncul kartu error jelas + tombol "Coba Lagi" (restart activity untuk retry) — sebelumnya kegagalan ini silent, app kelihatan "diam" tanpa penjelasan sama sekali ke user.
+- String baru (`connection_loading`, `connection_error_title`, `connection_error_body`, `connection_retry`) sudah lengkap ID+EN, konsisten dengan Batch 10.
+- Bump `versionCode` → 19, `versionName` → "1.19".
+
+### Status roadmap "expert/user-friendly": semua item prioritas user (Batch 9, 10, 12, + haptic & loading/error) sudah tuntas.
+### Sisa non-prioritas (dianggap tidak urgent oleh user): rotasi layar/config change, font scaling besar, landscape phone, RTL, kontras tombol biru.
+
 ## v1.18 - Batch 9: Aksesibilitas (a11y) — TalkBack &amp; kontras WCAG
 - **Semua slider sekarang punya label TalkBack**: sebelumnya screen reader cuma baca angka polos tanpa konteks ("500", doang). Sekarang setiap slider (Bass, Virtualizer, Loudness, dan tiap band Equalizer) diberi `contentDescription` gabungan nama fitur + nilainya, lewat 1 titik perbaikan di `FeatureControl` (dipakai semua slider).
 - **Toggle "Warna ikut wallpaper" sekarang 1 target sentuh utuh**: sebelumnya cuma `Switch` kecil yang bisa di-tap, teks di sampingnya tidak ikut jadi bagian tombol. Sekarang seluruh baris (judul+deskripsi+switch) jadi satu target tap & satu node TalkBack dengan role Switch yang benar, sekalian bikin area sentuh lebih besar/gampang buat semua orang.

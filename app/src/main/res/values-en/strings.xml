@@ -84,6 +84,12 @@
     <string name="ob6_desc">While the booster is active, you\'ll see a small notification that can\'t be swiped away.</string>
     <string name="ob6_detail">This isn\'t a bug — this notification is exactly what tells Android the app is doing \'important work\' so it doesn\'t get killed easily. Tap the \'Stop\' button in the notification itself if you want to fully stop the booster.</string>
 
+    <!-- Service connection status (explicit loading/error) -->
+    <string name="connection_loading">Connecting to audio service…</string>
+    <string name="connection_error_title">⚠️ Failed to connect to audio service</string>
+    <string name="connection_error_body">The app couldn\'t connect to the background service that runs the audio effects. Try force-closing and reopening the app.</string>
+    <string name="connection_retry">Retry</string>
+
     <!-- Foreground service notification -->
     <string name="notif_channel_name">Audio Booster Active</string>
     <string name="notif_channel_desc">Shows the running status of the audio booster</string>

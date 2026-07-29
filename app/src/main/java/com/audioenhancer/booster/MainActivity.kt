@@ -38,6 +38,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
@@ -47,8 +49,15 @@ import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
 
+    /** Status koneksi ke AudioEnhancerService — dipakai UI untuk loading/error state eksplisit. */
+    enum class ConnectionState { CONNECTING, CONNECTED, ERROR }
+
     private var service: AudioEnhancerService? = null
     private var bound = false
+
+    // Status koneksi ke service, dipakai untuk tampilkan loading/error state eksplisit di UI —
+    // sebelumnya kalau bindService() gagal total, app cuma diam tanpa penjelasan sama sekali.
+    private var connectionState by mutableStateOf(ConnectionState.CONNECTING)
 
     private var bassSupported by mutableStateOf(true)
     private var virtualizerSupported by mutableStateOf(true)
@@ -77,6 +86,7 @@ class MainActivity : ComponentActivity() {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as AudioEnhancerService.LocalBinder).getService()
             bound = true
+            connectionState = ConnectionState.CONNECTED
             bassSupported = service?.isBassSupported() ?: true
             virtualizerSupported = service?.isVirtualizerSupported() ?: true
             loudnessSupported = service?.isLoudnessSupported() ?: true
@@ -102,6 +112,7 @@ class MainActivity : ComponentActivity() {
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
+            connectionState = ConnectionState.CONNECTING
         }
     }
 
@@ -133,7 +144,12 @@ class MainActivity : ComponentActivity() {
         } else {
             startService(intent)
         }
-        bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        try {
+            val boundOk = bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            if (!boundOk) connectionState = ConnectionState.ERROR
+        } catch (_: Exception) {
+            connectionState = ConnectionState.ERROR
+        }
 
         requestIgnoreBatteryOptimizations()
 
@@ -194,7 +210,9 @@ class MainActivity : ComponentActivity() {
                             onUseDynamicColorChange = {
                                 useDynamicColor = it
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
-                            }
+                            },
+                            connectionState = connectionState,
+                            onRetryConnection = { recreate() }
                         )
                     }
                 }
@@ -313,7 +331,9 @@ fun BoosterScreen(
     themeMode: Int = PrefsHelper.THEME_MODE_SYSTEM,
     onThemeModeChange: (Int) -> Unit = {},
     useDynamicColor: Boolean = false,
-    onUseDynamicColorChange: (Boolean) -> Unit = {}
+    onUseDynamicColorChange: (Boolean) -> Unit = {},
+    connectionState: MainActivity.ConnectionState = MainActivity.ConnectionState.CONNECTED,
+    onRetryConnection: () -> Unit = {}
 ) {
     val presets = listOf(
         Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
@@ -327,6 +347,7 @@ fun BoosterScreen(
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
+    val haptics = LocalHapticFeedback.current
 
     fun applyPreset(preset: Preset) {
         bass = preset.bass; onBass(preset.bass.toInt().toShort())
@@ -334,6 +355,7 @@ fun BoosterScreen(
         loudness = preset.loudness; onLoudness(preset.loudness)
         activePreset = preset.label
         onActivePresetChange(preset.label)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
     // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
@@ -366,6 +388,41 @@ fun BoosterScreen(
         }
 
         ServiceStatusBadge()
+
+        when (connectionState) {
+            MainActivity.ConnectionState.CONNECTING -> {
+                Card {
+                    Row(
+                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.connection_loading), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            MainActivity.ConnectionState.ERROR -> {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            stringResource(R.string.connection_error_title),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Text(
+                            stringResource(R.string.connection_error_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        )
+                        Button(onClick = onRetryConnection) {
+                            Text(stringResource(R.string.connection_retry))
+                        }
+                    }
+                }
+            }
+            MainActivity.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
+        }
 
         if (!notificationPermissionGranted) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
@@ -482,7 +539,10 @@ fun BoosterScreen(
                         .fillMaxWidth()
                         .toggleable(
                             value = useDynamicColor,
-                            onValueChange = onUseDynamicColorChange,
+                            onValueChange = {
+                                onUseDynamicColorChange(it)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
                             role = Role.Switch
                         )
                         .padding(16.dp),
@@ -523,6 +583,7 @@ fun BoosterScreen(
 /** Satu tombol ikon yang berputar antar 3 mode: ikut sistem → terang → gelap → (ulang). */
 @Composable
 private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
+    val haptics = LocalHapticFeedback.current
     val (icon, description) = when (themeMode) {
         PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to stringResource(R.string.theme_desc_light)
         PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to stringResource(R.string.theme_desc_dark)
@@ -535,6 +596,7 @@ private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
             else -> PrefsHelper.THEME_MODE_SYSTEM
         }
         onThemeModeChange(next)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }) {
         Icon(icon, contentDescription = description)
     }
@@ -555,13 +617,17 @@ private fun EqualizerSection(
     val levels = remember(bandCount) {
         mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })
     }
+    val haptics = LocalHapticFeedback.current
 
     Card {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded },
+                    .clickable {
+                        expanded = !expanded
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -613,6 +679,7 @@ private fun FeatureControl(
     valueRange: ClosedFloatingPointRange<Float>,
     enabled: Boolean = true
 ) {
+    val haptics = LocalHapticFeedback.current
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -631,6 +698,7 @@ private fun FeatureControl(
         Slider(
             value = value,
             onValueChange = onValueChange,
+            onValueChangeFinished = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
             valueRange = valueRange,
             enabled = enabled,
             modifier = Modifier
