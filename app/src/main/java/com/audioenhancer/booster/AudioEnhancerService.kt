@@ -103,6 +103,15 @@ class AudioEnhancerService : Service() {
         setBassStrength(PrefsHelper.getBass(this).toShort())
         setVirtualizerStrength(PrefsHelper.getVirtualizer(this).toShort())
         setLoudnessGain(PrefsHelper.getLoudness(this))
+
+        equalizer?.let { eq ->
+            try {
+                for (band in 0 until eq.numberOfBands) {
+                    val saved = PrefsHelper.getEqualizerBandLevel(this, band, 0)
+                    eq.setBandLevel(band.toShort(), saved.toShort())
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     private fun releaseEffects() {
@@ -132,9 +141,35 @@ class AudioEnhancerService : Service() {
 
     fun setEqualizerBand(band: Short, levelMb: Short) {
         try { equalizer?.setBandLevel(band, levelMb) } catch (_: Exception) {}
+        PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
     }
 
     fun getEqualizer(): Equalizer? = equalizer
+
+    // ---- Info tambahan untuk UI: bedakan "efek tidak ada sama sekali" vs "ada tapi
+    // kontrol kekuatan/strength granular tidak didukung chipset ini" ----
+    fun isBassStrengthSupported(): Boolean =
+        try { bassBoost?.strengthSupported ?: false } catch (_: Exception) { false }
+
+    fun isVirtualizerStrengthSupported(): Boolean =
+        try { virtualizer?.strengthSupported ?: false } catch (_: Exception) { false }
+
+    // ---- Equalizer per-band: dipakai UI untuk membangun slider per pita frekuensi ----
+    fun isEqualizerSupported(): Boolean = equalizer != null
+
+    fun getEqualizerBandCount(): Int =
+        try { equalizer?.numberOfBands?.toInt() ?: 0 } catch (_: Exception) { 0 }
+
+    /** [min, max] dalam milliBel. */
+    fun getEqualizerLevelRange(): ShortArray =
+        try { equalizer?.bandLevelRange ?: shortArrayOf(-1500, 1500) } catch (_: Exception) { shortArrayOf(-1500, 1500) }
+
+    /** Frekuensi tengah band dalam Hz (Android API mengembalikan milliHertz). */
+    fun getEqualizerBandCenterFreqHz(band: Int): Int =
+        try { (equalizer?.getCenterFreq(band.toShort()) ?: 0) / 1000 } catch (_: Exception) { 0 }
+
+    fun getEqualizerBandLevel(band: Int): Short =
+        try { equalizer?.getBandLevel(band.toShort()) ?: 0 } catch (_: Exception) { 0 }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

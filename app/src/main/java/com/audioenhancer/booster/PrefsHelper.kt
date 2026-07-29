@@ -64,4 +64,12 @@ object PrefsHelper {
     fun setThemeMode(context: Context, mode: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_THEME_MODE, mode).apply()
     }
+
+    // --- Equalizer per-band: tiap pita frekuensi disimpan terpisah, dipulihkan tiap service dibuat ulang ---
+    fun getEqualizerBandLevel(context: Context, band: Int, default: Int): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt("eq_band_$band", default)
+
+    fun setEqualizerBandLevel(context: Context, band: Int, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt("eq_band_$band", value).apply()
+    }
 }
