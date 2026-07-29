@@ -57,3 +57,27 @@ Hanya ada **1 artifact** yang dihasilkan tiap build: APK release yang sudah sign
 4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu upload APK release yang sudah signed sebagai artifact bernama `audio-enhancer-pro-release-apk-signed`.
 
 Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal — job `build` (debug) tetap jalan normal.
+
+## Troubleshooting
+
+**Notifikasi service tidak muncul / hilang sendiri**
+- Cek permission notifikasi belum ditolak: Settings > Apps > Audio Booster > Notifications.
+- Cek battery optimization: sebagian HP (Xiaomi/MIUI, Oppo/ColorOS, Vivo/FuntouchOS, Samsung) agresif membunuh background service. Matikan battery optimization untuk app ini lewat Settings > Battery > pilih app > "Tidak dibatasi" / "No restrictions".
+- Kalau baru install ulang, buka app minimal sekali biar `BootReceiver` bisa daftar ulang service.
+
+**Efek (Bass Boost / Virtualizer / Loudness) tidak kerasa sama sekali**
+- Cek slider tidak dalam kondisi `disabled` (abu-abu) — kalau disabled berarti efek itu memang tidak didukung chipset HP tersebut, bukan bug.
+- Efek berlaku ke *audio session* aplikasi lain yang sedang aktif, bukan ke semua suara sistem sekaligus di semua kondisi — pastikan app musik/media yang diputar sedang aktif memutar audio saat slider digeser.
+- Beberapa HP (terutama custom ROM agresif) bisa mem-block akses `AudioEffect` API pihak ketiga demi baterai — cek apakah app di-restrict di pengaturan baterai (lihat poin di atas).
+
+**Slider terlihat aktif tapi kadang tidak nyambung ke efeknya**
+- Kalau slider digeser dalam waktu sangat singkat setelah app baru dibuka (sebelum service selesai konek), sejak v1.12 perubahan itu otomatis ditampung dan diterapkan begitu service siap — tidak lagi hilang diam-diam. Kalau masih terjadi di versi lebih baru, kemungkinan ada regresi baru, cek Logcat untuk error `AudioEnhancerService`.
+
+**Preset yang dipilih hilang setelah app ditutup**
+- Sejak v1.11 preset aktif ikut tersimpan. Kalau masih hilang, cek app tidak di-"force stop" manual (force stop menghapus semua state in-memory dan bisa memicu re-read prefs yang aneh di sebagian custom ROM).
+
+**Equalizer manual tidak muncul**
+- Kartu "Equalizer Manual" hanya muncul kalau chipset HP mendukung `android.media.audiofx.Equalizer` dengan jumlah band > 0. Sebagian chipset budget tidak menyediakan equalizer per-band sama sekali — ini batasan hardware, bukan bug app.
+
+**Build gagal di GitHub Actions**
+- Cek apakah 4 secrets keystore (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) sudah diset kalau butuh APK release yang signed — kalau belum diset, job `release` di-skip otomatis (bukan gagal), tapi job `build` (debug) tetap harus sukses. Cek log job `build` dulu untuk error compile murni.
