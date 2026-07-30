@@ -144,12 +144,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        requestNotificationPermissionIfNeeded()
-
+    /** Coba bind ke service lagi. Dipakai di onCreate DAN dari tombol "Coba Lagi" —
+     *  sengaja dipisah dari recreate() supaya retry tidak ikut memicu ulang dialog
+     *  izin notifikasi/baterai yang seharusnya cuma relevan di startup pertama. */
+    private fun attemptBindService() {
+        connectionState = ConnectionState.CONNECTING
         startBoosterService()
         val intent = Intent(this, AudioEnhancerService::class.java)
         try {
@@ -158,6 +157,15 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) {
             connectionState = ConnectionState.ERROR
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        requestNotificationPermissionIfNeeded()
+
+        attemptBindService()
 
         requestIgnoreBatteryOptimizations()
 
@@ -230,7 +238,7 @@ class MainActivity : ComponentActivity() {
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
                             },
                             connectionState = connectionState,
-                            onRetryConnection = { recreate() },
+                            onRetryConnection = { attemptBindService() },
                             onRestartService = { startBoosterService() }
                         )
                     }
