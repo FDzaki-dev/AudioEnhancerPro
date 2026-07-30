@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -742,18 +743,25 @@ private fun AppleCard(
 
 /** Banner info/warning ala iOS: tint pastel lembut (bukan fill solid pekat Material),
  *  teks & border pakai warna aksen penuh di atas latar tint tipis — pola khas
- *  banner iOS (mis. banner biru lembut di Notes/Reminders), bukan blok warna padat. */
+ *  banner iOS (mis. banner biru lembut di Notes/Reminders), bukan blok warna padat.
+ *
+ *  PENTING: warnanya di-blend jadi SOLID (pakai lerp), bukan alpha transparan mentah.
+ *  Alpha transparan di atas dark theme yang background-nya hitam pekat (#000000) akan
+ *  ke-render nyaris tak kelihatan — transparansi tipis + hitam pekat = hasilnya hitam
+ *  juga. Blend solid ini menjamin tint selalu kelihatan jelas apapun tema aktifnya. */
 @Composable
 private fun AppleTintedCard(
     modifier: Modifier = Modifier,
     tint: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.22f)
+    val blendedBorder = lerp(MaterialTheme.colorScheme.surface, tint, 0.55f)
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.14f)),
+        colors = CardDefaults.cardColors(containerColor = blendedContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, tint.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, blendedBorder),
         content = content
     )
 }
