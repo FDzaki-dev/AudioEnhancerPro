@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
@@ -39,6 +42,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -47,6 +51,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 class MainActivity : ComponentActivity() {
 
@@ -295,13 +300,11 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
         }
     }
 
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = if (isRunning)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.errorContainer
-        )
+    AppleCard(
+        containerColor = if (isRunning)
+            MaterialTheme.colorScheme.primaryContainer
+        else
+            MaterialTheme.colorScheme.errorContainer
     ) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -311,8 +314,8 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
             Box(
                 modifier = Modifier
                     .size(10.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(if (isRunning) androidx.compose.ui.graphics.Color(0xFF30D158) else androidx.compose.ui.graphics.Color(0xFFFF453A))
+                    .clip(CircleShape)
+                    .background(if (isRunning) Color(0xFF30D158) else Color(0xFFFF453A))
             )
             Text(
                 if (isRunning) stringResource(R.string.status_running)
@@ -433,7 +436,7 @@ fun BoosterScreen(
 
         when (connectionState) {
             MainActivity.ConnectionState.CONNECTING -> {
-                Card {
+                AppleCard {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -445,7 +448,7 @@ fun BoosterScreen(
                 }
             }
             MainActivity.ConnectionState.ERROR -> {
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+                AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             stringResource(R.string.connection_error_title),
@@ -467,7 +470,7 @@ fun BoosterScreen(
         }
 
         if (!notificationPermissionGranted) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+            AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         stringResource(R.string.notif_perm_title),
@@ -487,7 +490,7 @@ fun BoosterScreen(
         }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
+            AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
                 Text(
                     stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -495,7 +498,7 @@ fun BoosterScreen(
                 )
             }
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+            AppleCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
                 Text(
                     stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -505,7 +508,7 @@ fun BoosterScreen(
         }
 
         Column {
-            Text(stringResource(R.string.presets_title), fontWeight = FontWeight.Bold)
+            SectionLabel(stringResource(R.string.presets_title))
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -515,7 +518,15 @@ fun BoosterScreen(
                     FilterChip(
                         selected = activePreset == preset.label,
                         onClick = { applyPreset(preset) },
-                        label = { Text(preset.label) }
+                        label = { Text(preset.label) },
+                        shape = RoundedCornerShape(50),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
                     )
                 }
             }
@@ -576,7 +587,7 @@ fun BoosterScreen(
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            Card {
+            AppleCard {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -605,7 +616,7 @@ fun BoosterScreen(
             }
         }
 
-        Card {
+        AppleCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(stringResource(R.string.battery_card_title), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -663,7 +674,7 @@ private fun EqualizerSection(
     }
     val haptics = LocalHapticFeedback.current
 
-    Card {
+    AppleCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier
@@ -713,6 +724,37 @@ private fun EqualizerSection(
 internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
+/** Kartu ala iOS "grouped list": datar (tanpa shadow Material), pembatas tipis
+ *  bukan bayangan — dipakai di seluruh layar menggantikan Card Material default. */
+@Composable
+private fun AppleCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = containerColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        content = content
+    )
+}
+
+/** Label kecil huruf kapital abu-abu di atas sebuah section — ala "PRESETS"/"GENERAL"
+ *  di iOS Settings, menggantikan judul section bold biasa. */
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text.uppercase(),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        letterSpacing = 0.6.sp,
+        fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+    )
+}
+
 @Composable
 private fun FeatureControl(
     title: String,
@@ -745,6 +787,11 @@ private fun FeatureControl(
             onValueChangeFinished = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
             valueRange = valueRange,
             enabled = enabled,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = "$title, $valueLabel" }

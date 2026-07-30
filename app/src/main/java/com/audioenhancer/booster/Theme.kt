@@ -70,10 +70,10 @@ private val LightColors = lightColorScheme(
 // Tracking huruf agak rapat di judul-judul besar — mendekati kesan SF Pro Display.
 private val AppTypography = Typography(
     headlineMedium = TextStyle(
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
-        letterSpacing = (-0.4).sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
+        letterSpacing = (-0.5).sp
     ),
     headlineSmall = TextStyle(
         fontWeight = FontWeight.SemiBold,

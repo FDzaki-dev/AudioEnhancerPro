@@ -28,6 +28,14 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.24 - Polish "Apple-Style" UI/UX
+- **Kartu jadi flat ala iOS grouped-list**: semua `Card` diganti komponen baru `AppleCard` — tanpa shadow Material, cuma pembatas tipis 1dp — lebih mendekati tampilan Settings app iOS dibanding kartu Material yang "mengambang".
+- **Preset jadi pill/segmented ala iOS**: chip preset sekarang bentuk pil penuh (bukan rounded-rect kecil Material), terisi solid biru saat aktif, abu-abu lembut saat tidak — mirip segmented control iOS, tanpa border.
+- **Label section ala iOS Settings**: "PRESET CEPAT" sekarang tampil kecil, kapital, abu-abu, dengan letter-spacing — gaya khas header section di Settings iOS, menggantikan judul bold biasa.
+- **Slider lebih minimal**: warna thumb & track aktif konsisten pakai warna primer, track tidak aktif abu-abu lembut — kesan lebih bersih, satu titik perubahan yang otomatis nyakup semua slider (Bass/Virtualizer/Loudness/Equalizer).
+- **Large Title ala iOS**: judul "Audio Booster" di header sekarang 32sp Bold (naik dari 28sp SemiBold) — lebih dekat ke gaya "Large Title" khas iOS Settings/Mail/dsb.
+- Bump `versionCode` → 24, `versionName` → "1.24".
+
 ## v1.23 - Audit tuntas: retry nagging, dependency mati, CI vs dokumentasi tidak sinkron
 - **Fix retry connection ikut memicu ulang dialog izin**: tombol "Coba Lagi" (connection error) sebelumnya manggil `recreate()`, yang menjalankan ulang SELURUH `onCreate()` — termasuk `requestNotificationPermissionIfNeeded()` dan `requestIgnoreBatteryOptimizations()`, berpotensi memunculkan dialog sistem yang tidak diminta di tengah proses retry. Sekarang dipecah jadi `attemptBindService()` yang cuma coba re-bind ke service, tanpa efek samping ke permission dialog. Sebagai bonus, retry juga jadi lebih mulus (tidak ada flicker recreate activity).
 - **Hapus `SCHEDULE_EXACT_ALARM`** (dari v1.22) — permission mati, nol pemakaian `AlarmManager` di kode manapun.
