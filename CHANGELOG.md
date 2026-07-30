@@ -28,6 +28,12 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.27 - 🎯 Fix yang beneran kelihatan: hapus SEMUA emoji, ganti vector icon monokrom
+- **Root cause sebenarnya dari "gak kerasa Apple"**: dari 2 screenshot yang dikirim, ketauan biang keroknya bukan warna/shape/shadow (yang emang subtle di dark theme) — tapi **emoji berwarna-warni sebagai icon UI** (🔊🌐📢🎚️🛡️🎨🔕⚠️). Apple/iOS TIDAK PERNAH pakai emoji sebagai icon fungsional — mereka pakai SF Symbols monokrom bertema. Emoji berwarna itu langsung bikin kesan "generic Android app", seberapapun rapi shape/warna di sekitarnya.
+- **Fix**: semua emoji dihapus dari `strings.xml` (ID+EN), diganti `Icon` vector monokrom bertema warna aksen (primary) di kode: Bass→VolumeUp, Virtualizer→SurroundSound, Loudness→Campaign, Equalizer→GraphicEq, Baterai→Shield, Dynamic Color→Palette, Notifikasi→NotificationsOff, Error→Warning.
+- Ini perubahan STRUKTURAL (bentuk elemen berubah total, bukan cuma nuansa warna) — dijamin kelihatan bedanya di screenshot manapun, bukan cuma di dark theme.
+- Bump `versionCode` → 27, `versionName` → "1.27".
+
 ## v1.26 - 🐛 Fix akar masalah "gak ada perubahan sama sekali" (v1.24/v1.25)
 - **Root cause ketemu**: `AppleTintedCard` (v1.25) pakai `tint.copy(alpha = 0.14f)` — transparansi mentah di atas background dark theme yang HITAM PEKAT (`#000000`). Alpha tipis di atas hitam pekat hasilnya IKUT NYARIS HITAM (dihitung: biru brand di alpha 14% di atas hitam pekat = RGB (1,18,36), nyaris tak terbedakan dari `#000000`). Ini bukan gagal install atau gagal build — fix v1.25 itu BENERAN ke-compile & ke-install dengan benar, tapi hasilnya secara visual nyaris tidak kelihatan bedanya. Realistis banget kalau kerasa "kayak gak ada perubahan sama sekali".
 - **Fix**: ganti total pendekatannya dari transparansi mentah ke **blend warna solid** pakai `lerp(surface, tint, fraction)` — container di-blend 22% ke arah warna aksen, border 55%. Hasilnya warna solid pekat yang PASTI kelihatan bedanya apapun warna di baliknya, bukan bergantung pada seberapa gelap background di belakangnya.

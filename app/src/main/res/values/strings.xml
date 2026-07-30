@@ -12,7 +12,7 @@
     <string name="cd_help">Bantuan / penjelasan fitur</string>
 
     <!-- Izin notifikasi -->
-    <string name="notif_perm_title">🔕 Notifikasi belum diizinkan</string>
+    <string name="notif_perm_title">Notifikasi belum diizinkan</string>
     <string name="notif_perm_body">Tanpa izin ini, notifikasi \'Audio Booster aktif\' tidak akan muncul (service tetap jalan, tapi kamu tidak lihat indikatornya di status bar).</string>
     <string name="notif_perm_button">Buka Pengaturan Notifikasi</string>
 
@@ -28,27 +28,27 @@
     <string name="preset_treble_boost">Treble Boost</string>
 
     <!-- Kontrol fitur -->
-    <string name="feature_bass_title">🔊 Bass Boost</string>
+    <string name="feature_bass_title">Bass Boost</string>
     <string name="feature_bass_help_normal">Menguatkan nada rendah supaya musik terasa lebih \'nendang\'. 0 = mati.</string>
-    <string name="feature_virtualizer_title">🌐 Virtualizer</string>
+    <string name="feature_virtualizer_title">Virtualizer</string>
     <string name="feature_virtualizer_help_normal">Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset.</string>
-    <string name="feature_loudness_title">📢 Loudness Gain</string>
+    <string name="feature_loudness_title">Loudness Gain</string>
     <string name="feature_loudness_help_normal">Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
 
     <!-- Equalizer manual -->
-    <string name="eq_title">🎚️ Equalizer Manual</string>
+    <string name="eq_title">Equalizer Manual</string>
     <string name="eq_subtitle">Atur tiap pita frekuensi secara detail (opsional)</string>
     <string name="cd_eq_expand">Buka equalizer manual</string>
     <string name="cd_eq_collapse">Tutup equalizer manual</string>
 
     <!-- Dynamic color -->
-    <string name="dynamic_color_title">🎨 Warna ikut wallpaper</string>
+    <string name="dynamic_color_title">Warna ikut wallpaper</string>
     <string name="dynamic_color_desc">Pakai palet warna Material You dari wallpaper HP, menggantikan tema biru khas app ini.</string>
 
     <!-- Kartu baterai -->
-    <string name="battery_card_title">🛡️ Kenapa perlu izin baterai &amp; autostart?</string>
+    <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>
     <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
 
@@ -87,7 +87,7 @@
 
     <!-- Status koneksi service (loading/error eksplisit) -->
     <string name="connection_loading">Menyambungkan ke service audio…</string>
-    <string name="connection_error_title">⚠️ Gagal menyambung ke service audio</string>
+    <string name="connection_error_title">Gagal menyambung ke service audio</string>
     <string name="connection_error_body">App tidak bisa terhubung ke background service yang menjalankan efek audio. Coba tutup paksa &amp; buka ulang app.</string>
     <string name="connection_retry">Coba Lagi</string>
 

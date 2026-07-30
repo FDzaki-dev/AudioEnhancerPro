@@ -12,7 +12,7 @@
     <string name="cd_help">Help / feature explanation</string>
 
     <!-- Notification permission -->
-    <string name="notif_perm_title">🔕 Notification not allowed yet</string>
+    <string name="notif_perm_title">Notification not allowed yet</string>
     <string name="notif_perm_body">Without this permission, the \'Audio Booster active\' notification won\'t appear (the service still runs, you just won\'t see the status bar indicator).</string>
     <string name="notif_perm_button">Open Notification Settings</string>
 
@@ -28,27 +28,27 @@
     <string name="preset_treble_boost">Treble Boost</string>
 
     <!-- Feature controls -->
-    <string name="feature_bass_title">🔊 Bass Boost</string>
+    <string name="feature_bass_title">Bass Boost</string>
     <string name="feature_bass_help_normal">Boosts low tones so music feels more punchy. 0 = off.</string>
-    <string name="feature_virtualizer_title">🌐 Virtualizer</string>
+    <string name="feature_virtualizer_title">Virtualizer</string>
     <string name="feature_virtualizer_help_normal">Makes sound feel wider — most noticeable when using earphones/headsets.</string>
-    <string name="feature_loudness_title">📢 Loudness Gain</string>
+    <string name="feature_loudness_title">Loudness Gain</string>
     <string name="feature_loudness_help_normal">Extra volume boost above the phone\'s normal limit. Lower it if the sound starts clipping.</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
 
     <!-- Manual equalizer -->
-    <string name="eq_title">🎚️ Manual Equalizer</string>
+    <string name="eq_title">Manual Equalizer</string>
     <string name="eq_subtitle">Fine-tune each frequency band (optional)</string>
     <string name="cd_eq_expand">Open manual equalizer</string>
     <string name="cd_eq_collapse">Close manual equalizer</string>
 
     <!-- Dynamic color -->
-    <string name="dynamic_color_title">🎨 Match wallpaper colors</string>
+    <string name="dynamic_color_title">Match wallpaper colors</string>
     <string name="dynamic_color_desc">Use Material You colors from your wallpaper, replacing this app\'s signature blue theme.</string>
 
     <!-- Battery card -->
-    <string name="battery_card_title">🛡️ Why does it need battery permission &amp; autostart?</string>
+    <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>
     <string name="battery_card_body">So the booster keeps running even when your phone is locked or the app is swiped away from recent apps. On MIUI/ColorOS/EMUI phones, also enable \'Autostart\' manually in phone settings.</string>
     <string name="see_full_explanation">See full explanation of each feature →</string>
 
@@ -87,7 +87,7 @@
 
     <!-- Service connection status (explicit loading/error) -->
     <string name="connection_loading">Connecting to audio service…</string>
-    <string name="connection_error_title">⚠️ Failed to connect to audio service</string>
+    <string name="connection_error_title">Failed to connect to audio service</string>
     <string name="connection_error_body">The app couldn\'t connect to the background service that runs the audio effects. Try force-closing and reopening the app.</string>
     <string name="connection_retry">Retry</string>
 

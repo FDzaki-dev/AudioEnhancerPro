@@ -33,10 +33,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -44,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -448,12 +457,15 @@ fun BoosterScreen(
             MainActivity.ConnectionState.ERROR -> {
                 AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            stringResource(R.string.connection_error_title),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.connection_error_title),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
                         Text(
                             stringResource(R.string.connection_error_body),
                             style = MaterialTheme.typography.bodySmall,
@@ -471,12 +483,15 @@ fun BoosterScreen(
         if (!notificationPermissionGranted) {
             AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Column(modifier = Modifier.padding(12.dp)) {
-                    Text(
-                        stringResource(R.string.notif_perm_title),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Text(
+                            stringResource(R.string.notif_perm_title),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Text(
                         stringResource(R.string.notif_perm_body),
                         style = MaterialTheme.typography.bodySmall,
@@ -534,6 +549,7 @@ fun BoosterScreen(
 
         FeatureControl(
             title = stringResource(R.string.feature_bass_title),
+            icon = Icons.Filled.VolumeUp,
             helpText = when {
                 !bassSupported -> stringResource(R.string.feature_help_unsupported)
                 !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -548,6 +564,7 @@ fun BoosterScreen(
 
         FeatureControl(
             title = stringResource(R.string.feature_virtualizer_title),
+            icon = Icons.Filled.SurroundSound,
             helpText = when {
                 !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
                 !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -562,6 +579,7 @@ fun BoosterScreen(
 
         FeatureControl(
             title = stringResource(R.string.feature_loudness_title),
+            icon = Icons.Filled.Campaign,
             helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
                        else stringResource(R.string.feature_help_unsupported),
             value = loudness,
@@ -603,7 +621,8 @@ fun BoosterScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
                         Text(stringResource(R.string.dynamic_color_title), fontWeight = FontWeight.Bold)
                         Text(
                             stringResource(R.string.dynamic_color_desc),
@@ -618,7 +637,10 @@ fun BoosterScreen(
 
         AppleCard {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(stringResource(R.string.battery_card_title), fontWeight = FontWeight.Bold)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text(stringResource(R.string.battery_card_title), fontWeight = FontWeight.Bold)
+                }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     stringResource(R.string.battery_card_body),
@@ -686,13 +708,16 @@ private fun EqualizerSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
-                    Text(
-                        stringResource(R.string.eq_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Column {
+                        Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.eq_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 Icon(
                     if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
@@ -788,15 +813,27 @@ private fun FeatureControl(
     valueLabel: String,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    icon: ImageVector? = null
 ) {
     val haptics = LocalHapticFeedback.current
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(title, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (icon != null) {
+                    Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(title, fontWeight = FontWeight.Bold)
+            }
             Text(valueLabel, style = MaterialTheme.typography.bodyMedium)
         }
         if (helpText.isNotBlank()) {
