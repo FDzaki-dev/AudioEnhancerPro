@@ -374,6 +374,10 @@ fun BoosterScreen(
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
     val haptics = LocalHapticFeedback.current
+    // Counter yang di-increment tiap preset diterapkan, dipakai buat maksa EqualizerSection
+    // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
+    // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
+    var eqResetCounter by remember { mutableStateOf(0) }
 
     fun applyPreset(preset: Preset) {
         bass = preset.bass; onBass(preset.bass.toInt().toShort())
@@ -381,6 +385,10 @@ fun BoosterScreen(
         loudness = preset.loudness; onLoudness(preset.loudness)
         activePreset = preset.label
         onActivePresetChange(preset.label)
+        if (equalizerBandCount > 0) {
+            for (band in 0 until equalizerBandCount) onEqualizerBand(band, 0)
+            eqResetCounter++
+        }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
@@ -550,7 +558,8 @@ fun BoosterScreen(
                 levelMin = equalizerLevelMin,
                 levelMax = equalizerLevelMax,
                 centerFreqsHz = equalizerCenterFreqsHz,
-                initialLevels = equalizerInitialLevels,
+                initialLevels = if (eqResetCounter == 0) equalizerInitialLevels else List(equalizerBandCount) { 0 },
+                resetKey = eqResetCounter,
                 onBandChange = { band, level ->
                     onEqualizerBand(band, level)
                     activePreset = null; onActivePresetChange(null)
@@ -637,10 +646,11 @@ private fun EqualizerSection(
     levelMax: Short,
     centerFreqsHz: List<Int>,
     initialLevels: List<Short>,
+    resetKey: Int = 0,
     onBandChange: (Int, Short) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val levels = remember(bandCount) {
+    val levels = remember(bandCount, resetKey) {
         mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })
     }
     val haptics = LocalHapticFeedback.current

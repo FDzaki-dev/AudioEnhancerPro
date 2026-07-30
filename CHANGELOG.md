@@ -28,6 +28,11 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.22 - 2 temuan lanjutan: permission mati &amp; preset tidak konsisten
+- **Hapus permission `SCHEDULE_EXACT_ALARM` yang tidak terpakai**: dicek ke seluruh source code, nol pemanggilan `AlarmManager` dimanapun. Permission ini nyasar di Manifest tanpa fungsi — di Android 12+ ini muncul sebagai izin terpisah ("Alarm & pengingat") di pengaturan HP, berpotensi bikin bingung siapapun yang cek daftar izin app ini.
+- **Fix preset tidak konsisten dengan Equalizer Manual**: sebelumnya nge-tap preset (termasuk "Flat") cuma reset Bass/Virtualizer/Loudness — Equalizer Manual dibiarkan di posisi terakhir. Kalau user sempat oprek equalizer manual, preset "Flat" jadi tidak benar-benar flat. Sekarang tiap preset diterapkan, semua band equalizer ikut direset ke 0, dan tampilan slider-nya di kartu Equalizer Manual ikut ter-update (bukan cuma nilai di background yang berubah).
+- Bump `versionCode` → 22, `versionName` → "1.22".
+
 ## v1.21 - 🐛 Fix bug backend penting: tombol "Matikan" di notifikasi tidak benar-benar mematikan efek
 - **Root cause**: `AudioEnhancerService` di-*start* (dari `startForegroundService`) SEKALIGUS di-*bind* (dari `MainActivity`, selama app masih kebuka/belum di-destroy sistem). Android cuma benar-benar men-destroy Service kalau KEDUA ref-count (started + bound) sama-sama nol. Tombol "Matikan" di notifikasi sebelumnya cuma manggil `stopSelf()`, yang cuma clear ref-count "started" — kalau MainActivity masih bound, Service TETAP HIDUP dan efek audio TETAP AKTIF meski user sudah tap "Matikan".
 - **Fix**: tambah `disableEffects()`/`enableEffects()` (reversible — beda dari `releaseEffects()` yang cuma dipakai saat Service betulan di-destroy). Sekarang tap "Matikan" langsung: (1) nonaktifkan ke-4 efek audio secara eksplisit, apapun status bind, (2) lepas foreground + hapus notifikasi seketika, (3) baru `stopSelf()`. Buka app lagi otomatis nyalain ulang efeknya via `enableEffects()`.
