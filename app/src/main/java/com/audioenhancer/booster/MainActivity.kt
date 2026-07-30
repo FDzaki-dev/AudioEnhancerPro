@@ -133,18 +133,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        requestNotificationPermissionIfNeeded()
-
+    /** Bisa dipanggil ulang kapan saja (bukan cuma di onCreate) — misal dari tombol
+     *  "Nyalakan Lagi" kalau service sempat di-stop lewat notifikasi sementara app masih kebuka. */
+    private fun startBoosterService() {
         val intent = Intent(this, AudioEnhancerService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
         }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        requestNotificationPermissionIfNeeded()
+
+        startBoosterService()
+        val intent = Intent(this, AudioEnhancerService::class.java)
         try {
             val boundOk = bindService(intent, connection, Context.BIND_AUTO_CREATE)
             if (!boundOk) connectionState = ConnectionState.ERROR
@@ -223,7 +230,8 @@ class MainActivity : ComponentActivity() {
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
                             },
                             connectionState = connectionState,
-                            onRetryConnection = { recreate() }
+                            onRetryConnection = { recreate() },
+                            onRestartService = { startBoosterService() }
                         )
                     }
                 }
@@ -268,7 +276,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun ServiceStatusBadge() {
+private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
 
     // Cek status tiap 1 detik selagi layar ini terbuka, biar badge selalu akurat.
@@ -301,8 +309,14 @@ private fun ServiceStatusBadge() {
             Text(
                 if (isRunning) stringResource(R.string.status_running)
                 else stringResource(R.string.status_not_running),
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
             )
+            if (!isRunning) {
+                Button(onClick = onRestartService) {
+                    Text(stringResource(R.string.restart_service))
+                }
+            }
         }
     }
 }
@@ -344,7 +358,8 @@ fun BoosterScreen(
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
     connectionState: MainActivity.ConnectionState = MainActivity.ConnectionState.CONNECTED,
-    onRetryConnection: () -> Unit = {}
+    onRetryConnection: () -> Unit = {},
+    onRestartService: () -> Unit = {}
 ) {
     val presets = listOf(
         Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
@@ -398,7 +413,7 @@ fun BoosterScreen(
             }
         }
 
-        ServiceStatusBadge()
+        ServiceStatusBadge(onRestartService = onRestartService)
 
         when (connectionState) {
             MainActivity.ConnectionState.CONNECTING -> {

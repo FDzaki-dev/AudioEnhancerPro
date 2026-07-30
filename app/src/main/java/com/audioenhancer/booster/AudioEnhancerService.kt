@@ -50,10 +50,22 @@ class AudioEnhancerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) {
+            // PENTING: tidak cukup cuma stopSelf() di sini. Kalau MainActivity masih bound
+            // (app masih kebuka), Service TIDAK akan benar-benar di-destroy oleh stopSelf() —
+            // Android cuma men-destroy Service kalau ref-count "started" DAN "bound" sama-sama
+            // nol. Makanya efek di-nonaktifkan & foreground dilepas SECARA EKSPLISIT di sini,
+            // supaya "Matikan" selalu benar-benar mematikan efek walau app masih kebuka.
+            disableEffects()
+            isRunning = false
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
         }
         startForeground(NOTIF_ID, buildNotification())
+        // Re-enable jaga-jaga kalau sebelumnya sempat di-"Matikan" lewat notifikasi sementara
+        // Service-nya sendiri tetap hidup karena masih bound — tanpa ini, buka app lagi setelah
+        // tap "Matikan" tidak akan menyalakan ulang efeknya.
+        enableEffects()
         isRunning = true
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
@@ -121,6 +133,23 @@ class AudioEnhancerService : Service() {
     private fun releaseEffects() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
+    }
+
+    /** Dipanggil dari notifikasi "Matikan" — reversible (beda dari releaseEffects yang
+     *  benar-benar melepas objek AudioEffect saat Service betulan di-destroy). */
+    private fun disableEffects() {
+        try { bassBoost?.enabled = false } catch (_: Exception) {}
+        try { virtualizer?.enabled = false } catch (_: Exception) {}
+        try { equalizer?.enabled = false } catch (_: Exception) {}
+        try { loudnessEnhancer?.enabled = false } catch (_: Exception) {}
+    }
+
+    /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan". */
+    private fun enableEffects() {
+        try { bassBoost?.enabled = true } catch (_: Exception) {}
+        try { virtualizer?.enabled = true } catch (_: Exception) {}
+        try { equalizer?.enabled = true } catch (_: Exception) {}
+        try { loudnessEnhancer?.enabled = true } catch (_: Exception) {}
     }
 
     // ---- Kontrol dari UI ----

@@ -3,7 +3,8 @@
 
     <!-- Status badge -->
     <string name="status_running">Service berjalan di background — cek juga notifikasi \'Audio Booster aktif\'</string>
-    <string name="status_not_running">Service TIDAK berjalan — coba tutup &amp; buka ulang app</string>
+    <string name="status_not_running">Service tidak berjalan — mungkin dimatikan lewat notifikasi</string>
+    <string name="restart_service">Nyalakan Lagi</string>
 
     <!-- Header -->
     <string name="app_title">Audio Booster</string>
