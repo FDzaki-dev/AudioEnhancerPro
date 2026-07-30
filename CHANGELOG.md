@@ -28,6 +28,12 @@
 ## v1.5 - Indikator status service real-time
 - Tambah `ServiceStatusBadge`: badge hijau/merah di layar utama yang mengecek `AudioEnhancerService.isRunning` tiap 1 detik, jadi user langsung tahu apakah booster benar-benar aktif di background tanpa perlu tarik notification bar.
 
+## v1.25 - Fix polish v1.24 kurang kerasa: banner solid → soft-tint ala iOS
+- **Root cause dari screenshot yang dikirim**: banner status/warning (Service berjalan, izin notifikasi, dll) masih pakai `errorContainer`/`primaryContainer` — warna "container" Material yang tetap solid pekat, bukan gaya iOS yang biasanya pastel/tint lembut.
+- **Fix**: komponen baru `AppleTintedCard` — background cuma 14% opacity dari warna aksennya (bukan fill solid), border 30% opacity, teks pakai warna aksen penuh di atasnya. Diterapkan ke SEMUA banner: status service, error koneksi, izin notifikasi, banner chipset tidak didukung.
+- **Catatan penting soal font tebal di screenshot**: teks yang terlihat bold merata di SEMUA elemen (termasuk paragraf deskripsi yang di kode eksplisit `FontWeight.Normal`) kemungkinan besar berasal dari setting Aksesibilitas "Teks Tebal" di HP — ini override paksa dari Android ke SEMUA app, tidak bisa di-override balik dari sisi app manapun (termasuk app native buatan Apple/Google sendiri kalau mereka di Android). Kalau mau font sesuai desain aslinya (mix bold/regular), cek Settings > Aksesibilitas > Ukuran & Tampilan Teks > matikan "Teks Tebal".
+- Bump `versionCode` → 25, `versionName` → "1.25".
+
 ## v1.24 - Polish "Apple-Style" UI/UX
 - **Kartu jadi flat ala iOS grouped-list**: semua `Card` diganti komponen baru `AppleCard` — tanpa shadow Material, cuma pembatas tipis 1dp — lebih mendekati tampilan Settings app iOS dibanding kartu Material yang "mengambang".
 - **Preset jadi pill/segmented ala iOS**: chip preset sekarang bentuk pil penuh (bukan rounded-rect kecil Material), terisi solid biru saat aktif, abu-abu lembut saat tidak — mirip segmented control iOS, tanpa border.

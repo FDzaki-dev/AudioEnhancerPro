@@ -300,12 +300,8 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
         }
     }
 
-    AppleCard(
-        containerColor = if (isRunning)
-            MaterialTheme.colorScheme.primaryContainer
-        else
-            MaterialTheme.colorScheme.errorContainer
-    ) {
+    val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    AppleTintedCard(tint = statusTint) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -321,6 +317,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 if (isRunning) stringResource(R.string.status_running)
                 else stringResource(R.string.status_not_running),
                 style = MaterialTheme.typography.bodySmall,
+                color = statusTint,
                 modifier = Modifier.weight(1f)
             )
             if (!isRunning) {
@@ -448,12 +445,13 @@ fun BoosterScreen(
                 }
             }
             MainActivity.ConnectionState.ERROR -> {
-                AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             stringResource(R.string.connection_error_title),
                             fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
                         )
                         Text(
                             stringResource(R.string.connection_error_body),
@@ -470,12 +468,13 @@ fun BoosterScreen(
         }
 
         if (!notificationPermissionGranted) {
-            AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
+            AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Text(
                         stringResource(R.string.notif_perm_title),
                         fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.bodyMedium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error
                     )
                     Text(
                         stringResource(R.string.notif_perm_body),
@@ -490,7 +489,7 @@ fun BoosterScreen(
         }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            AppleCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
+            AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Text(
                     stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -498,7 +497,7 @@ fun BoosterScreen(
                 )
             }
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            AppleCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
+            AppleTintedCard(tint = MaterialTheme.colorScheme.primary) {
                 Text(
                     stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -737,6 +736,24 @@ private fun AppleCard(
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        content = content
+    )
+}
+
+/** Banner info/warning ala iOS: tint pastel lembut (bukan fill solid pekat Material),
+ *  teks & border pakai warna aksen penuh di atas latar tint tipis — pola khas
+ *  banner iOS (mis. banner biru lembut di Notes/Reminders), bukan blok warna padat. */
+@Composable
+private fun AppleTintedCard(
+    modifier: Modifier = Modifier,
+    tint: Color,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = tint.copy(alpha = 0.14f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, tint.copy(alpha = 0.3f)),
         content = content
     )
 }
