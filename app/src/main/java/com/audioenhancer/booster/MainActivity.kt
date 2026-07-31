@@ -550,6 +550,7 @@ fun BoosterScreen(
         FeatureControl(
             title = stringResource(R.string.feature_bass_title),
             icon = Icons.Filled.VolumeUp,
+            accentColor = BassAccent,
             helpText = when {
                 !bassSupported -> stringResource(R.string.feature_help_unsupported)
                 !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -565,6 +566,7 @@ fun BoosterScreen(
         FeatureControl(
             title = stringResource(R.string.feature_virtualizer_title),
             icon = Icons.Filled.SurroundSound,
+            accentColor = VirtualizerAccent,
             helpText = when {
                 !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
                 !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -580,6 +582,7 @@ fun BoosterScreen(
         FeatureControl(
             title = stringResource(R.string.feature_loudness_title),
             icon = Icons.Filled.Campaign,
+            accentColor = LoudnessAccent,
             helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
                        else stringResource(R.string.feature_help_unsupported),
             value = loudness,
@@ -749,59 +752,54 @@ private fun EqualizerSection(
 internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
-/** Kartu ala iOS "grouped list": datar (tanpa shadow Material), pembatas tipis
- *  bukan bayangan — dipakai di seluruh layar menggantikan Card Material default. */
+/** Kartu bold ala neo-brutalist: border TEBAL berwarna (bukan hairline tipis ala iOS),
+ *  tanpa shadow blur lembut. `accentColor` bikin tiap kartu bisa punya identitas warna
+ *  sendiri — kebalikan dari pola "1 warna netral untuk semua" ala Apple. */
 @Composable
 private fun AppleCard(
     modifier: Modifier = Modifier,
     containerColor: Color = MaterialTheme.colorScheme.surface,
+    accentColor: Color = MaterialTheme.colorScheme.outline,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        border = BorderStroke(2.5.dp, accentColor),
         content = content
     )
 }
 
-/** Banner info/warning ala iOS: tint pastel lembut (bukan fill solid pekat Material),
- *  teks & border pakai warna aksen penuh di atas latar tint tipis — pola khas
- *  banner iOS (mis. banner biru lembut di Notes/Reminders), bukan blok warna padat.
- *
- *  PENTING: warnanya di-blend jadi SOLID (pakai lerp), bukan alpha transparan mentah.
- *  Alpha transparan di atas dark theme yang background-nya hitam pekat (#000000) akan
- *  ke-render nyaris tak kelihatan — transparansi tipis + hitam pekat = hasilnya hitam
- *  juga. Blend solid ini menjamin tint selalu kelihatan jelas apapun tema aktifnya. */
+/** Banner info/warning: tint solid (bukan pastel-lembut ala iOS) dengan border tebal
+ *  senada — lebih berani/kontras, bukan blok datar Material atau tint tipis iOS. */
 @Composable
 private fun AppleTintedCard(
     modifier: Modifier = Modifier,
     tint: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.22f)
-    val blendedBorder = lerp(MaterialTheme.colorScheme.surface, tint, 0.55f)
+    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.28f)
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = blendedContainer),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, blendedBorder),
+        border = BorderStroke(2.5.dp, tint),
         content = content
     )
 }
 
-/** Label kecil huruf kapital abu-abu di atas sebuah section — ala "PRESETS"/"GENERAL"
- *  di iOS Settings, menggantikan judul section bold biasa. */
+/** Label section: dulu kecil-kapital-abu ala iOS Settings. Sekarang lebih besar &
+ *  berwarna (pakai accentColor), bukan kecil-pasif — biar section-nya kerasa hidup. */
 @Composable
-private fun SectionLabel(text: String) {
+private fun SectionLabel(text: String, accentColor: Color = MaterialTheme.colorScheme.primary) {
     Text(
         text.uppercase(),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        letterSpacing = 0.6.sp,
-        fontWeight = FontWeight.Medium,
-        modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+        style = MaterialTheme.typography.bodyMedium,
+        color = accentColor,
+        letterSpacing = 1.sp,
+        fontWeight = FontWeight.ExtraBold,
+        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
     )
 }
 
@@ -814,10 +812,12 @@ private fun FeatureControl(
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     enabled: Boolean = true,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    wrapInCard: Boolean = true
 ) {
     val haptics = LocalHapticFeedback.current
-    Column {
+    val innerContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -825,22 +825,26 @@ private fun FeatureControl(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (icon != null) {
-                    Icon(
-                        icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accentColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
                 }
-                Text(title, fontWeight = FontWeight.Bold)
+                Text(title, fontWeight = FontWeight.ExtraBold)
             }
-            Text(valueLabel, style = MaterialTheme.typography.bodyMedium)
+            Text(valueLabel, style = MaterialTheme.typography.bodyMedium, color = accentColor, fontWeight = FontWeight.Bold)
         }
         if (helpText.isNotBlank()) {
             Text(
                 helpText,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
             )
         }
         Slider(
@@ -850,13 +854,22 @@ private fun FeatureControl(
             valueRange = valueRange,
             enabled = enabled,
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.primary,
-                activeTrackColor = MaterialTheme.colorScheme.primary,
-                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                thumbColor = accentColor,
+                activeTrackColor = accentColor,
+                inactiveTrackColor = accentColor.copy(alpha = 0.25f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(top = 8.dp)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
+    }
+
+    if (wrapInCard) {
+        AppleCard(accentColor = accentColor) {
+            Column(modifier = Modifier.padding(16.dp), content = innerContent)
+        }
+    } else {
+        Column(content = innerContent)
     }
 }

@@ -2,6 +2,22 @@
 
 Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compose.
 
+## 🎨 Preview UI Terkini (live, selalu update)
+
+**[▶ Buka Preview UI Interaktif](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html)**
+
+Link di atas render langsung file `docs/preview/current.html` di repo ini lewat
+[htmlpreview.github.io](https://htmlpreview.github.io) — live, tanpa perlu install APK
+apapun, cukup buka di browser (HP atau desktop). Setiap kali ada perubahan UI/UX yang
+cukup besar untuk didiskusikan dulu sebelum di-build jadi APK, file mockup ini di-update
+bareng commit-nya, jadi link ini SELALU mencerminkan arah desain TERBARU yang sedang
+dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
+
+> Catatan: mockup ini HTML/CSS murni untuk validasi warna/layout/shape secara cepat —
+> bukan representasi 1:1 pixel-perfect dari Compose asli (terutama font & icon vector),
+> tapi cukup akurat untuk memutuskan "arah ini cocok atau enggak" sebelum menghabiskan
+> siklus build+install APK yang jauh lebih lambat.
+
 ## Fitur
 - Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem).
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.
