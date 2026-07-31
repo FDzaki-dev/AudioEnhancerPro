@@ -1,6 +1,13 @@
 # Changelog
 
+> 🔗 **Sesi Claude baru?** Paste `https://github.com/FDzaki-dev/AudioEnhancerPro` di awal chat buat konteks instan (Claude fetch README+CHANGELOG ini langsung).
+
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
+
+## v1.29 - README instruksi konteks instan + preview arah "native ultra premium"
+- **README & CHANGELOG**: tambah baris instruksi eksplisit paling atas — paste link repo di sesi Claude baru buat konteks instan (fetch langsung, gak perlu upload ulang zip).
+- **`docs/preview/current.html` diganti arah baru**: dari neo-brutalist border tebal (Batch 1) ke **glassmorphism premium** — kartu kaca buram (`backdrop-filter: blur`), border tipis gradient-glow senada aksen tiap fitur, slider dengan gradient track & thumb bercahaya, signature waveform bar di header, background gradient radial ungu-gelap (bukan hitam pekat rata). Arah ini belum di-port ke Kotlin — nunggu konfirmasi dulu lewat link preview.
+- Bump `versionCode` → 29, `versionName` → "1.29".
 
 ## v1.28 - Live UI preview tertanam permanen di README &amp; CHANGELOG
 - **`docs/preview/current.html`**: mockup HTML/CSS ditaruh permanen di repo (bukan cuma dikirim sekali di chat). Setiap kali ada perubahan arah desain besar yang perlu didiskusikan dulu sebelum di-build APK, file ini di-update bareng commit-nya.

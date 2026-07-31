@@ -1,5 +1,10 @@
 # AudioEnhancerPro
 
+> 🔗 **Lanjut development di sesi Claude baru?** Paste link repo ini di awal chat:
+> `https://github.com/FDzaki-dev/AudioEnhancerPro` — Claude akan langsung fetch
+> README ini + CHANGELOG.md buat dapat konteks penuh & akurat dalam hitungan detik,
+> tanpa perlu upload ulang zip atau jelasin ulang riwayat project dari awal.
+
 Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compose.
 
 ## 🎨 Preview UI Terkini (live, selalu update)
