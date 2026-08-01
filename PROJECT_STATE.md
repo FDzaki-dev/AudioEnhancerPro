@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.32
+- **Versi**: v1.33
 - **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
   translucent + border gradient tipis + shadow lembut), background gradient
   violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
@@ -58,6 +58,10 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 - **Equalizer band individual TIDAK dibungkus card sendiri** (`wrapInCard =
   false`) — udah di dalam card "Equalizer Manual", biar gak numpuk
   kaca-di-atas-kaca kalau bandnya banyak.
+- **Preset custom (v1.33) TIDAK ikut reset equalizer manual** saat diterapkan
+  — beda dari 4 preset bawaan yang eksplisit reset EQ ke flat. Alasan: preset
+  custom cuma menyimpan bass/virtualizer/loudness (bukan state EQ), jadi
+  reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
 
 ## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
 - **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox Claude manapun (dicek
@@ -93,10 +97,12 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 ```
 
 ## Struktur proyek singkat
-- `MainActivity.kt` — semua UI Compose (BoosterScreen, FeatureControl, GlassCard, dst) + lifecycle Activity + bind ke Service.
+- `MainActivity.kt` — semua UI Compose (BoosterScreen, FeatureControl, GlassCard, CrashBanner, dst) + lifecycle Activity + bind ke Service.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
 - `Theme.kt` — palet warna, typography, shape. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient).
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini.
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log).
+- `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
+- `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OnboardingScreen.kt` — 6 halaman onboarding.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
@@ -104,8 +110,6 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - Rotasi layar/config change, font scaling besar, landscape phone, RTL,
   kontras tombol biru — user bilang eksplisit TIDAK urgent, jangan dikerjain
   duluan tanpa diminta.
-- Icon launcher masih adaptive vector sederhana (v1.14) — belum di-refresh
-  ikut palet gradient glassmorphism baru. Worth ditanyakan kalau relevan.
 
 ## Cara update file ini
 Tiap sesi yang bikin keputusan arsitektur/desain baru (bukan sekadar bugfix

@@ -91,6 +91,25 @@
     <string name="connection_error_body">The app couldn\'t connect to the background service that runs the audio effects. Try force-closing and reopening the app.</string>
     <string name="connection_retry">Retry</string>
 
+    <!-- Local crash log -->
+    <string name="crash_banner_body">The app stopped unexpectedly since it was last opened.</string>
+    <string name="crash_view_button">View Details</string>
+    <string name="crash_dialog_title">Latest Crash Details</string>
+    <string name="crash_dismiss_button">Close</string>
+    <string name="crash_delete_button">Delete Log</string>
+
+    <!-- Custom presets -->
+    <string name="preset_save_chip">Save</string>
+    <string name="preset_save_dialog_title">Save Current Preset</string>
+    <string name="preset_save_dialog_hint">Preset name</string>
+    <string name="preset_save_confirm">Save</string>
+    <string name="preset_save_cancel">Cancel</string>
+    <string name="preset_delete_dialog_title">Delete Preset?</string>
+    <string name="preset_delete_dialog_body">Preset \"%1$s\" will be permanently deleted.</string>
+    <string name="preset_delete_confirm">Delete</string>
+    <string name="preset_delete_cancel">Cancel</string>
+    <string name="cd_delete_preset">Delete preset %1$s</string>
+
     <!-- Foreground service notification -->
     <string name="notif_channel_name">Audio Booster Active</string>
     <string name="notif_channel_desc">Shows the running status of the audio booster</string>

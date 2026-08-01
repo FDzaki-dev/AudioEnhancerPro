@@ -4,6 +4,18 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.33 - Icon launcher ikut palet baru + robustness (crash log lokal & preset custom)
+**Batch A — Icon launcher:**
+- Gradient background icon (adaptive + legacy PNG semua densitas) diganti dari biru iOS lama (`#0A84FF→#64D2FF`) ke violet (`#8B7CF6→#3E2E6B`), konsisten sama primary/primaryContainer app saat ini. Motif 4-bar equalizer putih di foreground dipertahankan persis (bentuk & posisi gak berubah).
+- PNG legacy (`mipmap-*dpi`, buat device API<26 yang gak pakai adaptive icon) di-regenerate per-pixel: alpha mask (bentuk squircle/lingkaran) & bar putih dipertahankan exact, cuma warna background yang di-recolor.
+- `ic_launcher_monochrome.xml` (varian Android 13+ themed icon) sengaja TIDAK disentuh — warnanya di-override otomatis sama sistem berdasar wallpaper, RGB sumbernya gak ngaruh ke tampilan akhir.
+
+**Batch B — Robustness:**
+- **Crash log lokal** (`CrashLogger.kt` baru, `AudioEnhancerApp.kt` baru sebagai Application class): uncaught exception ditangkap & disimpan ke file internal (`filesDir/crash_logs/`, rotasi maks 5 file), rethrow ke handler default supaya perilaku crash Android normal tetap jalan. Kalau ada crash log yang belum dilihat, muncul banner kecil di layar utama dengan tombol "Lihat Detail" (dialog scrollable) dan "Hapus Log". Ini nutupin gap: sebelumnya kalau service crash di background, satu-satunya jejak cuma notifikasi yang tiba-tiba hilang tanpa penjelasan.
+- **Preset custom**: selain 4 preset bawaan, sekarang bisa simpan kombinasi bass/virtualizer/loudness sendiri lewat chip "+ Simpan" → dialog nama → tersimpan permanen (`PrefsHelper`, JSON via `org.json` bawaan Android, gak nambah dependency baru). Preset custom muncul sebagai chip dengan ikon "×" buat hapus (dengan dialog konfirmasi). Preset custom sengaja TIDAK ikut reset equalizer manual saat diterapkan (beda dari preset bawaan) karena memang gak menyimpan state EQ.
+- String baru ditambahkan lengkap di `values/strings.xml` DAN `values-en/strings.xml` (cross-checked, tidak ada key yang hilang di salah satu locale).
+- Bump `versionCode` → 33, `versionName` → "1.33".
+
 ## v1.32 - Fix bug kritis: teks nyaris hitam-tak-terbaca di atas background gelap
 - **Root cause ditemukan**: root `Surface` di-set `color = Color.Transparent` (biar gradient background keliatan tembus), tapi Compose Material3 gak bisa nentuin `contentColor` otomatis dari warna transparent — fallback ke default library, yaitu hitam pekat. Bug ini turun ke `GlassCard`/`GlassTintedCard` juga karena `containerColor`-nya (`surface.copy(alpha=0.6f)`) juga gak match slot warna manapun di color scheme.
 - Akibatnya semua `Text()` tanpa `color=` eksplisit (judul "Bass Boost"/"Virtualizer"/"Loudness Gain", subtitle "Efek berlaku ke seluruh audio sistem") ikut hitam di atas background gelap — nyaris tak terbaca.

@@ -91,6 +91,25 @@
     <string name="connection_error_body">App tidak bisa terhubung ke background service yang menjalankan efek audio. Coba tutup paksa &amp; buka ulang app.</string>
     <string name="connection_retry">Coba Lagi</string>
 
+    <!-- Crash log lokal -->
+    <string name="crash_banner_body">Aplikasi sempat berhenti mendadak sejak terakhir dibuka.</string>
+    <string name="crash_view_button">Lihat Detail</string>
+    <string name="crash_dialog_title">Detail Crash Terakhir</string>
+    <string name="crash_dismiss_button">Tutup</string>
+    <string name="crash_delete_button">Hapus Log</string>
+
+    <!-- Preset custom -->
+    <string name="preset_save_chip">Simpan</string>
+    <string name="preset_save_dialog_title">Simpan Preset Saat Ini</string>
+    <string name="preset_save_dialog_hint">Nama preset</string>
+    <string name="preset_save_confirm">Simpan</string>
+    <string name="preset_save_cancel">Batal</string>
+    <string name="preset_delete_dialog_title">Hapus Preset?</string>
+    <string name="preset_delete_dialog_body">Preset \"%1$s\" akan dihapus permanen.</string>
+    <string name="preset_delete_confirm">Hapus</string>
+    <string name="preset_delete_cancel">Batal</string>
+    <string name="cd_delete_preset">Hapus preset %1$s</string>
+
     <!-- Notifikasi foreground service -->
     <string name="notif_channel_name">Audio Booster Aktif</string>
     <string name="notif_channel_desc">Menampilkan status booster audio yang sedang berjalan</string>

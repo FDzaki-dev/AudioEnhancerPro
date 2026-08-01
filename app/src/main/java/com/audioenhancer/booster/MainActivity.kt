@@ -32,8 +32,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -55,6 +58,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -357,6 +361,71 @@ private data class Preset(
     val loudness: Float
 )
 
+/** Heads-up kecil kalau app sempat crash sejak terakhir dibuka — sebelum ini,
+ *  satu-satunya jejak crash adalah notifikasi "aktif" yang tiba-tiba hilang tanpa
+ *  penjelasan. Cuma muncul sekali per insiden (ditandai "sudah dilihat" saat ditutup). */
+@Composable
+private fun CrashBanner() {
+    val context = LocalContext.current
+    var crashFile by remember {
+        mutableStateOf(if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null)
+    }
+    var showDialog by remember { mutableStateOf(false) }
+    val file = crashFile ?: return
+
+    fun dismiss() {
+        showDialog = false
+        CrashLogger.markCrashSeen(context)
+        crashFile = null
+    }
+
+    GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Filled.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+            Text(
+                stringResource(R.string.crash_banner_body),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = { showDialog = true }) {
+                Text(stringResource(R.string.crash_view_button))
+            }
+        }
+    }
+
+    if (showDialog) {
+        val crashText = remember(file) { runCatching { file.readText() }.getOrDefault("") }
+        AlertDialog(
+            onDismissRequest = { dismiss() },
+            title = { Text(stringResource(R.string.crash_dialog_title)) },
+            text = {
+                Text(
+                    crashText,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    CrashLogger.deleteAllLogs(context)
+                    dismiss()
+                }) { Text(stringResource(R.string.crash_delete_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { dismiss() }) {
+                    Text(stringResource(R.string.crash_dismiss_button))
+                }
+            }
+        )
+    }
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -407,6 +476,23 @@ fun BoosterScreen(
     // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
     // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
     var eqResetCounter by remember { mutableStateOf(0) }
+
+    val context = LocalContext.current
+    var customPresets by remember { mutableStateOf(PrefsHelper.getCustomPresets(context)) }
+    var showSavePresetDialog by remember { mutableStateOf(false) }
+    var presetNameInput by remember { mutableStateOf("") }
+    var presetPendingDelete by remember { mutableStateOf<String?>(null) }
+
+    fun applyCustomPreset(preset: PrefsHelper.CustomPreset) {
+        // Preset custom sengaja TIDAK ikut me-reset equalizer manual — beda dari preset
+        // bawaan, preset custom cuma menyimpan bass/virtualizer/loudness, bukan EQ.
+        bass = preset.bass; onBass(preset.bass.toInt().toShort())
+        virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
+        loudness = preset.loudness; onLoudness(preset.loudness)
+        activePreset = preset.name
+        onActivePresetChange(preset.name)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
 
     fun applyPreset(preset: Preset) {
         bass = preset.bass; onBass(preset.bass.toInt().toShort())
@@ -476,6 +562,7 @@ fun BoosterScreen(
         }
 
         ServiceStatusBadge(onRestartService = onRestartService)
+        CrashBanner()
 
         when (connectionState) {
             MainActivity.ConnectionState.CONNECTING -> {
@@ -580,7 +667,91 @@ fun BoosterScreen(
                         )
                     )
                 }
+                customPresets.forEach { custom ->
+                    FilterChip(
+                        selected = activePreset == custom.name,
+                        onClick = { applyCustomPreset(custom) },
+                        label = { Text(custom.name) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_delete_preset, custom.name),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { presetPendingDelete = custom.name }
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+                AssistChip(
+                    onClick = { presetNameInput = ""; showSavePresetDialog = true },
+                    label = { Text(stringResource(R.string.preset_save_chip)) },
+                    leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(50)
+                )
             }
+        }
+
+        if (showSavePresetDialog) {
+            AlertDialog(
+                onDismissRequest = { showSavePresetDialog = false },
+                title = { Text(stringResource(R.string.preset_save_dialog_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = presetNameInput,
+                        onValueChange = { presetNameInput = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.preset_save_dialog_hint)) }
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = presetNameInput.isNotBlank(),
+                        onClick = {
+                            val newPreset = PrefsHelper.CustomPreset(presetNameInput.trim(), bass, virtualizer, loudness)
+                            PrefsHelper.addCustomPreset(context, newPreset)
+                            customPresets = PrefsHelper.getCustomPresets(context)
+                            activePreset = newPreset.name
+                            onActivePresetChange(newPreset.name)
+                            showSavePresetDialog = false
+                        }
+                    ) { Text(stringResource(R.string.preset_save_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSavePresetDialog = false }) {
+                        Text(stringResource(R.string.preset_save_cancel))
+                    }
+                }
+            )
+        }
+
+        presetPendingDelete?.let { nameToDelete ->
+            AlertDialog(
+                onDismissRequest = { presetPendingDelete = null },
+                title = { Text(stringResource(R.string.preset_delete_dialog_title)) },
+                text = { Text(stringResource(R.string.preset_delete_dialog_body, nameToDelete)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        PrefsHelper.deleteCustomPreset(context, nameToDelete)
+                        customPresets = PrefsHelper.getCustomPresets(context)
+                        if (activePreset == nameToDelete) { activePreset = null; onActivePresetChange(null) }
+                        presetPendingDelete = null
+                    }) { Text(stringResource(R.string.preset_delete_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { presetPendingDelete = null }) {
+                        Text(stringResource(R.string.preset_delete_cancel))
+                    }
+                }
+            )
         }
 
         FeatureControl(
