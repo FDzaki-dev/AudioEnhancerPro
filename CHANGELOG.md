@@ -4,6 +4,12 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.35 - Tambah kandidat Infinix/Tecno/itel (Transsion) di OemAutostartHelper
+- Kandidat Intent baru: `com.transsion.phonemanager` / `com.itel.autobootmanager.activity.AutoBootMgrActivity` — dipakai bersama di Infinix (XOS), Tecno (HiOS), itel OS (satu grup Transsion Holdings).
+- **Catatan kejujuran**: ini kandidat PALING GAK TERVERIFIKASI dari semua OEM yang didukung. Riset dilakukan (bukan tebakan), tapi bahkan library open-source populer `judemanutd/AutoStarter` masih punya issue terbuka soal Infinix/Tecno sejak 2020. Kalau gagal, otomatis fallback ke halaman App Info (tidak crash) — tapi user Infinix/Tecno/itel sebaiknya juga tahu jalur manual: Settings → Apps → App Management → cari app → aktifkan "Autostart", + Settings → Battery → Power saving mode → Exceptions → tambah app, + kunci app di recent apps (swipe-down kartu app, tap ikon gembok).
+- Teks `battery_card_body` & `ob5_detail` (ID+EN) diupdate, sekarang sebut XOS/HiOS/Infinix/Tecno juga.
+- Bump `versionCode` → 35, `versionName` → "1.35".
+
 ## v1.34 - Investigasi tuntas: notifikasi/service ikut mati saat swipe dari recent apps
 - **Audit menyeluruh dilakukan** terhadap seluruh lifecycle service (`stopWithTask`, `START_STICKY`, kombinasi started+bound, `foregroundServiceType`, `onTaskRemoved`) — semuanya SUDAH BENAR secara implementasi Android standar. Bukan bug logika di `AudioEnhancerService.kt`.
 - **Root cause**: battery/task manager proprietary OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Huawei/EMUI, Samsung, OnePlus, dst) membunuh foreground service TANPA PEDULI `stopWithTask`/`START_STICKY`, kecuali user manual mengizinkan "Autostart"/"No restriction" di pengaturan khusus tiap merk. Tidak ada API publik Android buat app minta izin ini otomatis — ini keterbatasan platform, bukan sesuatu yang bisa di-fix murni dari kode app.

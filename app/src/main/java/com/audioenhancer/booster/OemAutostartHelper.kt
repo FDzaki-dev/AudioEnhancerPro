@@ -56,6 +56,16 @@ object OemAutostartHelper {
             manufacturer.contains("samsung") -> listOf(
                 componentIntent("com.samsung.android.lool", "com.samsung.android.sm.ui.battery.BatteryActivity")
             )
+            manufacturer.contains("infinix") || brand.contains("infinix") ||
+                manufacturer.contains("tecno") || brand.contains("tecno") ||
+                manufacturer.contains("itel") || brand.contains("itel") -> listOf(
+                // Infinix (XOS)/Tecno (HiOS)/itel OS satu grup (Transsion Holdings), berbagi
+                // app "Phone Manager". CATATAN: berbeda dari Xiaomi/Huawei/Oppo/Vivo, kandidat
+                // ini kurang terverifikasi luas (bahkan library open-source populer sekelas
+                // AutoStarter masih punya issue terbuka soal Infinix/Tecno sejak 2020) — kalau
+                // gagal, otomatis fallback ke App Info, gak bikin crash.
+                componentIntent("com.transsion.phonemanager", "com.itel.autobootmanager.activity.AutoBootMgrActivity")
+            )
             manufacturer.contains("oneplus") -> listOf(
                 componentIntent("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity")
             )

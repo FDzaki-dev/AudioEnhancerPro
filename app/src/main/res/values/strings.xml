@@ -49,7 +49,7 @@
 
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>
-    <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
+    <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI/XOS/HiOS, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
     <string name="battery_autostart_button">Buka Pengaturan Autostart</string>
     <string name="battery_autostart_button_generic">Buka Pengaturan Aplikasi</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
@@ -81,7 +81,7 @@
 
     <string name="ob5_title">Kenapa app minta izin baterai?</string>
     <string name="ob5_desc">Supaya booster tetap aktif walau HP di-lock atau app di-scroll dari recent apps.</string>
-    <string name="ob5_detail">Android secara default mematikan aplikasi background untuk hemat baterai. Kalau app ini dimatikan sistem, efek boost ikut hilang. Izin \'abaikan optimasi baterai\' mencegah itu. Di HP Xiaomi/Oppo/Vivo/Huawei, kamu mungkin juga perlu aktifkan \'Autostart\' secara manual di pengaturan HP — app tidak bisa melakukan ini secara otomatis, itu kebijakan keamanan Android.</string>
+    <string name="ob5_detail">Android secara default mematikan aplikasi background untuk hemat baterai. Kalau app ini dimatikan sistem, efek boost ikut hilang. Izin \'abaikan optimasi baterai\' mencegah itu. Di HP Xiaomi/Oppo/Vivo/Huawei/Infinix/Tecno, kamu mungkin juga perlu aktifkan \'Autostart\' secara manual di pengaturan HP — app tidak bisa melakukan ini secara otomatis, itu kebijakan keamanan Android.</string>
 
     <string name="ob6_title">Notifikasi yang selalu muncul</string>
     <string name="ob6_desc">Selama booster aktif, kamu akan lihat notifikasi kecil yang tidak bisa di-swipe hilang.</string>

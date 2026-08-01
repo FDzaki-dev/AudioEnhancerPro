@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.34
+- **Versi**: v1.35
 - **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
   translucent + border gradient tipis + shadow lembut), background gradient
   violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
@@ -88,6 +88,16 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   "service/notifikasi mati sendiri" lagi di masa depan, JANGAN buru-buru
   curiga ke kode `AudioEnhancerService`/`onTaskRemoved` dulu — itu udah
   diverifikasi benar. Cek dulu apakah user sudah aktifkan Autostart di HP-nya.
+- **Update v1.35**: kandidat Infinix/Tecno/itel (`com.transsion.phonemanager` /
+  `AutoBootMgrActivity`) ditambah ke `OemAutostartHelper.kt`, tapi CATAT: ini
+  PALING GAK TERVERIFIKASI dari semua kandidat OEM yang ada — bahkan library
+  open-source populer sekelas `judemanutd/AutoStarter` (600+ stars) masih
+  punya issue TERBUKA soal Infinix/Tecno sejak 2020, belum pernah keresolve.
+  Kalau kandidat ini gagal di device tertentu, otomatis fallback ke App Info
+  (gak crash), tapi user mungkin perlu cari manual: Settings → Apps → App
+  Management → [nama app] → Autostart, DAN Settings → Battery → Power saving
+  mode → Exceptions, DAN kunci app di recent apps (swipe-down kartu app →
+  ikon gembok).
 - **Insiden nyata (v1.32)**: `Surface`/`Card` dengan `color`/`containerColor`
   yang gak persis match salah satu slot di `ColorScheme` (contoh: warna
   `Color.Transparent`, atau `surface.copy(alpha=0.x)`) BIKIN Material3 gak
