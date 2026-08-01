@@ -1,8 +1,13 @@
 # Changelog
 
-> 🔗 **Sesi Claude baru?** Paste `https://github.com/FDzaki-dev/AudioEnhancerPro` di awal chat buat konteks instan (Claude fetch README+CHANGELOG ini langsung).
+> 🧠 **Sesi Claude baru?** Baca `PROJECT_STATE.md` dulu (bukan file ini) — didesain khusus buat konteks AI: keputusan desain+alasannya, batasan teknis, riwayat pivot. File ini (CHANGELOG) cuma buat detail teknis per-versi.
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
+
+## v1.31 - PROJECT_STATE.md: file konteks khusus AI, biar sesi manapun bisa lanjut instan
+- **`PROJECT_STATE.md` baru di root repo** — bukan README (buat manusia) atau CHANGELOG (log historis), tapi file PADAT yang didesain khusus dibaca AI di awal sesi: status terkini, keputusan desain & alasannya (yang gak boleh diubah tanpa alasan baru), batasan sandbox Claude (gak ada kotlinc/gradle, insiden `Icons.AutoMirrored.Filled.VolumeUp`), riwayat pivot arah desain (Apple-style → neo-brutalist → glassmorphism, plus KENAPA tiap pivot terjadi), command Termux standar, dan TODO yang sengaja belum dikerjain.
+- **README & CHANGELOG di-update** nunjuk ke `PROJECT_STATE.md` sebagai bacaan PERTAMA sebelum apapun lain, supaya sesi Claude baru gak mulai dari nol atau ngulang pertanyaan/kesalahan yang sama.
+- Bump `versionCode` → 31, `versionName` → "1.31".
 
 ## v1.30 - Port "native ultra premium" (glassmorphism) ke Kotlin — bukan cuma HTML mockup lagi
 - **`GlassCard`/`GlassTintedCard`** menggantikan `AppleCard` neo-brutalist Batch 1: fill translucent (`surface.copy(alpha=0.6f)`) di atas background gradient, border TIPIS bergradasi (`Brush.linearGradient`, bukan solid tebal), shadow lembut (elevation 4-6dp, bukan 0dp flat).
