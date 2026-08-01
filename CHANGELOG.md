@@ -4,6 +4,14 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.37 - Fix regresi audit: emoji hardcoded di OnboardingScreen (lolos dari pembersihan v1.27)
+- **Root cause**: pembersihan emoji v1.27 ("hapus SEMUA emoji, ganti vector icon") cuma menyisir `strings.xml` — sementara `OnboardingScreen.kt` punya 6 emoji (🎧🔊🌐📢🛡️🔔) yang HARDCODED di Kotlin sebagai field `emoji: String`, jadi lolos dari audit itu. Ditemukan di audit kecacatan logika sesi ini.
+- **Fix**: `OnboardingPage.emoji` diganti `icon: ImageVector` + `accentColor`/`accentColor2`, dirender sebagai icon-orb gradient 88dp (gaya sama persis dengan icon-box `FeatureControl` di layar utama, cuma lebih besar).
+- **Bonus konsistensi (bukan cuma hapus emoji)**: ikon & warna tiap halaman onboarding disamakan PERSIS dengan ikon/aksen fitur yang sama di layar utama — Bass Boost pakai `VolumeUp`+`BassAccent`, Virtualizer pakai `SurroundSound`+`VirtualizerAccent`, Loudness pakai `Campaign`+`LoudnessAccent`, halaman izin baterai pakai `Shield`+`BatteryAccent` (sama kayak card baterai). Halaman welcome pakai `Headset`+`DynamicColorAccent` (violet, identitas app), halaman notifikasi pakai `Notifications`+`EqualizerAccent` (belum ada yang pakai warna ini di onboarding). Efeknya onboarding sekarang "mengenalkan" visual yang nanti user kenali lagi persis di layar utama, bukan cuma dekorasi lepas.
+- Import `sp` yang jadi tidak terpakai (fontSize emoji dihapus) ikut dibersihkan.
+- `docs/preview/current.html` SENGAJA tidak disentuh — mockup itu memang pakai emoji sebagai placeholder ikon (bukan representasi pixel-perfect, sudah dicatat di README), dan perubahan ini cuma menerapkan arah desain yang sudah dikunci sejak v1.27/v1.30, bukan eksplorasi arah baru yang perlu divalidasi ulang lewat preview.
+- Bump `versionCode` → 37, `versionName` → "1.37".
+
 ## v1.36 - Audit dokumentasi: README sinkron ulang dengan kode aktual (Batch 1 dari audit kecacatan logika)
 - **Audit menyeluruh dilakukan** terhadap semua file Kotlin, Manifest, Gradle, `strings.xml` (ID+EN), dan workflow CI — sebagian besar bersih (service lifecycle, effect handling, OEM autostart, tema, reset EQ, parity i18n semuanya sudah benar). Tapi ketemu 2 dokumentasi yang sudah tidak sinkron dengan kode:
 - **Fix klaim fitur usang**: `README.md` bagian "Fitur" masih menyebut "Restart otomatis saat task di-swipe (`onTaskRemoved`)" — padahal mekanisme itu SUDAH DICABUT sejak v1.34 (diganti murni `stopWithTask="false"` + `START_STICKY`, tanpa restart manual). Diperbaiki supaya cocok dengan komentar di `AudioEnhancerService.kt` sendiri.

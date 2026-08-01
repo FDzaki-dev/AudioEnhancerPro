@@ -10,21 +10,22 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.36
+- **Versi**: v1.37
 - 🔍 **Audit kecacatan logika sedang berjalan** (diminta user eksplisit: "berhenti tambah
   fitur, fokus pematangan & audit"). Sudah diaudit tuntas (service lifecycle, effect
-  handling, OEM autostart, tema, reset EQ, parity i18n — semua bersih). Temuan yang
-  SUDAH di-fix di v1.36 (Batch 1, docs-only): README klaim `onTaskRemoved` restart
-  yang sudah dicabut sejak v1.34, dan README klaim APK debug CI muncul di Artifacts
-  padahal job `build` tidak upload apapun. Temuan yang BELUM di-fix (nunggu instruksi
-  user lanjut batch berikutnya):
-  1. `OnboardingScreen.kt` masih emoji hardcoded (🎧🔊🌐📢🛡️🔔) — lolos dari
-     pembersihan emoji v1.27 karena emoji-nya di Kotlin, bukan `strings.xml`.
-  2. Custom preset bisa tabrakan nama dengan 4 preset bawaan (chip built-in & custom
-     sama-sama ke-highlight "selected" kalau namanya persis sama).
-  3. Minor/opsional: `BootReceiver` exported tanpa permission, `CrashLogger` timestamp
-     resolusi per-detik, test coverage `PrefsHelperTest` belum cover custom preset/
-     dynamic color.
+  handling, OEM autostart, tema, reset EQ, parity i18n — semua bersih). Progress fix:
+  - ✅ v1.36 (Batch 1): README klaim `onTaskRemoved` restart yang sudah dicabut sejak
+    v1.34, dan README klaim APK debug CI muncul di Artifacts padahal job `build` tidak
+    upload apapun.
+  - ✅ v1.37 (Batch 2): `OnboardingScreen.kt` emoji hardcoded (🎧🔊🌐📢🛡️🔔) — lolos
+    dari pembersihan emoji v1.27 karena emoji-nya di Kotlin, bukan `strings.xml`.
+    Diganti icon vector + accent color yang SAMA PERSIS dengan fitur terkait di layar
+    utama (bonus konsistensi visual, bukan cuma hapus emoji).
+  - ⏳ BELUM: custom preset bisa tabrakan nama dengan preset bawaan (chip built-in &
+    custom sama-sama ke-highlight "selected" kalau namanya persis sama).
+  - ⏳ BELUM (minor/opsional): `BootReceiver` exported tanpa permission, `CrashLogger`
+    timestamp resolusi per-detik, test coverage `PrefsHelperTest` belum cover custom
+    preset/dynamic color.
 - ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
   kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
   Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40
