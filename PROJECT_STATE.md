@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.33
+- **Versi**: v1.34
 - **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
   translucent + border gradient tipis + shadow lembut), background gradient
   violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
@@ -73,6 +73,21 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   ketauan sebelum sempat ke-kirim — tapi ini nunjukkin resikonya nyata.
   Kalau ragu 1 nama icon/class ada atau nggak, mending pakai yang udah
   KONFIRMASI kepake di file lain, atau icon paling umum/basic.
+- **Insiden nyata (v1.34)**: user lapor notifikasi "Audio Booster aktif" ikut
+  hilang saat app di-swipe dari recent apps, padahal harusnya cuma hilang
+  kalau tekan "Matikan". Sudah diaudit menyeluruh: implementasi Android-nya
+  (`stopWithTask="false"`, service di-*start* DAN di-*bind* sekaligus,
+  `START_STICKY`, `foregroundServiceType="mediaPlayback"`) semuanya SUDAH
+  BENAR — bukan bug logika. Akar masalahnya adalah battery/task manager
+  proprietary OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Huawei/EMUI, Samsung, dst)
+  yang membunuh foreground service TANPA PEDULI `stopWithTask`/`START_STICKY`
+  kecuali user manual mengizinkan "Autostart"/"No restriction" di pengaturan
+  khusus tiap merk — ini keterbatasan platform, bukan sesuatu yang bisa
+  di-fix murni dari kode app. Mitigasi yang ditambahkan: `OemAutostartHelper.kt`
+  (deep-link ke pengaturan yang relevan). LESSON: kalau ada laporan
+  "service/notifikasi mati sendiri" lagi di masa depan, JANGAN buru-buru
+  curiga ke kode `AudioEnhancerService`/`onTaskRemoved` dulu — itu udah
+  diverifikasi benar. Cek dulu apakah user sudah aktifkan Autostart di HP-nya.
 - **Insiden nyata (v1.32)**: `Surface`/`Card` dengan `color`/`containerColor`
   yang gak persis match salah satu slot di `ColorScheme` (contoh: warna
   `Color.Transparent`, atau `surface.copy(alpha=0.x)`) BIKIN Material3 gak
@@ -103,6 +118,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
+- `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/dst), fallback ke App Info bawaan Android kalau semua kandidat gagal.
 - `OnboardingScreen.kt` — 6 halaman onboarding.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 

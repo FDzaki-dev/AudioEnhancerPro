@@ -50,6 +50,8 @@
     <!-- Battery card -->
     <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>
     <string name="battery_card_body">So the booster keeps running even when your phone is locked or the app is swiped away from recent apps. On MIUI/ColorOS/EMUI phones, also enable \'Autostart\' manually in phone settings.</string>
+    <string name="battery_autostart_button">Open Autostart Settings</string>
+    <string name="battery_autostart_button_generic">Open App Settings</string>
     <string name="see_full_explanation">See full explanation of each feature →</string>
 
     <!-- Theme toggle -->

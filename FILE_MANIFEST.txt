@@ -12,6 +12,7 @@ app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
+app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt

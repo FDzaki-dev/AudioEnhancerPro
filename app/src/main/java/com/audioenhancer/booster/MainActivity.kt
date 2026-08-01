@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.VolumeUp
@@ -859,6 +860,17 @@ fun BoosterScreen(
                     stringResource(R.string.battery_card_body),
                     style = MaterialTheme.typography.bodySmall
                 )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(onClick = { OemAutostartHelper.openAutostartSettings(context) }) {
+                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        if (OemAutostartHelper.deviceLikelyNeedsAutostart())
+                            stringResource(R.string.battery_autostart_button)
+                        else
+                            stringResource(R.string.battery_autostart_button_generic)
+                    )
+                }
             }
         }
 

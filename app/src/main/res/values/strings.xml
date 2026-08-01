@@ -50,6 +50,8 @@
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>
     <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
+    <string name="battery_autostart_button">Buka Pengaturan Autostart</string>
+    <string name="battery_autostart_button_generic">Buka Pengaturan Aplikasi</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
 
     <!-- Toggle tema -->

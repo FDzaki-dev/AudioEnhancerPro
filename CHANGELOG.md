@@ -4,6 +4,15 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.34 - Investigasi tuntas: notifikasi/service ikut mati saat swipe dari recent apps
+- **Audit menyeluruh dilakukan** terhadap seluruh lifecycle service (`stopWithTask`, `START_STICKY`, kombinasi started+bound, `foregroundServiceType`, `onTaskRemoved`) — semuanya SUDAH BENAR secara implementasi Android standar. Bukan bug logika di `AudioEnhancerService.kt`.
+- **Root cause**: battery/task manager proprietary OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Huawei/EMUI, Samsung, OnePlus, dst) membunuh foreground service TANPA PEDULI `stopWithTask`/`START_STICKY`, kecuali user manual mengizinkan "Autostart"/"No restriction" di pengaturan khusus tiap merk. Tidak ada API publik Android buat app minta izin ini otomatis — ini keterbatasan platform, bukan sesuatu yang bisa di-fix murni dari kode app.
+- **Mitigasi ditambahkan**: `OemAutostartHelper.kt` baru — deep-link ke halaman pengaturan Autostart/battery manager yang relevan per-merk (coba beberapa kandidat Intent berurutan, fallback otomatis ke halaman App Info bawaan Android kalau semua gagal, jadi TIDAK PERNAH dead-end).
+- Tombol "Buka Pengaturan Autostart" ditambahkan di card baterai (label tombol otomatis menyesuaikan: spesifik per-merk kalau device dikenal, generik kalau tidak).
+- String baru ditambahkan lengkap di ID + EN, cross-checked.
+- Temuan investigasi didokumentasikan di `PROJECT_STATE.md` sebagai jaring pengaman, biar laporan serupa di masa depan tidak salah diagnosis ke arah kode service lagi.
+- Bump `versionCode` → 34, `versionName` → "1.34".
+
 ## v1.33 - Icon launcher ikut palet baru + robustness (crash log lokal & preset custom)
 **Batch A — Icon launcher:**
 - Gradient background icon (adaptive + legacy PNG semua densitas) diganti dari biru iOS lama (`#0A84FF→#64D2FF`) ke violet (`#8B7CF6→#3E2E6B`), konsisten sama primary/primaryContainer app saat ini. Motif 4-bar equalizer putih di foreground dipertahankan persis (bentuk & posisi gak berubah).
