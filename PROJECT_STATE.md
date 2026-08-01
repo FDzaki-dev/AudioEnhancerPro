@@ -11,6 +11,12 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Status saat ini
 - **Versi**: v1.35
+- ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
+  kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
+  Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40
+  Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
+  atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
+  JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
 - **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
   translucent + border gradient tipis + shadow lembut), background gradient
   violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
@@ -128,11 +134,17 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
-- `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/dst), fallback ke App Info bawaan Android kalau semua kandidat gagal.
+- `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.
 - `OnboardingScreen.kt` — 6 halaman onboarding.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
+- **PRIORITAS**: tunggu/tanya konfirmasi user soal hasil tombol Autostart
+  v1.35 di Infinix Note 50 Pro 4G & Note 40 Pro 4G. Kalau gagal, opsi
+  selanjutnya: (a) cari kandidat ComponentName alternatif buat XOS versi
+  device itu spesifik, atau (b) terima kenyataan gak ada kandidat reliable
+  buat Infinix/Tecno (persis kayak yang dialami `AutoStarter` library) dan
+  fokus ke instruksi manual yang jelas di UI aja.
 - Rotasi layar/config change, font scaling besar, landscape phone, RTL,
   kontras tombol biru — user bilang eksplisit TIDAK urgent, jangan dikerjain
   duluan tanpa diminta.
