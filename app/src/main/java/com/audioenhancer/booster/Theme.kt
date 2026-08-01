@@ -11,6 +11,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -19,53 +20,54 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 1 REDESIGN — kebalikan dari Apple-style yang minimalis-monokrom-lembut.
-// Arahnya "maximalist neo-brutalist": tiap fitur punya warna sendiri yang vivid,
-// border TEBAL (bukan hairline tipis), shape lebih geometris/tegas (bukan bubble
-// bulat lembut ala iOS), tanpa jadi Material default yang abu-abu membosankan.
+// BATCH 2 REDESIGN — "native ultra premium": glassmorphism, gradient glow per
+// fitur, background gradient dalam (bukan hitam pekat rata), border tipis
+// gradient (bukan border tebal solid ala Batch 1 / hairline tipis ala Apple).
 // ============================================================================
 
-// Warna aksen per-fitur — dipakai LANGSUNG di komponen (bukan cuma lewat 1 warna
-// primary tunggal kayak sebelumnya), biar tiap bagian app kerasa beda & hidup.
-val BassAccent = Color(0xFFFF6B35)          // oranye membara
-val VirtualizerAccent = Color(0xFF06B6D4)   // cyan elektrik
-val LoudnessAccent = Color(0xFF10B981)      // hijau emerald
-val EqualizerAccent = Color(0xFFEC4899)     // pink magenta
-val BatteryAccent = Color(0xFFF59E0B)       // amber
-val DynamicColorAccent = Color(0xFF8B5CF6)  // violet
+// Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon/border/teks.
+val BassAccent = Color(0xFFFF7A45); val BassAccent2 = Color(0xFFFFB199)
+val VirtualizerAccent = Color(0xFF22D3EE); val VirtualizerAccent2 = Color(0xFF67E8F9)
+val LoudnessAccent = Color(0xFF34D399); val LoudnessAccent2 = Color(0xFF86EFAC)
+val EqualizerAccent = Color(0xFFF472B6); val EqualizerAccent2 = Color(0xFFFBA8D3)
+val BatteryAccent = Color(0xFFFBBF24); val BatteryAccent2 = Color(0xFFFDE68A)
+val DynamicColorAccent = Color(0xFF8B7CF6); val DynamicColorAccent2 = Color(0xFFC4B5FD)
 
-private val ElectricVioletDark = Color(0xFFA78BFA)
-private val ElectricVioletLight = Color(0xFF7C3AED)
-private val HotPink = Color(0xFFEC4899)
-private val NeonRedDark = Color(0xFFFF5470)
-private val NeonRedLight = Color(0xFFE11D48)
+private val PremiumVioletDark = Color(0xFF8B7CF6)
+private val PremiumVioletLight = Color(0xFF6D28D9)
+private val PremiumVioletDark2 = Color(0xFFC4B5FD)
+
+/** Brush gradasi latar layar dark theme — dalam & kaya, bukan hitam pekat rata. */
+val DarkBackgroundBrush = Brush.verticalGradient(
+    colors = listOf(Color(0xFF1B1330), Color(0xFF120C1F), Color(0xFF0A0714))
+)
 
 private val DarkColors = darkColorScheme(
-    primary = ElectricVioletDark,
-    onPrimary = Color(0xFF1A1625),
+    primary = PremiumVioletDark,
+    onPrimary = Color(0xFF15101F),
     primaryContainer = Color(0xFF3E2E6B),
     onPrimaryContainer = Color(0xFFE9DDFF),
-    secondary = HotPink,
+    secondary = Color(0xFFF472B6),
     onSecondary = Color.White,
-    background = Color(0xFF0D0B14),
-    onBackground = Color(0xFFF2EFFA),
-    surface = Color(0xFF1C1826),
-    onSurface = Color(0xFFF2EFFA),
+    background = Color(0xFF0A0714),
+    onBackground = Color(0xFFF5F2FF),
+    surface = Color(0xFF1C1730),
+    onSurface = Color(0xFFF5F2FF),
     surfaceVariant = Color(0xFF2E2740),
-    onSurfaceVariant = Color(0xFFC9BFE0),
-    error = NeonRedDark,
+    onSurfaceVariant = Color(0xFFAFA6CC),
+    error = Color(0xFFFF6B81),
     onError = Color.White,
     errorContainer = Color(0xFF4A0F1E),
     onErrorContainer = Color(0xFFFFD8DF),
-    outline = Color(0xFF6C5F94)
+    outline = Color(0xFF4A4166)
 )
 
 private val LightColors = lightColorScheme(
-    primary = ElectricVioletLight,
+    primary = PremiumVioletLight,
     onPrimary = Color.White,
     primaryContainer = Color(0xFFEBE0FF),
     onPrimaryContainer = Color(0xFF2E1065),
-    secondary = HotPink,
+    secondary = Color(0xFFDB2777),
     onSecondary = Color.White,
     background = Color(0xFFFAF7FF),
     onBackground = Color(0xFF1A1625),
@@ -73,62 +75,56 @@ private val LightColors = lightColorScheme(
     onSurface = Color(0xFF1A1625),
     surfaceVariant = Color(0xFFF0EBFA),
     onSurfaceVariant = Color(0xFF5B5175),
-    error = NeonRedLight,
+    error = Color(0xFFE11D48),
     onError = Color.White,
     errorContainer = Color(0xFFFFE1E7),
     onErrorContainer = Color(0xFF4A0F1E),
-    outline = Color(0xFF1A1625)
+    outline = Color(0xFFCFC6E8)
 )
 
-// Typografi masih tegas/besar, tapi tracking DINAIKKAN (bukan dirapatkan ala SF Pro) —
-// kesan poster/ekspresif, bukan refined-elegant.
 private val AppTypography = Typography(
     headlineMedium = TextStyle(
-        fontWeight = FontWeight.Black,
-        fontSize = 34.sp,
-        lineHeight = 38.sp,
-        letterSpacing = 0.sp
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 30.sp,
+        lineHeight = 36.sp,
+        letterSpacing = (-0.3).sp
     ),
     headlineSmall = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
+        fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
-        lineHeight = 28.sp,
-        letterSpacing = 0.sp
+        lineHeight = 28.sp
     ),
     titleMedium = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 17.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.sp
+        lineHeight = 22.sp
     ),
     bodyLarge = TextStyle(
         fontWeight = FontWeight.Medium,
         fontSize = 17.sp,
-        lineHeight = 22.sp,
-        letterSpacing = 0.sp
+        lineHeight = 22.sp
     ),
     bodyMedium = TextStyle(
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
         lineHeight = 20.sp
     ),
     bodySmall = TextStyle(
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp
     )
 )
 
-// Shape lebih GEOMETRIS/TEGAS (sudut lebih kecil) — kebalikan dari bubble membulat
-// lembut ala iOS. Dikombinasikan dengan border tebal di komponen untuk kesan
-// neo-brutalist yang berani, bukan Material default yang medium-rounded biasa.
+// Shape kembali membulat lembut (kesan "kaca premium"), bukan sudut tajam
+// brutalist Batch 1 ataupun super-bulat minimal Apple.
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(6.dp),
-    medium = RoundedCornerShape(10.dp),
-    large = RoundedCornerShape(14.dp),
-    extraLarge = RoundedCornerShape(18.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp)
 )
 
 @Composable

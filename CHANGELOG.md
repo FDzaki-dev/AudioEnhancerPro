@@ -4,6 +4,17 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.30 - Port "native ultra premium" (glassmorphism) ke Kotlin — bukan cuma HTML mockup lagi
+- **`GlassCard`/`GlassTintedCard`** menggantikan `AppleCard` neo-brutalist Batch 1: fill translucent (`surface.copy(alpha=0.6f)`) di atas background gradient, border TIPIS bergradasi (`Brush.linearGradient`, bukan solid tebal), shadow lembut (elevation 4-6dp, bukan 0dp flat).
+- **Background gradient dalam**: `DarkBackgroundBrush` (violet gelap → hitam) menggantikan hitam pekat rata `#0D0B14` — dipasang di root `Surface` cuma untuk dark theme.
+- **Tiap fitur sekarang punya PASANGAN warna** (`BassAccent`/`BassAccent2`, dst) buat gradient icon-orb, border kartu, dan teks angka (pakai `TextStyle(brush=...)`, fitur gradient-text Compose).
+- **Signature waveform motif** di header — 8 bar gradient violet dengan tinggi bervariasi, elemen visual "audio" yang hidup, bukan dekorasi generik.
+- **Judul "Audio Booster"** sekarang gradient text (putih → violet primary).
+- Equalizer band individual TIDAK dibungkus kartu terpisah (`wrapInCard = false`) — sudah di dalam kartu "Equalizer Manual", biar gak numpuk kaca-di-atas-kaca.
+- Shape kembali membulat lembut (`medium = 20dp`, `extraLarge = 32dp`) — kesan kaca premium, bukan sudut tajam brutalist ataupun bubble minimal Apple.
+- `docs/preview/current.html` di-update biar tetap sinkron sama hasil Kotlin ini.
+- Bump `versionCode` → 30, `versionName` → "1.30".
+
 ## v1.29 - README instruksi konteks instan + preview arah "native ultra premium"
 - **README & CHANGELOG**: tambah baris instruksi eksplisit paling atas — paste link repo di sesi Claude baru buat konteks instan (fetch langsung, gak perlu upload ulang zip).
 - **`docs/preview/current.html` diganti arah baru**: dari neo-brutalist border tebal (Batch 1) ke **glassmorphism premium** — kartu kaca buram (`backdrop-filter: blur`), border tipis gradient-glow senada aksen tiap fitur, slider dengan gradient track & thumb bercahaya, signature waveform bar di header, background gradient radial ungu-gelap (bukan hitam pekat rata). Arah ini belum di-port ke Kotlin — nunggu konfirmasi dulu lewat link preview.

@@ -50,6 +50,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -204,7 +205,16 @@ class MainActivity : ComponentActivity() {
             }
 
             AudioEnhancerTheme(darkTheme = darkTheme, useDynamicColor = useDynamicColor) {
-                Surface(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (darkTheme) Modifier.background(DarkBackgroundBrush)
+                            else Modifier.background(MaterialTheme.colorScheme.background)
+                        )
+                        .safeDrawingPadding(),
+                    color = Color.Transparent
+                ) {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
                     }
@@ -311,7 +321,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     }
 
     val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    AppleTintedCard(tint = statusTint) {
+    GlassTintedCard(tint = statusTint) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -428,7 +438,14 @@ fun BoosterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
-                Text(stringResource(R.string.app_title), style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    stringResource(R.string.app_title),
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        brush = Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.onBackground, MaterialTheme.colorScheme.primary)
+                        )
+                    )
+                )
                 Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -439,11 +456,29 @@ fun BoosterScreen(
             }
         }
 
+        // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
+        Row(
+            modifier = Modifier.height(24.dp).padding(start = 4.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            val waveHeights = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
+            waveHeights.forEach { h ->
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .fillMaxHeight(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Brush.verticalGradient(listOf(DynamicColorAccent2, DynamicColorAccent)))
+                )
+            }
+        }
+
         ServiceStatusBadge(onRestartService = onRestartService)
 
         when (connectionState) {
             MainActivity.ConnectionState.CONNECTING -> {
-                AppleCard {
+                GlassCard {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -455,7 +490,7 @@ fun BoosterScreen(
                 }
             }
             MainActivity.ConnectionState.ERROR -> {
-                AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
+                GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -481,7 +516,7 @@ fun BoosterScreen(
         }
 
         if (!notificationPermissionGranted) {
-            AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
+            GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -505,7 +540,7 @@ fun BoosterScreen(
         }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            AppleTintedCard(tint = MaterialTheme.colorScheme.error) {
+            GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Text(
                     stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -513,7 +548,7 @@ fun BoosterScreen(
                 )
             }
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            AppleTintedCard(tint = MaterialTheme.colorScheme.primary) {
+            GlassTintedCard(tint = MaterialTheme.colorScheme.primary) {
                 Text(
                     stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -551,6 +586,7 @@ fun BoosterScreen(
             title = stringResource(R.string.feature_bass_title),
             icon = Icons.Filled.VolumeUp,
             accentColor = BassAccent,
+            accentColor2 = BassAccent2,
             helpText = when {
                 !bassSupported -> stringResource(R.string.feature_help_unsupported)
                 !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -567,6 +603,7 @@ fun BoosterScreen(
             title = stringResource(R.string.feature_virtualizer_title),
             icon = Icons.Filled.SurroundSound,
             accentColor = VirtualizerAccent,
+            accentColor2 = VirtualizerAccent2,
             helpText = when {
                 !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
                 !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
@@ -583,6 +620,7 @@ fun BoosterScreen(
             title = stringResource(R.string.feature_loudness_title),
             icon = Icons.Filled.Campaign,
             accentColor = LoudnessAccent,
+            accentColor2 = LoudnessAccent2,
             helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
                        else stringResource(R.string.feature_help_unsupported),
             value = loudness,
@@ -608,7 +646,7 @@ fun BoosterScreen(
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            AppleCard {
+            GlassCard {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -638,7 +676,7 @@ fun BoosterScreen(
             }
         }
 
-        AppleCard {
+        GlassCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
@@ -699,7 +737,7 @@ private fun EqualizerSection(
     }
     val haptics = LocalHapticFeedback.current
 
-    AppleCard {
+    GlassCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier
@@ -741,7 +779,10 @@ private fun EqualizerSection(
                             levels[band] = level
                             onBandChange(band, level)
                         },
-                        valueRange = levelMin.toFloat()..levelMax.toFloat()
+                        valueRange = levelMin.toFloat()..levelMax.toFloat(),
+                        accentColor = EqualizerAccent,
+                        accentColor2 = EqualizerAccent2,
+                        wrapInCard = false
                     )
                 }
             }
@@ -752,45 +793,49 @@ private fun EqualizerSection(
 internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
-/** Kartu bold ala neo-brutalist: border TEBAL berwarna (bukan hairline tipis ala iOS),
- *  tanpa shadow blur lembut. `accentColor` bikin tiap kartu bisa punya identitas warna
- *  sendiri — kebalikan dari pola "1 warna netral untuk semua" ala Apple. */
+/** Kartu ala kaca premium: fill translucent (nembus ke gradient background di
+ *  belakangnya), border TIPIS bergradasi (bukan tebal solid ala Batch 1, bukan
+ *  juga hairline datar ala Apple), shadow lembut buat kesan melayang halus. */
 @Composable
-private fun AppleCard(
+private fun GlassCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.surface,
-    accentColor: Color = MaterialTheme.colorScheme.outline,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor2: Color = accentColor,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(2.5.dp, accentColor),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(accentColor, accentColor2.copy(alpha = 0.35f)))),
         content = content
     )
 }
 
-/** Banner info/warning: tint solid (bukan pastel-lembut ala iOS) dengan border tebal
- *  senada — lebih berani/kontras, bukan blok datar Material atau tint tipis iOS. */
+/** Banner info/warning, tetap gaya kaca — fill di-blend solid dulu (bukan alpha
+ *  mentah) supaya tetap kelihatan jelas di atas gradient background gelap. */
 @Composable
-private fun AppleTintedCard(
+private fun GlassTintedCard(
     modifier: Modifier = Modifier,
     tint: Color,
+    tint2: Color = tint,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.28f)
+    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.24f).copy(alpha = 0.75f)
     Card(
         modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = blendedContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(2.5.dp, tint),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(tint, tint2.copy(alpha = 0.35f)))),
         content = content
     )
 }
 
-/** Label section: dulu kecil-kapital-abu ala iOS Settings. Sekarang lebih besar &
- *  berwarna (pakai accentColor), bukan kecil-pasif — biar section-nya kerasa hidup. */
+/** Label section: besar & berwarna gradient, bukan kecil-pasif abu-abu. */
 @Composable
 private fun SectionLabel(text: String, accentColor: Color = MaterialTheme.colorScheme.primary) {
     Text(
@@ -814,6 +859,7 @@ private fun FeatureControl(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
+    accentColor2: Color = accentColor,
     wrapInCard: Boolean = true
 ) {
     val haptics = LocalHapticFeedback.current
@@ -823,21 +869,27 @@ private fun FeatureControl(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (icon != null) {
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(accentColor),
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Brush.linearGradient(listOf(accentColor, accentColor2))),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
-                Text(title, fontWeight = FontWeight.ExtraBold)
+                Text(title, fontWeight = FontWeight.Bold)
             }
-            Text(valueLabel, style = MaterialTheme.typography.bodyMedium, color = accentColor, fontWeight = FontWeight.Bold)
+            Text(
+                valueLabel,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    brush = Brush.linearGradient(listOf(accentColor2, accentColor))
+                ),
+                fontWeight = FontWeight.ExtraBold
+            )
         }
         if (helpText.isNotBlank()) {
             Text(
@@ -854,9 +906,9 @@ private fun FeatureControl(
             valueRange = valueRange,
             enabled = enabled,
             colors = SliderDefaults.colors(
-                thumbColor = accentColor,
+                thumbColor = accentColor2,
                 activeTrackColor = accentColor,
-                inactiveTrackColor = accentColor.copy(alpha = 0.25f)
+                inactiveTrackColor = accentColor.copy(alpha = 0.18f)
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -866,7 +918,7 @@ private fun FeatureControl(
     }
 
     if (wrapInCard) {
-        AppleCard(accentColor = accentColor) {
+        GlassCard(accentColor = accentColor, accentColor2 = accentColor2) {
             Column(modifier = Modifier.padding(16.dp), content = innerContent)
         }
     } else {
