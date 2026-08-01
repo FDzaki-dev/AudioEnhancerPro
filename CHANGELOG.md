@@ -4,6 +4,14 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.32 - Fix bug kritis: teks nyaris hitam-tak-terbaca di atas background gelap
+- **Root cause ditemukan**: root `Surface` di-set `color = Color.Transparent` (biar gradient background keliatan tembus), tapi Compose Material3 gak bisa nentuin `contentColor` otomatis dari warna transparent — fallback ke default library, yaitu hitam pekat. Bug ini turun ke `GlassCard`/`GlassTintedCard` juga karena `containerColor`-nya (`surface.copy(alpha=0.6f)`) juga gak match slot warna manapun di color scheme.
+- Akibatnya semua `Text()` tanpa `color=` eksplisit (judul "Bass Boost"/"Virtualizer"/"Loudness Gain", subtitle "Efek berlaku ke seluruh audio sistem") ikut hitam di atas background gelap — nyaris tak terbaca.
+- **Fix**: tambah `contentColor` eksplisit di root `Surface` (→ `onBackground`) dan di `GlassCard`/`GlassTintedCard` (→ `onSurface`). Semua teks yang sebelumnya nge-inherit warna sekarang otomatis benar tanpa perlu disentuh satu-satu.
+- **Tone-down accent per-fitur** (Bass/Virtualizer/Loudness/Equalizer/Battery): hue dipertahankan, saturasi & brightness diturunkan supaya nggak "neon" nyelekit di layar OLED gelap. `DynamicColorAccent` dibiarkan (sudah selaras primary violet).
+- `docs/preview/current.html` disinkronkan dengan warna accent baru.
+- Bump `versionCode` → 32, `versionName` → "1.32".
+
 ## v1.31 - PROJECT_STATE.md: file konteks khusus AI, biar sesi manapun bisa lanjut instan
 - **`PROJECT_STATE.md` baru di root repo** — bukan README (buat manusia) atau CHANGELOG (log historis), tapi file PADAT yang didesain khusus dibaca AI di awal sesi: status terkini, keputusan desain & alasannya (yang gak boleh diubah tanpa alasan baru), batasan sandbox Claude (gak ada kotlinc/gradle, insiden `Icons.AutoMirrored.Filled.VolumeUp`), riwayat pivot arah desain (Apple-style → neo-brutalist → glassmorphism, plus KENAPA tiap pivot terjadi), command Termux standar, dan TODO yang sengaja belum dikerjain.
 - **README & CHANGELOG di-update** nunjuk ke `PROJECT_STATE.md` sebagai bacaan PERTAMA sebelum apapun lain, supaya sesi Claude baru gak mulai dari nol atau ngulang pertanyaan/kesalahan yang sama.

@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.30
+- **Versi**: v1.32
 - **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
   translucent + border gradient tipis + shadow lembut), background gradient
   violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
@@ -69,6 +69,15 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   ketauan sebelum sempat ke-kirim — tapi ini nunjukkin resikonya nyata.
   Kalau ragu 1 nama icon/class ada atau nggak, mending pakai yang udah
   KONFIRMASI kepake di file lain, atau icon paling umum/basic.
+- **Insiden nyata (v1.32)**: `Surface`/`Card` dengan `color`/`containerColor`
+  yang gak persis match salah satu slot di `ColorScheme` (contoh: warna
+  `Color.Transparent`, atau `surface.copy(alpha=0.x)`) BIKIN Material3 gak
+  bisa nentuin `contentColor` otomatis via `contentColorFor()` — fallback ke
+  default library (hitam pekat). Semua `Text()` di dalamnya yang gak kasih
+  `color=` eksplisit ikut kena, jadi nyaris invisible di dark theme. LESSON:
+  kalau `Surface`/`Card` pakai warna custom/alpha-blend (bukan warna asli
+  dari `MaterialTheme.colorScheme.*`), WAJIB kasih `contentColor` eksplisit
+  juga — jangan andalkan auto-detect.
 - Karena gak bisa compile-check, siklus troubleshooting yang efisien:
   1. Untuk perubahan VISUAL murni (warna/layout/shape) → update
      `docs/preview/current.html` DULU, biar user bisa validasi lewat browser

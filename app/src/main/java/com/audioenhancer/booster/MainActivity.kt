@@ -213,7 +213,8 @@ class MainActivity : ComponentActivity() {
                             else Modifier.background(MaterialTheme.colorScheme.background)
                         )
                         .safeDrawingPadding(),
-                    color = Color.Transparent
+                    color = Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
@@ -807,7 +808,8 @@ private fun GlassCard(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+            contentColor = MaterialTheme.colorScheme.onSurface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(accentColor, accentColor2.copy(alpha = 0.35f)))),
@@ -828,7 +830,10 @@ private fun GlassTintedCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = blendedContainer),
+        colors = CardDefaults.cardColors(
+            containerColor = blendedContainer,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(tint, tint2.copy(alpha = 0.35f)))),
         content = content

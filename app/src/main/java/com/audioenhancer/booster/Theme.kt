@@ -26,11 +26,13 @@ import androidx.compose.ui.unit.sp
 // ============================================================================
 
 // Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon/border/teks.
-val BassAccent = Color(0xFFFF7A45); val BassAccent2 = Color(0xFFFFB199)
-val VirtualizerAccent = Color(0xFF22D3EE); val VirtualizerAccent2 = Color(0xFF67E8F9)
-val LoudnessAccent = Color(0xFF34D399); val LoudnessAccent2 = Color(0xFF86EFAC)
-val EqualizerAccent = Color(0xFFF472B6); val EqualizerAccent2 = Color(0xFFFBA8D3)
-val BatteryAccent = Color(0xFFFBBF24); val BatteryAccent2 = Color(0xFFFDE68A)
+// Diredupkan dari versi neon awal (Batch readability fix) — hue tetap sama,
+// saturasi/brightness diturunkan supaya tidak "nyelekit" di mata pada layar OLED.
+val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
+val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
+val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
+val EqualizerAccent = Color(0xFFD97AA6); val EqualizerAccent2 = Color(0xFFE8A8C6)
+val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
 val DynamicColorAccent = Color(0xFF8B7CF6); val DynamicColorAccent2 = Color(0xFFC4B5FD)
 
 private val PremiumVioletDark = Color(0xFF8B7CF6)
