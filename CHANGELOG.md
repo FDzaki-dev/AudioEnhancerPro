@@ -4,6 +4,14 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.36 - Audit dokumentasi: README sinkron ulang dengan kode aktual (Batch 1 dari audit kecacatan logika)
+- **Audit menyeluruh dilakukan** terhadap semua file Kotlin, Manifest, Gradle, `strings.xml` (ID+EN), dan workflow CI — sebagian besar bersih (service lifecycle, effect handling, OEM autostart, tema, reset EQ, parity i18n semuanya sudah benar). Tapi ketemu 2 dokumentasi yang sudah tidak sinkron dengan kode:
+- **Fix klaim fitur usang**: `README.md` bagian "Fitur" masih menyebut "Restart otomatis saat task di-swipe (`onTaskRemoved`)" — padahal mekanisme itu SUDAH DICABUT sejak v1.34 (diganti murni `stopWithTask="false"` + `START_STICKY`, tanpa restart manual). Diperbaiki supaya cocok dengan komentar di `AudioEnhancerService.kt` sendiri.
+- **Fix klaim CI yang keliru**: `README.md` bagian "Build" klaim APK debug hasil CI "ada di tab Actions > Artifacts" — padahal dicek ulang ke `.github/workflows/build.yml`, job `build` (`assembleDebug`) TIDAK punya step upload-artifact sama sekali, cuma verifikasi kompilasi. Yang benar-benar upload artifact cuma job `release` (butuh secret keystore). Diperbaiki supaya tidak menyesatkan.
+- **Belum dikerjakan (menunggu instruksi user)**: item audit lain yang sudah ditemukan tapi sengaja belum disentuh — emoji hardcoded di `OnboardingScreen.kt` yang lolos dari pembersihan emoji v1.27, potensi tabrakan nama custom preset dengan preset bawaan, `BootReceiver` exported tanpa permission, resolusi timestamp `CrashLogger` per-detik, dan test coverage `PrefsHelperTest` yang belum cover custom preset/dynamic color.
+- Tidak ada perubahan perilaku/kode fungsional — murni perbaikan dokumentasi.
+- Bump `versionCode` → 36, `versionName` → "1.36".
+
 ## v1.35 - Tambah kandidat Infinix/Tecno/itel (Transsion) di OemAutostartHelper
 - Kandidat Intent baru: `com.transsion.phonemanager` / `com.itel.autobootmanager.activity.AutoBootMgrActivity` — dipakai bersama di Infinix (XOS), Tecno (HiOS), itel OS (satu grup Transsion Holdings).
 - **Catatan kejujuran**: ini kandidat PALING GAK TERVERIFIKASI dari semua OEM yang didukung. Riset dilakukan (bukan tebakan), tapi bahkan library open-source populer `judemanutd/AutoStarter` masih punya issue terbuka soal Infinix/Tecno sejak 2020. Kalau gagal, otomatis fallback ke halaman App Info (tidak crash) — tapi user Infinix/Tecno/itel sebaiknya juga tahu jalur manual: Settings → Apps → App Management → cari app → aktifkan "Autostart", + Settings → Battery → Power saving mode → Exceptions → tambah app, + kunci app di recent apps (swipe-down kartu app, tap ikon gembok).

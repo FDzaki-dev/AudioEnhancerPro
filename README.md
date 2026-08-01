@@ -28,7 +28,7 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 ## Fitur
 - Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem).
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.
-- Restart otomatis saat task di-swipe (`onTaskRemoved`) dan saat device boot ulang.
+- Bertahan saat task di-swipe (`stopWithTask="false"` + `START_STICKY`, TANPA restart manual via `onTaskRemoved` — trik itu sempat dicoba lalu dicabut di v1.34 karena tidak reliable di Android 12+) dan otomatis jalan lagi saat device boot ulang.
 - Permintaan exemption battery optimization saat pertama dibuka.
 
 ## Batasan jujur
@@ -41,7 +41,7 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 ./gradlew assembleDebug
 ```
 
-CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), hasil APK ada di tab Actions > Artifacts.
+CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), job `build` ini HANYA verifikasi kompilasi (`assembleDebug`) — **tidak ada step upload-artifact**, jadi APK debug-nya TIDAK muncul di tab Actions > Artifacts. Yang muncul di Artifacts cuma APK release dari job `release` (lihat bagian "Versioning APK Release" di bawah), dan itu pun cuma jalan kalau secret keystore sudah diset.
 
 ## Versioning APK Release (Otomatis)
 
