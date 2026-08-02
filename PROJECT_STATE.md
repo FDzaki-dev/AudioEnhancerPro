@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.37
+- **Versi**: v1.38
 - 🔍 **Audit kecacatan logika sedang berjalan** (diminta user eksplisit: "berhenti tambah
   fitur, fokus pematangan & audit"). Sudah diaudit tuntas (service lifecycle, effect
   handling, OEM autostart, tema, reset EQ, parity i18n — semua bersih). Progress fix:
@@ -21,11 +21,13 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     dari pembersihan emoji v1.27 karena emoji-nya di Kotlin, bukan `strings.xml`.
     Diganti icon vector + accent color yang SAMA PERSIS dengan fitur terkait di layar
     utama (bonus konsistensi visual, bukan cuma hapus emoji).
-  - ⏳ BELUM: custom preset bisa tabrakan nama dengan preset bawaan (chip built-in &
-    custom sama-sama ke-highlight "selected" kalau namanya persis sama).
-  - ⏳ BELUM (minor/opsional): `BootReceiver` exported tanpa permission, `CrashLogger`
-    timestamp resolusi per-detik, test coverage `PrefsHelperTest` belum cover custom
-    preset/dynamic color.
+  - ✅ v1.38 (Batch 3): custom preset bisa tabrakan nama dengan preset bawaan (chip
+    built-in & custom sama-sama ke-highlight "selected" kalau namanya persis sama).
+    Fix: validasi real-time di dialog simpan preset (case-insensitive), tombol Simpan
+    disabled + error text kalau tabrakan.
+  - ⏳ BELUM (minor/opsional, boleh dilewatkan): `BootReceiver` exported tanpa
+    permission, `CrashLogger` timestamp resolusi per-detik, test coverage
+    `PrefsHelperTest` belum cover custom preset/dynamic color.
 - ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
   kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
   Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40

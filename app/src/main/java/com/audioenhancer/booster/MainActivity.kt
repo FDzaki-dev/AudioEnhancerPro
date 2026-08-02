@@ -702,6 +702,12 @@ fun BoosterScreen(
         }
 
         if (showSavePresetDialog) {
+            // Cegah nama custom preset sama persis (case-insensitive) dengan salah satu
+            // dari 4 preset bawaan — tanpa ini, chip built-in & chip custom bisa
+            // sama-sama ke-highlight "selected" bareng saat activePreset match nama itu,
+            // state visual jadi ambigu meski fungsinya sendiri tetap benar.
+            val trimmedPresetName = presetNameInput.trim()
+            val nameCollidesWithBuiltIn = presets.any { it.label.equals(trimmedPresetName, ignoreCase = true) }
             AlertDialog(
                 onDismissRequest = { showSavePresetDialog = false },
                 title = { Text(stringResource(R.string.preset_save_dialog_title)) },
@@ -710,14 +716,23 @@ fun BoosterScreen(
                         value = presetNameInput,
                         onValueChange = { presetNameInput = it },
                         singleLine = true,
-                        label = { Text(stringResource(R.string.preset_save_dialog_hint)) }
+                        label = { Text(stringResource(R.string.preset_save_dialog_hint)) },
+                        isError = nameCollidesWithBuiltIn,
+                        supportingText = {
+                            if (nameCollidesWithBuiltIn) {
+                                Text(
+                                    stringResource(R.string.preset_save_name_collision_error),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     )
                 },
                 confirmButton = {
                     TextButton(
-                        enabled = presetNameInput.isNotBlank(),
+                        enabled = trimmedPresetName.isNotBlank() && !nameCollidesWithBuiltIn,
                         onClick = {
-                            val newPreset = PrefsHelper.CustomPreset(presetNameInput.trim(), bass, virtualizer, loudness)
+                            val newPreset = PrefsHelper.CustomPreset(trimmedPresetName, bass, virtualizer, loudness)
                             PrefsHelper.addCustomPreset(context, newPreset)
                             customPresets = PrefsHelper.getCustomPresets(context)
                             activePreset = newPreset.name

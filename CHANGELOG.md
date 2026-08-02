@@ -4,6 +4,12 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.38 - Fix regresi audit: custom preset bisa tabrakan nama dengan preset bawaan
+- **Root cause**: dialog "Simpan Preset" tidak validasi nama custom terhadap 4 label preset bawaan (Flat/Bass Heavy/Vocal Boost/Treble Boost). Kalau user simpan custom preset dengan nama persis sama (mis. "Flat"), chip built-in DAN chip custom sama-sama ke-highlight "selected" bareng saat `activePreset` cocok nama itu — state visual ambigu, walau tiap chip tetap menerapkan nilai yang benar saat ditekan.
+- **Fix**: `OutlinedTextField` di dialog simpan preset sekarang validasi real-time (case-insensitive) terhadap label preset bawaan — kalau tabrakan, field jadi `isError` merah + supporting text penjelasan, dan tombol "Simpan" otomatis disabled sampai nama diganti.
+- String baru `preset_save_name_collision_error` ditambahkan lengkap ID + EN, cross-checked.
+- Bump `versionCode` → 38, `versionName` → "1.38".
+
 ## v1.37 - Fix regresi audit: emoji hardcoded di OnboardingScreen (lolos dari pembersihan v1.27)
 - **Root cause**: pembersihan emoji v1.27 ("hapus SEMUA emoji, ganti vector icon") cuma menyisir `strings.xml` — sementara `OnboardingScreen.kt` punya 6 emoji (🎧🔊🌐📢🛡️🔔) yang HARDCODED di Kotlin sebagai field `emoji: String`, jadi lolos dari audit itu. Ditemukan di audit kecacatan logika sesi ini.
 - **Fix**: `OnboardingPage.emoji` diganti `icon: ImageVector` + `accentColor`/`accentColor2`, dirender sebagai icon-orb gradient 88dp (gaya sama persis dengan icon-box `FeatureControl` di layar utama, cuma lebih besar).
