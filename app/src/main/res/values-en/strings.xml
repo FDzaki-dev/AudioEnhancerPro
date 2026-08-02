@@ -119,4 +119,7 @@
     <string name="notif_title">Audio Booster active</string>
     <string name="notif_text">Enhancing system audio quality &amp; volume</string>
     <string name="notif_action_stop">Stop</string>
+    <string name="qs_tile_label">Audio Booster</string>
+    <string name="qs_tile_subtitle_on">Active</string>
+    <string name="qs_tile_subtitle_off">Inactive</string>
 </resources>

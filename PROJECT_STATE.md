@@ -10,12 +10,25 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.39
-- ✅ **Audit kecacatan logika SELESAI (semua batch tuntas)** — diminta user eksplisit
-  sesi ini: "berhenti tambah fitur, fokus pematangan & audit kecacatan logika hingga
-  tuntas". Sudah diaudit tuntas (service lifecycle, effect handling, OEM autostart,
-  tema, reset EQ, parity i18n — semua bersih dari awal). Semua temuan yang ketemu
-  sudah di-fix:
+- **Versi**: v1.40
+- ✨ **Fitur baru: Quick Settings Tile** (`QuickToggleTileService`) — toggle service
+  langsung dari notification shade, gak perlu buka app dulu (pola UX kayak tile
+  "1.1.1.1" Cloudflare). User awalnya minta "trik VPN" buat ngakalin OEM
+  battery-killer Infinix; setelah dijelaskan itu gak akan efektif (Transsion punya
+  battery manager sendiri terpisah dari Doze/VPN-whitelist Android standar) DAN
+  beresiko (bikin dialog konsen VPN sistem yang isinya menyesatkan kalau app gak
+  benar-benar pakai VPN), user klarifikasi maksudnya cuma pola UX tile shortcut —
+  BUKAN VPN sungguhan. Diimplementasikan sebagai TileService biasa, tanpa VpnService
+  apapun. **Keputusan penting**: tile ini TIDAK dan TIDAK diklaim menyelesaikan
+  masalah OEM battery-killer — itu tetap limitasi yang gak bisa diakali dari kode
+  app manapun, cuma bisa diminimalisir lewat Autostart/battery-unrestricted manual
+  di setting OEM.
+- 🔧 **Refactor kecil**: `AudioEnhancerService.requestStart()`/`requestStop()`
+  companion function baru, dipakai bareng `MainActivity`+`BootReceiver`+tile baru
+  (sebelumnya logika start/stop identik ke-copy-paste 2x).
+- ✅ **Audit kecacatan logika (batch 1-4) SELESAI** — diminta user eksplisit sesi
+  sebelumnya: "berhenti tambah fitur, fokus pematangan & audit kecacatan logika
+  hingga tuntas". Semua temuan sudah di-fix:
   - ✅ v1.36 (Batch 1): README klaim `onTaskRemoved` restart yang sudah dicabut sejak
     v1.34, dan README klaim APK debug CI muncul di Artifacts padahal job `build` tidak
     upload apapun.
@@ -25,14 +38,11 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     utama.
   - ✅ v1.38 (Batch 3): custom preset bisa tabrakan nama dengan preset bawaan. Fix:
     validasi real-time di dialog simpan preset (case-insensitive).
-  - ✅ v1.39 (Batch 4, penutup): `BootReceiver` sekarang validasi `intent.action`
-    (cegah trigger via explicit intent dgn action bikinan dari app lain — BUKAN
-    spoof BOOT_COMPLETED, itu tetap gak bisa krn protected broadcast). `CrashLogger`
-    timestamp file sekarang unik per-milidetik, bukan per-detik. Test coverage
-    `PrefsHelperTest` diperluas 8→17 test (dynamic color + custom preset JSON
-    round-trip + crash-seen timestamp).
-  - **Tidak ada temuan tersisa.** Kalau nanti nemu hal baru pas testing manual di
-    device, catat di sini sebagai temuan baru, jangan anggap audit ini pernah miss.
+  - ✅ v1.39 (Batch 4, penutup): `BootReceiver` sekarang validasi `intent.action`.
+    `CrashLogger` timestamp file sekarang unik per-milidetik. Test coverage
+    `PrefsHelperTest` diperluas 8→17 test.
+  - Setelah v1.40 (fitur tile) mulai lagi masuk mode fitur normal, bukan audit lagi —
+    kalau nemu kecacatan baru pas testing manual, catat sebagai temuan baru di sini.
 - ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
   kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
   Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40

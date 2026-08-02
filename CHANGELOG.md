@@ -4,6 +4,14 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.40 - Quick Settings Tile: toggle Audio Booster tanpa buka app dulu
+- **Tile baru** (`QuickToggleTileService`) muncul di daftar edit Quick Settings (tarik notification shade → pensil edit → tambah "Audio Booster"). Tap tile langsung nyalain/matiin service — persis pola UX tile "1.1.1.1" milik Cloudflare — TANPA harus buka MainActivity/nongkrong di recent apps dulu.
+- **Klarifikasi penting**: ini BUKAN "trik VPN" buat ngakalin OEM battery-killer Infinix yang sempat dibahas — itu limitasi battery manager custom Transsion yang beroperasi di luar jangkauan kode app manapun, gak bisa diakali dari sisi app. Tile ini murni UX shortcut: toggle instan + cara tercepat "membangunkan" ulang service kalau sempat dimatikan OEM.
+- **Refactor kecil (DRY, bagian dari pematangan)**: logika start/stop service yang sebelumnya copy-paste identik di `MainActivity` dan `BootReceiver` ditarik jadi 2 fungsi companion `AudioEnhancerService.requestStart()`/`requestStop()`, sekarang dipakai bareng oleh `MainActivity`, `BootReceiver`, dan tile baru ini. Perilaku 100% identik dengan sebelumnya, cuma gak triplikat lagi.
+- Ikon tile (`ic_qs_tile.xml`) sengaja pakai motif equalizer-bar yang sama persis dengan `ic_launcher_monochrome.xml` (cuma diskalakan ke 24dp), biar konsisten identitas visual.
+- String baru `qs_tile_label`/`qs_tile_subtitle_on`/`qs_tile_subtitle_off` — ID+EN, parity dicek ulang.
+- Bump `versionCode` → 40, `versionName` → "1.40".
+
 ## v1.39 - Batch 4 (penutup audit): sikat 3 temuan minor terakhir
 - **`BootReceiver` sekarang validasi `intent.action`** sebelum start service. Sebelumnya
   `onReceive` langsung start service tanpa cek action sama sekali — karena `exported=true`

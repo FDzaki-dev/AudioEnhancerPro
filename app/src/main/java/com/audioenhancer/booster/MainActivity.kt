@@ -157,12 +157,7 @@ class MainActivity : ComponentActivity() {
     /** Bisa dipanggil ulang kapan saja (bukan cuma di onCreate) — misal dari tombol
      *  "Nyalakan Lagi" kalau service sempat di-stop lewat notifikasi sementara app masih kebuka. */
     private fun startBoosterService() {
-        val intent = Intent(this, AudioEnhancerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
-        }
+        AudioEnhancerService.requestStart(this)
     }
 
     /** Coba bind ke service lagi. Dipakai di onCreate DAN dari tombol "Coba Lagi" —

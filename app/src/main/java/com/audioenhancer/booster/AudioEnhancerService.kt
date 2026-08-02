@@ -29,6 +29,29 @@ class AudioEnhancerService : Service() {
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
         var isRunning = false
             private set
+
+        /** Nyalakan service (atau re-enable efek kalau service masih hidup tapi lagi
+         *  "dimatikan" lewat notifikasi). Dipakai bareng oleh MainActivity, BootReceiver,
+         *  dan QuickToggleTileService — sebelumnya logika start ini terduplikasi 2x
+         *  (MainActivity + BootReceiver) dengan copy-paste persis sama. */
+        fun requestStart(context: android.content.Context) {
+            val intent = Intent(context, AudioEnhancerService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        /** Matikan efek + lepas foreground. Pakai `startService` biasa (BUKAN
+         *  `startForegroundService`) karena action ini cuma masuk akal dipanggil saat
+         *  service SUDAH hidup & sudah dalam state foreground (lagi nampilin
+         *  notifikasi) — sama seperti tombol "Matikan" di notifikasi yang sudah lebih
+         *  dulu ada, yang juga pakai `PendingIntent.getService` biasa. */
+        fun requestStop(context: android.content.Context) {
+            val intent = Intent(context, AudioEnhancerService::class.java).apply { action = ACTION_STOP }
+            context.startService(intent)
+        }
     }
 
     private val binder = LocalBinder()

@@ -3,7 +3,6 @@ package com.audioenhancer.booster
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 
 /** `exported="true"` wajib supaya BOOT_COMPLETED/MY_PACKAGE_REPLACED (broadcast
  *  sistem, protected — app lain gak bisa spoof action ini) bisa nyampe ke receiver
@@ -18,11 +17,6 @@ class BootReceiver : BroadcastReceiver() {
         if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
-        val serviceIntent = Intent(context, AudioEnhancerService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
-        }
+        AudioEnhancerService.requestStart(context)
     }
 }

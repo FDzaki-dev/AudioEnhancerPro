@@ -119,4 +119,7 @@
     <string name="notif_title">Audio Booster aktif</string>
     <string name="notif_text">Meningkatkan kualitas &amp; volume audio sistem</string>
     <string name="notif_action_stop">Matikan</string>
+    <string name="qs_tile_label">Audio Booster</string>
+    <string name="qs_tile_subtitle_on">Aktif</string>
+    <string name="qs_tile_subtitle_off">Nonaktif</string>
 </resources>

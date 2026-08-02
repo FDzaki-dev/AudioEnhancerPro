@@ -15,10 +15,12 @@ app/src/main/java/com/audioenhancer/booster/MainActivity.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt
+app/src/main/java/com/audioenhancer/booster/QuickToggleTileService.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt
 app/src/main/res/drawable/ic_launcher_background.xml
 app/src/main/res/drawable/ic_launcher_foreground.xml
 app/src/main/res/drawable/ic_launcher_monochrome.xml
+app/src/main/res/drawable/ic_qs_tile.xml
 app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 app/src/main/res/mipmap-hdpi/ic_launcher.png

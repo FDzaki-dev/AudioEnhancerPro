@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon Quick Settings tile. Sengaja pakai motif equalizer-bar yang sama persis
+     dengan ic_launcher_monochrome.xml (cuma diskalakan ke viewport 24dp) supaya
+     tile ini langsung dikenali sebagai bagian dari Audio Booster, bukan ikon lepas
+     yang gak nyambung. Sistem otomatis nge-tint warna (aktif/nonaktif) saat render
+     di Quick Settings, jadi cukup satu warna solid di sini. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path
+        android:pathData="M6,9 L6,17"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M10.5,5.5 L10.5,20.5"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M14.5,7.5 L14.5,18.5"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M18.5,4.5 L18.5,21.5"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="round" />
+</vector>
