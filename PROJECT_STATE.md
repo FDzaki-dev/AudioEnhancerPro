@@ -10,7 +10,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.40
+- **Versi**: v1.41 (v1.40 sempat GAGAL BUILD di CI — sudah di-fix, lihat "Batasan sandbox Claude" di bawah)
 - ✨ **Fitur baru: Quick Settings Tile** (`QuickToggleTileService`) — toggle service
   langsung dari notification shade, gak perlu buka app dulu (pola UX kayak tile
   "1.1.1.1" Cloudflare). User awalnya minta "trik VPN" buat ngakalin OEM
@@ -102,6 +102,33 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
 
 ## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
+- **Insiden nyata (v1.40 → v1.41, build gagal di CI)**: `ic_qs_tile.xml` (drawable
+  baru buat Quick Settings Tile) pakai `android:tint="?attr/colorControlNormal"`
+  TANPA prefix `android:` di depan `attr`. Ini bikin AAPT2 nyari attr itu di
+  namespace package sendiri (`com.audioenhancer.booster:attr/colorControlNormal`)
+  yang emang gak pernah dideklarasikan, bukan attr framework yang dimaksud →
+  `processDebugResources FAILED`, seluruh CI merah, gak ada APK ke-generate sama
+  sekali. Root cause murni typo referensi attr, bukan salah logic. LESSON: kalau
+  bikin drawable baru yang pakai `?attr/...`, WAJIB prefix `?android:attr/...`
+  (kalau maksudnya attr framework) — jangan asal `?attr/...` tanpa dicek attr
+  itu didefinisikan di mana. FIX yang dipakai: tint dihapus total dari
+  `ic_qs_tile.xml` — gak masalah karena Quick Settings tile emang di-render
+  sistem sebagai alpha-mask yang di-tint otomatis oleh Android sendiri sesuai
+  state tile, tint manual di level drawable gak pernah kepake buat konteks ini.
+- **Insiden nyata (v1.41, command Termux salah target extract)**: command
+  "standar" lama pakai `unzip -o "$LATEST_ZIP" -d ~/projects/` (bukan
+  `-d ~/projects/AudioEnhancerPro/`). Karena ZIP proyek ini SENGAJA gak
+  dibungkus folder induk (`build.gradle.kts` dkk langsung di root ZIP, sesuai
+  aturan user), hasil extract malah numpuk langsung di `~/projects/` (folder
+  induk SEMUA project Termux), BUKAN di `~/projects/AudioEnhancerPro/`.
+  Akibatnya circuit breaker (deteksi file turun >30%) salah trigger ABORT
+  karena ngitung isi folder yang file barunya gak pernah nyampe situ — file
+  baru nyasar ke folder yang salah. LESSON: kalau ZIP gak dibungkus folder
+  induk (kasus proyek ini), target `unzip -d` HARUS folder project itu
+  sendiri (`~/projects/AudioEnhancerPro/`), BUKAN parent-nya (`~/projects/`).
+  Sudah diperbaiki di command "standar" di bawah — WAJIB pakai versi ini
+  buat semua update berikutnya. User juga perlu bersihkan manual file nyasar
+  di `~/projects/` root (app/, README.md, dll — bukan punya project lain).
 - **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox Claude manapun (dicek
   eksplisit, network disabled). Artinya: Claude TIDAK BISA compile-check
   Kotlin sebelum ngirim zip. Verifikasi cuma bisa manual: baca ulang tiap
@@ -156,7 +183,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Command Termux standar (update harian, bukan setup awal)
 ```
-LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo "Pakai ZIP: $LATEST_ZIP" && mkdir -p ~/projects/AudioEnhancerPro && cd ~/projects/AudioEnhancerPro && ( [ -d .git ] || git init ) && find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + && cd ~/projects && unzip -o "$LATEST_ZIP" -d ~/projects/ && cd ~/projects/AudioEnhancerPro && git add -A && git commit -m "[ringkasan perubahan]" && git push
+LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo "Pakai ZIP: $LATEST_ZIP" && mkdir -p ~/projects/AudioEnhancerPro && cd ~/projects/AudioEnhancerPro && ( [ -d .git ] || git init ) && find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + && unzip -o "$LATEST_ZIP" -d ~/projects/AudioEnhancerPro/ && git add -A && git commit -m "[ringkasan perubahan]" && git push
 ```
 
 ## Struktur proyek singkat

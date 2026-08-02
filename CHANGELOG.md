@@ -4,6 +4,12 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.41 - Fix build gagal: `ic_qs_tile.xml` referensi theme attr yang gak valid
+- **Root cause**: `ic_qs_tile.xml` (ditambahin di v1.40) pakai `android:tint="?attr/colorControlNormal"` tanpa prefix `android:` di depan `attr`. AAPT2 nyari attr itu di namespace package sendiri (`com.audioenhancer.booster:attr/colorControlNormal`) yang emang gak pernah dideklarasikan — bukan attr framework/AppCompat yang dimaksud. Hasilnya: `processDebugResources FAILED` (resource linking error), CI merah total, gak ada APK yang ke-generate.
+- **Fix**: attribut `android:tint` di drawable itu dihapus total. Gak butuh tint manual di sini — Quick Settings tile di Android render iconnya sebagai alpha-mask dan sistem yang otomatis nge-tint (aktif/nonaktif) sesuai state tile, jadi tint di level drawable emang gak kepake/gak perlu.
+- Sudah dicek: gak ada referensi `?attr/` lain yang belum ke-resolve di seluruh folder `res/`.
+- Bump `versionCode` → 41, `versionName` → "1.41".
+
 ## v1.40 - Quick Settings Tile: toggle Audio Booster tanpa buka app dulu
 - **Tile baru** (`QuickToggleTileService`) muncul di daftar edit Quick Settings (tarik notification shade → pensil edit → tambah "Audio Booster"). Tap tile langsung nyalain/matiin service — persis pola UX tile "1.1.1.1" milik Cloudflare — TANPA harus buka MainActivity/nongkrong di recent apps dulu.
 - **Klarifikasi penting**: ini BUKAN "trik VPN" buat ngakalin OEM battery-killer Infinix yang sempat dibahas — itu limitasi battery manager custom Transsion yang beroperasi di luar jangkauan kode app manapun, gak bisa diakali dari sisi app. Tile ini murni UX shortcut: toggle instan + cara tercepat "membangunkan" ulang service kalau sempat dimatikan OEM.
