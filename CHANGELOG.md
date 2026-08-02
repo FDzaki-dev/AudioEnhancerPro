@@ -4,6 +4,28 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.42 - App Shortcuts: long-press ikon launcher buat akses instan
+- **Shortcut statis "Nyalakan/Matikan"**: long-press ikon app di launcher → toggle booster
+  langsung, gak perlu buka app dulu (mirip QS Tile, tapi dari home screen). Dideklarasikan
+  lewat `res/xml/shortcuts.xml`, dieksekusi di `MainActivity.handleShortcutIntent()`.
+- **Shortcut dinamis buat preset custom** (maksimal 3, yang paling baru disimpan tampil
+  duluan): tap shortcut → app kebuka DAN preset itu langsung diterapkan otomatis. Ini yang
+  paling kepake — preset custom yang user pernah bikin tapi lupa dipakai lagi, sekarang
+  sejangkauan long-press ikon. Di-refresh otomatis tiap kali preset custom ditambah/dihapus
+  lewat `ShortcutHelper.refreshCustomPresetShortcuts()`.
+- Kenapa cuma 3 slot dynamic (bukan semua preset custom): sisa slot aman setelah 1 slot
+  statis (toggle) dipakai, dari jaminan minimal 4 shortcut total per app di kebanyakan
+  launcher/OEM.
+- Ikon shortcut (`ic_shortcut_preset.xml`, `ic_shortcut_toggle.xml`) sengaja dibuat SEMUA
+  warnanya dibakar langsung di path (bukan `?attr/...` theme reference) — insiden AAPT2
+  gagal build di v1.40/v1.41 sengaja dihindari dari awal di sini.
+- File baru: `ShortcutHelper.kt`, `res/xml/shortcuts.xml`, `ic_shortcut_preset.xml`,
+  `ic_shortcut_toggle.xml`. File diubah: `MainActivity.kt` (onNewIntent + handling preset
+  dari shortcut), `AndroidManifest.xml` (meta-data shortcuts), `strings.xml` + `values-en`.
+- Bump `versionCode` → 42, `versionName` → "1.42".
+- **Belum dikerjain**: widget home screen (toggle + status tanpa buka app) — batch
+  berikutnya, disepakati bareng user sebagai fitur shortcut kedua yang diminta.
+
 ## v1.41 - Fix build gagal: `ic_qs_tile.xml` referensi theme attr yang gak valid
 - **Root cause**: `ic_qs_tile.xml` (ditambahin di v1.40) pakai `android:tint="?attr/colorControlNormal"` tanpa prefix `android:` di depan `attr`. AAPT2 nyari attr itu di namespace package sendiri (`com.audioenhancer.booster:attr/colorControlNormal`) yang emang gak pernah dideklarasikan — bukan attr framework/AppCompat yang dimaksud. Hasilnya: `processDebugResources FAILED` (resource linking error), CI merah total, gak ada APK yang ke-generate.
 - **Fix**: attribut `android:tint` di drawable itu dihapus total. Gak butuh tint manual di sini — Quick Settings tile di Android render iconnya sebagai alpha-mask dan sistem yang otomatis nge-tint (aktif/nonaktif) sesuai state tile, jadi tint di level drawable emang gak kepake/gak perlu.

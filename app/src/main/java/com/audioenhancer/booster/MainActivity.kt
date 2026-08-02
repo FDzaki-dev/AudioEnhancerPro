@@ -88,6 +88,11 @@ class MainActivity : ComponentActivity() {
     private var virtualizerStrengthSupported by mutableStateOf(true)
     private var notificationPermissionGranted by mutableStateOf(true)
 
+    // Diisi kalau app dibuka lewat App Shortcut (long-press ikon launcher) yang nunjuk
+    // ke preset custom tertentu. BoosterScreen yang nge-apply beneran (butuh akses ke
+    // service/pending-buffer di dalam Compose), di sini cuma nampung nama presetnya.
+    private var shortcutCustomPresetName by mutableStateOf<String?>(null)
+
     // Info equalizer per-band, diisi begitu service konek (band count 0 = belum siap/tidak didukung).
     private var equalizerSupported by mutableStateOf(false)
     private var equalizerBandCount by mutableStateOf(0)
@@ -175,6 +180,29 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Dipanggil dari onCreate (cold start) & onNewIntent (app udah kebuka, launchMode
+     *  singleTop) — dua-duanya bisa terjadi tergantung app lagi jalan atau enggak
+     *  pas shortcut di-tap. Toggle langsung dieksekusi di sini (gak butuh Compose),
+     *  preset custom cuma "dititip" ke state, BoosterScreen yang eksekusi beneran. */
+    private fun handleShortcutIntent(intent: Intent?) {
+        intent ?: return
+        when (intent.getStringExtra(ShortcutHelper.EXTRA_ACTION)) {
+            ShortcutHelper.ACTION_TOGGLE -> {
+                if (AudioEnhancerService.isRunning) AudioEnhancerService.requestStop(this)
+                else AudioEnhancerService.requestStart(this)
+            }
+        }
+        intent.getStringExtra(ShortcutHelper.EXTRA_CUSTOM_PRESET_NAME)?.let { name ->
+            shortcutCustomPresetName = name
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShortcutIntent(intent)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -184,6 +212,7 @@ class MainActivity : ComponentActivity() {
         attemptBindService()
 
         requestIgnoreBatteryOptimizations()
+        handleShortcutIntent(intent)
 
         setContent {
             var themeMode by remember { mutableStateOf(PrefsHelper.getThemeMode(this@MainActivity)) }
@@ -265,7 +294,9 @@ class MainActivity : ComponentActivity() {
                             },
                             connectionState = connectionState,
                             onRetryConnection = { attemptBindService() },
-                            onRestartService = { startBoosterService() }
+                            onRestartService = { startBoosterService() },
+                            requestedCustomPresetName = shortcutCustomPresetName,
+                            onRequestedPresetConsumed = { shortcutCustomPresetName = null }
                         )
                     }
                 }
@@ -453,7 +484,9 @@ fun BoosterScreen(
     onUseDynamicColorChange: (Boolean) -> Unit = {},
     connectionState: MainActivity.ConnectionState = MainActivity.ConnectionState.CONNECTED,
     onRetryConnection: () -> Unit = {},
-    onRestartService: () -> Unit = {}
+    onRestartService: () -> Unit = {},
+    requestedCustomPresetName: String? = null,
+    onRequestedPresetConsumed: () -> Unit = {}
 ) {
     val presets = listOf(
         Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
@@ -501,6 +534,23 @@ fun BoosterScreen(
             eqResetCounter++
         }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    // Preset custom yang diminta lewat App Shortcut (long-press ikon launcher). LaunchedEffect
+    // dipakai (bukan langsung di body) supaya cuma jalan sekali per request, dan supaya
+    // customPresets sempat ke-load duluan sebelum dicari — kalau presetnya udah kehapus di
+    // antara shortcut dibuat & di-tap, ya didiamkan saja (gak ada preset buat diterapkan).
+    LaunchedEffect(requestedCustomPresetName, customPresets) {
+        if (requestedCustomPresetName != null) {
+            customPresets.firstOrNull { it.name == requestedCustomPresetName }?.let { applyCustomPreset(it) }
+            onRequestedPresetConsumed()
+        }
+    }
+
+    // Sinkronkan dynamic shortcut sekali tiap layar ini kebuka — jaring pengaman kalau ada
+    // preset yang sempat berubah di luar sesi Compose ini (jarang terjadi, tapi murah kok).
+    LaunchedEffect(Unit) {
+        ShortcutHelper.refreshCustomPresetShortcuts(context)
     }
 
     // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
@@ -730,6 +780,7 @@ fun BoosterScreen(
                             val newPreset = PrefsHelper.CustomPreset(trimmedPresetName, bass, virtualizer, loudness)
                             PrefsHelper.addCustomPreset(context, newPreset)
                             customPresets = PrefsHelper.getCustomPresets(context)
+                            ShortcutHelper.refreshCustomPresetShortcuts(context)
                             activePreset = newPreset.name
                             onActivePresetChange(newPreset.name)
                             showSavePresetDialog = false
@@ -753,6 +804,7 @@ fun BoosterScreen(
                     TextButton(onClick = {
                         PrefsHelper.deleteCustomPreset(context, nameToDelete)
                         customPresets = PrefsHelper.getCustomPresets(context)
+                        ShortcutHelper.refreshCustomPresetShortcuts(context)
                         if (activePreset == nameToDelete) { activePreset = null; onActivePresetChange(null) }
                         presetPendingDelete = null
                     }) { Text(stringResource(R.string.preset_delete_confirm)) }

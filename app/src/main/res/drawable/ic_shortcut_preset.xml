@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ikon shortcut preset custom (dynamic). Warna dibakar langsung di path (bukan lewat
+     ?attr/... theme reference) — ini fix yang sama persis kayak insiden ic_qs_tile.xml
+     di v1.40/v1.41, sengaja dihindari dari awal di sini. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:pathData="M24,2 A22,22 0 1,1 23.99,2 Z"
+        android:fillColor="#8B7CF6" />
+    <path
+        android:pathData="M17,17 L17,31"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M24,12 L24,36"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M31,20 L31,28"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round" />
+</vector>

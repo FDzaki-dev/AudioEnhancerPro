@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shortcut statis: cuma "Nyalakan/Matikan" karena ini satu-satunya aksi yang berlaku
+     sama buat semua orang tanpa syarat (beda dari preset custom, yang isinya beda-beda
+     per user — makanya preset custom dipublish manual sebagai DYNAMIC shortcut lewat
+     ShortcutHelper.kt, bukan lewat file statis ini). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="toggle_booster"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_toggle"
+        android:shortcutShortLabel="@string/shortcut_toggle_short_label"
+        android:shortcutLongLabel="@string/shortcut_toggle_long_label">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.audioenhancer.booster"
+            android:targetClass="com.audioenhancer.booster.MainActivity">
+            <extra
+                android:name="com.audioenhancer.booster.SHORTCUT_ACTION"
+                android:value="toggle" />
+        </intent>
+    </shortcut>
+</shortcuts>

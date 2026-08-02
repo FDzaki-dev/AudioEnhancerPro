@@ -122,4 +122,8 @@
     <string name="qs_tile_label">Audio Booster</string>
     <string name="qs_tile_subtitle_on">Aktif</string>
     <string name="qs_tile_subtitle_off">Nonaktif</string>
+
+    <!-- App Shortcuts (long-press ikon launcher) -->
+    <string name="shortcut_toggle_short_label">Nyalakan/Matikan</string>
+    <string name="shortcut_toggle_long_label">Nyalakan/Matikan Booster</string>
 </resources>
