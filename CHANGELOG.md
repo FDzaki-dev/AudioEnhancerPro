@@ -4,6 +4,33 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.45 - Batch 6 (audit lanjutan): file non-Kotlin (gradle/CI/README)
+- Diminta user eksplisit: audit file DI LUAR Kotlin (gradle, workflow CI, README,
+  proguard) — belum pernah diaudit khusus sebelumnya (batch 1-5 fokus Kotlin +
+  resource Android). `build.gradle.kts` (root+app), `settings.gradle.kts`,
+  `gradle.properties`, `proguard-rules.pro` bersih, gak ada temuan. Ketemu 4 hal
+  nyata di `build.yml` (CI) dan `README.md`:
+  1. **CI**: step `secret_check` cuma validasi `KEYSTORE_BASE64` doang, padahal
+     signing butuh 4 secrets (`KEYSTORE_BASE64`+`KEYSTORE_PASSWORD`+`KEY_ALIAS`+
+     `KEY_PASSWORD`). Kalau cuma 1-3 dari 4 secrets keset (misal typo pas `gh
+     secret set`), job release TETAP jalan lanjut, terus gagal ambigu jauh di
+     dalam step signing — bukan skip bersih dengan warning jelas kayak kasus
+     "belum diset sama sekali". Sekarang validasi keempat-empatnya.
+  2. **README**: bagian "Setup Release Signing" klaim nama artifact
+     `audio-enhancer-pro-release-apk-signed` — padahal `build.yml` yang beneran
+     jalan pakai nama DINAMIS `AudioEnhancerPro-v{versionName}-release`. Sudah
+     disamakan.
+  3. **README**: bagian "Batasan jujur" masih klaim "Belum ada icon asli — ganti
+     placeholder" — padahal Adaptive Icon custom (vector gradient + Material You
+     monochrome) sudah dikerjain beberapa batch lalu. Klaim basi dihapus.
+  4. **README**: bagian "Fitur" gak nyebut QS Tile/App Shortcuts/Widget sama
+     sekali (fitur v1.40-v1.43) — README ketinggalan, gak diupdate bareng
+     fitur-fitur itu walau checklist minta README diupdate tiap ada perubahan
+     fitur. 3 poin baru ditambahin.
+- Pola sama kayak Batch 1 (v1.36): dokumentasi gak sinkron sama kode — bedanya
+  batch itu di README+CHANGELOG lama, ini di README+CI workflow.
+- Bump `versionCode` → 45, `versionName` → "1.45".
+
 ## v1.44 - Batch 5 (audit lanjutan): 2 resource orphan di AndroidManifest.xml
 - Diminta user eksplisit: audit/bug-hunt lagi kayak batch 1-4. Full re-read semua
   file Kotlin (termasuk kode baru v1.41-v1.43) + cross-check parity string ID/EN +

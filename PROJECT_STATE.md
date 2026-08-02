@@ -10,7 +10,17 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.44
+- **Versi**: v1.45
+- ✅ **Audit batch 6 (lanjutan batch 1-5) SELESAI** — diminta user eksplisit,
+  kali ini file NON-KOTLIN (gradle, CI workflow, README, proguard). Gradle
+  files bersih. Ketemu 4 hal nyata: (1) CI `secret_check` cuma validasi 1 dari
+  4 secrets keystore yang dibutuhkan, resiko gagal ambigu kalau setup secrets
+  partial — sudah di-fix validasi keempat-empatnya. (2) README klaim nama
+  artifact yang SALAH (beda dari yang beneran jalan di `build.yml`). (3) README
+  masih klaim icon "placeholder" padahal Adaptive Icon custom udah lama ada.
+  (4) README "Fitur" gak nyebut QS Tile/App Shortcuts/Widget (v1.40-v1.43) sama
+  sekali. Semua sudah di-fix. Pola sama kayak Batch 1: dokumentasi gak sinkron
+  kode, cuma sekarang lokasinya di README+CI, bukan README+CHANGELOG.
 - ✅ **Audit batch 5 (lanjutan batch 1-4) SELESAI** — diminta user eksplisit.
   Full re-read semua Kotlin + cross-check parity string ID/EN + cek resource
   gak kepakai. Kotlin logic bersih (termasuk kode baru v1.41-v1.43, App

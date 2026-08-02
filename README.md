@@ -30,11 +30,13 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.
 - Bertahan saat task di-swipe (`stopWithTask="false"` + `START_STICKY`, TANPA restart manual via `onTaskRemoved` — trik itu sempat dicoba lalu dicabut di v1.34 karena tidak reliable di Android 12+) dan otomatis jalan lagi saat device boot ulang.
 - Permintaan exemption battery optimization saat pertama dibuka.
+- Quick Settings Tile — toggle on/off langsung dari notification shade, tanpa buka app.
+- App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
+- Widget home screen — status real-time + toggle sekali tap, tanpa buka app sama sekali.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
-- Belum ada icon asli — ganti placeholder di `res/mipmap-mdpi` sebelum build release.
 
 ## Build
 ```
@@ -77,7 +79,7 @@ Hanya ada **1 artifact** yang dihasilkan tiap build: APK release yang sudah sign
    | `KEY_ALIAS` | `audioenhancerpro` (atau alias yang kamu pakai) |
    | `KEY_PASSWORD` | password key yang dibuat di langkah 1 |
 
-4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu upload APK release yang sudah signed sebagai artifact bernama `audio-enhancer-pro-release-apk-signed`.
+4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu upload APK release yang sudah signed sebagai artifact bernama `AudioEnhancerPro-v{versionName}-release` (dinamis, ngikutin `versionName` saat itu — lihat bagian "Versioning APK Release" di atas).
 
 Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal — job `build` (debug) tetap jalan normal.
 
