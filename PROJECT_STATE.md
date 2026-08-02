@@ -10,14 +10,18 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.42
+- **Versi**: v1.43
+- ✨ **Fitur baru: Widget home screen** (`BoosterWidgetProvider`) — status real-time +
+  toggle sekali tap tanpa buka app. Refresh didorong dari satu hook di
+  `AudioEnhancerService` (tiap `isRunning` berubah), bukan periodic update (kelewat
+  lambat). **Kedua fitur "shortcut" yang diminta user (App Shortcuts v1.42 + Widget
+  v1.43) SELESAI** — gak ada lagi item pending dari request shortcut ini.
 - ✨ **Fitur baru: App Shortcuts** (long-press ikon launcher) — `ShortcutHelper.kt` +
   `res/xml/shortcuts.xml`. 1 shortcut statis "Nyalakan/Matikan", + shortcut dinamis
   (maks. 3, terbaru duluan) satu per preset custom user, tap → app kebuka & preset
   langsung diterapkan. Konteks: user bilang eksplisit fitur macam "shortcut" ini yang
   paling dia mau tapi sering kelupaan minta — jadi ini prioritas baru, BUKAN cuma
-  nice-to-have. **Widget home screen (toggle + status) masih PENDING, batch berikutnya**
-  (user pilih App Shortcuts duluan karena lebih ringan/rendah risiko).
+  nice-to-have. Widget home screen (v1.43) nyusul langsung di batch berikutnya.
 - 🔽 **Autostart (OemAutostartHelper) DIDEPRIORITASKAN oleh user** — user bilang
   masalahnya "perkara mudah", fokusnya sekarang ke fitur shortcut. Item PENDING di
   bawah (konfirmasi Autostart di Infinix) TETAP dicatat (belum dihapus, belum ada
@@ -210,10 +214,6 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
-- **PRIORITAS**: Widget home screen (toggle + status tanpa buka app) — fitur
-  shortcut kedua yang diminta user (batch pertama App Shortcuts v1.42 udah
-  selesai). Butuh `AppWidgetProvider` baru + layout `RemoteViews` terpisah,
-  lebih berat dari App Shortcuts, makanya sengaja dikerjain belakangan.
 - Konfirmasi hasil tombol Autostart v1.35 di Infinix Note 50 Pro 4G & Note 40
   Pro 4G — **DIDEPRIORITASKAN oleh user** (lihat "Status saat ini"), gak perlu
   ditanya/dikerjain proaktif. Kalau user singgung lagi: gagal → opsi (a) cari

@@ -57,5 +57,18 @@
             </intent-filter>
         </service>
 
+        <receiver
+            android:name=".BoosterWidgetProvider"
+            android:enabled="true"
+            android:exported="true"
+            android:label="@string/qs_tile_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_booster_info" />
+        </receiver>
+
     </application>
 </manifest>

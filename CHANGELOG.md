@@ -4,6 +4,29 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.43 - Widget home screen: toggle + status tanpa buka app
+- **Widget baru** (`BoosterWidgetProvider`) — kartu kecil di home screen nunjukin status
+  (dot ijo/merah + teks "Aktif"/"Nonaktif", reuse label QS Tile) dan bisa di-tap buat
+  toggle langsung, TANPA buka MainActivity sama sekali. Beda dari App Shortcuts (v1.42)
+  yang cuma jalan pintas buka app — widget ini beneran interaktif dari home screen.
+- **Refresh status real-time, bukan periodic**: `updatePeriodMillis="0"` (auto-update
+  bawaan Android minimal 30 menit, kelewat lambat). Update didorong manual dari SATU
+  titik: `AudioEnhancerService` manggil `BoosterWidgetProvider.refreshAll()` tiap
+  `isRunning` berubah — otomatis nutup SEMUA jalur toggle (MainActivity, BootReceiver,
+  QS Tile, App Shortcut, widget sendiri) tanpa perlu hook terpisah di masing-masing.
+- Warna dot status disamain persis sama `ServiceStatusBadge` di layar utama (`#30D158`
+  ijo / `#FF453A` merah) — konsisten, bukan re-invent palet baru.
+- RemoteViews cuma dukung subset View terbatas (gak bisa Compose/Material3), jadi
+  layout widget pakai `LinearLayout`+`TextView`+`ImageView` klasik dengan warna dibakar
+  langsung di drawable (`widget_background.xml` gradient, `widget_status_dot_*.xml`) —
+  pola yang sama kayak fix v1.41, sengaja dihindari dari awal.
+- File baru: `BoosterWidgetProvider.kt`, `res/layout/widget_booster.xml`,
+  `res/xml/widget_booster_info.xml`, `widget_background.xml`, `widget_status_dot_on.xml`,
+  `widget_status_dot_off.xml`. File diubah: `AudioEnhancerService.kt` (3 hook refresh),
+  `AndroidManifest.xml` (receiver + meta-data).
+- Bump `versionCode` → 43, `versionName` → "1.43".
+- **Kedua fitur shortcut yang diminta user (App Shortcuts v1.42 + Widget v1.43) SELESAI.**
+
 ## v1.42 - App Shortcuts: long-press ikon launcher buat akses instan
 - **Shortcut statis "Nyalakan/Matikan"**: long-press ikon app di launcher → toggle booster
   langsung, gak perlu buka app dulu (mirip QS Tile, tapi dari home screen). Dideklarasikan

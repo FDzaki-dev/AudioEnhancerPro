@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis="0": auto-update Android minimal 30 menit, kelewat lambat buat
+     status real-time. Update beneran didorong manual dari AudioEnhancerService tiap
+     isRunning berubah (lihat BoosterWidgetProvider.refreshAll()), jadi periodic update
+     bawaan sengaja dimatikan supaya gak dobel/nunggu basi. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="180dp"
+    android:minHeight="60dp"
+    android:targetCellWidth="3"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/widget_booster"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:previewImage="@mipmap/ic_launcher" />

@@ -80,6 +80,7 @@ class AudioEnhancerService : Service() {
             // supaya "Matikan" selalu benar-benar mematikan efek walau app masih kebuka.
             disableEffects()
             isRunning = false
+            BoosterWidgetProvider.refreshAll(this)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -90,6 +91,7 @@ class AudioEnhancerService : Service() {
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
         enableEffects()
         isRunning = true
+        BoosterWidgetProvider.refreshAll(this)
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
     }
@@ -112,6 +114,7 @@ class AudioEnhancerService : Service() {
     override fun onDestroy() {
         releaseEffects()
         isRunning = false
+        BoosterWidgetProvider.refreshAll(this)
         super.onDestroy()
     }
 

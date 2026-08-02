@@ -9,6 +9,7 @@ app/proguard-rules.pro
 app/src/main/AndroidManifest.xml
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerApp.kt
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt
+app/src/main/java/com/audioenhancer/booster/BoosterWidgetProvider.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
@@ -24,6 +25,10 @@ app/src/main/res/drawable/ic_launcher_monochrome.xml
 app/src/main/res/drawable/ic_qs_tile.xml
 app/src/main/res/drawable/ic_shortcut_preset.xml
 app/src/main/res/drawable/ic_shortcut_toggle.xml
+app/src/main/res/drawable/widget_background.xml
+app/src/main/res/drawable/widget_status_dot_off.xml
+app/src/main/res/drawable/widget_status_dot_on.xml
+app/src/main/res/layout/widget_booster.xml
 app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
 app/src/main/res/mipmap-hdpi/ic_launcher.png
@@ -42,6 +47,7 @@ app/src/main/res/values/colors.xml
 app/src/main/res/values/strings.xml
 app/src/main/res/values/themes.xml
 app/src/main/res/xml/shortcuts.xml
+app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 build.gradle.kts
