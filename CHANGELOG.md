@@ -4,6 +4,25 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.44 - Batch 5 (audit lanjutan): 2 resource orphan di AndroidManifest.xml
+- Diminta user eksplisit: audit/bug-hunt lagi kayak batch 1-4. Full re-read semua
+  file Kotlin (termasuk kode baru v1.41-v1.43) + cross-check parity string ID/EN +
+  cek resource yang gak kepakai. Kotlin logic bersih, gak ada temuan baru — tapi
+  ketemu 2 hal di `AndroidManifest.xml`:
+  1. `android:label="Audio Booster"` di-hardcode langsung, padahal string
+     `app_name` (ID+EN, isinya identik) udah ada dari awal dan gak pernah dipakai
+     sama sekali. Sekarang `android:label="@string/app_name"`.
+  2. `ic_launcher_round` (mipmap semua densitas) di-generate pas batch Adaptive
+     Icon redesign, tapi `android:roundIcon` gak pernah ditambahin ke manifest —
+     jadi file-nya nganggur gak pernah dipakai. Sekarang
+     `android:roundIcon="@mipmap/ic_launcher_round"` ditambahin.
+  - Dampak sebelum fix: nyaris tidak kelihatan (label sama persis "Audio Booster"
+    di kedua locale, dan launcher tanpa `roundIcon` otomatis fallback ke
+    `ic_launcher` yang di-mask sistem) — tapi tetap defect arsitektur nyata:
+    resource orphan + gak konsisten sama konvensi Android standar
+    (`android:label` semestinya rujuk string resource, bukan literal).
+- Bump `versionCode` → 44, `versionName` → "1.44".
+
 ## v1.43 - Widget home screen: toggle + status tanpa buka app
 - **Widget baru** (`BoosterWidgetProvider`) — kartu kecil di home screen nunjukin status
   (dot ijo/merah + teks "Aktif"/"Nonaktif", reuse label QS Tile) dan bisa di-tap buat

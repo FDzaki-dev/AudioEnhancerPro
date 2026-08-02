@@ -10,7 +10,15 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.43
+- **Versi**: v1.44
+- ✅ **Audit batch 5 (lanjutan batch 1-4) SELESAI** — diminta user eksplisit.
+  Full re-read semua Kotlin + cross-check parity string ID/EN + cek resource
+  gak kepakai. Kotlin logic bersih (termasuk kode baru v1.41-v1.43, App
+  Shortcuts & Widget). Ketemu 2 resource orphan di `AndroidManifest.xml`:
+  `android:label` di-hardcode padahal `@string/app_name` udah ada gak kepakai,
+  dan `ic_launcher_round` (mipmap semua densitas, dari batch Adaptive Icon)
+  gak pernah di-wire ke `android:roundIcon`. Kedua-duanya udah di-fix.
+  Dampak sebelum fix nyaris gak kelihatan, tapi tetap defect arsitektur nyata.
 - ✨ **Fitur baru: Widget home screen** (`BoosterWidgetProvider`) — status real-time +
   toggle sekali tap tanpa buka app. Refresh didorong dari satu hook di
   `AudioEnhancerService` (tiap `isRunning` berubah), bukan periodic update (kelewat
