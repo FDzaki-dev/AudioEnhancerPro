@@ -10,24 +10,29 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.38
-- 🔍 **Audit kecacatan logika sedang berjalan** (diminta user eksplisit: "berhenti tambah
-  fitur, fokus pematangan & audit"). Sudah diaudit tuntas (service lifecycle, effect
-  handling, OEM autostart, tema, reset EQ, parity i18n — semua bersih). Progress fix:
+- **Versi**: v1.39
+- ✅ **Audit kecacatan logika SELESAI (semua batch tuntas)** — diminta user eksplisit
+  sesi ini: "berhenti tambah fitur, fokus pematangan & audit kecacatan logika hingga
+  tuntas". Sudah diaudit tuntas (service lifecycle, effect handling, OEM autostart,
+  tema, reset EQ, parity i18n — semua bersih dari awal). Semua temuan yang ketemu
+  sudah di-fix:
   - ✅ v1.36 (Batch 1): README klaim `onTaskRemoved` restart yang sudah dicabut sejak
     v1.34, dan README klaim APK debug CI muncul di Artifacts padahal job `build` tidak
     upload apapun.
   - ✅ v1.37 (Batch 2): `OnboardingScreen.kt` emoji hardcoded (🎧🔊🌐📢🛡️🔔) — lolos
     dari pembersihan emoji v1.27 karena emoji-nya di Kotlin, bukan `strings.xml`.
     Diganti icon vector + accent color yang SAMA PERSIS dengan fitur terkait di layar
-    utama (bonus konsistensi visual, bukan cuma hapus emoji).
-  - ✅ v1.38 (Batch 3): custom preset bisa tabrakan nama dengan preset bawaan (chip
-    built-in & custom sama-sama ke-highlight "selected" kalau namanya persis sama).
-    Fix: validasi real-time di dialog simpan preset (case-insensitive), tombol Simpan
-    disabled + error text kalau tabrakan.
-  - ⏳ BELUM (minor/opsional, boleh dilewatkan): `BootReceiver` exported tanpa
-    permission, `CrashLogger` timestamp resolusi per-detik, test coverage
-    `PrefsHelperTest` belum cover custom preset/dynamic color.
+    utama.
+  - ✅ v1.38 (Batch 3): custom preset bisa tabrakan nama dengan preset bawaan. Fix:
+    validasi real-time di dialog simpan preset (case-insensitive).
+  - ✅ v1.39 (Batch 4, penutup): `BootReceiver` sekarang validasi `intent.action`
+    (cegah trigger via explicit intent dgn action bikinan dari app lain — BUKAN
+    spoof BOOT_COMPLETED, itu tetap gak bisa krn protected broadcast). `CrashLogger`
+    timestamp file sekarang unik per-milidetik, bukan per-detik. Test coverage
+    `PrefsHelperTest` diperluas 8→17 test (dynamic color + custom preset JSON
+    round-trip + crash-seen timestamp).
+  - **Tidak ada temuan tersisa.** Kalau nanti nemu hal baru pas testing manual di
+    device, catat di sini sebagai temuan baru, jangan anggap audit ini pernah miss.
 - ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
   kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
   Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40

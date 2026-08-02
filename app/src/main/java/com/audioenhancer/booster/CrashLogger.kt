@@ -33,8 +33,13 @@ object CrashLogger {
     private fun writeCrashLog(context: Context, throwable: Throwable) {
         val dir = File(context.filesDir, CRASH_DIR)
         if (!dir.exists()) dir.mkdirs()
-        val timestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
-        val file = File(dir, "crash_$timestamp.txt")
+        // Pakai epoch millis sebagai suffix unik, BUKAN cuma format detik — dua crash
+        // beruntun dalam detik yang sama (mis. crash A memicu crash B saat unwind)
+        // sebelumnya saling menimpa nama file yang identik, bikin rotasi MAX_LOGS jadi
+        // gak akurat. Nama tetap human-readable, cuma ditambah suffix millis di ekor.
+        val now = System.currentTimeMillis()
+        val readableTimestamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date(now))
+        val file = File(dir, "crash_${readableTimestamp}_$now.txt")
         file.writeText(throwable.stackTraceToString())
 
         // Rotasi: simpan cuma MAX_LOGS file terbaru, biar internal storage gak numpuk.

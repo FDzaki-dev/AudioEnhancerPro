@@ -80,4 +80,79 @@ class PrefsHelperTest {
         // Band yang belum pernah di-set harus tetap balik ke default, bukan ikut band lain.
         assertEquals(0, PrefsHelper.getEqualizerBandLevel(context, 2, 0))
     }
+
+    @Test
+    fun `dynamic color defaults to off`() {
+        assertEquals(false, PrefsHelper.getUseDynamicColor(context))
+    }
+
+    @Test
+    fun `dynamic color round-trips through prefs`() {
+        PrefsHelper.setUseDynamicColor(context, true)
+        assertEquals(true, PrefsHelper.getUseDynamicColor(context))
+
+        PrefsHelper.setUseDynamicColor(context, false)
+        assertEquals(false, PrefsHelper.getUseDynamicColor(context))
+    }
+
+    @Test
+    fun `custom presets are empty when never saved`() {
+        assertEquals(emptyList<PrefsHelper.CustomPreset>(), PrefsHelper.getCustomPresets(context))
+    }
+
+    @Test
+    fun `custom preset round-trips through JSON serialization`() {
+        val preset = PrefsHelper.CustomPreset(name = "Malam Hari", bass = 700f, virtualizer = 250f, loudness = 1500.5f)
+        PrefsHelper.addCustomPreset(context, preset)
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(1, loaded.size)
+        assertEquals(preset.name, loaded[0].name)
+        assertEquals(preset.bass, loaded[0].bass, 0.001f)
+        assertEquals(preset.virtualizer, loaded[0].virtualizer, 0.001f)
+        assertEquals(preset.loudness, loaded[0].loudness, 0.001f)
+    }
+
+    @Test
+    fun `multiple custom presets are stored independently in the JSON array`() {
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Preset A", 100f, 100f, 100f))
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Preset B", 200f, 200f, 200f))
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(2, loaded.size)
+        assertEquals(setOf("Preset A", "Preset B"), loaded.map { it.name }.toSet())
+    }
+
+    @Test
+    fun `saving a custom preset with an existing name overwrites it instead of duplicating`() {
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Favorit", 100f, 100f, 100f))
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Favorit", 999f, 999f, 999f))
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(1, loaded.size)
+        assertEquals(999f, loaded[0].bass, 0.001f)
+    }
+
+    @Test
+    fun `deleting a custom preset removes only that preset by name`() {
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Simpan", 100f, 100f, 100f))
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Hapus", 200f, 200f, 200f))
+
+        PrefsHelper.deleteCustomPreset(context, "Hapus")
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(1, loaded.size)
+        assertEquals("Simpan", loaded[0].name)
+    }
+
+    @Test
+    fun `last seen crash timestamp defaults to zero`() {
+        assertEquals(0L, PrefsHelper.getLastSeenCrashTimestamp(context))
+    }
+
+    @Test
+    fun `last seen crash timestamp round-trips through prefs`() {
+        PrefsHelper.setLastSeenCrashTimestamp(context, 1_700_000_000_000L)
+        assertEquals(1_700_000_000_000L, PrefsHelper.getLastSeenCrashTimestamp(context))
+    }
 }

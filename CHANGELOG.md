@@ -4,6 +4,27 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.39 - Batch 4 (penutup audit): sikat 3 temuan minor terakhir
+- **`BootReceiver` sekarang validasi `intent.action`** sebelum start service. Sebelumnya
+  `onReceive` langsung start service tanpa cek action sama sekali — karena `exported=true`
+  (wajib, biar BOOT_COMPLETED/MY_PACKAGE_REPLACED yang protected-broadcast bisa nyampe),
+  app lain sebenarnya bisa kirim explicit intent ke receiver ini dengan action APAPUN
+  (explicit intent lewati pengecekan intent-filter) dan tetap memicu service nyala. Sudah
+  divalidasi manual (bukan spoof BOOT_COMPLETED-nya — itu tetap gak bisa karena protected
+  broadcast — tapi celah "action bikinan sendiri lewat explicit intent"-nya).
+- **`CrashLogger` timestamp file sekarang unik per-milidetik**, bukan per-detik. Sebelumnya
+  dua crash beruntun dalam detik yang sama saling menimpa nama file, bikin rotasi
+  `MAX_LOGS=5` gak akurat (log lama yang harusnya masih ada malah ketiban/hilang duluan).
+- **Test coverage `PrefsHelperTest` diperluas** — nambah 9 test baru: dynamic color
+  (default + round-trip), custom preset (default kosong, round-trip JSON penuh, multi-preset
+  independen, timpa-by-name, delete-by-name), dan crash-seen timestamp (default + round-trip).
+  Total sekarang 17 test (sebelumnya 8), nutup semua state persisten yang sebelumnya
+  cuma diverifikasi manual.
+- **Ini menutup semua temuan dari audit kecacatan logika** yang dimulai sesi ini (Batch
+  1-4). Tidak ada temuan lain yang tersisa per audit terakhir — lihat riwayat lengkap di
+  `PROJECT_STATE.md`.
+- Bump `versionCode` → 39, `versionName` → "1.39".
+
 ## v1.38 - Fix regresi audit: custom preset bisa tabrakan nama dengan preset bawaan
 - **Root cause**: dialog "Simpan Preset" tidak validasi nama custom terhadap 4 label preset bawaan (Flat/Bass Heavy/Vocal Boost/Treble Boost). Kalau user simpan custom preset dengan nama persis sama (mis. "Flat"), chip built-in DAN chip custom sama-sama ke-highlight "selected" bareng saat `activePreset` cocok nama itu — state visual ambigu, walau tiap chip tetap menerapkan nilai yang benar saat ditekan.
 - **Fix**: `OutlinedTextField` di dialog simpan preset sekarang validasi real-time (case-insensitive) terhadap label preset bawaan — kalau tabrakan, field jadi `isError` merah + supporting text penjelasan, dan tombol "Simpan" otomatis disabled sampai nama diganti.
