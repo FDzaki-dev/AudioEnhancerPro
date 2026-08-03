@@ -182,6 +182,21 @@ eksplisit user.
   Sudah diperbaiki di command "standar" di bawah — WAJIB pakai versi ini
   buat semua update berikutnya. User juga perlu bersihkan manual file nyasar
   di `~/projects/` root (app/, README.md, dll — bukan punya project lain).
+- **Insiden nyata (pengiriman v1.46, packaging ZIP)**: command `zip -r -X out.zip
+  . -x ".*"` yang dipakai buat bikin ZIP pengiriman TANPA SADAR ikut membuang
+  SEMUA folder/file berawalan titik dari isi ZIP — termasuk `.github/workflows/
+  build.yml` (CI) dan `.gitignore`. Validasi "FILE_MANIFEST.txt vs isi ZIP" waktu
+  itu tetap "lolos" karena dua-duanya (manifest di dalam ZIP & isi ZIP) sama-sama
+  gak lengkap dengan cara yang konsisten — validasi model itu gak nangkep bug
+  packaging-nya sendiri. Efeknya baru ketauan setelah user push & gak ada GitHub
+  Action yang jalan sama sekali (CI-nya sendiri udah kehapus dari repo). LESSON:
+  (1) JANGAN PERNAH pakai pola exclude `-x ".*"` atau sejenisnya yang match semua
+  dotfile/dotdir saat packaging ZIP proyek ini — exclude nama spesifik satu-satu
+  kalau memang perlu. (2) WAJIB `unzip -l` pada ZIP HASIL AKHIR (bukan cuma cek isi
+  folder sumber sebelum di-zip) dan cocokkan listing itu ke `FILE_MANIFEST.txt`
+  SEBELUM present_files — supaya bug di command zip itu sendiri ketauan, bukan
+  cuma bug di isi file. Detail lengkap insiden ada di CHANGELOG.md entry "v1.46
+  (hotfix pengiriman)".
 - **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox Claude manapun (dicek
   eksplisit, network disabled). Artinya: Claude TIDAK BISA compile-check
   Kotlin sebelum ngirim zip. Verifikasi cuma bisa manual: baca ulang tiap

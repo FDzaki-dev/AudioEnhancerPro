@@ -30,8 +30,35 @@
   Kotlin (batch 1-5) maupun audit gradle/CI/README (batch 6).
 - Bump `versionCode` → 46, `versionName` → "1.46".
 
+## v1.46 (hotfix pengiriman) - Insiden: `.github/workflows/build.yml` + `.gitignore` sempat hilang dari repo
+- **BUKAN perubahan kode app apapun** — versionCode/versionName TETAP di 46/"1.46",
+  karena ini murni insiden packaging ZIP, bukan rilis fitur/fix baru.
+- **Insiden**: command `zip` yang dipakai buat bikin ZIP pengiriman v1.46 pertama
+  pakai flag exclude `-x ".*"` yang (tanpa disadari) ikut membuang SEMUA folder/file
+  berawalan titik dari isi ZIP — termasuk `.github/workflows/build.yml` (CI) dan
+  `.gitignore`. `FILE_MANIFEST.txt` di dalam ZIP itu sendiri masih benar (tetap
+  mencatat kedua file itu harus ada), tapi ZIP fisiknya sendiri yang cacat — validasi
+  yang cuma bandingkan isi ZIP ke `FILE_MANIFEST.txt` di dalam ZIP yang sama gak
+  nangkep ini, karena dua-duanya "cocok" secara keliru (sama-sama kekurangan
+  file yang sama).
+- **Dampak nyata**: user jalanin command Termux standar (bersihkan folder lokal →
+  extract ZIP baru → commit → push). Karena ZIP-nya gak punya `.github`, folder itu
+  ikut kehapus dari clone lokal, lalu ikut ke-commit sebagai deletion pas push ke
+  `main`. Akibatnya CI (`build.yml`) lenyap dari repo — nggak ada Action yang
+  ke-trigger sama sekali setelah push v1.46, gak ada build yang jalan atau APK yang
+  dihasilkan.
+- **Fix**: `.github/workflows/build.yml` dan `.gitignore` dipulihkan persis seperti
+  sebelumnya (isi tidak diubah, cuma dikembalikan) di ZIP hotfix ini.
+- **LESSON buat sesi Claude berikutnya**: JANGAN PERNAH pakai `zip -x ".*"` (atau
+  pola exclude sejenis yang match folder/file berawalan titik) saat packaging ZIP
+  proyek ini — itu ikut membuang `.github` dan `.gitignore` yang WAJIB ada. Kalau
+  perlu exclude sesuatu, exclude nama spesifiknya satu-satu, JANGAN pola wildcard
+  yang match semua dotfile/dotdir. Sebelum kirim ZIP, WAJIB jalankan `unzip -l`
+  pada ZIP HASIL AKHIR dan cek `.github/workflows/` ada di listing-nya — validasi
+  manifest internal ZIP TIDAK CUKUP karena bisa sama-sama cacat dengan cara yang
+  konsisten (persis seperti insiden ini).
 
-- Diminta user eksplisit: audit file DI LUAR Kotlin (gradle, workflow CI, README,
+## v1.45 - Batch 6 (audit lanjutan): file non-Kotlin (gradle/CI/README)
   proguard) — belum pernah diaudit khusus sebelumnya (batch 1-5 fokus Kotlin +
   resource Android). `build.gradle.kts` (root+app), `settings.gradle.kts`,
   `gradle.properties`, `proguard-rules.pro` bersih, gak ada temuan. Ketemu 4 hal
