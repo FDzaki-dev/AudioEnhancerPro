@@ -10,7 +10,22 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.46
+- **Versi**: v1.47
+- ✅ **Audit batch 8 (lanjutan batch 1-7) SELESAI** — diminta user eksplisit ("audit/pematangan
+lanjutan"). Full re-read semua 12 file Kotlin (brace/paren balance via script), parity string
+ID/EN (89/89, termasuk setelah edit batch ini), `FILE_MANIFEST.txt` vs fisik (sinkron), CI/gradle
+(sinkron ke README). Ketemu 1 bug logika nyata: dialog "Simpan Preset" (`MainActivity.kt`) cuma
+cek tabrakan nama case-insensitive ke 4 preset BAWAAN (`presets`), TIDAK PERNAH dicek ke sesama
+preset CUSTOM lain (`customPresets`) — padahal `PrefsHelper.CustomPreset` eksplisit bilang "nama
+harus unik". Akibatnya user bisa bikin 2 custom preset berbeda isi tapi nama nyaris identik
+(mis. "Rock" & "rock"), chip & dynamic shortcut jadi membingungkan (isinya beda tapi labelnya
+kelihatan sama). Fix: tambah pengecekan ke `customPresets` (case-insensitive), TAPI sengaja
+kecualikan exact-match (`it.name != trimmedPresetName`) supaya "simpan ulang dengan nama PERSIS
+SAMA = timpa yang lama" (perilaku disengaja di `PrefsHelper.addCustomPreset`, BUKAN bug) tidak
+ikut ke-block. String `preset_save_name_collision_error` (ID+EN) digeneralisasi dari "sudah
+dipakai preset bawaan" jadi "sudah dipakai preset lain", karena sekarang berlaku ke dua-duanya.
+Tidak ada perubahan fungsional lain — semua fitur (QS Tile, App Shortcuts, Widget) tetap
+SELESAI, tidak ada regresi ditemukan di area lain.
 - ✅ **Audit batch 7 (lanjutan batch 1-6) SELESAI** — diminta user eksplisit:
 "gak usah update fitur baru, fokus penyempurnaan aplikasi dan debugging sampai
 tuntas". Full re-read 12 file Kotlin (brace/paren balance dicek via script),

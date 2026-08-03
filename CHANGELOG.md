@@ -4,6 +4,35 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.47 - Batch 8 (audit lanjutan, diminta user): "audit/pematangan lanjutan"
+- Full re-read semua 12 file Kotlin (brace/paren balance dicek via script), parity
+  string ID/EN (89/89 cocok, termasuk setelah edit batch ini), `FILE_MANIFEST.txt`
+  vs file fisik (sinkron 100%), CI (`build.yml`) & `README.md` (masih sinkron dari
+  batch 6). Ketemu 1 bug logika nyata:
+  - **Bug**: dialog "Simpan Preset" di `MainActivity.kt` cuma mengecek tabrakan
+    nama (case-insensitive) terhadap 4 preset BAWAAN (`presets`) — TIDAK PERNAH
+    dicek terhadap sesama preset CUSTOM lain (`customPresets`), padahal
+    `PrefsHelper.CustomPreset` eksplisit menjanjikan "nama harus unik". Akibatnya
+    user bisa membuat 2 custom preset berbeda isi (bass/virtualizer/loudness)
+    tapi nama nyaris identik (mis. "Rock" dan "rock") — chip preset & dynamic
+    shortcut jadi membingungkan karena labelnya kelihatan sama padahal itu 2
+    preset terpisah.
+  - **Fix**: tambah pengecekan `customPresets.any { it.name != trimmedPresetName
+    && it.name.equals(trimmedPresetName, ignoreCase = true) }` ke kondisi
+    `nameCollidesWithBuiltIn`. Pengecualian `it.name != trimmedPresetName`
+    sengaja ditambahkan supaya menyimpan ulang preset custom dengan nama PERSIS
+    SAMA (exact match) tetap diizinkan — itu perilaku "timpa yang lama" yang
+    memang disengaja di `PrefsHelper.addCustomPreset`, bukan bug yang perlu
+    ikut diblokir.
+  - String `preset_save_name_collision_error` (ID+EN) digeneralisasi dari
+    "sudah dipakai preset bawaan" menjadi "sudah dipakai preset lain"/"already
+    used by another preset", karena pesan error ini sekarang berlaku untuk
+    kedua jenis tabrakan (built-in maupun sesama custom).
+- Bug ini murni logic gap yang lolos dari audit batch 1-7 sebelumnya karena
+  butuh skenario spesifik (2 custom preset beda case) yang belum pernah
+  ditest manual — bukan regresi dari perubahan batch manapun.
+- Bump `versionCode` → 47, `versionName` → "1.47".
+
 ## v1.46 - Batch 7 (audit lanjutan, diminta user): "penyempurnaan & debugging tuntas"
 - Diminta user eksplisit: "gak usah update fitur baru, fokus penyempurnaan aplikasi
   dan debugging sampai tuntas". Full re-read semua 12 file Kotlin (brace/paren

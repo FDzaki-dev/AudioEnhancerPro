@@ -751,8 +751,18 @@ fun BoosterScreen(
             // dari 4 preset bawaan — tanpa ini, chip built-in & chip custom bisa
             // sama-sama ke-highlight "selected" bareng saat activePreset match nama itu,
             // state visual jadi ambigu meski fungsinya sendiri tetap benar.
+            //
+            // Batch 8: cek yang sama juga WAJIB diterapkan ke SESAMA preset custom lain
+            // (bukan cuma built-in) — sebelumnya cuma dicek ke `presets` (built-in), jadi
+            // "Rock" dan "rock" bisa lolos jadi 2 custom preset terpisah yang isinya beda
+            // tapi labelnya nyaris identik (dynamic shortcut & chip jadi membingungkan).
+            // `it.name != trimmedPresetName` sengaja dikecualikan supaya nyimpen ulang
+            // preset custom dengan nama PERSIS SAMA (exact match) tetap diizinkan —
+            // itu perilaku "timpa yang lama" yang memang disengaja di
+            // PrefsHelper.addCustomPreset, bukan bug.
             val trimmedPresetName = presetNameInput.trim()
-            val nameCollidesWithBuiltIn = presets.any { it.label.equals(trimmedPresetName, ignoreCase = true) }
+            val nameCollidesWithBuiltIn = presets.any { it.label.equals(trimmedPresetName, ignoreCase = true) } ||
+                customPresets.any { it.name != trimmedPresetName && it.name.equals(trimmedPresetName, ignoreCase = true) }
             AlertDialog(
                 onDismissRequest = { showSavePresetDialog = false },
                 title = { Text(stringResource(R.string.preset_save_dialog_title)) },
