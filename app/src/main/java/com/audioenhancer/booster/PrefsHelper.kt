@@ -14,6 +14,7 @@ object PrefsHelper {
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
     private const val KEY_CUSTOM_PRESETS = "custom_presets_json"
     private const val KEY_LAST_SEEN_CRASH = "last_seen_crash_ts"
+    private const val KEY_USER_WANTS_RUNNING = "user_wants_running"
 
     /** 0 = ikut sistem, 1 = terang, 2 = gelap. */
     const val THEME_MODE_SYSTEM = 0
@@ -140,5 +141,21 @@ object PrefsHelper {
     fun setLastSeenCrashTimestamp(context: Context, timestamp: Long) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putLong(KEY_LAST_SEEN_CRASH, timestamp).apply()
+    }
+
+    // --- Batch 9: "niat" user (mau service hidup atau tidak), TERPISAH dari
+    // AudioEnhancerService.isRunning yang cuma state runtime in-memory (reset ke false
+    // kalau process app mati). Dipakai ServiceWatchdogWorker buat bedakan 2 skenario beda:
+    // (a) user SENGAJA tekan "Matikan" -> jangan dihidupkan paksa lagi oleh watchdog.
+    // (b) OS/OEM battery-killer yang bunuh paksa TANPA sepengetahuan user -> watchdog
+    // WAJIB hidupkan lagi, karena ini bukan pilihan user. Default true karena app ini
+    // memang didesain "always on" (lihat README) — pertama kali dipasang dianggap user
+    // mau langsung aktif, bukan mau mati duluan.
+    fun getUserWantsRunning(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_USER_WANTS_RUNNING, true)
+
+    fun setUserWantsRunning(context: Context, wantsRunning: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_USER_WANTS_RUNNING, wantsRunning).apply()
     }
 }

@@ -6,5 +6,6 @@ class AudioEnhancerApp : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashLogger.install(this)
+        ServiceWatchdogWorker.schedule(this)
     }
 }

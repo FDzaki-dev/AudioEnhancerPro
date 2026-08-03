@@ -10,7 +10,39 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.47
+- **Versi**: v1.48
+- ✨ **Batch 9: WorkManager watchdog** (diminta user eksplisit: "keluarkan semua trik
+biar app ini berfungsi 100% lifetime"). Lapisan kedua di luar `START_STICKY` +
+`stopWithTask="false"` yang sudah ada (keduanya sudah diverifikasi BENAR sejak
+insiden v1.34 — bukan itu yang diubah). `ServiceWatchdogWorker` jalan periodik
+(15 menit, minimum interval WorkManager) via `WorkManager`, cek apakah service
+harusnya hidup tapi ternyata mati (OS/OEM killer menang), kalau iya restart via
+`AudioEnhancerService.requestStart()`.
+  - **Penting**: watchdog ini WAJIB HORMAT ke pilihan user. Ditambahkan flag baru
+`PrefsHelper.getUserWantsRunning()`/`setUserWantsRunning()` — TERPISAH dari
+`AudioEnhancerService.isRunning` (yang cuma state runtime in-memory). Di-set
+`true` di `onStartCommand()` (jalur normal start — dipanggil dari MainActivity,
+BootReceiver, QS Tile, Widget, Shortcut, SEMUA lewat `requestStart()`), dan
+`false` di jalur `ACTION_STOP` (user tekan "Matikan" di notifikasi). Watchdog
+CUMA restart kalau flag ini `true` DAN `isRunning` ternyata `false` — kalau user
+sengaja matiin, watchdog diam, TIDAK menghidupkan paksa lagi.
+  - **Ditolak dieksekusi** (dibahas eksplisit di chat sebelum implementasi, biar
+gak diulang tanya lagi di sesi depan): AccessibilityService disalahgunakan
+sebagai watchdog, DeviceAdminReceiver, `foregroundServiceType` palsu, reflection
+ke hidden API OEM buat matiin battery manager diam-diam — semua itu pola
+"mem-bypass consent user diam-diam" yang levelnya sama kayak "trik VPN" yang
+sudah ditolak di insiden sebelumnya (lihat "Keputusan sadar" & histori QS Tile
+di bawah). TIDAK akan dikerjain lagi meski diminta ulang tanpa alasan baru yang
+kuat.
+  - **Batasan jujur (WAJIB tetap disampaikan ke user)**: ini BUKAN jaminan "100%
+lifetime" — battery/task manager OEM tetap bisa menang di device tertentu,
+watchdog cuma mempercepat "sembuh sendiri", bukan mencegah kill sepenuhnya.
+Ekspektasi user harus tetap dikalibrasi ke ini, jangan overclaim di UI/copy.
+  - **PENDING (bukan bagian batch ini, calon Batch 10 kalau user lanjut)**:
+banner in-app persistent buat battery optimization belum di-ignore (beda dari
+dialog one-shot yang sudah ada di first-open) — user minta ini juga di diskusi
+awal tapi scope batch ini sengaja dibatasi ke watchdog doang (Batch Lock, biar
+gak nyentuh >10 file dalam 1 batch).
 - ✅ **Audit batch 8 (lanjutan batch 1-7) SELESAI** — diminta user eksplisit ("audit/pematangan
 lanjutan"). Full re-read semua 12 file Kotlin (brace/paren balance via script), parity string
 ID/EN (89/89, termasuk setelah edit batch ini), `FILE_MANIFEST.txt` vs fisik (sinkron), CI/gradle
@@ -277,6 +309,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.
+- `ServiceWatchdogWorker.kt` — WorkManager periodic (15 menit), restart service kalau mati padahal `PrefsHelper.getUserWantsRunning()` true. Dijadwalkan sekali di `AudioEnhancerApp.onCreate()`.
 - `OnboardingScreen.kt` — 6 halaman onboarding.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 

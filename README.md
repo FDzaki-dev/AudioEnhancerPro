@@ -33,10 +33,14 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 - Quick Settings Tile — toggle on/off langsung dari notification shade, tanpa buka app.
 - App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
 - Widget home screen — status real-time + toggle sekali tap, tanpa buka app sama sekali.
+- Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
+  ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
+  kalau user sengaja tekan "Matikan", watchdog TIDAK menghidupkan paksa lagi.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
+- Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
 
 ## Build
 ```

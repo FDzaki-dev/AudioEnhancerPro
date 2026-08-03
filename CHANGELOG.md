@@ -4,6 +4,35 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.48 - Batch 9 (diminta user): "keluarkan semua trik biar app berfungsi 100% lifetime"
+- **Sebelum implementasi, sudah dijelaskan eksplisit ke user di chat**: klaim "100%
+  lifetime" TIDAK bisa dijamin dari kode app manapun — battery/task manager
+  proprietary OEM (MIUI, ColorOS, EMUI, XOS, dst) bisa membunuh foreground service
+  di luar kendali app (sudah didokumentasikan sejak insiden v1.34). Yang realistis:
+  maksimalkan peluang bertahan + secepat mungkin sembuh sendiri kalau dibunuh.
+- **Ditambah**: `ServiceWatchdogWorker` (WorkManager `PeriodicWorkRequest`, interval
+  15 menit — minimum yang diizinkan WorkManager, gak bisa lebih cepat). Dijadwalkan
+  sekali di `AudioEnhancerApp.onCreate()` via `enqueueUniquePeriodicWork(...,
+  ExistingPeriodicWorkPolicy.KEEP, ...)`. Cek tiap siklus: kalau service harusnya
+  hidup tapi ternyata mati, restart via `AudioEnhancerService.requestStart()`.
+- **Flag baru**: `PrefsHelper.getUserWantsRunning()`/`setUserWantsRunning()` — beda
+  dari `AudioEnhancerService.isRunning` (state runtime doang, reset ke `false`
+  kalau process app mati). Flag ini persisten, jadi watchdog bisa bedakan "OS yang
+  bunuh paksa" (restart) vs "user sengaja matiin lewat notifikasi 'Matikan'"
+  (jangan restart, hormati pilihan user). Di-set di 2 titik di
+  `AudioEnhancerService.onStartCommand()`: `true` di jalur start normal, `false`
+  di jalur `ACTION_STOP`.
+- **Trik yang SENGAJA ditolak** (dibahas di chat, biar gak diulang tanya lagi):
+  AccessibilityService disalahgunakan sebagai watchdog, DeviceAdminReceiver,
+  `foregroundServiceType` yang di-declare palsu, reflection ke hidden API OEM.
+  Semua itu pola "bypass consent user diam-diam" — levelnya sama dengan "trik VPN"
+  yang sudah ditolak sebelumnya (lihat histori QS Tile v1.40).
+- Dependency baru: `androidx.work:work-runtime-ktx:2.9.1`.
+- Tidak ada perubahan UI di batch ini (persistent banner battery-optimization
+  reminder sengaja DIPISAH ke Batch 10 kalau diminta lanjut, biar batch ini gak
+  nyentuh >10 file — lihat PROJECT_STATE.md bagian "PENDING").
+- Bump `versionCode` → 48, `versionName` → "1.48".
+
 ## v1.47 - Batch 8 (audit lanjutan, diminta user): "audit/pematangan lanjutan"
 - Full re-read semua 12 file Kotlin (brace/paren balance dicek via script), parity
   string ID/EN (89/89 cocok, termasuk setelah edit batch ini), `FILE_MANIFEST.txt`

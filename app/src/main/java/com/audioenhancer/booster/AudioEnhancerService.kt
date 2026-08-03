@@ -80,6 +80,9 @@ class AudioEnhancerService : Service() {
             // supaya "Matikan" selalu benar-benar mematikan efek walau app masih kebuka.
             disableEffects()
             isRunning = false
+            // Batch 9: catat ini SEBAGAI PILIHAN USER (bukan OS yang bunuh), supaya
+            // ServiceWatchdogWorker gak menghidupkan paksa lagi tiap 15 menit.
+            PrefsHelper.setUserWantsRunning(this, false)
             BoosterWidgetProvider.refreshAll(this)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -91,6 +94,11 @@ class AudioEnhancerService : Service() {
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
         enableEffects()
         isRunning = true
+        // Batch 9: tandai "user mau service ini hidup" tiap kali start beneran terjadi
+        // (dari MainActivity, BootReceiver, QS Tile, Widget, atau Shortcut — semuanya
+        // lewat requestStart() -> sini). ServiceWatchdogWorker baca flag ini buat
+        // mutusin boleh/gaknya restart otomatis kalau nemu service mati.
+        PrefsHelper.setUserWantsRunning(this, true)
         BoosterWidgetProvider.refreshAll(this)
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
