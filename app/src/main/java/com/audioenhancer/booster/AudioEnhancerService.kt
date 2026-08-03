@@ -203,8 +203,6 @@ class AudioEnhancerService : Service() {
         PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
     }
 
-    fun getEqualizer(): Equalizer? = equalizer
-
     // ---- Info tambahan untuk UI: bedakan "efek tidak ada sama sekali" vs "ada tapi
     // kontrol kekuatan/strength granular tidak didukung chipset ini" ----
     fun isBassStrengthSupported(): Boolean =

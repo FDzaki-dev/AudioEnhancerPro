@@ -4,7 +4,33 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
-## v1.45 - Batch 6 (audit lanjutan): file non-Kotlin (gradle/CI/README)
+## v1.46 - Batch 7 (audit lanjutan, diminta user): "penyempurnaan & debugging tuntas"
+- Diminta user eksplisit: "gak usah update fitur baru, fokus penyempurnaan aplikasi
+  dan debugging sampai tuntas". Full re-read semua 12 file Kotlin (brace/paren
+  balance dicek via script, bukan cuma baca mata), semua XML (parse-validated),
+  cross-check parity string ID/EN (89/89 cocok termasuk format specifier `%s`/`%d`),
+  `FILE_MANIFEST.txt` vs file fisik (sinkron 100%). Sebagian besar bersih — ketemu
+  1 bug nyata + 1 dead code:
+  1. **Bug**: `values/colors.xml` & `values-night/colors.xml` (`splash_background`)
+     masih pakai warna era "Apple-style minimalis" (`#F2F2F7` terang / `#000000`
+     gelap) dari v1.11-v1.23 — padahal `Theme.kt` sudah lama pivot ke tema violet
+     "native ultra premium" (`LightColors.background = #FAF7FF`,
+     `DarkColors.background = #0A0714`). Splash screen jadi kedip warna abu-abu/
+     hitam pekat generik sebelum lompat ke background violet-tinted app — transisi
+     kelihatan patah, bukan mulus. Fix: `splash_background` disamakan persis ke
+     warna background tema aktif di kedua file, komentar basi yang masih nyebut
+     "Apple-style"/"iOS-style" juga diperbarui.
+  2. **Dead code**: `AudioEnhancerService.getEqualizer()` didefinisikan tapi
+     `grep` nol hasil pemanggil di seluruh codebase (UI ambil data equalizer
+     lewat `getEqualizerBandCount()`/`getEqualizerBandLevel()`/dst, bukan lewat
+     objek `Equalizer` mentah). Dihapus.
+- Pola temuan kali ini beda dari batch 1/5/6 sebelumnya (yang semuanya soal
+  dokumentasi/resource-wiring gak sinkron ke kode) — ini soal 2 konstanta warna
+  yang ketinggalan pas migrasi arah desain, di file yang gak ke-cover audit
+  Kotlin (batch 1-5) maupun audit gradle/CI/README (batch 6).
+- Bump `versionCode` → 46, `versionName` → "1.46".
+
+
 - Diminta user eksplisit: audit file DI LUAR Kotlin (gradle, workflow CI, README,
   proguard) — belum pernah diaudit khusus sebelumnya (batch 1-5 fokus Kotlin +
   resource Android). `build.gradle.kts` (root+app), `settings.gradle.kts`,

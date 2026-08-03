@@ -10,7 +10,26 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.45
+- **Versi**: v1.46
+- ✅ **Audit batch 7 (lanjutan batch 1-6) SELESAI** — diminta user eksplisit:
+"gak usah update fitur baru, fokus penyempurnaan aplikasi dan debugging sampai
+tuntas". Full re-read 12 file Kotlin (brace/paren balance dicek via script),
+semua XML (parse-validated), parity string ID/EN (89/89), manifest vs file
+fisik (sinkron). Ketemu 2 hal: (1) `splash_background` di
+`values/colors.xml`+`values-night/colors.xml` MASIH warna era "Apple-style"
+lama (`#F2F2F7`/`#000000`) padahal `Theme.kt` udah lama pivot ke tema violet
+"native ultra premium" — splash kedip warna gak nyambung sebelum masuk app,
+sudah disamakan ke `#FAF7FF`/`#0A0714`. (2) `AudioEnhancerService.getEqualizer()`
+dead code (nol pemanggil), dihapus. LESSON buat sesi berikutnya: kalau ada
+pivot arah desain warna besar lagi (lihat "Riwayat pivot arah desain" di
+bawah), WAJIB cross-check `values/colors.xml` DAN `values-night/colors.xml`
+juga — bukan cuma `Theme.kt`. Splash screen gampang kelewat karena jarang
+dibuka lama-lama pas testing manual.
+- **Sebelumnya (v1.45 dst)**: audit batch 1-6 (logika Kotlin + resource +
+gradle/CI/README) sudah selesai duluan, tidak ada temuan baru dari batch itu
+di sesi ini. Fitur (QS Tile, App Shortcuts, Widget) semua tetap SELESAI, tidak
+ada perubahan fungsional di batch 7 — murni polish/debug sesuai permintaan
+eksplisit user.
 - ✅ **Audit batch 6 (lanjutan batch 1-5) SELESAI** — diminta user eksplisit,
   kali ini file NON-KOTLIN (gradle, CI workflow, README, proguard). Gradle
   files bersih. Ketemu 4 hal nyata: (1) CI `secret_check` cuma validasi 1 dari

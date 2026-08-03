@@ -1,4 +1,7 @@
 <resources>
-    <!-- Warna latar splash screen (Android 12+) — selaras dengan tema terang Apple-style di Theme.kt -->
-    <color name="splash_background">#F2F2F7</color>
+    <!-- Warna latar splash screen (Android 12+) — selaras dengan LightColors.background
+         di Theme.kt (native ultra premium / glassmorphism, BUKAN lagi Apple-style era
+         v1.11-v1.23 — komentar lama ketinggalan sejak pivot ke tema violet, warnanya
+         sendiri ("#F2F2F7") juga sudah tidak match sejak itu). -->
+    <color name="splash_background">#FAF7FF</color>
 </resources>

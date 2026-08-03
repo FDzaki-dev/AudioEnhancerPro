@@ -1,4 +1,5 @@
 <resources>
-    <!-- Varian gelap: background hitam pekat khas splash iOS-style -->
-    <color name="splash_background">#000000</color>
+    <!-- Varian gelap: selaras dengan DarkColors.background di Theme.kt (violet-hitam
+         dalam, BUKAN lagi hitam pekat khas splash iOS-style era Apple-minimalis). -->
+    <color name="splash_background">#0A0714</color>
 </resources>
