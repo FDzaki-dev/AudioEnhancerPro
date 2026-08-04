@@ -10,31 +10,24 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.50 (belum berubah — lihat draft preview di bawah, BELUM di-port ke Kotlin)
-- 🎨 **DRAFT preview Batch 12 (diminta user)**: user minta redesign BAHASA DESAIN, bukan
-  cuma palet lagi (beda dari Batch 10 yang cuma ganti warna di atas struktur
-  glassmorphism) — plus tingkatkan legibility. User pilih arah **"Neumorphic Hybrid"**
-  dari 3 opsi yang ditawarkan (solid tactile panel / editorial minimal / neumorphic).
-  `docs/preview/current.html` sudah ditulis ulang total sesuai arah ini — **TAPI SENGAJA
-  BELUM di-port ke Kotlin** (ikut siklus troubleshooting standar: validasi visual di
-  browser dulu, baru port, lihat bagian "Batasan sandbox Claude"). Kalau user bilang
-  "oke lanjut porting", baru port ke `Theme.kt` + semua Composable kartu/slider di
-  `MainActivity.kt`/`OnboardingScreen.kt` + drawable terkait, versionCode/Name baru
-  di-bump saat itu (bukan sekarang, karena APK belum berubah apa-apa).
-  - **Perubahan struktural kunci vs glassmorphism (v1.29-v1.49)**: TIDAK ADA lagi
-    translucency/backdrop-blur (musuh legibility) & TIDAK ADA lagi gradient-clip text
-    (headline/value yang teksnya sendiri di-gradient, kontras jadi tidak konsisten).
-    Kedalaman sekarang dari dual-shadow neumorphic (extruded/pressed), warna aksen
-    per-fitur dipakai di icon+slider+ring doang, teks selalu warna solid kontras tinggi.
-  - **Background base digeser** dari hitam pekat `#0A0A0A` (v1.49) ke abu graphite medium
-    `#232220` — CATATAN TEKNIS PENTING: neumorphism butuh base color yang cukup terang
-    supaya sisi "highlight" dual-shadow-nya kelihatan; hitam pekat bikin highlight nyaris
-    invisible (mirip pola masalah alpha-transparan-di-atas-hitam-pekat era Apple-style,
-    lihat "Riwayat pivot" poin 1(b) — LESSON yang sama berlaku lagi di sini).
-  - Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) & primary champagne-bronze
-    TETAP dipertahankan (bukan sumber keluhan), cuma cara pakainya diubah.
-  - **PENDING keputusan user**: apakah draft ini oke buat di-port, atau masih perlu
-    iterasi (contoh: intensitas shadow, radius sudut, ukuran font).
+- **Versi**: v1.51
+- ✅ **Batch 12 SELESAI di-port ke Kotlin** (final verdict user, setelah draft preview
+  divalidasi). Redesain BAHASA DESAIN penuh: glassmorphism (v1.29-v1.49) → **Neumorphic
+  Hybrid**. Detail lengkap ada di `CHANGELOG.md` v1.51. Ringkas:
+  - `Theme.kt`: background flat `#232220` (dark) / `#E7E4DC` (light), token dual-shadow
+    baru (`NeuShadowDarkSide` dkk), `LocalIsDarkTheme` CompositionLocal (WAJIB dipakai,
+    bukan `isSystemInDarkTheme()` mentah, di composable manapun yang perlu tahu status
+    tema AKTUAL termasuk override manual user).
+  - `MainActivity.kt`: `GlassCard`/`GlassTintedCard` → `NeumorphicCard`/
+    `NeumorphicTintedCard` (dual `Modifier.shadow`, bukan `Modifier.blur` — sengaja,
+    biar aman API 24+). Gradient-clip text (judul, value slider) → warna solid.
+  - **PENTING buat sesi depan**: kalau nambah kartu/komponen baru di
+    `MainActivity.kt`/`OnboardingScreen.kt`, WAJIB pakai `NeumorphicCard`/
+    `NeumorphicTintedCard` (bukan `Card` Material3 polos / bikin translucent baru) &
+    JANGAN pakai gradient-clip di teks — biar konsisten sama bahasa desain ini.
+  - **Belum divalidasi runtime** (device/emulator) — kalau dual-shadow-nya kurang pas
+    secara visual pas dicoba beneran, itu soal tuning angka (`elevation`, `offset` di
+    `NeumorphicCard`), laporkan biar di-adjust, bukan redesign ulang dari nol.
 
 - ✅ **Audit batch 11 (lanjutan batch 1-9) SELESAI** — diminta user eksplisit
   ("audit/pematangan lanjutan"). Full sweep: brace/paren balance semua Kotlin (bersih),
@@ -205,13 +198,12 @@ eksplisit user.
   Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
   atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
   JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif**: "matte premium" (v1.49, ARAH SEKARANG) — struktur
-  glassmorphism (kartu translucent + border gradient tipis + shadow lembut) TETAP
-  dipertahankan, tapi PALET WARNA diganti total: background gradient graphite/
-  charcoal netral (dulu violet-gelap→hitam) + aksen primary champagne-bronze
-  desaturasi (dulu violet neon `#8B7CF6`). Tiap fitur (Bass/Virtualizer/Loudness/
-  Equalizer) TETAP punya pasangan warna sendiri buat icon-orb/border/teks
-  gradient — TIDAK diubah, itu bukan sumber keluhan "neon alay".
+- **Arah desain UI aktif**: "Neumorphic Hybrid" (Batch 12, v1.51, ARAH SEKARANG) —
+  glassmorphism (translucent + border gradient + blur, v1.29-v1.49) DICABUT TOTAL,
+  bukan cuma palet lagi. Kartu sekarang SOLID dengan dual-shadow extruded/pressed,
+  teks selalu warna solid (gradient-clip text dibuang). Detail lengkap: lihat poin 5
+  di "Riwayat pivot" bawah + `CHANGELOG.md` v1.51. Warna aksen per-fitur (Bass/
+  Virtualizer/Loudness/Equalizer) & primary champagne-bronze TETAP dipertahankan.
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,
@@ -249,8 +241,8 @@ eksplisit user.
    dulu apakah masalahnya di STRUKTUR (shape/layout) atau cuma di PALET WARNA
    sebelum redesign besar — di kasus ini cuma palet, jadi scope-nya kecil
    (Theme.kt + 2 colors.xml + 3 drawable hardcoded hex + preview HTML).
-5. **Neumorphic Hybrid** (Batch 12, **DRAFT — baru di `docs/preview/current.html`,
-   BELUM di-port ke Kotlin**) — kali ini STRUKTUR ikut diganti, bukan cuma palet,
+5. **Neumorphic Hybrid** (Batch 12, v1.51, **ARAH SEKARANG** — sudah di-port penuh ke
+   Kotlin) — kali ini STRUKTUR ikut diganti, bukan cuma palet,
    diminta user eksplisit sambil minta legibility ditingkatkan. Translucency/
    backdrop-blur & gradient-clip text (dua-duanya sumber inkonsistensi kontras di
    struktur glassmorphism #3/#4) dibuang total. Kedalaman visual sekarang dari

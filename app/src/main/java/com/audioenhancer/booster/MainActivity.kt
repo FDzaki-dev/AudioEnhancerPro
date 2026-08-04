@@ -19,7 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.*
@@ -54,6 +54,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -235,12 +236,14 @@ class MainActivity : ComponentActivity() {
 
             AudioEnhancerTheme(darkTheme = darkTheme, useDynamicColor = useDynamicColor) {
                 Surface(
+                    // Batch 12: background SELALU flat solid (colorScheme.background), tidak
+                    // ada lagi cabang gradient khusus dark theme. Neumorphism butuh base color
+                    // rata satu warna supaya perhitungan dual-shadow (terang/gelap) konsisten
+                    // di seluruh permukaan — gradient bikin sisi shadow salah kontras di
+                    // sebagian area layar.
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(
-                            if (darkTheme) Modifier.background(DarkBackgroundBrush)
-                            else Modifier.background(MaterialTheme.colorScheme.background)
-                        )
+                        .background(MaterialTheme.colorScheme.background)
                         .safeDrawingPadding(),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground
@@ -353,7 +356,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     }
 
     val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    GlassTintedCard(tint = statusTint) {
+    NeumorphicTintedCard(tint = statusTint) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -406,7 +409,7 @@ private fun CrashBanner() {
         crashFile = null
     }
 
-    GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
+    NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -571,13 +574,12 @@ fun BoosterScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
+                // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
+                // kontras maksimum, konsisten di dark & light theme.
                 Text(
                     stringResource(R.string.app_title),
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        brush = Brush.linearGradient(
-                            listOf(MaterialTheme.colorScheme.onBackground, MaterialTheme.colorScheme.primary)
-                        )
-                    )
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
@@ -612,7 +614,7 @@ fun BoosterScreen(
 
         when (connectionState) {
             MainActivity.ConnectionState.CONNECTING -> {
-                GlassCard {
+                NeumorphicCard {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -624,7 +626,7 @@ fun BoosterScreen(
                 }
             }
             MainActivity.ConnectionState.ERROR -> {
-                GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
+                NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -650,7 +652,7 @@ fun BoosterScreen(
         }
 
         if (!notificationPermissionGranted) {
-            GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -674,7 +676,7 @@ fun BoosterScreen(
         }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            GlassTintedCard(tint = MaterialTheme.colorScheme.error) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Text(
                     stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -682,7 +684,7 @@ fun BoosterScreen(
                 )
             }
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            GlassTintedCard(tint = MaterialTheme.colorScheme.primary) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.primary) {
                 Text(
                     stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -891,7 +893,7 @@ fun BoosterScreen(
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            GlassCard {
+            NeumorphicCard {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -921,7 +923,7 @@ fun BoosterScreen(
             }
         }
 
-        GlassCard {
+        NeumorphicCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
@@ -993,7 +995,7 @@ private fun EqualizerSection(
     }
     val haptics = LocalHapticFeedback.current
 
-    GlassCard {
+    NeumorphicCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier
@@ -1049,53 +1051,101 @@ private fun EqualizerSection(
 internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
-/** Kartu ala kaca premium: fill translucent (nembus ke gradient background di
- *  belakangnya), border TIPIS bergradasi (bukan tebal solid ala Batch 1, bukan
- *  juga hairline datar ala Apple), shadow lembut buat kesan melayang halus. */
+/** Kartu inti Batch 12 "Neumorphic Hybrid": permukaan SOLID (bukan translucent lagi),
+ *  kedalaman datang dari dua shadow yang di-offset ke arah berlawanan — gelap di
+ *  kanan-bawah, terang tipis di kiri-atas — meniru cahaya jatuh dari kiri-atas ke
+ *  permukaan yang "timbul" dari background datar. `accentColor`/`accentColor2` masih
+ *  diterima buat kompatibilitas call-site lama tapi TIDAK dipakai di sini lagi (dulu
+ *  buat border gradient); pewarnaan aksen sekarang tanggung jawab konten di dalamnya
+ *  (ikon/value di FeatureControl), bukan bingkai kartu — biar konsisten "no gradient
+ *  di elemen yang nentuin kontras teks".
+ *  CATATAN JUJUR (statis, belum bisa diverifikasi runtime tanpa device/emulator):
+ *  dual-shadow di sini pakai Modifier.shadow bawaan Compose (elevation shadow asli
+ *  Android, bukan Modifier.blur) supaya aman di semua API 24+ tanpa isu versi. */
 @Composable
-private fun GlassCard(
+private fun NeumorphicCard(
     modifier: Modifier = Modifier,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
-    accentColor2: Color = accentColor,
+    @Suppress("UNUSED_PARAMETER") accentColor: Color = MaterialTheme.colorScheme.primary,
+    @Suppress("UNUSED_PARAMETER") accentColor2: Color = accentColor,
+    pressed: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(accentColor, accentColor2.copy(alpha = 0.35f)))),
-        content = content
-    )
+    val shape = RoundedCornerShape(20.dp)
+    val surface = MaterialTheme.colorScheme.surface
+    val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
+    val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
+
+    Box(modifier = modifier) {
+        if (!pressed) {
+            // Sisi gelap (kanan-bawah) — dioffset positif, shadow asli Android (soft-blurred).
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .offset(3.dp, 3.dp)
+                    .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
+                    .background(surface, shape)
+            )
+            // Sisi terang (kiri-atas) — dioffset negatif, alpha rendah biar cuma highlight tipis.
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .offset((-3).dp, (-3).dp)
+                    .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
+                    .background(surface, shape)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .clip(shape)
+                .background(surface)
+                .then(
+                    // State "ditekan": tanpa dual-shadow (kartu jadi rata dgn background),
+                    // + border tipis gelap buat kesan "masuk ke dalam" (carved), bukan timbul.
+                    if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
+                ),
+            content = content
+        )
+    }
 }
 
-/** Banner info/warning, tetap gaya kaca — fill di-blend solid dulu (bukan alpha
- *  mentah) supaya tetap kelihatan jelas di atas gradient background gelap. */
+/** Varian tinted buat banner info/warning — tetap SOLID (bukan alpha mentah di atas
+ *  background), aksen di-blend penuh ke warna dasar supaya tone banner beda dari kartu
+ *  netral tapi kontras teks tetap terjamin karena base-nya opaque 100%. */
 @Composable
-private fun GlassTintedCard(
+private fun NeumorphicTintedCard(
     modifier: Modifier = Modifier,
     tint: Color,
-    tint2: Color = tint,
+    @Suppress("UNUSED_PARAMETER") tint2: Color = tint,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val blendedContainer = lerp(MaterialTheme.colorScheme.surface, tint, 0.24f).copy(alpha = 0.75f)
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = blendedContainer,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        border = BorderStroke(1.2.dp, Brush.linearGradient(listOf(tint, tint2.copy(alpha = 0.35f)))),
-        content = content
-    )
+    val shape = RoundedCornerShape(20.dp)
+    val blended = lerp(MaterialTheme.colorScheme.surface, tint, 0.22f)
+    val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
+    val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
+
+    Box(modifier = modifier) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .offset(3.dp, 3.dp)
+                .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
+                .background(blended, shape)
+        )
+        Box(
+            Modifier
+                .matchParentSize()
+                .offset((-3).dp, (-3).dp)
+                .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
+                .background(blended, shape)
+        )
+        Column(
+            modifier = Modifier.clip(shape).background(blended).border(1.dp, tint.copy(alpha = 0.4f), shape),
+            content = content
+        )
+    }
 }
 
-/** Label section: besar & berwarna gradient, bukan kecil-pasif abu-abu. */
+/** Label section: warna aksen SOLID (bukan gradient), bukan kecil-pasif abu-abu. */
 @Composable
 private fun SectionLabel(text: String, accentColor: Color = MaterialTheme.colorScheme.primary) {
     Text(
@@ -1131,23 +1181,27 @@ private fun FeatureControl(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (icon != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Brush.linearGradient(listOf(accentColor, accentColor2))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    // Batch 12: fill ikon SOLID (bukan gradient) — bagian dari "gradient
+                    // cuma buat elemen non-teks", dan solid juga lebih konsisten dgn
+                    // permukaan neumorphic di sekelilingnya (icon-orb sendiri jadi kartu
+                    // extruded kecil, bukan blob warna).
+                    NeumorphicCard(pressed = false) {
+                        Box(
+                            modifier = Modifier.size(36.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(18.dp))
+                        }
                     }
                 }
                 Text(title, fontWeight = FontWeight.Bold)
             }
+            // Batch 12: teks value warna SOLID (bukan gradient-clip lagi) — kontras
+            // konsisten di semua state, gak tergantung posisi teks di dalam gradient.
             Text(
                 valueLabel,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    brush = Brush.linearGradient(listOf(accentColor2, accentColor))
-                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = accentColor,
                 fontWeight = FontWeight.ExtraBold
             )
         }
@@ -1178,7 +1232,7 @@ private fun FeatureControl(
     }
 
     if (wrapInCard) {
-        GlassCard(accentColor = accentColor, accentColor2 = accentColor2) {
+        NeumorphicCard(accentColor = accentColor, accentColor2 = accentColor2) {
             Column(modifier = Modifier.padding(16.dp), content = innerContent)
         }
     } else {

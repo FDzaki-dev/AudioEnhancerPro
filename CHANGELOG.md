@@ -4,6 +4,38 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.51 - Batch 12 (diminta user): port "Neumorphic Hybrid" ke Kotlin (final verdict)
+Redesain BAHASA DESAIN (bukan cuma palet lagi, beda dari Batch 10) + naikkan legibility,
+sesuai draft `docs/preview/current.html` yang sudah divalidasi user. Arah dipilih dari 3
+opsi via `ask_user_input_v0`: **Neumorphic Hybrid**.
+- **`Theme.kt`**: background dark digeser `#0A0A0A` → `#232220` (flat solid, gradient
+  `DarkBackgroundBrush` DICABUT — neumorphism butuh base color merata biar dual-shadow
+  konsisten); background light `#F7F5F1` → `#E7E4DC` (alasan sama, versi terang). Tambah
+  token `NeuShadowDarkSide`/`NeuShadowLightSideDark`/`NeuShadowLightSideLight`/
+  `NeuShadowDarkSideLight` buat dual-shadow. Tambah `LocalIsDarkTheme` (CompositionLocal)
+  supaya kartu neumorphic tahu status dark/light AKTUAL (hasil override manual user),
+  bukan cuma `isSystemInDarkTheme()` mentah — cegah bug warna shadow salah kalau user
+  override tema berlawanan dari sistem.
+- **`MainActivity.kt`**: `GlassCard`/`GlassTintedCard` (fill translucent + border gradient)
+  di-rename & tulis ulang total jadi `NeumorphicCard`/`NeumorphicTintedCard` (permukaan
+  SOLID, kedalaman dari dual `Modifier.shadow` offset berlawanan arah — shadow asli
+  Android, BUKAN `Modifier.blur`, supaya aman lintas API 24+ tanpa isu versi). Semua 9
+  call-site otomatis ikut karena signature dijaga tetap kompatibel (`accentColor`/
+  `accentColor2` masih diterima tapi sudah tidak dipakai buat border). Gradient-clip TEXT
+  dibuang total: judul app (`headlineMedium`) & value slider (`FeatureControl`) sekarang
+  warna solid, bukan `Brush.linearGradient` di teks — sumber utama inkonsistensi kontras
+  di struktur lama. Icon-orb jadi neumorphic mini-card sendiri (fill solid + tint ikon
+  pakai accent, bukan lagi gradient fill putih-di-atas-gradient).
+- Aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) & primary bronze TIDAK diubah,
+  cuma cara pakainya (icon/slider/value-text doang, bukan border/fill kartu).
+- `docs/preview/current.html` disinkronkan status jadi "sudah live", bukan draft lagi.
+- Bump `versionCode` → 51, `versionName` → "1.51".
+- **Batasan static-analysis (jujur, belum ada runner buat verifikasi visual beneran)**:
+  dual-shadow neumorphic BELUM divalidasi di device/emulator asli — cuma brace/paren
+  balance & baca-ulang logic. Kalau device screenshot pas dipasang ternyata shadow-nya
+  kurang pas (terlalu tipis/tebal/offset kurang jauh), itu tuning `elevation`/`offset` di
+  `NeumorphicCard`, bukan bug struktural.
+
 ## v1.50 - Batch 11 (audit lanjutan, diminta user): "audit/pematangan lanjutan"
 Full sweep: brace/paren balance 12 file Kotlin (bersih), semua XML parse-validated,
 parity string ID/EN (89/89), `FILE_MANIFEST.txt` vs file fisik (sinkron), scan
