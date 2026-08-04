@@ -10,7 +10,18 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.48
+- **Versi**: v1.49
+- 🎨 **REDESIGN TOTAL (v1.49, diminta user)**: tema violet/glassmorphism ("native
+ultra premium" era v1.29+) DICABUT — user bilang kesannya "neon ungu alay". Ganti
+ke **matte graphite/charcoal + aksen champagne-bronze desaturasi** (kesan alat
+audio fisik premium/brushed-metal, bukan RGB gamer). Aksen per-fitur
+(Bass/Virtualizer/Loudness/Equalizer/Battery) TIDAK diubah — sudah muted/earthy
+sejak awal, bukan sumber keluhan. Shape (rounded, struktur glass card) & typography
+TIDAK diubah, cuma palet warna. File yang kena: `Theme.kt`, `colors.xml` +
+`values-night/colors.xml`, `ic_launcher_background.xml`, `widget_background.xml`,
+`ic_shortcut_preset.xml`, `docs/preview/current.html`. **Arah desain UI aktif
+SEKARANG**: "matte premium" — lihat bagian "Riwayat pivot" di bawah, entry baru
+ditambahkan di sana.
 - ✨ **Batch 9: WorkManager watchdog** (diminta user eksplisit: "keluarkan semua trik
 biar app ini berfungsi 100% lifetime"). Lapisan kedua di luar `START_STICKY` +
 `stopWithTask="false"` yang sudah ada (keduanya sudah diverifikasi BENAR sejak
@@ -149,10 +160,13 @@ eksplisit user.
   Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
   atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
   JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif**: "native ultra premium" — glassmorphism (kartu
-  translucent + border gradient tipis + shadow lembut), background gradient
-  violet-gelap→hitam, tiap fitur (Bass/Virtualizer/Loudness/Equalizer) punya
-  pasangan warna sendiri buat icon-orb/border/teks gradient.
+- **Arah desain UI aktif**: "matte premium" (v1.49, ARAH SEKARANG) — struktur
+  glassmorphism (kartu translucent + border gradient tipis + shadow lembut) TETAP
+  dipertahankan, tapi PALET WARNA diganti total: background gradient graphite/
+  charcoal netral (dulu violet-gelap→hitam) + aksen primary champagne-bronze
+  desaturasi (dulu violet neon `#8B7CF6`). Tiap fitur (Bass/Virtualizer/Loudness/
+  Equalizer) TETAP punya pasangan warna sendiri buat icon-orb/border/teks
+  gradient — TIDAK diubah, itu bukan sumber keluhan "neon alay".
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,
@@ -176,9 +190,20 @@ eksplisit user.
 2. **Neo-brutalist** (kebalikan Apple, "bukan android membosankan") — border
    tebal (2.5dp) solid berwarna, sudut tajam (8-14dp), warna vivid per-fitur.
    User: masih kurang "premium".
-3. **Native ultra premium / glassmorphism** (v1.29-v1.30, ARAH SEKARANG) —
+3. **Native ultra premium / glassmorphism, palet violet** (v1.29-v1.48) —
    kartu translucent + border gradient tipis + shadow lembut + background
-   gradient dalam + waveform motif di header. Sudah di-port penuh ke Kotlin.
+   gradient dalam + waveform motif di header. User akhirnya bilang palet
+   violet-nya kesan "neon ungu alay" walau strukturnya sendiri disukai.
+4. **Matte premium, palet graphite/bronze** (v1.49, ARAH SEKARANG) — STRUKTUR
+   glassmorphism dari #3 dipertahankan 100% (kartu translucent, border gradient,
+   shadow, waveform header), cuma PALET WARNA diganti: primary violet neon
+   `#8B7CF6` → champagne-bronze desaturasi `#C2A26B`, background gradient
+   violet-hitam → graphite/charcoal netral `#0A0A0A`. Kesan alat audio fisik
+   premium (brushed metal, matte black), bukan RGB gamer. Aksen per-fitur TIDAK
+   disentuh. LESSON: kalau user komplain "kesan alay/norak" di masa depan, cek
+   dulu apakah masalahnya di STRUKTUR (shape/layout) atau cuma di PALET WARNA
+   sebelum redesign besar — di kasus ini cuma palet, jadi scope-nya kecil
+   (Theme.kt + 2 colors.xml + 3 drawable hardcoded hex + preview HTML).
 
 ## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
 - **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode

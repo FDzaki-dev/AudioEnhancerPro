@@ -4,6 +4,26 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.49 - Batch 10 (diminta user): redesign matte "native ultra premium & expensive"
+- **Root request user**: tema violet/glassmorphism (era Batch 2, v1.29+) dianggap
+  "neon ungu alay" — diminta ganti total ke kesan matte, premium, mahal.
+- **Palet primary/background diganti total**: violet neon (`#8B7CF6` primary,
+  gradient background `#1B1330→#0A0714`) → graphite/charcoal matte netral
+  (`#0A0A0A` background) + aksen logam champagne-bronze desaturasi (`#C2A26B`
+  dark / `#8A6D3B` light), kesan alat audio fisik premium (brushed metal),
+  bukan RGB gamer.
+- **TIDAK diubah**: aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer/Battery)
+  — warnanya sudah muted/earthy sejak awal, bukan sumber keluhan "neon alay".
+  Shape (rounded, glassmorphism card structure) & typography juga TIDAK diubah,
+  cuma palet warna.
+- File diubah: `Theme.kt` (primary/background/DynamicColorAccent + komentar),
+  `colors.xml` + `values-night/colors.xml` (splash), `ic_launcher_background.xml`,
+  `widget_background.xml`, `ic_shortcut_preset.xml` (hardcoded hex violet →
+  bronze/graphite), `docs/preview/current.html` (mockup diselaraskan).
+- Semua 4 lokasi `#8B7CF6` (hex neon violet) di seluruh repo sudah di-grep ulang
+  pasca-perubahan — 0 sisa, cuma 1 baris komentar historis di `Theme.kt`.
+- Bump `versionCode` → 49, `versionName` → "1.49".
+
 ## v1.48 - Batch 9 (diminta user): "keluarkan semua trik biar app berfungsi 100% lifetime"
 - **Sebelum implementasi, sudah dijelaskan eksplisit ke user di chat**: klaim "100%
   lifetime" TIDAK bisa dijamin dari kode app manapun — battery/task manager

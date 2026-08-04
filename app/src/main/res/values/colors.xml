@@ -1,7 +1,6 @@
 <resources>
     <!-- Warna latar splash screen (Android 12+) — selaras dengan LightColors.background
-         di Theme.kt (native ultra premium / glassmorphism, BUKAN lagi Apple-style era
-         v1.11-v1.23 — komentar lama ketinggalan sejak pivot ke tema violet, warnanya
-         sendiri ("#F2F2F7") juga sudah tidak match sejak itu). -->
-    <color name="splash_background">#FAF7FF</color>
+         di Theme.kt. Sejak redesign matte v1.46, palet violet/glassmorphism DICABUT
+         total, ganti graphite/charcoal + aksen bronze matte. -->
+    <color name="splash_background">#F7F5F1</color>
 </resources>

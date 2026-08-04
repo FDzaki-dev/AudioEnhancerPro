@@ -1,5 +1,5 @@
 <resources>
-    <!-- Varian gelap: selaras dengan DarkColors.background di Theme.kt (violet-hitam
-         dalam, BUKAN lagi hitam pekat khas splash iOS-style era Apple-minimalis). -->
-    <color name="splash_background">#0A0714</color>
+    <!-- Varian gelap: selaras dengan DarkColors.background di Theme.kt. Sejak
+         redesign matte v1.46, ganti graphite/charcoal netral (violet dicabut). -->
+    <color name="splash_background">#0A0A0A</color>
 </resources>

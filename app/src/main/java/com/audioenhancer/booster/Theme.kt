@@ -20,68 +20,73 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 2 REDESIGN — "native ultra premium": glassmorphism, gradient glow per
-// fitur, background gradient dalam (bukan hitam pekat rata), border tipis
-// gradient (bukan border tebal solid ala Batch 1 / hairline tipis ala Apple).
+// BATCH REDESIGN v1.46 — "matte premium": neon-violet glassmorphism (Batch 2,
+// v1.29+) DICABUT TOTAL. Ganti ke palet graphite/charcoal matte + aksen logam
+// champagne-bronze desaturasi (bukan lagi ungu terang/neon) — kesan alat audio
+// premium fisik (brushed metal, matte black), bukan "gamer RGB". Aksen
+// per-fitur (Bass/Virtualizer/Loudness/Equalizer) TIDAK diubah — sudah cukup
+// muted sejak awal, bukan sumber kesan "neon alay" yang dikeluhkan user.
 // ============================================================================
 
 // Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon/border/teks.
-// Diredupkan dari versi neon awal (Batch readability fix) — hue tetap sama,
-// saturasi/brightness diturunkan supaya tidak "nyelekit" di mata pada layar OLED.
 val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
 val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
 val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
 val EqualizerAccent = Color(0xFFD97AA6); val EqualizerAccent2 = Color(0xFFE8A8C6)
 val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
-val DynamicColorAccent = Color(0xFF8B7CF6); val DynamicColorAccent2 = Color(0xFFC4B5FD)
 
-private val PremiumVioletDark = Color(0xFF8B7CF6)
-private val PremiumVioletLight = Color(0xFF6D28D9)
-private val PremiumVioletDark2 = Color(0xFFC4B5FD)
+// Aksen "logam" netral matte — dipakai buat swatch toggle Material You & elemen
+// netral lain yang dulu pinjam warna primary violet. Bukan lagi ungu.
+val DynamicColorAccent = Color(0xFF9C9890); val DynamicColorAccent2 = Color(0xFFC9C4BC)
 
-/** Brush gradasi latar layar dark theme — dalam & kaya, bukan hitam pekat rata. */
+private val PremiumBronzeDark = Color(0xFFC2A26B)
+private val PremiumBronzeLight = Color(0xFF8A6D3B)
+
+/** Brush gradasi latar layar dark theme — graphite/charcoal matte, TIDAK ada
+ * tint violet lagi (dulu 0xFF1B1330 dkk). Netral hangat, dalam tapi bukan
+ * hitam pekat rata (biar tetap "berkedalaman" ala Batch 2, cuma ganti hue). */
 val DarkBackgroundBrush = Brush.verticalGradient(
-    colors = listOf(Color(0xFF1B1330), Color(0xFF120C1F), Color(0xFF0A0714))
+    colors = listOf(Color(0xFF1C1A17), Color(0xFF121110), Color(0xFF0A0A0A))
 )
 
 private val DarkColors = darkColorScheme(
-    primary = PremiumVioletDark,
-    onPrimary = Color(0xFF15101F),
-    primaryContainer = Color(0xFF3E2E6B),
-    onPrimaryContainer = Color(0xFFE9DDFF),
-    secondary = Color(0xFFF472B6),
-    onSecondary = Color.White,
-    background = Color(0xFF0A0714),
-    onBackground = Color(0xFFF5F2FF),
-    surface = Color(0xFF1C1730),
-    onSurface = Color(0xFFF5F2FF),
-    surfaceVariant = Color(0xFF2E2740),
-    onSurfaceVariant = Color(0xFFAFA6CC),
-    error = Color(0xFFFF6B81),
+    primary = PremiumBronzeDark,
+    onPrimary = Color(0xFF241C0E),
+    primaryContainer = Color(0xFF3D311B),
+    onPrimaryContainer = Color(0xFFEFDEB8),
+    secondary = Color(0xFF9CA3AC),
+    onSecondary = Color(0xFF1A1A1C),
+    background = Color(0xFF0A0A0A),
+    onBackground = Color(0xFFF1EFEA),
+    surface = Color(0xFF191816),
+    onSurface = Color(0xFFF1EFEA),
+    surfaceVariant = Color(0xFF292724),
+    onSurfaceVariant = Color(0xFFB0ACA4),
+    error = Color(0xFFFF6B6B),
     onError = Color.White,
-    errorContainer = Color(0xFF4A0F1E),
-    onErrorContainer = Color(0xFFFFD8DF),
-    outline = Color(0xFF4A4166)
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = Color(0xFF3E3B35)
 )
 
 private val LightColors = lightColorScheme(
-    primary = PremiumVioletLight,
+    primary = PremiumBronzeLight,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEBE0FF),
-    onPrimaryContainer = Color(0xFF2E1065),
-    secondary = Color(0xFFDB2777),
+    primaryContainer = Color(0xFFEEE0C4),
+    onPrimaryContainer = Color(0xFF3D311B),
+    secondary = Color(0xFF5B6068),
     onSecondary = Color.White,
-    background = Color(0xFFFAF7FF),
-    onBackground = Color(0xFF1A1625),
+    background = Color(0xFFF7F5F1),
+    onBackground = Color(0xFF1C1B18),
     surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF1A1625),
-    surfaceVariant = Color(0xFFF0EBFA),
-    onSurfaceVariant = Color(0xFF5B5175),
-    error = Color(0xFFE11D48),
+    onSurface = Color(0xFF1C1B18),
+    surfaceVariant = Color(0xFFEDEAE3),
+    onSurfaceVariant = Color(0xFF5C594F),
+    error = Color(0xFFD32F2F),
     onError = Color.White,
-    errorContainer = Color(0xFFFFE1E7),
-    onErrorContainer = Color(0xFF4A0F1E),
-    outline = Color(0xFFCFC6E8)
+    errorContainer = Color(0xFFFFDAD6),
+    onErrorContainer = Color(0xFF410002),
+    outline = Color(0xFFD9D4C7)
 )
 
 private val AppTypography = Typography(
