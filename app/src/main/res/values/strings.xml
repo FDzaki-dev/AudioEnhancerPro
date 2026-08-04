@@ -6,6 +6,16 @@
     <string name="status_not_running">Service tidak berjalan — mungkin dimatikan lewat notifikasi</string>
     <string name="restart_service">Nyalakan Lagi</string>
 
+    <!-- Batch 13: Power toggle (porting dari docs/preview/current.html — Neumorphic Hybrid) -->
+    <string name="power_toggle_on_label">Aktif</string>
+    <string name="power_toggle_off_label">Nonaktif</string>
+    <string name="power_toggle_on_desc">Tekan untuk matikan sementara</string>
+    <string name="power_toggle_off_desc">Tekan untuk nyalakan lagi</string>
+    <string name="cd_power_toggle">Tombol aktif/nonaktif efek audio</string>
+
+    <!-- Batch 13: label section "Kontrol" (porting dari HTML preview) -->
+    <string name="controls_title">Kontrol</string>
+
     <!-- Header -->
     <string name="app_title">Audio Booster</string>
     <string name="app_subtitle">Efek berlaku ke seluruh audio sistem</string>

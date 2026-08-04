@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SurroundSound
@@ -384,6 +385,125 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     }
 }
 
+/** Batch 13: tombol toggle utama "Aktif/Nonaktif" — porting 1:1 dari `.power-row`/`.power-btn`
+ *  di docs/preview/current.html. State polling isRunning SENGAJA dibuat independen dari
+ *  ServiceStatusBadge (pola yang sama, duplikasi kecil disengaja) supaya composable ini
+ *  tetap berdiri sendiri dan tidak mengubah perilaku badge yang sudah ada.
+ *  Aksi start/stop pakai AudioEnhancerService.requestStart/requestStop — fungsi yang sama
+ *  dipakai ShortcutHelper (long-press ikon launcher) & QuickToggleTileService, jadi semua
+ *  entry point toggle konsisten satu sumber kebenaran. */
+@Composable
+private fun PowerToggleRow() {
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+    var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            isRunning = AudioEnhancerService.isRunning
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        NeumorphicCircleButton(
+            pressed = isRunning,
+            ringColor = if (isRunning) MaterialTheme.colorScheme.primary else null,
+            onClick = {
+                if (isRunning) AudioEnhancerService.requestStop(context)
+                else AudioEnhancerService.requestStart(context)
+                isRunning = !isRunning
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            },
+            contentDescription = stringResource(R.string.cd_power_toggle)
+        ) {
+            Icon(
+                Icons.Filled.PowerSettingsNew,
+                contentDescription = null,
+                tint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Column {
+            Text(
+                if (isRunning) stringResource(R.string.power_toggle_on_label) else stringResource(R.string.power_toggle_off_label),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                if (isRunning) stringResource(R.string.power_toggle_on_desc) else stringResource(R.string.power_toggle_off_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+/** Varian bundar dari NeumorphicCard, khusus buat power button (64dp) — dual-shadow sama
+ *  persis tekniknya (offset box gelap/terang), tapi CircleShape bukan RoundedCornerShape,
+ *  dan mendukung ring 2dp warna aksen saat `pressed` (persis `.power-btn.on` di HTML). */
+@Composable
+private fun NeumorphicCircleButton(
+    pressed: Boolean,
+    ringColor: Color?,
+    onClick: () -> Unit,
+    contentDescription: String,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val shape = CircleShape
+    val surface = MaterialTheme.colorScheme.surface
+    val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
+    val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
+    val desc = contentDescription
+
+    Box(
+        modifier = Modifier
+            .size(64.dp)
+            .clip(shape)
+            .clickable(
+                onClickLabel = desc,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .semantics { this.contentDescription = desc }
+    ) {
+        if (!pressed) {
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .offset(3.dp, 3.dp)
+                    .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
+                    .background(surface, shape)
+            )
+            Box(
+                Modifier
+                    .matchParentSize()
+                    .offset((-3).dp, (-3).dp)
+                    .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
+                    .background(surface, shape)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(surface)
+                .then(
+                    if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
+                )
+                .then(
+                    if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
+                ),
+            contentAlignment = Alignment.Center,
+            content = content
+        )
+    }
+}
+
 private data class Preset(
     val label: String,
     val bass: Float,
@@ -590,6 +710,11 @@ fun BoosterScreen(
                 }
             }
         }
+
+        // Batch 13: power toggle "Aktif/Nonaktif" — porting dari docs/preview/current.html
+        // (Neumorphic Hybrid). Ditaruh persis di posisi yang sama seperti mockup: tepat di
+        // bawah header, sebelum status card service.
+        PowerToggleRow()
 
         // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
         Row(
@@ -828,6 +953,10 @@ fun BoosterScreen(
                 }
             )
         }
+
+        // Batch 13: label section "Kontrol" — porting dari docs/preview/current.html,
+        // sebelumnya kartu Bass/Virtualizer/Loudness langsung tampil tanpa header section.
+        SectionLabel(stringResource(R.string.controls_title))
 
         FeatureControl(
             title = stringResource(R.string.feature_bass_title),

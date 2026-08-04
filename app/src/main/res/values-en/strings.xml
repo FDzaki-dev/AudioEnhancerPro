@@ -6,6 +6,16 @@
     <string name="status_not_running">Service not running — it may have been stopped from the notification</string>
     <string name="restart_service">Restart</string>
 
+    <!-- Batch 13: Power toggle (ported from docs/preview/current.html — Neumorphic Hybrid) -->
+    <string name="power_toggle_on_label">Active</string>
+    <string name="power_toggle_off_label">Inactive</string>
+    <string name="power_toggle_on_desc">Tap to turn off temporarily</string>
+    <string name="power_toggle_off_desc">Tap to turn back on</string>
+    <string name="cd_power_toggle">Audio effects on/off toggle</string>
+
+    <!-- Batch 13: "Controls" section label (ported from HTML preview) -->
+    <string name="controls_title">Controls</string>
+
     <!-- Header -->
     <string name="app_title">Audio Booster</string>
     <string name="app_subtitle">Effects apply to all system audio</string>

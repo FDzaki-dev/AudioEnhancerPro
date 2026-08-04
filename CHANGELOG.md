@@ -4,6 +4,27 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.52 - Batch 13 (diminta user): porting elemen yang hilang dari HTML preview
+User bandingin screenshot APK terpasang vs `docs/preview/current.html` — ketauan HTML
+sudah lebih maju dari Kotlin di 2 elemen, padahal footer HTML klaim "sudah live di app"
+(klaim itu salah/basi, diperbaiki juga di commit ini).
+- **`MainActivity.kt`**: tambah `PowerToggleRow` (composable baru) — tombol bundar 64dp
+  "Aktif/Nonaktif" pakai `NeumorphicCircleButton` (composable baru, varian `CircleShape`
+  dari teknik dual-shadow `NeumorphicCard`, + ring 2dp `primary` saat ON). Toggle
+  memanggil `AudioEnhancerService.requestStart`/`requestStop` — TIDAK bikin jalur
+  start/stop baru, pakai fungsi yang sama persis dipakai `ShortcutHelper` &
+  `QuickToggleTileService`. Ditaruh tepat di bawah header, sebelum status card
+  (posisi sama seperti draft HTML).
+- **`MainActivity.kt`**: tambah `SectionLabel("Kontrol")` sebelum kartu Bass Boost —
+  sebelumnya kartu kontrol langsung tampil tanpa header section.
+- **`strings.xml` (ID) + `values-en/strings.xml`**: 6 string baru, parity dijaga —
+  `power_toggle_on_label`, `power_toggle_off_label`, `power_toggle_on_desc`,
+  `power_toggle_off_desc`, `cd_power_toggle`, `controls_title`.
+- **`build.gradle.kts`**: versionCode 51→52, versionName 1.51→1.52.
+- **TIDAK diubah/dihapus**: waveform decorative row (ada di Kotlin, gak ada di HTML) —
+  di luar scope permintaan (cuma 2 elemen di atas yang diminta), lihat `PROJECT_STATE.md`
+  buat detail kenapa dibiarkan.
+
 ## v1.51 - Batch 12 (diminta user): port "Neumorphic Hybrid" ke Kotlin (final verdict)
 Redesain BAHASA DESAIN (bukan cuma palet lagi, beda dari Batch 10) + naikkan legibility,
 sesuai draft `docs/preview/current.html` yang sudah divalidasi user. Arah dipilih dari 3

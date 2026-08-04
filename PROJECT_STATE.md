@@ -10,7 +10,33 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.51
+- **Versi**: v1.52
+- ✅ **Batch 13 SELESAI**: porting 2 elemen yang hilang dari `docs/preview/current.html`
+  ke Kotlin (gap ketauan karena user compare screenshot APK vs HTML preview) —
+  **HTML lama SALAH KLAIM "sudah live di app"**, padahal 2 elemen ini belum pernah
+  ada di `MainActivity.kt`:
+  1. **Power toggle "Aktif/Nonaktif"** (`PowerToggleRow` + `NeumorphicCircleButton`,
+     baru, 64dp circle, dual-shadow sama teknik `NeumorphicCard` tapi `CircleShape`,
+     ring 2dp `primary` saat ON meniru `.power-btn.on` di HTML). Wired ke infra yang
+     SUDAH ADA sebelumnya (bukan bikin state baru): `AudioEnhancerService.requestStart`/
+     `requestStop` — sumber kebenaran yang sama dipakai `ShortcutHelper` toggle &
+     `QuickToggleTileService`. Polling `isRunning` tiap 1 detik, pola sama persis
+     `ServiceStatusBadge` (disengaja duplikasi kecil, biar composable ini berdiri
+     sendiri & TIDAK mengubah perilaku badge lama).
+  2. **Label section "Kontrol"** (`SectionLabel(stringResource(R.string.controls_title))`)
+     ditaruh sebelum kartu Bass Boost/Virtualizer/Loudness Gain — sebelumnya kartu itu
+     langsung tampil tanpa header, beda dari HTML.
+  - String baru (ID+EN, parity dijaga): `power_toggle_on_label`, `power_toggle_off_label`,
+    `power_toggle_on_desc`, `power_toggle_off_desc`, `cd_power_toggle`, `controls_title`.
+  - **TIDAK dihapus**: waveform bar decorative row (motif audio kecil di bawah header) —
+    itu ADA di Kotlin tapi TIDAK ADA di HTML preview. User cuma minta 2 elemen di atas
+    di-porting, bukan minta app di-strip biar match 100% ke HTML (lihat Strict Delete
+    Policy — gak boleh hapus fitur tanpa diminta eksplisit). Kalau user mau app match
+    HTML *persis* termasuk soal ini, waveform row perlu dihapus eksplisit di sesi
+    berikutnya.
+  - **Belum divalidasi runtime** — sama seperti Batch 12, tuning visual (ukuran ring,
+    radius icon) baru bisa dikonfirmasi kalau sudah dicoba di device asli.
+
 - ✅ **Batch 12 SELESAI di-port ke Kotlin** (final verdict user, setelah draft preview
   divalidasi). Redesain BAHASA DESAIN penuh: glassmorphism (v1.29-v1.49) → **Neumorphic
   Hybrid**. Detail lengkap ada di `CHANGELOG.md` v1.51. Ringkas:
