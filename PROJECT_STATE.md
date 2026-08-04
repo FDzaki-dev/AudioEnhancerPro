@@ -10,7 +10,27 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.49
+- **Versi**: v1.50
+- ✅ **Audit batch 11 (lanjutan batch 1-9) SELESAI** — diminta user eksplisit
+  ("audit/pematangan lanjutan"). Full sweep: brace/paren balance semua Kotlin (bersih),
+  XML parse-validated semua, parity string ID/EN (89/89), manifest vs fisik (sinkron),
+  scan drawable/mipmap/string orphan (0 ketemu nyata). Ketemu 2 hal nyata:
+  1. `BootReceiver.kt` start service tanpa syarat tiap boot — kontradiksi sama kontrak
+     "hormati pilihan user" yang eksplisit didesain buat `ServiceWatchdogWorker` (Batch
+     9, `PrefsHelper.getUserWantsRunning()`). User tekan "Matikan" → reboot HP → service
+     nyala lagi sendiri tanpa consent. Fix: `BootReceiver` sekarang baca flag yang sama.
+  2. `.github/workflows/build.yml` job `release` TIDAK PERNAH publish GitHub Release
+     (cuma `upload-artifact`) — melanggar aturan rilis standing user (APK harus muncul
+     di sidebar "Releases" repo, bukan cuma Actions Artifact). Fix: tambah step
+     `softprops/action-gh-release@v2`, `permissions: contents: write` di job level,
+     `README.md` diselaraskan. **PENTING buat sesi depan**: kalau nambah job/step CI
+     baru yang butuh tulis ke repo (release, tag, dst), WAJIB cek `permissions:` block —
+     default GITHUB_TOKEN di banyak org/repo settings itu read-only.
+- **LESSON dari Batch 11**: kalau nambah flag "niat user" baru (kayak
+  `getUserWantsRunning`) yang dipakai buat gating auto-restart di SATU tempat
+  (watchdog), WAJIB grep semua call-site `requestStart()`/`requestStop()` lain
+  yang juga jalan tanpa interaksi user langsung (boot receiver, alarm, dll) — jangan
+  cuma cek tempat yang lagi difokuskan pas nulis flag itu pertama kali.
 - 🎨 **REDESIGN TOTAL (v1.49, diminta user)**: tema violet/glassmorphism ("native
 ultra premium" era v1.29+) DICABUT — user bilang kesannya "neon ungu alay". Ganti
 ke **matte graphite/charcoal + aksen champagne-bronze desaturasi** (kesan alat

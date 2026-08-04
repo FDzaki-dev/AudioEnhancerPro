@@ -47,17 +47,17 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 ./gradlew assembleDebug
 ```
 
-CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), job `build` ini HANYA verifikasi kompilasi (`assembleDebug`) — **tidak ada step upload-artifact**, jadi APK debug-nya TIDAK muncul di tab Actions > Artifacts. Yang muncul di Artifacts cuma APK release dari job `release` (lihat bagian "Versioning APK Release" di bawah), dan itu pun cuma jalan kalau secret keystore sudah diset.
+CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), job `build` ini HANYA verifikasi kompilasi (`assembleDebug`) — tidak ada APK debug yang dipublikasikan di mana pun. APK yang beneran dirilis (signed) datang dari job `release` (lihat bagian "Versioning APK Release" di bawah), dan itu pun cuma jalan kalau secret keystore sudah diset.
 
 ## Versioning APK Release (Otomatis)
 
-Nama file APK dan nama artifact di GitHub Actions **mengikuti `versionName` di `app/build.gradle.kts` secara otomatis** — tidak perlu diubah manual di workflow. Setiap kali mau rilis versi baru:
+Nama file APK **mengikuti `versionName` di `app/build.gradle.kts` secara otomatis** — tidak perlu diubah manual di workflow. Setiap kali mau rilis versi baru:
 
 1. Ubah `versionName` (misal `"1.5"` → `"1.6"`) dan naikkan `versionCode` (+1) di `app/build.gradle.kts`.
 2. Push ke `main`.
-3. Artifact hasil build otomatis bernama `AudioEnhancerPro-v1.6-release`, isinya `AudioEnhancerPro-v1.6-release.apk`.
+3. APK signed otomatis muncul di tab **Releases** (sidebar beranda repo) sebagai rilis `v1.6`, siap diunduh langsung — tanpa dibungkus `.zip`, tanpa perlu buka tab Actions. Nama filenya `AudioEnhancerPro-v1.6-release.apk`.
 
-Hanya ada **1 artifact** yang dihasilkan tiap build: APK release yang sudah signed. Tidak ada lagi APK debug terpisah.
+APK yang sama juga tetap di-upload sebagai Actions Artifact (retensi lebih pendek) buat akses cepat dari histori run kalau dibutuhkan, tapi **Releases** adalah cara utama distribusi APK.
 
 ## Setup Release Signing (APK release, bukan debug)
 
@@ -83,7 +83,7 @@ Hanya ada **1 artifact** yang dihasilkan tiap build: APK release yang sudah sign
    | `KEY_ALIAS` | `audioenhancerpro` (atau alias yang kamu pakai) |
    | `KEY_PASSWORD` | password key yang dibuat di langkah 1 |
 
-4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu upload APK release yang sudah signed sebagai artifact bernama `AudioEnhancerPro-v{versionName}-release` (dinamis, ngikutin `versionName` saat itu — lihat bagian "Versioning APK Release" di atas).
+4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu publish sebagai GitHub Release `v{versionName}` (APK-nya jadi asset yang bisa diunduh langsung dari sidebar repo) + tetap upload artifact tambahan bernama `AudioEnhancerPro-v{versionName}-release` (dinamis, ngikutin `versionName` saat itu — lihat bagian "Versioning APK Release" di atas).
 
 Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal — job `build` (debug) tetap jalan normal.
 

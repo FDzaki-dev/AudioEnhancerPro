@@ -17,6 +17,16 @@ class BootReceiver : BroadcastReceiver() {
         if (action != Intent.ACTION_BOOT_COMPLETED && action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
-        AudioEnhancerService.requestStart(context)
+        // Batch 11 fix: SEBELUMNYA start tanpa syarat di sini, kontradiksi sama
+        // kontrak "hormati pilihan user" yang sudah eksplisit didesain buat
+        // ServiceWatchdogWorker (Batch 9). Kalau user terakhir kali sengaja tekan
+        // "Matikan" lewat notifikasi (PrefsHelper.getUserWantsRunning() == false),
+        // lalu HP di-reboot, service TETAP nyala lagi sendiri tanpa consent user —
+        // persis pola yang ingin dihindari watchdog. Sekarang BootReceiver baca
+        // flag yang sama biar konsisten: cuma auto-start kalau user memang terakhir
+        // mau service ini hidup.
+        if (PrefsHelper.getUserWantsRunning(context)) {
+            AudioEnhancerService.requestStart(context)
+        }
     }
 }

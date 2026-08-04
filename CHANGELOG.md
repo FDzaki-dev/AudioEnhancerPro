@@ -4,6 +4,30 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.50 - Batch 11 (audit lanjutan, diminta user): "audit/pematangan lanjutan"
+Full sweep: brace/paren balance 12 file Kotlin (bersih), semua XML parse-validated,
+parity string ID/EN (89/89), `FILE_MANIFEST.txt` vs file fisik (sinkron), scan
+drawable/mipmap/string orphan (0 ketemu, `app_name` sempat kedeteksi false-positive
+karena cuma dipakai di `AndroidManifest.xml`, bukan resource lain). Ketemu 2 hal nyata:
+1. **Bug logika (`BootReceiver.kt`)**: start service TANPA SYARAT tiap BOOT_COMPLETED/
+   MY_PACKAGE_REPLACED — kontradiksi langsung sama kontrak "hormati pilihan user" yang
+   eksplisit didesain buat `ServiceWatchdogWorker` di Batch 9
+   (`PrefsHelper.getUserWantsRunning()`). Skenario nyata: user tekan "Matikan" di
+   notifikasi (flag jadi `false`), lalu HP reboot → service tetap nyala sendiri tanpa
+   consent, padahal watchdog di jalur lain sudah didesain diam kalau flag ini `false`.
+   Fix: `BootReceiver` sekarang baca flag yang sama sebelum `requestStart()`.
+2. **CI tidak sesuai instruksi standing user** (`.github/workflows/build.yml`): job
+   `release` cuma `actions/upload-artifact`, TIDAK PERNAH publish GitHub Release —
+   padahal aturan rilis project ini eksplisit minta APK muncul di sidebar repo (tab
+   "Releases"), bukan cuma Actions Artifact yang expire otomatis & tersembunyi di tab
+   Actions. Fix: tambah step `softprops/action-gh-release@v2` (tag `v{versionName}`,
+   upload APK signed sebagai release asset, `permissions: contents: write` di job
+   level), upload-artifact lama TETAP dipertahankan sebagai tambahan (retensi pendek).
+   `README.md` bagian "Build"/"Versioning APK Release"/"Setup Release Signing"
+   diselaraskan ke behavior baru ini.
+- Tidak ada perubahan fungsional/UI lain — audit murni, bukan batch fitur baru.
+- Bump `versionCode` → 50, `versionName` → "1.50".
+
 ## v1.49 - Batch 10 (diminta user): redesign matte "native ultra premium & expensive"
 - **Root request user**: tema violet/glassmorphism (era Batch 2, v1.29+) dianggap
   "neon ungu alay" — diminta ganti total ke kesan matte, premium, mahal.

@@ -35,6 +35,10 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
+    # Batch 11 fix: WAJIB buat publish GitHub Release (bukan cuma Actions Artifact) —
+    # softprops/action-gh-release butuh izin tulis ke repo (bikin release + upload asset).
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,8 +106,24 @@ jobs:
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
-      # Satu-satunya artifact yang di-upload: APK release yang sudah signed dan diberi nama versi.
-      - name: Upload signed release APK (satu-satunya artifact)
+      # Batch 11 fix: SEBELUMNYA cuma upload-artifact (ketebak/tersembunyi di tab
+      # Actions, kadaluarsa otomatis, gak muncul di sidebar repo). Sekarang publish
+      # sebagai GitHub Release beneran — APK signed muncul langsung di sidebar
+      # beranda repo (bagian "Releases"), bisa diunduh langsung tanpa buka Actions
+      # sama sekali dan tanpa terbungkus .zip. Tag dipakai ulang (bukan re-create)
+      # kalau versionName sama persis dipush lagi — asset APK-nya di-overwrite.
+      - name: Publish GitHub Release
+        if: steps.secret_check.outputs.has_secret == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}
+          name: AudioEnhancerPro v${{ steps.version.outputs.name }}
+          files: ${{ steps.rename.outputs.path }}
+          generate_release_notes: true
+
+      # Tetap disimpan juga sebagai Actions Artifact (retensi lebih pendek) buat
+      # akses cepat dari histori run tanpa harus buka tab Releases.
+      - name: Upload signed release APK (artifact tambahan)
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: actions/upload-artifact@v4
         with:
