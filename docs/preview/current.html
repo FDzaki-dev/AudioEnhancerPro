@@ -3,17 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — Native Ultra Premium</title>
+<title>Preview — Neumorphic Hybrid (draft, belum di-port ke Kotlin)</title>
 <style>
+  /* ============================================================
+     DESIGN LANGUAGE BARU (draft, Batch 12): "Neumorphic Hybrid"
+     ------------------------------------------------------------
+     Ganti STRUKTUR, bukan cuma palet (beda dari Batch 10 yang cuma
+     ganti warna di atas struktur glassmorphism lama). Prinsip:
+     1. TIDAK ADA translucency/backdrop-blur sama sekali — semua
+        permukaan solid/opaque. Blur+translucent adalah musuh utama
+        legibility (kontras teks jadi tidak konsisten tergantung apa
+        yang ada di baliknya).
+     2. TIDAK ADA gradient-clip text (headline/value yang di-"cat"
+        pakai gradient lalu teksnya jadi transparan) — diganti warna
+        teks SOLID kontras tinggi. Efek gradient sekarang HANYA di
+        elemen non-teks (icon, slider fill, tombol).
+     3. Kedalaman datang dari dual-shadow neumorphic (extruded /
+        pressed-in), BUKAN dari border+glow tipis ala glassmorphism.
+     4. Background base digeser dari hitam pekat (#0A0A0A, v1.49)
+        ke abu graphite medium (#232220) — neumorphism butuh base
+        color yang cukup terang untuk highlight shadow-nya kelihatan;
+        hitam pekat bikin sisi terang shadow nyaris invisible.
+     5. Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer)
+        TETAP dipertahankan (bukan sumber keluhan sebelumnya), cuma
+        dipakai lebih hemat: ring icon + slider fill, bukan gradient
+        di teks.
+  ============================================================ */
   :root{
-    --bg-top:#121110; --bg-bot:#0A0A0A;
-    --glass:rgba(255,255,255,0.045); --glass-border:rgba(255,255,255,0.08);
-    --on-bg:#F1EFEA; --muted:#9A968D;
-    --bass:#E0865B; --bass2:#F0B48F;
-    --virt:#4FB8C9; --virt2:#8DD3DE;
-    --loud:#4CB88A; --loud2:#94D4B4;
-    --eq:#D97AA6; --eq2:#E8A8C6;
-    --primary:#C2A26B; --primary2:#EFDEB8;
+    --bg:#232220;
+    --surface:#232220;
+    --shadow-d:rgba(0,0,0,.62);
+    --shadow-l:rgba(255,255,255,.045);
+    --text:#F6F4EF;         /* body/heading — kontras tinggi vs #232220 */
+    --muted:#B8B3A8;        /* tetap cukup terang, bukan abu gelap redup */
+    --bass:#E0865B; --virt:#4FB8C9; --loud:#4CB88A; --eq:#D97AA6;
+    --primary:#C2A26B;
   }
   *{box-sizing:border-box;}
   body{
@@ -21,109 +45,103 @@
     font-family:-apple-system,'Segoe UI',Roboto,sans-serif; padding:24px;
   }
   .phone{
-    width:390px; min-height:844px;
-    background: radial-gradient(circle at 20% -10%, #241F16 0%, transparent 45%),
-                linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bot) 100%);
-    color:var(--on-bg); border-radius:44px; overflow:hidden;
-    border:8px solid #050505;
-    box-shadow:0 30px 80px rgba(0,0,0,.7), inset 0 0 60px rgba(194,162,107,.04);
+    width:390px; min-height:844px; background:var(--bg); color:var(--text);
+    border-radius:44px; overflow:hidden; border:8px solid #050505;
+    box-shadow:0 30px 80px rgba(0,0,0,.7);
     position:relative;
   }
   .statusbar{ height:48px; }
-  .content{ padding:22px; position:relative; z-index:1; }
+  .content{ padding:22px; }
 
-  .hero{ margin-bottom:28px; }
-  h1{
-    font-size:30px; font-weight:800; margin:0; letter-spacing:-0.5px;
-    background:linear-gradient(90deg,#fff 30%,var(--primary2));
-    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  h1{ font-size:28px; font-weight:800; margin:0; letter-spacing:-.3px; color:var(--text); }
+  .subtitle{ font-size:13.5px; font-weight:500; color:var(--muted); margin-top:6px; }
+
+  /* Kartu extruded standar — permukaan "timbul" dari background */
+  .card{
+    background:var(--surface); border-radius:22px; padding:18px; margin-bottom:16px;
+    box-shadow:9px 9px 18px var(--shadow-d), -7px -7px 16px var(--shadow-l);
   }
-  .subtitle{ font-size:14px; font-weight:500; color:var(--muted); margin-top:6px; }
-
-  .waveform{ display:flex; align-items:flex-end; gap:3px; height:32px; margin-top:16px; }
-  .wf-bar{ width:4px; border-radius:3px; background:linear-gradient(180deg,var(--primary2),var(--primary)); opacity:.85; }
-
-  .glass{
-    background:var(--glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border:1px solid var(--glass-border);
-    border-radius:20px;
-    padding:16px;
-    margin-bottom:16px;
-    position:relative;
-    overflow:hidden;
-  }
-  .glass::before{
-    content:''; position:absolute; inset:0; border-radius:20px; padding:1px;
-    background:linear-gradient(135deg, var(--glow,var(--primary)) 0%, transparent 40%);
-    opacity:.5; pointer-events:none;
+  /* Varian "pressed-in" — dipakai buat groove slider & elemen yang kesannya ditekan */
+  .inset{
+    box-shadow:inset 5px 5px 10px var(--shadow-d), inset -4px -4px 9px var(--shadow-l);
   }
 
-  .status-glass{ display:flex; align-items:center; gap:10px; --glow:var(--loud); }
-  .dot{ width:8px;height:8px;border-radius:50%; background:var(--loud); box-shadow:0 0 8px var(--loud); flex-shrink:0; }
-  .status-glass span{ font-size:12.5px; font-weight:600; color:var(--on-bg); line-height:1.4; }
+  /* Toggle utama — demo eksplisit "tombol fisik ditekan" (request user) */
+  .power-row{ display:flex; align-items:center; gap:16px; margin-bottom:18px; }
+  .power-btn{
+    width:64px; height:64px; border-radius:50%; background:var(--surface);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:8px 8px 16px var(--shadow-d), -6px -6px 14px var(--shadow-l);
+  }
+  .power-btn.on{
+    box-shadow:inset 5px 5px 10px rgba(0,0,0,.5), inset -4px -4px 9px var(--shadow-l),
+               0 0 0 2px var(--primary);
+  }
+  .power-btn svg{ width:26px; height:26px; }
+  .power-label .name{ font-weight:700; font-size:15px; color:var(--text); }
+  .power-label .desc{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+
+  .status-card{ display:flex; align-items:center; gap:10px; }
+  .dot{ width:9px;height:9px;border-radius:50%; background:var(--loud); box-shadow:0 0 6px var(--loud); flex-shrink:0; }
+  .status-card span{ font-size:12.5px; font-weight:600; color:var(--text); line-height:1.45; }
 
   .section-label{
-    font-size:12px; font-weight:700; letter-spacing:1.5px; color:var(--muted);
-    margin:20px 0 10px 4px; text-transform:uppercase;
+    font-size:12px; font-weight:700; letter-spacing:1.4px; color:var(--muted);
+    margin:22px 0 10px 4px; text-transform:uppercase;
   }
-  .chips{ display:flex; gap:8px; margin-bottom:8px; overflow-x:auto; }
+
+  .chips{ display:flex; gap:10px; margin-bottom:8px; overflow-x:auto; }
   .chip{
-    padding:9px 16px; border-radius:100px; font-weight:600; font-size:13px;
-    white-space:nowrap; background:var(--glass); border:1px solid var(--glass-border);
-    color:var(--muted); backdrop-filter:blur(10px);
+    padding:10px 16px; border-radius:100px; font-weight:700; font-size:13px;
+    white-space:nowrap; color:var(--muted); background:var(--surface);
+    box-shadow:5px 5px 10px var(--shadow-d), -4px -4px 9px var(--shadow-l);
   }
   .chip.active{
-    background:linear-gradient(135deg,var(--primary),#8A6D3B); color:#241C0E; border-color:transparent;
-    box-shadow:0 4px 16px rgba(194,162,107,.35);
+    color:var(--primary);
+    box-shadow:inset 3px 3px 7px var(--shadow-d), inset -3px -3px 7px var(--shadow-l);
   }
 
-  .feature{ --glow:var(--accent); }
   .feature-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-  .feature-id{ display:flex; align-items:center; gap:10px; }
+  .feature-id{ display:flex; align-items:center; gap:12px; }
   .icon-orb{
-    width:36px; height:36px; border-radius:12px;
-    background:linear-gradient(135deg,var(--accent),var(--accent2));
-    display:flex; align-items:center; justify-content:center; font-size:16px;
-    box-shadow:0 4px 14px color-mix(in srgb, var(--accent) 50%, transparent);
+    width:40px; height:40px; border-radius:14px; background:var(--surface);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+    box-shadow:5px 5px 10px var(--shadow-d), -4px -4px 9px var(--shadow-l);
   }
-  .feature-id .name{ font-weight:700; font-size:15px; }
-  .feature-value{ font-weight:800; font-size:15px; background:linear-gradient(90deg,var(--accent2),var(--accent)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
-  .help{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.5; }
+  .icon-orb svg{ width:19px; height:19px; }
+  .feature-id .name{ font-weight:700; font-size:15px; color:var(--text); }
+  .feature-value{ font-weight:800; font-size:15px; color:var(--accent); }
+  .help{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.55; }
 
-  .slider-track{ height:5px; border-radius:3px; background:rgba(255,255,255,.08); position:relative; }
-  .slider-fill{ height:5px; border-radius:3px; background:linear-gradient(90deg,var(--accent),var(--accent2)); position:absolute; top:0; left:0; }
+  .slider-track{ height:10px; border-radius:6px; position:relative; }
+  .slider-fill{ height:10px; border-radius:6px; background:var(--accent); position:absolute; top:0; left:0; }
   .slider-thumb{
-    width:18px; height:18px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, #fff, var(--accent2));
-    position:absolute; top:-6.5px;
-    box-shadow:0 2px 10px color-mix(in srgb, var(--accent) 70%, transparent), 0 0 0 3px rgba(255,255,255,.15);
+    width:22px; height:22px; border-radius:50%; background:var(--surface);
+    position:absolute; top:-6px;
+    box-shadow:4px 4px 8px var(--shadow-d), -3px -3px 7px var(--shadow-l), 0 0 0 2px var(--accent);
   }
 
-  .footer-note{ text-align:center; font-size:10px; color:var(--muted); padding:16px; opacity:.5; }
+  .footer-note{ text-align:center; font-size:10px; color:var(--muted); padding:16px; opacity:.6; }
 </style>
 </head>
 <body>
   <div class="phone">
     <div class="statusbar"></div>
     <div class="content">
-      <div class="hero">
-        <h1>Audio Booster</h1>
-        <div class="subtitle">Efek berlaku ke seluruh audio sistem</div>
-        <div class="waveform">
-          <div class="wf-bar" style="height:40%"></div>
-          <div class="wf-bar" style="height:70%"></div>
-          <div class="wf-bar" style="height:100%"></div>
-          <div class="wf-bar" style="height:55%"></div>
-          <div class="wf-bar" style="height:85%"></div>
-          <div class="wf-bar" style="height:35%"></div>
-          <div class="wf-bar" style="height:65%"></div>
-          <div class="wf-bar" style="height:45%"></div>
+      <h1>Audio Booster</h1>
+      <div class="subtitle">Efek berlaku ke seluruh audio sistem</div>
+
+      <div class="power-row" style="margin-top:20px;">
+        <div class="power-btn on">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round"><path d="M12 2v8"/><path d="M6.3 6.3a9 9 0 1 0 11.4 0"/></svg>
+        </div>
+        <div class="power-label">
+          <div class="name">Aktif</div>
+          <div class="desc">Tekan untuk matikan sementara</div>
         </div>
       </div>
 
-      <div class="glass status-glass">
+      <div class="card status-card">
         <div class="dot"></div>
         <span>Service berjalan di background — cek juga notifikasi 'Audio Booster aktif'</span>
       </div>
@@ -137,42 +155,53 @@
 
       <div class="section-label">Kontrol</div>
 
-      <div class="glass feature" style="--accent:var(--bass); --accent2:var(--bass2);">
+      <div class="card" style="--accent:var(--bass);">
         <div class="feature-top">
-          <div class="feature-id"><div class="icon-orb">🔊</div><span class="name">Bass Boost</span></div>
+          <div class="feature-id">
+            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div>
+            <span class="name">Bass Boost</span>
+          </div>
           <div class="feature-value">900</div>
         </div>
         <div class="help">Menguatkan nada rendah supaya musik terasa lebih "nendang".</div>
-        <div class="slider-track"><div class="slider-fill" style="width:90%"></div><div class="slider-thumb" style="left:calc(90% - 9px)"></div></div>
+        <div class="slider-track inset"><div class="slider-fill" style="width:90%"></div><div class="slider-thumb" style="left:calc(90% - 11px)"></div></div>
       </div>
 
-      <div class="glass feature" style="--accent:var(--virt); --accent2:var(--virt2);">
+      <div class="card" style="--accent:var(--virt);">
         <div class="feature-top">
-          <div class="feature-id"><div class="icon-orb">🌐</div><span class="name">Virtualizer</span></div>
+          <div class="feature-id">
+            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--virt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r=".8" fill="var(--virt)"/></svg></div>
+            <span class="name">Virtualizer</span>
+          </div>
           <div class="feature-value">300</div>
         </div>
         <div class="help">Suara terasa lebih lebar, paling terasa pakai earphone.</div>
-        <div class="slider-track"><div class="slider-fill" style="width:30%"></div><div class="slider-thumb" style="left:calc(30% - 9px)"></div></div>
+        <div class="slider-track inset"><div class="slider-fill" style="width:30%; background:var(--virt);"></div><div class="slider-thumb" style="left:calc(30% - 11px); box-shadow:4px 4px 8px var(--shadow-d), -3px -3px 7px var(--shadow-l), 0 0 0 2px var(--virt);"></div></div>
       </div>
 
-      <div class="glass feature" style="--accent:var(--loud); --accent2:var(--loud2);">
+      <div class="card" style="--accent:var(--loud);">
         <div class="feature-top">
-          <div class="feature-id"><div class="icon-orb">📢</div><span class="name">Loudness Gain</span></div>
+          <div class="feature-id">
+            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--loud)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h4l5-4v10l-5-4H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
+            <span class="name">Loudness Gain</span>
+          </div>
           <div class="feature-value">500 mB</div>
         </div>
         <div class="help">Boost volume tambahan di atas batas normal HP.</div>
-        <div class="slider-track"><div class="slider-fill" style="width:50%"></div><div class="slider-thumb" style="left:calc(50% - 9px)"></div></div>
+        <div class="slider-track inset"><div class="slider-fill" style="width:50%; background:var(--loud);"></div><div class="slider-thumb" style="left:calc(50% - 11px); box-shadow:4px 4px 8px var(--shadow-d), -3px -3px 7px var(--shadow-l), 0 0 0 2px var(--loud);"></div></div>
       </div>
 
-      <div class="glass feature" style="--accent:var(--eq); --accent2:var(--eq2);">
+      <div class="card" style="--accent:var(--eq); margin-bottom:0;">
         <div class="feature-top" style="margin-bottom:0;">
-          <div class="feature-id"><div class="icon-orb">🎚️</div><span class="name">Equalizer Manual</span></div>
-          <span style="color:var(--eq2); font-size:16px;">⌄</span>
+          <div class="feature-id">
+            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--eq)" stroke-width="2" stroke-linecap="round"><path d="M4 21V10M4 6V3"/><path d="M12 21v-6M12 11V3"/><path d="M20 21v-3M20 14V3"/><path d="M2 10h4M10 11h4M18 14h4"/></svg></div>
+            <span class="name">Equalizer Manual</span>
+          </div>
+          <span style="color:var(--muted); font-size:15px;">⌄</span>
         </div>
-        <div class="help" style="margin-bottom:0;">Atur tiap pita frekuensi secara detail</div>
       </div>
     </div>
-    <div class="footer-note">MOCKUP — arah "native ultra premium" (glassmorphism + gradient glow)</div>
+    <div class="footer-note">DRAFT — "Neumorphic Hybrid", belum di-port ke Kotlin. Validasi dulu di sini.</div>
   </div>
 </body>
 </html>

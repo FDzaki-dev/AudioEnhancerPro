@@ -10,7 +10,32 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.50
+- **Versi**: v1.50 (belum berubah — lihat draft preview di bawah, BELUM di-port ke Kotlin)
+- 🎨 **DRAFT preview Batch 12 (diminta user)**: user minta redesign BAHASA DESAIN, bukan
+  cuma palet lagi (beda dari Batch 10 yang cuma ganti warna di atas struktur
+  glassmorphism) — plus tingkatkan legibility. User pilih arah **"Neumorphic Hybrid"**
+  dari 3 opsi yang ditawarkan (solid tactile panel / editorial minimal / neumorphic).
+  `docs/preview/current.html` sudah ditulis ulang total sesuai arah ini — **TAPI SENGAJA
+  BELUM di-port ke Kotlin** (ikut siklus troubleshooting standar: validasi visual di
+  browser dulu, baru port, lihat bagian "Batasan sandbox Claude"). Kalau user bilang
+  "oke lanjut porting", baru port ke `Theme.kt` + semua Composable kartu/slider di
+  `MainActivity.kt`/`OnboardingScreen.kt` + drawable terkait, versionCode/Name baru
+  di-bump saat itu (bukan sekarang, karena APK belum berubah apa-apa).
+  - **Perubahan struktural kunci vs glassmorphism (v1.29-v1.49)**: TIDAK ADA lagi
+    translucency/backdrop-blur (musuh legibility) & TIDAK ADA lagi gradient-clip text
+    (headline/value yang teksnya sendiri di-gradient, kontras jadi tidak konsisten).
+    Kedalaman sekarang dari dual-shadow neumorphic (extruded/pressed), warna aksen
+    per-fitur dipakai di icon+slider+ring doang, teks selalu warna solid kontras tinggi.
+  - **Background base digeser** dari hitam pekat `#0A0A0A` (v1.49) ke abu graphite medium
+    `#232220` — CATATAN TEKNIS PENTING: neumorphism butuh base color yang cukup terang
+    supaya sisi "highlight" dual-shadow-nya kelihatan; hitam pekat bikin highlight nyaris
+    invisible (mirip pola masalah alpha-transparan-di-atas-hitam-pekat era Apple-style,
+    lihat "Riwayat pivot" poin 1(b) — LESSON yang sama berlaku lagi di sini).
+  - Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) & primary champagne-bronze
+    TETAP dipertahankan (bukan sumber keluhan), cuma cara pakainya diubah.
+  - **PENDING keputusan user**: apakah draft ini oke buat di-port, atau masih perlu
+    iterasi (contoh: intensitas shadow, radius sudut, ukuran font).
+
 - ✅ **Audit batch 11 (lanjutan batch 1-9) SELESAI** — diminta user eksplisit
   ("audit/pematangan lanjutan"). Full sweep: brace/paren balance semua Kotlin (bersih),
   XML parse-validated semua, parity string ID/EN (89/89), manifest vs fisik (sinkron),
@@ -214,7 +239,7 @@ eksplisit user.
    kartu translucent + border gradient tipis + shadow lembut + background
    gradient dalam + waveform motif di header. User akhirnya bilang palet
    violet-nya kesan "neon ungu alay" walau strukturnya sendiri disukai.
-4. **Matte premium, palet graphite/bronze** (v1.49, ARAH SEKARANG) — STRUKTUR
+4. **Matte premium, palet graphite/bronze** (v1.49) — STRUKTUR
    glassmorphism dari #3 dipertahankan 100% (kartu translucent, border gradient,
    shadow, waveform header), cuma PALET WARNA diganti: primary violet neon
    `#8B7CF6` → champagne-bronze desaturasi `#C2A26B`, background gradient
@@ -224,6 +249,15 @@ eksplisit user.
    dulu apakah masalahnya di STRUKTUR (shape/layout) atau cuma di PALET WARNA
    sebelum redesign besar — di kasus ini cuma palet, jadi scope-nya kecil
    (Theme.kt + 2 colors.xml + 3 drawable hardcoded hex + preview HTML).
+5. **Neumorphic Hybrid** (Batch 12, **DRAFT — baru di `docs/preview/current.html`,
+   BELUM di-port ke Kotlin**) — kali ini STRUKTUR ikut diganti, bukan cuma palet,
+   diminta user eksplisit sambil minta legibility ditingkatkan. Translucency/
+   backdrop-blur & gradient-clip text (dua-duanya sumber inkonsistensi kontras di
+   struktur glassmorphism #3/#4) dibuang total. Kedalaman visual sekarang dari
+   dual-shadow neumorphic (extruded = "timbul", inset = "ditekan"), background
+   base dinaikkan ke abu graphite medium `#232220` (bukan hitam pekat) supaya sisi
+   highlight shadow-nya kelihatan. Warna aksen per-fitur & primary bronze TETAP,
+   cuma dipakai lebih hemat (icon/slider/ring, bukan teks).
 
 ## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
 - **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
