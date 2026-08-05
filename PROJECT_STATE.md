@@ -10,7 +10,29 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.52
+- **Versi**: v1.53
+- ✅ **Batch 14 SELESAI (fix urgent dilaporkan user)**: "efek kedalaman belum kelihatan"
+  di APK asli, padahal HTML preview kelihatan jelas. **ROOT CAUSE ketemu, BUKAN soal
+  tuning angka** (dugaan awal di catatan Batch 12 di bawah — itu SALAH): `Modifier.shadow`
+  Compose itu shadow ELEVATION bawaan Android, alpha ambient/spot-nya DIBATASI KERAS
+  oleh sistem (~3-15% max secara internal) TIDAK PEDULI warna/opacity yang dikasih ke
+  `ambientColor`/`spotColor` — API-nya sendiri gak sanggup setebal CSS `box-shadow`
+  (yang opacity-nya 100% dikontrol manual). Fix: `NeumorphicCard`/`NeumorphicTintedCard`/
+  `NeumorphicCircleButton` sekarang pakai `neumorphicDepth()` (extension `Modifier` baru,
+  private, di bawah `NeumorphicCard`) — gambar shadow manual pakai
+  `android.graphics.Paint.setShadowLayer()` lewat `drawBehind`+`drawIntoCanvas`, blur+offset
+  bebas kita atur PERSIS cara CSS. **Gated API 28+** (`Build.VERSION_CODES.P`) karena shadow
+  layer di canvas hardware-accelerated baru didukung penuh sejak Android 9 — di API <28
+  fallback diam-diam TANPA shadow sama sekali (bukan crash, tapi juga bukan dual-shadow
+  lama yang toh sama-sama nyaris invisible).
+  - **PENTING buat sesi depan**: kalau nambah kartu/komponen baru yang butuh efek
+    "timbul", WAJIB pakai `Modifier.neumorphicDepth(shape, darkColor, lightColor)` —
+    JANGAN balik pakai `Modifier.shadow(...ambientColor...)` lagi, sudah terbukti gak
+    kelihatan di device asli meski di preview compose/emulator kadang tampak oke.
+  - **Belum divalidasi ulang di device asli** setelah fix ini (user yang laporan Batch 13
+    kemarin perlu install v1.53 & konfirmasi). Kalau MASIH kurang tebal, itu murni soal
+    naikkan `blurRadius`/`offset` di `neumorphicDepth()`, bukan ganti pendekatan lagi.
+
 - ✅ **Batch 13 SELESAI**: porting 2 elemen yang hilang dari `docs/preview/current.html`
   ke Kotlin (gap ketauan karena user compare screenshot APK vs HTML preview) —
   **HTML lama SALAH KLAIM "sudah live di app"**, padahal 2 elemen ini belum pernah

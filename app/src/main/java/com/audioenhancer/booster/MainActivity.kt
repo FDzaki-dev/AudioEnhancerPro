@@ -1,6 +1,7 @@
 package com.audioenhancer.booster
 
 import android.Manifest
+import android.graphics.Paint as AndroidPaint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -55,10 +56,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -443,9 +452,10 @@ private fun PowerToggleRow() {
     }
 }
 
-/** Varian bundar dari NeumorphicCard, khusus buat power button (64dp) — dual-shadow sama
- *  persis tekniknya (offset box gelap/terang), tapi CircleShape bukan RoundedCornerShape,
- *  dan mendukung ring 2dp warna aksen saat `pressed` (persis `.power-btn.on` di HTML). */
+/** Varian bundar dari NeumorphicCard, khusus buat power button (64dp) — dual-shadow
+ *  pakai teknik `neumorphicDepth` yang sama (lihat catatan Batch 14 di NeumorphicCard),
+ *  CircleShape bukan RoundedCornerShape, dan mendukung ring 2dp warna aksen saat
+ *  `pressed` (persis `.power-btn.on` di HTML). */
 @Composable
 private fun NeumorphicCircleButton(
     pressed: Boolean,
@@ -463,45 +473,27 @@ private fun NeumorphicCircleButton(
     Box(
         modifier = Modifier
             .size(64.dp)
+            .then(
+                if (!pressed) Modifier.neumorphicDepth(shape = shape, darkColor = darkSide, lightColor = lightSide)
+                else Modifier
+            )
             .clip(shape)
+            .background(surface)
+            .then(
+                if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
+            )
+            .then(
+                if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
+            )
             .clickable(
                 onClickLabel = desc,
                 role = Role.Button,
                 onClick = onClick
             )
-            .semantics { this.contentDescription = desc }
-    ) {
-        if (!pressed) {
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset(3.dp, 3.dp)
-                    .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
-                    .background(surface, shape)
-            )
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset((-3).dp, (-3).dp)
-                    .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
-                    .background(surface, shape)
-            )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(shape)
-                .background(surface)
-                .then(
-                    if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
-                )
-                .then(
-                    if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
-                ),
-            contentAlignment = Alignment.Center,
-            content = content
-        )
-    }
+            .semantics { this.contentDescription = desc },
+        contentAlignment = Alignment.Center,
+        content = content
+    )
 }
 
 private data class Preset(
@@ -1180,17 +1172,49 @@ private fun EqualizerSection(
 internal fun formatFreqLabel(hz: Int): String =
     if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
 
-/** Kartu inti Batch 12 "Neumorphic Hybrid": permukaan SOLID (bukan translucent lagi),
- *  kedalaman datang dari dua shadow yang di-offset ke arah berlawanan — gelap di
- *  kanan-bawah, terang tipis di kiri-atas — meniru cahaya jatuh dari kiri-atas ke
- *  permukaan yang "timbul" dari background datar. `accentColor`/`accentColor2` masih
- *  diterima buat kompatibilitas call-site lama tapi TIDAK dipakai di sini lagi (dulu
- *  buat border gradient); pewarnaan aksen sekarang tanggung jawab konten di dalamnya
- *  (ikon/value di FeatureControl), bukan bingkai kartu — biar konsisten "no gradient
- *  di elemen yang nentuin kontras teks".
- *  CATATAN JUJUR (statis, belum bisa diverifikasi runtime tanpa device/emulator):
- *  dual-shadow di sini pakai Modifier.shadow bawaan Compose (elevation shadow asli
- *  Android, bukan Modifier.blur) supaya aman di semua API 24+ tanpa isu versi. */
+/** Batch 14 (fix dilaporkan user: "efek kedalaman belum kelihatan" di device asli).
+ *  ROOT CAUSE: `Modifier.shadow` (dipakai Batch 12) itu shadow ELEVATION bawaan Android —
+ *  satu sumber cahaya virtual, alpha ambient/spot-nya DIBATASI KERAS oleh sistem
+ *  (~3-15% max secara internal) TIDAK PEDULI warna/opacity yang kita kasih ke
+ *  ambientColor/spotColor. Itu sebabnya di HTML (CSS `box-shadow`, opacity 100% kita
+ *  kontrol manual) kelihatan tebal, tapi di APK asli nyaris invisible — bukan soal
+ *  tuning angka seperti dugaan Batch 12, tapi API-nya sendiri gak bisa setebal itu.
+ *  FIX: gambar shadow manual pakai `android.graphics.Paint.setShadowLayer` (blur+offset
+ *  bebas kita atur, PERSIS cara CSS box-shadow kerja) — didukung penuh di canvas hardware-
+ *  accelerated sejak Android 9/API 28. Di API <28 fallback diam-diam ke tanpa shadow
+ *  (dual-shadow bawaan sudah tipis, tetap lebih rapi daripada dipaksakan crash/glitch). */
+private fun Modifier.neumorphicDepth(
+    shape: Shape,
+    darkColor: Color,
+    lightColor: Color,
+    blurRadius: androidx.compose.ui.unit.Dp = 16.dp,
+    offset: androidx.compose.ui.unit.Dp = 7.dp
+): Modifier = this.drawBehind {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return@drawBehind
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val androidPath = Path().apply { addOutline(outline) }.asAndroidPath()
+    val blurPx = blurRadius.toPx()
+    val offsetPx = offset.toPx()
+    drawIntoCanvas { canvas ->
+        val paint = AndroidPaint(AndroidPaint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.TRANSPARENT
+        }
+        // Sisi gelap (kanan-bawah) — meniru bayangan jatuh dari permukaan timbul.
+        paint.setShadowLayer(blurPx, offsetPx, offsetPx, darkColor.toArgb())
+        canvas.nativeCanvas.drawPath(androidPath, paint)
+        // Sisi terang (kiri-atas) — highlight tipis, arah berlawanan dari sisi gelap.
+        paint.setShadowLayer(blurPx, -offsetPx, -offsetPx, lightColor.toArgb())
+        canvas.nativeCanvas.drawPath(androidPath, paint)
+    }
+}
+
+/** Kartu inti Batch 12 "Neumorphic Hybrid" (dual-shadow-nya diperbaiki Batch 14 — lihat
+ *  `neumorphicDepth`): permukaan SOLID (bukan translucent), kedalaman dari dua shadow
+ *  offset berlawanan arah — gelap di kanan-bawah, terang tipis di kiri-atas — meniru
+ *  cahaya jatuh dari kiri-atas ke permukaan yang "timbul" dari background datar.
+ *  `accentColor`/`accentColor2` masih diterima buat kompatibilitas call-site lama tapi
+ *  TIDAK dipakai di sini (dulu buat border gradient); pewarnaan aksen sekarang tanggung
+ *  jawab konten di dalamnya (ikon/value di FeatureControl), bukan bingkai kartu. */
 @Composable
 private fun NeumorphicCard(
     modifier: Modifier = Modifier,
@@ -1204,37 +1228,21 @@ private fun NeumorphicCard(
     val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
     val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
 
-    Box(modifier = modifier) {
-        if (!pressed) {
-            // Sisi gelap (kanan-bawah) — dioffset positif, shadow asli Android (soft-blurred).
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset(3.dp, 3.dp)
-                    .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
-                    .background(surface, shape)
+    Column(
+        modifier = modifier
+            .then(
+                if (!pressed) Modifier.neumorphicDepth(shape = shape, darkColor = darkSide, lightColor = lightSide)
+                else Modifier
             )
-            // Sisi terang (kiri-atas) — dioffset negatif, alpha rendah biar cuma highlight tipis.
-            Box(
-                Modifier
-                    .matchParentSize()
-                    .offset((-3).dp, (-3).dp)
-                    .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
-                    .background(surface, shape)
-            )
-        }
-        Column(
-            modifier = Modifier
-                .clip(shape)
-                .background(surface)
-                .then(
-                    // State "ditekan": tanpa dual-shadow (kartu jadi rata dgn background),
-                    // + border tipis gelap buat kesan "masuk ke dalam" (carved), bukan timbul.
-                    if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
-                ),
-            content = content
-        )
-    }
+            .clip(shape)
+            .background(surface)
+            .then(
+                // State "ditekan": tanpa dual-shadow (kartu jadi rata dgn background),
+                // + border tipis gelap buat kesan "masuk ke dalam" (carved), bukan timbul.
+                if (pressed) Modifier.border(1.dp, darkSide.copy(alpha = 0.55f), shape) else Modifier
+            ),
+        content = content
+    )
 }
 
 /** Varian tinted buat banner info/warning — tetap SOLID (bukan alpha mentah di atas
@@ -1252,26 +1260,14 @@ private fun NeumorphicTintedCard(
     val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
     val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
 
-    Box(modifier = modifier) {
-        Box(
-            Modifier
-                .matchParentSize()
-                .offset(3.dp, 3.dp)
-                .shadow(elevation = 8.dp, shape = shape, ambientColor = darkSide, spotColor = darkSide)
-                .background(blended, shape)
-        )
-        Box(
-            Modifier
-                .matchParentSize()
-                .offset((-3).dp, (-3).dp)
-                .shadow(elevation = 6.dp, shape = shape, ambientColor = lightSide, spotColor = lightSide)
-                .background(blended, shape)
-        )
-        Column(
-            modifier = Modifier.clip(shape).background(blended).border(1.dp, tint.copy(alpha = 0.4f), shape),
-            content = content
-        )
-    }
+    Column(
+        modifier = modifier
+            .neumorphicDepth(shape = shape, darkColor = darkSide, lightColor = lightSide)
+            .clip(shape)
+            .background(blended)
+            .border(1.dp, tint.copy(alpha = 0.4f), shape),
+        content = content
+    )
 }
 
 /** Label section: warna aksen SOLID (bukan gradient), bukan kecil-pasif abu-abu. */

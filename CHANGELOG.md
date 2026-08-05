@@ -4,6 +4,22 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.53 - Batch 14 (fix urgent, dilaporkan user): efek kedalaman neumorphic invisible
+User install v1.52, screenshot device: kartu Bass Boost/Virtualizer/status card nyaris
+FLAT — beda jauh dari `docs/preview/current.html` yang jelas timbul. Root cause: lihat
+`PROJECT_STATE.md` Batch 14 (ringkas: `Modifier.shadow` Android dibatasi alpha keras
+oleh sistem, gak bisa setebal CSS `box-shadow`).
+- **`MainActivity.kt`**: tambah `Modifier.neumorphicDepth()` — shadow manual pakai
+  `Paint.setShadowLayer` via `drawBehind`+`drawIntoCanvas` (gated API 28+, fallback tanpa
+  shadow di API lebih lama). `NeumorphicCard`, `NeumorphicTintedCard`,
+  `NeumorphicCircleButton` semua dipindah ke sini — struktur disederhanakan dari
+  Box+2-child-offset jadi 1 modifier chain (`Column`/`Box` modifier langsung).
+- Import baru: `drawBehind`, `Outline`, `Path`, `Shape`, `addOutline`, `asAndroidPath`,
+  `drawIntoCanvas`, `nativeCanvas`, `toArgb`, `android.graphics.Paint as AndroidPaint`.
+  Import lama yang jadi tidak terpakai (`androidx.compose.ui.draw.shadow`) dihapus.
+- **`build.gradle.kts`**: versionCode 52→53, versionName 1.52→1.53.
+- Tidak ada perubahan behavior/logic lain — murni fix visual dual-shadow.
+
 ## v1.52 - Batch 13 (diminta user): porting elemen yang hilang dari HTML preview
 User bandingin screenshot APK terpasang vs `docs/preview/current.html` — ketauan HTML
 sudah lebih maju dari Kotlin di 2 elemen, padahal footer HTML klaim "sudah live di app"
