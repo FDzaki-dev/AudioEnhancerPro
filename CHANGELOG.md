@@ -4,6 +4,22 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.54 - Batch 15 (diminta user): terapkan spec design system "Hybrid Neumorphism"
+User kirim spec lengkap tertulis (color/shadow/radius/elevation/pressed-state/typography/
+layout). Diterapkan selektif — detail lengkap + yang BELUM dikerjakan ada di
+`PROJECT_STATE.md` Batch 15 (baca itu dulu kalau lanjut kerjain sisanya).
+- **`Theme.kt`**: alpha shadow diturunkan ke spec (gelap 60%, terang ~4%), token radius/
+  offset/blur baru (`NeuCardRadius=22dp`, `NeuIconBoxRadius=14dp`,
+  `NeuShadowDark/LightOffset/Blur`), `headlineMedium` 30sp→28sp, `AppShapes.medium`
+  20dp→22dp. Warna primary/background/text TIDAK diubah (kebetulan sudah match persis).
+- **`MainActivity.kt`**: `neumorphicDepth()` sekarang asimetris per-sisi (bukan simetris
+  lagi). Fungsi baru `neumorphicInnerShadow()` buat pressed/carved state (ganti border
+  rata). `NeumorphicCard` terima parameter `radius` baru. Icon-box `FeatureControl`
+  36dp→40dp + radius 14dp. `NeumorphicCircleButton` dapat scale 0.97x on-press (gesture,
+  `MutableInteractionSource`) + ripple dimatikan. `SectionLabel` font 12sp/letterSpacing
+  1.4 hardcoded. Padding root 24→22dp, gap card 20→16dp.
+- **`build.gradle.kts`**: versionCode 53→54, versionName 1.53→1.54.
+
 ## v1.53 - Batch 14 (fix urgent, dilaporkan user): efek kedalaman neumorphic invisible
 User install v1.52, screenshot device: kartu Bass Boost/Virtualizer/status card nyaris
 FLAT — beda jauh dari `docs/preview/current.html` yang jelas timbul. Root cause: lihat

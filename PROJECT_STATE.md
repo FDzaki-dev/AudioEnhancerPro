@@ -10,7 +10,48 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.53
+- **Versi**: v1.54
+- ✅ **Batch 15 SELESAI**: user kasih spec design system lengkap ("Hybrid Neumorphism")
+  tertulis — diterapkan selektif (bukan semua poin, lihat "Belum dikerjakan" di bawah):
+  - **Warna**: SUDAH 100% match sebelum batch ini (`#232220`/`#C2A26B`/`#F6F4EF`/
+    `#B8B3A8` — kebetulan/gak sengaja sudah persis dari Batch 12). Tidak ada perubahan.
+  - **Shadow**: alpha diturunkan drastis ke spec — sisi gelap 100%→**60% black**
+    (`0x99000000`), sisi terang 20%→**~4% white** (`0x0AFFFFFF`). Offset/blur jadi
+    ASIMETRIS: gelap `+8dp/17dp blur`, terang `-6dp/15dp blur` (sebelumnya simetris
+    `7dp/16dp` di kedua sisi). Token terpusat di `Theme.kt`
+    (`NeuShadowDark/LightOffset/Blur`) — JANGAN hardcode angka baru di `MainActivity.kt`.
+  - **Radius**: Card 20dp→**22dp** (`NeuCardRadius`), Icon Box dipisah jadi **14dp**
+    (`NeuIconBoxRadius`) + ukuran box 36dp→**40dp**. `NeumorphicCard` sekarang terima
+    parameter `radius` (default `NeuCardRadius`, override ke `NeuIconBoxRadius` di
+    icon-orb `FeatureControl`).
+  - **Pressed state**: fungsi baru `neumorphicInnerShadow()` (clip+stroke+shadowLayer,
+    lihat komentar di kodenya) gantiin border rata — dipakai di `NeumorphicCard(pressed
+    = true)` & `NeumorphicCircleButton` saat toggle ON. Tombol power juga dapat scale
+    **0.97x saat DITEKAN JARI** (gesture sesaat via `MutableInteractionSource`+
+    `animateFloatAsState`, BEDA dari param `pressed` yang berarti "toggle ON") + ripple
+    dimatikan (`indication = null`).
+  - **Typography**: Heading 30sp→**28sp** (tetap ExtraBold/800). `SectionLabel` di-hardcode
+    **12sp, letterSpacing 1.4** (lepas dari token `bodyMedium` global). Body 13-15sp &
+    Subtitle 12-13sp SUDAH sesuai sebelumnya, tidak diubah.
+  - **Layout**: padding root 24dp→**22dp**, gap antar-card 20dp→**16dp**.
+  - **Ripple**: dimatikan cuma di `NeumorphicCircleButton` (custom clickable). Chip/Button
+    Material3 bawaan (`FilterChip`, `AssistChip`, `Button`) MASIH pakai ripple default —
+    di luar scope batch ini (lihat TODO).
+
+  **⚠️ BELUM DIKERJAKAN dari spec user (transparan, biar gak dikira "udah 100%")**:
+  1. Slider custom (`Track 10dp`, `Thumb 22dp + shadow + ring`) — Compose `Slider` masih
+     dipakai default Material3 tanpa kustomisasi `thumb=`/`track=`. Butuh subclass Slider
+     Material3 1.2+ API, effort besar, BELUM disentuh.
+  2. `Modifier.drawWithCache()` buat optimasi render — belum dipakai, `drawBehind`/
+     `drawWithContent` biasa (cukup buat skala UI app ini, drawWithCache manfaatnya
+     kelihatan di list besar/animasi berat, bukan static card).
+  3. Radius "Phone: 44dp" di spec — TIDAK ADA elemen UI yang jelas jadi target token ini
+     (kemungkinan sisa dari referensi frame HTML mockup, bukan komponen app), diabaikan.
+  4. Ripple Material3 default (`Button`, `FilterChip`, `AssistChip`) belum diganti jadi
+     "sangat halus/nonaktif" — cuma tombol power custom yang sudah.
+  5. **Belum divalidasi runtime** — semua di atas statis (brace/paren balance +
+     compile-plausibility check), belum pernah di-build & dijalanin di device asli.
+
 - ✅ **Batch 14 SELESAI (fix urgent dilaporkan user)**: "efek kedalaman belum kelihatan"
   di APK asli, padahal HTML preview kelihatan jelas. **ROOT CAUSE ketemu, BUKAN soal
   tuning angka** (dugaan awal di catatan Batch 12 di bawah — itu SALAH): `Modifier.shadow`

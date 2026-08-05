@@ -55,14 +55,25 @@ val DynamicColorAccent = Color(0xFF9C9890); val DynamicColorAccent2 = Color(0xFF
 private val PremiumBronzeDark = Color(0xFFC2A26B)
 private val PremiumBronzeLight = Color(0xFF8A6D3B)
 
-// Warna dual-shadow neumorphic — dipakai NeumorphicCard/NeumorphicTintedCard di
-// MainActivity.kt lewat Modifier.shadow(ambientColor=..., spotColor=...). Sisi
-// "gelap" pakai hitam solid (shadow natural), sisi "terang" pakai putih/hitam
-// dengan alpha rendah supaya cuma jadi highlight tipis, bukan glow terang.
-val NeuShadowDarkSide = Color(0xFF000000)
-val NeuShadowLightSideDark = Color(0x33FFFFFF)   // dipakai di dark theme
-val NeuShadowLightSideLight = Color(0xFFFFFFFF)  // dipakai di light theme
-val NeuShadowDarkSideLight = Color(0x40000000)   // sisi gelap versi light theme (lebih tipis)
+// Warna dual-shadow neumorphic — dipakai lewat Modifier.neumorphicDepth() /
+// neumorphicInnerShadow() (MainActivity.kt, drawBehind manual, BUKAN Modifier.shadow
+// elevation — lihat catatan Batch 14). Batch 15: alpha diselaraskan PERSIS ke spec
+// design system user ("Hybrid Neumorphism"): sisi gelap ~60% black, sisi terang ~4%
+// white (dark theme) — jauh lebih tipis dari draft Batch 12/14 (0x33=20%), tapi justru
+// itu yang bikin efeknya "subtle premium" bukan glow norak, PERSIS kayak HTML aslinya.
+val NeuShadowDarkSide = Color(0x99000000)        // ~60% black — dark theme, sisi gelap
+val NeuShadowLightSideDark = Color(0x0AFFFFFF)   // ~4% white — dark theme, sisi terang
+val NeuShadowLightSideLight = Color(0xFFFFFFFF)  // dipakai di light theme (di luar scope spec user)
+val NeuShadowDarkSideLight = Color(0x40000000)   // sisi gelap versi light theme (di luar scope spec user)
+
+// Batch 15: token radius & parameter shadow terpusat di sini (bukan angka hardcode
+// tersebar di MainActivity.kt) — sesuai spec design system user.
+val NeuCardRadius = 22.dp
+val NeuIconBoxRadius = 14.dp
+val NeuShadowDarkOffset = 8.dp
+val NeuShadowDarkBlur = 17.dp
+val NeuShadowLightOffset = 6.dp
+val NeuShadowLightBlur = 15.dp
 
 private val DarkColors = darkColorScheme(
     primary = PremiumBronzeDark,
@@ -107,8 +118,8 @@ private val LightColors = lightColorScheme(
 private val AppTypography = Typography(
     headlineMedium = TextStyle(
         fontWeight = FontWeight.ExtraBold,
-        fontSize = 30.sp,
-        lineHeight = 36.sp,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
         letterSpacing = (-0.3).sp
     ),
     headlineSmall = TextStyle(
@@ -144,7 +155,7 @@ private val AppTypography = Typography(
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(22.dp),
     large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(32.dp)
 )
