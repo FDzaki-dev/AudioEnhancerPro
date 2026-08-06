@@ -4,6 +4,26 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.56 - Batch 17 (lanjutan audit High #2): ekstraksi ViewModel
+Detail lengkap + alasan perubahan perilaku Context bindService ada di `PROJECT_STATE.md`
+Batch 17 (Hilt DI & item Medium/Low audit MASIH PENDING, belum dikerjakan batch ini).
+- **`BoosterViewModel.kt`** (baru): `AndroidViewModel` polos (belum pakai Hilt/Koin).
+  Nampung `connectionState` (+ enum `ConnectionState`, pindah dari `MainActivity`),
+  status dukungan fitur (bass/virtualizer/loudness/equalizer), `ServiceConnection`,
+  4 buffer pending, dan fungsi `startBoosterService()`/`attemptBindService()`/
+  `setBass()`/`setVirtualizer()`/`setLoudness()`/`setEqualizerBand()`.
+- **`MainActivity.kt`**: 318→226 baris. Sekarang cuma pegang `viewModel: BoosterViewModel
+  by viewModels()` + state yang inheren Activity-only (notification permission, shortcut
+  preset name). Override `onDestroy()` dihapus (unbind sekarang di
+  `BoosterViewModel.onCleared()`).
+- **`BoosterScreen.kt`**: parameter `connectionState` ganti tipe dari
+  `MainActivity.ConnectionState` ke `BoosterViewModel.ConnectionState` (4 titik).
+- **`build.gradle.kts`**: tambah 3 dependency (`activity-ktx`, `lifecycle-viewmodel-ktx`,
+  `lifecycle-viewmodel-compose`), versionCode 55→56, versionName 1.55→1.56.
+- **PERUBAHAN PERILAKU (didisclose)**: bindService/unbindService sekarang pakai
+  Application Context (lewat `AndroidViewModel.getApplication()`), bukan Activity
+  Context — alasan & dampak praktis dijelaskan di `PROJECT_STATE.md`.
+
 ## v1.55 - Batch 16 (audit dari user): God Activity split (MainActivity.kt → 3 file)
 User kirim audit checklist (High/Medium/Low), serahkan prioritas ke Claude. Detail
 keputusan+alasan lengkap ada di `PROJECT_STATE.md` Batch 16 (baca itu dulu kalau lanjut

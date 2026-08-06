@@ -250,7 +250,7 @@ fun BoosterScreen(
     onThemeModeChange: (Int) -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
-    connectionState: MainActivity.ConnectionState = MainActivity.ConnectionState.CONNECTED,
+    connectionState: BoosterViewModel.ConnectionState = BoosterViewModel.ConnectionState.CONNECTED,
     onRetryConnection: () -> Unit = {},
     onRestartService: () -> Unit = {},
     requestedCustomPresetName: String? = null,
@@ -383,7 +383,7 @@ fun BoosterScreen(
         CrashBanner()
 
         when (connectionState) {
-            MainActivity.ConnectionState.CONNECTING -> {
+            BoosterViewModel.ConnectionState.CONNECTING -> {
                 NeumorphicCard {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
@@ -395,7 +395,7 @@ fun BoosterScreen(
                     }
                 }
             }
-            MainActivity.ConnectionState.ERROR -> {
+            BoosterViewModel.ConnectionState.ERROR -> {
                 NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -418,7 +418,7 @@ fun BoosterScreen(
                     }
                 }
             }
-            MainActivity.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
+            BoosterViewModel.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
         }
 
         if (!notificationPermissionGranted) {

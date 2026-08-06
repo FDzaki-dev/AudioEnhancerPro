@@ -1,32 +1,32 @@
 package com.audioenhancer.booster
 
-// Batch 16: God Activity split (audit High-priority item #1). MainActivity.kt sekarang
-// CUMA berisi Activity class — lifecycle, service binding, permission launcher, dan
-// pemanggilan BoosterScreen(). Semua Composable UI (BoosterScreen + pendukungnya) pindah
-// ke BoosterScreen.kt, komponen visual generik (NeumorphicCard dkk) pindah ke
-// NeumorphicComponents.kt. TIDAK ADA perubahan logic/behavior — murni pemindahan lokasi
-// kode + penyesuaian visibility (`private`→`internal`) yang diperlukan supaya composable
-// lintas-file tetap bisa saling panggil. Lanjutan yang BELUM dikerjakan (lihat
-// PROJECT_STATE.md Batch 16): ekstraksi state+business logic ke ViewModel (MVVM), lalu DI
-// (Hilt/Koin) — sengaja dipisah batch demi batch (Batch Lock), bukan sekaligus, karena
-// sandbox Claude tidak punya compiler untuk verifikasi runtime.
+// Batch 16: God Activity split (audit High-priority item #1) — MainActivity.kt dipecah
+// jadi 3 file (lihat BoosterScreen.kt, NeumorphicComponents.kt).
+// Batch 17 (audit High #2): state+business logic seputar koneksi AudioEnhancerService
+// (dulu ada di class ini) DIPINDAH ke BoosterViewModel.kt (plain AndroidViewModel, TANPA
+// DI framework — Hilt/Koin PENDING, Atomic Change terpisah, lihat PROJECT_STATE.md
+// Batch 17). MainActivity.kt sekarang CUMA: lifecycle Activity, permission launcher,
+// handling shortcut Intent, dan glue ke ViewModel + BoosterScreen(). `ConnectionState`
+// enum juga PINDAH ke `BoosterViewModel.ConnectionState` (dulu nested di sini).
+// State yang TETAP di sini (SENGAJA tidak dipindah ke ViewModel): notification
+// permission (butuh ActivityResultLauncher, API Activity-only) & shortcut preset name
+// (butuh Intent dari Activity) — dua-duanya inheren terikat ke lifecycle/API Activity,
+// bukan business logic audio yang reusable.
 
 import android.Manifest
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.IBinder
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
@@ -46,77 +46,14 @@ import androidx.compose.ui.graphics.Color
 
 class MainActivity : ComponentActivity() {
 
-    /** Status koneksi ke AudioEnhancerService — dipakai UI untuk loading/error state eksplisit. */
-    enum class ConnectionState { CONNECTING, CONNECTED, ERROR }
+    private val viewModel: BoosterViewModel by viewModels()
 
-    private var service: AudioEnhancerService? = null
-    private var bound = false
-
-    // Status koneksi ke service, dipakai untuk tampilkan loading/error state eksplisit di UI —
-    // sebelumnya kalau bindService() gagal total, app cuma diam tanpa penjelasan sama sekali.
-    private var connectionState by mutableStateOf(ConnectionState.CONNECTING)
-
-    private var bassSupported by mutableStateOf(true)
-    private var virtualizerSupported by mutableStateOf(true)
-    private var loudnessSupported by mutableStateOf(true)
-    private var bassStrengthSupported by mutableStateOf(true)
-    private var virtualizerStrengthSupported by mutableStateOf(true)
     private var notificationPermissionGranted by mutableStateOf(true)
 
     // Diisi kalau app dibuka lewat App Shortcut (long-press ikon launcher) yang nunjuk
     // ke preset custom tertentu. BoosterScreen yang nge-apply beneran (butuh akses ke
     // service/pending-buffer di dalam Compose), di sini cuma nampung nama presetnya.
     private var shortcutCustomPresetName by mutableStateOf<String?>(null)
-
-    // Info equalizer per-band, diisi begitu service konek (band count 0 = belum siap/tidak didukung).
-    private var equalizerSupported by mutableStateOf(false)
-    private var equalizerBandCount by mutableStateOf(0)
-    private var equalizerLevelMin by mutableStateOf<Short>(-1500)
-    private var equalizerLevelMax by mutableStateOf<Short>(1500)
-    private var equalizerCenterFreqsHz by mutableStateOf<List<Int>>(emptyList())
-    private var equalizerInitialLevels by mutableStateOf<List<Short>>(emptyList())
-
-    // Menyimpan perubahan slider yang terjadi SEBELUM bindService() selesai konek (race condition:
-    // user geser slider dalam <100ms setelah app dibuka). Diterapkan begitu service tersedia,
-    // supaya perubahan itu tidak diam-diam hilang.
-    private var pendingBass: Short? = null
-    private var pendingVirtualizer: Short? = null
-    private var pendingLoudness: Float? = null
-    private val pendingEqualizerBands = mutableMapOf<Int, Short>()
-
-    private val connection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            service = (binder as AudioEnhancerService.LocalBinder).getService()
-            bound = true
-            connectionState = ConnectionState.CONNECTED
-            bassSupported = service?.isBassSupported() ?: true
-            virtualizerSupported = service?.isVirtualizerSupported() ?: true
-            loudnessSupported = service?.isLoudnessSupported() ?: true
-            bassStrengthSupported = service?.isBassStrengthSupported() ?: true
-            virtualizerStrengthSupported = service?.isVirtualizerStrengthSupported() ?: true
-
-            equalizerSupported = service?.isEqualizerSupported() ?: false
-            val bandCount = service?.getEqualizerBandCount() ?: 0
-            equalizerBandCount = bandCount
-            service?.getEqualizerLevelRange()?.let { range ->
-                equalizerLevelMin = range.getOrElse(0) { -1500 }
-                equalizerLevelMax = range.getOrElse(1) { 1500 }
-            }
-            equalizerCenterFreqsHz = (0 until bandCount).map { service?.getEqualizerBandCenterFreqHz(it) ?: 0 }
-            equalizerInitialLevels = (0 until bandCount).map { service?.getEqualizerBandLevel(it) ?: 0 }
-
-            // Terapkan perubahan yang sempat tertunda selagi belum konek.
-            pendingBass?.let { service?.setBassStrength(it) }; pendingBass = null
-            pendingVirtualizer?.let { service?.setVirtualizerStrength(it) }; pendingVirtualizer = null
-            pendingLoudness?.let { service?.setLoudnessGain(it) }; pendingLoudness = null
-            pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
-            pendingEqualizerBands.clear()
-        }
-        override fun onServiceDisconnected(name: ComponentName?) {
-            bound = false
-            connectionState = ConnectionState.CONNECTING
-        }
-    }
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -131,27 +68,6 @@ class MainActivity : ComponentActivity() {
             if (!granted) {
                 notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-        }
-    }
-
-    /** Bisa dipanggil ulang kapan saja (bukan cuma di onCreate) — misal dari tombol
-     *  "Nyalakan Lagi" kalau service sempat di-stop lewat notifikasi sementara app masih kebuka. */
-    private fun startBoosterService() {
-        AudioEnhancerService.requestStart(this)
-    }
-
-    /** Coba bind ke service lagi. Dipakai di onCreate DAN dari tombol "Coba Lagi" —
-     *  sengaja dipisah dari recreate() supaya retry tidak ikut memicu ulang dialog
-     *  izin notifikasi/baterai yang seharusnya cuma relevan di startup pertama. */
-    private fun attemptBindService() {
-        connectionState = ConnectionState.CONNECTING
-        startBoosterService()
-        val intent = Intent(this, AudioEnhancerService::class.java)
-        try {
-            val boundOk = bindService(intent, connection, Context.BIND_AUTO_CREATE)
-            if (!boundOk) connectionState = ConnectionState.ERROR
-        } catch (_: Exception) {
-            connectionState = ConnectionState.ERROR
         }
     }
 
@@ -184,7 +100,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
 
-        attemptBindService()
+        viewModel.attemptBindService()
 
         requestIgnoreBatteryOptimizations()
         handleShortcutIntent(intent)
@@ -233,25 +149,22 @@ class MainActivity : ComponentActivity() {
                         })
                     } else {
                         BoosterScreen(
-                            onBass = { if (bound) service?.setBassStrength(it) else pendingBass = it },
-                            onVirtualizer = { if (bound) service?.setVirtualizerStrength(it) else pendingVirtualizer = it },
-                            onLoudness = { if (bound) service?.setLoudnessGain(it) else pendingLoudness = it },
-                            onEqualizerBand = { band, level ->
-                                if (bound) service?.setEqualizerBand(band.toShort(), level)
-                                else pendingEqualizerBands[band] = level
-                            },
+                            onBass = { viewModel.setBass(it) },
+                            onVirtualizer = { viewModel.setVirtualizer(it) },
+                            onLoudness = { viewModel.setLoudness(it) },
+                            onEqualizerBand = { band, level -> viewModel.setEqualizerBand(band, level) },
                             onOpenHelp = { showOnboarding = true },
-                            bassSupported = bassSupported,
-                            virtualizerSupported = virtualizerSupported,
-                            loudnessSupported = loudnessSupported,
-                            bassStrengthSupported = bassStrengthSupported,
-                            virtualizerStrengthSupported = virtualizerStrengthSupported,
-                            equalizerSupported = equalizerSupported,
-                            equalizerBandCount = equalizerBandCount,
-                            equalizerLevelMin = equalizerLevelMin,
-                            equalizerLevelMax = equalizerLevelMax,
-                            equalizerCenterFreqsHz = equalizerCenterFreqsHz,
-                            equalizerInitialLevels = equalizerInitialLevels,
+                            bassSupported = viewModel.bassSupported,
+                            virtualizerSupported = viewModel.virtualizerSupported,
+                            loudnessSupported = viewModel.loudnessSupported,
+                            bassStrengthSupported = viewModel.bassStrengthSupported,
+                            virtualizerStrengthSupported = viewModel.virtualizerStrengthSupported,
+                            equalizerSupported = viewModel.equalizerSupported,
+                            equalizerBandCount = viewModel.equalizerBandCount,
+                            equalizerLevelMin = viewModel.equalizerLevelMin,
+                            equalizerLevelMax = viewModel.equalizerLevelMax,
+                            equalizerCenterFreqsHz = viewModel.equalizerCenterFreqsHz,
+                            equalizerInitialLevels = viewModel.equalizerInitialLevels,
                             initialBass = PrefsHelper.getBass(this@MainActivity).toFloat(),
                             initialVirtualizer = PrefsHelper.getVirtualizer(this@MainActivity).toFloat(),
                             initialLoudness = PrefsHelper.getLoudness(this@MainActivity),
@@ -269,9 +182,9 @@ class MainActivity : ComponentActivity() {
                                 useDynamicColor = it
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
                             },
-                            connectionState = connectionState,
-                            onRetryConnection = { attemptBindService() },
-                            onRestartService = { startBoosterService() },
+                            connectionState = viewModel.connectionState,
+                            onRetryConnection = { viewModel.attemptBindService() },
+                            onRestartService = { viewModel.startBoosterService() },
                             requestedCustomPresetName = shortcutCustomPresetName,
                             onRequestedPresetConsumed = { shortcutCustomPresetName = null }
                         )
@@ -309,10 +222,5 @@ class MainActivity : ComponentActivity() {
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         }
-    }
-
-    override fun onDestroy() {
-        if (bound) { unbindService(connection); bound = false }
-        super.onDestroy()
     }
 }

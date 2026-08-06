@@ -10,6 +10,7 @@ app/src/main/AndroidManifest.xml
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerApp.kt
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt
 app/src/main/java/com/audioenhancer/booster/BoosterScreen.kt
+app/src/main/java/com/audioenhancer/booster/BoosterViewModel.kt
 app/src/main/java/com/audioenhancer/booster/BoosterWidgetProvider.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt

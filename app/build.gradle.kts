@@ -11,8 +11,8 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        versionCode = 55
-        versionName = "1.55"
+        versionCode = 56
+        versionName = "1.56"
     }
 
     signingConfigs {
@@ -74,6 +74,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
+    // Batch 17: BoosterViewModel (AndroidViewModel) + `by viewModels()` di MainActivity.
+    implementation("androidx.activity:activity-ktx:1.9.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")

@@ -10,7 +10,52 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.55
+- **Versi**: v1.56
+- ✅ **Batch 17 SELESAI**: lanjutan audit (High #2) — ekstraksi state + business logic
+  seputar koneksi `AudioEnhancerService` dari `MainActivity.kt` ke `BoosterViewModel.kt`
+  (baru, `AndroidViewModel` polos, **TANPA DI framework**).
+  - **State pindah ke ViewModel** (jadi `var ... by mutableStateOf(...); private set`,
+    exposed read-only): `connectionState` (enum-nya juga pindah, sekarang
+    `BoosterViewModel.ConnectionState` bukan `MainActivity.ConnectionState`),
+    `bassSupported`/`virtualizerSupported`/`loudnessSupported`/`bassStrengthSupported`/
+    `virtualizerStrengthSupported`, semua state `equalizer*`, `service`/`bound` fields,
+    `ServiceConnection`, 4 buffer `pending*`.
+  - **Fungsi pindah**: `startBoosterService()`, `attemptBindService()`, ditambah 4 fungsi
+    baru `setBass/setVirtualizer/setLoudness/setEqualizerBand()` (gantiin lambda inline
+    `{ if (bound) service?.xxx else pendingXxx = it }` yang dulu ada di `setContent{}`
+    MainActivity — sekarang tinggal `{ viewModel.setBass(it) }`).
+  - **State yang SENGAJA TETAP di MainActivity** (bukan business logic audio, inheren
+    API Activity-only): `notificationPermissionGranted` (butuh
+    `ActivityResultLauncher`), `shortcutCustomPresetName` (butuh `Intent` dari Activity).
+  - **PERUBAHAN PERILAKU kecil (didisclose, BUKAN zero-change seperti Batch 16)**:
+    bindService/unbindService sekarang pakai `getApplication()` (Application Context)
+    lewat `AndroidViewModel`, bukan Activity Context langsung. Alasan: ViewModel yang
+    nyimpen Activity Context adalah context-leak risk (VM bisa outlive 1 instance
+    Activity kalau ada config change). Dampak praktis nyaris nihil di app ini karena
+    rotasi sudah dideprioritaskan user (VM tetap 1:1 umur dengan MainActivity). Unbind
+    sekarang di `BoosterViewModel.onCleared()`, bukan `MainActivity.onDestroy()` lagi
+    (override `onDestroy()` di MainActivity sudah dihapus, gak ada isinya lagi).
+  - **Dependency baru** (`build.gradle.kts`, edit parsial): `androidx.activity:activity-ktx:1.9.1`
+    (buat `by viewModels()`), `androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4` +
+    `androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4`.
+  - **PENTING buat sesi depan**: kalau nambah state/logic baru yang terkait
+    audio/service (bukan cuma UI lokal), taruh di `BoosterViewModel.kt`, JANGAN balik
+    ke pola field `by mutableStateOf` langsung di `MainActivity`. `BoosterScreen.kt`
+    sekarang terima `connectionState: BoosterViewModel.ConnectionState` (bukan
+    `MainActivity.ConnectionState` lagi) — kalau nambah screen/composable baru yang
+    perlu tahu status koneksi, referensikan ke `BoosterViewModel.ConnectionState`.
+  - **Belum dikerjakan dari audit** (urutan sama seperti dicatat di Batch 16, belum
+    berubah): (1) Hilt DI (Atomic Change terpisah, butuh ubah
+    `build.gradle.kts`+`settings.gradle.kts` lebih jauh — plugin Hilt, KSP/kapt, dst),
+    (2) item Medium (recomposition/reusable component, hierarki visual, white space,
+    micro-animation, loading/success/error feedback, empty/error state), (3) item Low
+    (penjelasan fitur lanjutan).
+  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file project,
+    grep sisa referensi `MainActivity.ConnectionState` = 0, cross-check import unused,
+    string parity ID/EN tetap 95/95). Kandidat pertama dicurigai kalau ada laporan
+    aneh soal binding/unbinding service setelah update: perubahan Context bindService
+    di atas (Application vs Activity Context).
+
 - ✅ **Batch 16 SELESAI**: audit kode (dari user, format checklist High/Medium/Low) — user
   eksplisit serahkan urutan prioritas ke Claude. Keputusan: item High "God Activity split"
   (MVVM+DI dianggap Atomic Change terlalu besar buat 1 batch tanpa compiler) dikerjakan
