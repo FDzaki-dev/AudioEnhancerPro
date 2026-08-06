@@ -21,13 +21,49 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # v1.58 fix: root cause build gagal di v1.57 (bukan soal Hilt) — project ini gak
+      # commit gradlew/gradle-wrapper.properties, jadi wrapper di-generate on-the-fly
+      # pakai `gradle wrapper` TANPA versi eksplisit → ikut versi Gradle bawaan runner
+      # image (yang di-update GitHub kapan aja, terakhir jadi 9.6.1 — jauh lebih baru
+      # dari yang didukung Kotlin Gradle Plugin 1.9.24 project ini, bikin gagal di tahap
+      # configuration project SEBELUM compile kode Kotlin manapun sempat jalan). Fix:
+      # PIN versi Gradle secara eksplisit, jangan biarkan ikut versi runner.
       - name: Grant execute permission for gradlew
         run: |
-          if [ ! -f gradlew ]; then gradle wrapper; fi
+          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.7; fi
           chmod +x gradlew
 
+      # Ambil versionName di sini juga (bukan cuma di job release) — dipakai buat nama
+      # artifact log kegagalan di bawah, supaya log gagal build gampang dikenali versi
+      # mana tanpa buka run detail.
+      - name: Extract version name
+        id: version
+        run: |
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          if [ -z "$VERSION" ]; then VERSION="0.0"; fi
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # Output gradle di-tee ke file supaya bisa diupload sebagai artifact kalau gagal
+      # (sebelumnya cuma bisa dibaca dari tab Actions, harus buka run + scroll manual).
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee gradle-build-debug.log
+
+      # Diminta user: artifact 'log_fail_v*' biar gampang diunduh langsung kalau CI
+      # gagal, tanpa perlu buka & scroll log mentah di tab Actions. Cuma jalan kalau
+      # step build di atas gagal (if: failure()) — kalau sukses, gak ada artifact ini
+      # sama sekali (gak numpuk artifact percuma tiap build sukses).
+      - name: Upload failure log (debug build)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
+          path: |
+            gradle-build-debug.log
+            **/build/reports/**
+          retention-days: 14
+          if-no-files-found: warn
 
   # Job ini CUMA jalan kalau KEYSTORE_BASE64 sudah diset di GitHub Secrets.
   # Kalau belum, job ini di-skip (bukan gagal) — supaya CI tidak menampilkan ❌
@@ -49,9 +85,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      # v1.58 fix: sama seperti job build — pin versi Gradle eksplisit, jangan ikut
+      # versi bawaan runner (root cause gagal build v1.57, lihat komentar job build).
       - name: Grant execute permission for gradlew
         run: |
-          if [ ! -f gradlew ]; then gradle wrapper; fi
+          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.7; fi
           chmod +x gradlew
 
       - name: Check keystore secret availability
@@ -93,7 +131,23 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee gradle-build-release.log
+
+      # Sama seperti job build: artifact 'log_fail_v*' kalau build release gagal.
+      # Dicek 'has_secret' juga supaya gak nyoba upload log yang gak ada kalau step
+      # build-nya sendiri di-skip karena secret belum diset (bukan gagal beneran).
+      - name: Upload failure log (release build)
+        if: failure() && steps.secret_check.outputs.has_secret == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}
+          path: |
+            gradle-build-release.log
+            **/build/reports/**
+          retention-days: 14
+          if-no-files-found: warn
 
       # Rename APK hasil build supaya nama file-nya sendiri sudah mengandung versi,
       # jadi jelas dari nama file saja tanpa perlu buka properties.

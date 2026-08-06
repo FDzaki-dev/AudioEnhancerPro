@@ -10,10 +10,47 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.57
-- ⚠️ **Batch 18 SELESAI DIKERJAKAN, TAPI RISIKO PALING TINGGI dari semua batch audit** —
-  Hilt DI (High #3, penutup 3 item High dari audit). WAJIB baca ini sebelum lanjut kalau
-  CI gagal di batch ini.
+- **Versi**: v1.58
+- ✅ **Batch 19 SELESAI: CI fix (root cause v1.57 gagal) + failure-log artifact.** User
+  upload log Actions run yang gagal (`logs_84299378158.zip`) setelah v1.57 dipush.
+  - **ROOT CAUSE — BUKAN Hilt sama sekali.** Error sebenarnya:
+    `A problem occurred configuring project ':app'` →
+    `'...Configuration.fileCollection(...Spec)'` — ini gagal di TAHAP KONFIGURASI
+    project, SEBELUM task compile Kotlin manapun sempat jalan. Penyebab: project ini
+    dari awal TIDAK commit `gradlew`/`gradle-wrapper.properties` — CI generate wrapper
+    on-the-fly via `gradle wrapper` TANPA versi eksplisit, jadi ikut versi Gradle
+    bawaan image runner. Runner image ter-update (`ubuntu-24.04` versi
+    `20260720.247.2`) sekarang bawa **Gradle 9.6.1**, jauh lebih baru dari yang
+    didukung Kotlin Gradle Plugin 1.9.24 project ini (KGP 1.9.24 rilis 2023, gak
+    kompatibel API internal Gradle 9.x). Ini bug LATEN dari awal project (gak pernah
+    pin versi Gradle) yang baru kepicu sekarang karena Gradle di sisi GitHub jalan
+    terus naik versi — Batch 18 (Hilt) cuma KEBETULAN jadi push pertama SETELAH
+    runner image ter-update, bukan penyebabnya.
+  - **Fix**: `.github/workflows/build.yml` — `gradle wrapper` di kedua job (`build` &
+    `release`) sekarang eksplisit `gradle wrapper --gradle-version 8.7` (kompatibel
+    AGP 8.5.2 [min Gradle 8.7] + Kotlin 1.9.24). TIDAK ada perubahan kode Kotlin sama
+    sekali di batch ini — murni infra CI.
+  - **Fitur baru diminta user**: artifact `log_fail_v<versi>-<debug|release>-run<N>`
+    di-upload OTOMATIS (`if: failure()`) tiap kali step build gagal, isi = output
+    lengkap `./gradlew ... --stacktrace` (di-`tee` ke file) + `**/build/reports/**`
+    (termasuk `problems-report.html`). Muncul di tab Actions run → bagian Artifacts,
+    gak perlu scroll log mentah manual lagi. Kalau build sukses, artifact ini SAMA
+    SEKALI TIDAK dibuat (gak numpuk sampah di setiap run sukses).
+  - **PENTING buat sesi depan**: kalau suatu saat mau upgrade AGP/Kotlin lagi, versi
+    `--gradle-version 8.7` di CI HARUS di-update bareng (dicek kompatibilitasnya) —
+    JANGAN dibiarkan mismatch lagi kayak insiden ini.
+  - **Belum diverifikasi**: fix ini VALIDASI-nya HARUS lewat CI beneran (push +
+    lihat run baru) — sandbox gak bisa jalanin Gradle Wrapper generation sungguhan.
+    Confidence tinggi karena root cause sudah jelas & fix-nya standar (pin versi),
+    tapi tetap disarankan cek run berikutnya sebelum lanjut nambah fitur lagi.
+
+- ⚠️ **Batch 18 (v1.57, Hilt DI)** — status DIPERBARUI: kegagalan CI sebelumnya
+  TERNYATA BUKAN karena Hilt (lihat root cause Batch 19 di atas). Perubahan Hilt di
+  v1.57 kemungkinan besar SUDAH BENAR, cuma belum sempat diuji beneran karena CI gagal
+  duluan di tahap konfigurasi sebelum kode Hilt-nya sendiri sempat dikompilasi. Setelah
+  fix Batch 19 di-push, run berikutnya baru akan jadi tes SUNGGUHAN buat kode Hilt.
+
+- **Detail lengkap Batch 18 (Hilt DI, High #3, penutup 3 item High dari audit)**:
   - **Kenapa risiko lebih tinggi dari Batch 16/17**: ini pertama kalinya audit nyentuh
     LAPISAN BUILD SYSTEM (plugin resolution, annotation processing/`kapt`), bukan cuma
     kode Kotlin. Sandbox Claude gak bisa verifikasi resolusi plugin/dependency Gradle

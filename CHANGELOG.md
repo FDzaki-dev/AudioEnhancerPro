@@ -4,6 +4,21 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.58 - Batch 19: fix root cause CI gagal (v1.57) + artifact log_fail_v*
+User upload log Actions run yang gagal. Root cause **BUKAN Hilt** — detail lengkap di
+`PROJECT_STATE.md` Batch 19 (WAJIB baca kalau bingung kenapa v1.57 dilabeli ulang jadi
+"belum teruji" alih-alih "gagal").
+- **`.github/workflows/build.yml`**:
+  - Root cause fix: `gradle wrapper` → `gradle wrapper --gradle-version 8.7` (pin
+    eksplisit, sebelumnya ikut versi Gradle bawaan runner GitHub yang naik ke 9.6.1 dan
+    gak kompatibel Kotlin Gradle Plugin 1.9.24 project ini — gagal di tahap konfigurasi
+    project, sebelum kode Kotlin manapun sempat dikompilasi).
+  - Fitur diminta user: artifact `log_fail_v<versi>-<debug|release>-run<N>`, otomatis
+    ke-upload cuma kalau step build gagal (`if: failure()`), isi = full output
+    `--stacktrace` + `**/build/reports/**`.
+- **`build.gradle.kts`** (app): versionCode 57→58, versionName 1.57→1.58.
+- Tidak ada perubahan kode Kotlin — murni infra CI.
+
 ## v1.57 - Batch 18 (penutup audit High): Hilt DI — ⚠️ RISIKO PALING TINGGI
 Detail risiko + rencana recovery kalau CI gagal ada di `PROJECT_STATE.md` Batch 18 —
 WAJIB dibaca sebelum lanjut kalau build error. Batch ini nyentuh build system
