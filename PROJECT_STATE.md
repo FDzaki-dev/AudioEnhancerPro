@@ -10,7 +10,53 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.54
+- **Versi**: v1.55
+- ✅ **Batch 16 SELESAI**: audit kode (dari user, format checklist High/Medium/Low) — user
+  eksplisit serahkan urutan prioritas ke Claude. Keputusan: item High "God Activity split"
+  (MVVM+DI dianggap Atomic Change terlalu besar buat 1 batch tanpa compiler) dikerjakan
+  DULUAN sebagai **pemindahan lokasi kode murni (zero logic change)**, karena:
+  1. Foundational — memudahkan ekstraksi ViewModel di batch berikutnya (diff lebih kecil,
+     lebih gampang dicek manual tanpa compiler).
+  2. Risiko paling rendah di antara semua item High: TIDAK ada perubahan logic/state/
+     behavior sama sekali, cuma potong-pindah blok kode + ubah `private`→`internal` di
+     5 composable yang sekarang dipanggil lintas-file. Diverifikasi: cross-check daftar
+     deklarasi (16/16 cocok, tidak ada yang hilang/dobel), brace/paren balance semua file
+     project (bukan cuma 3 file baru), string parity ID/EN (95/95, tidak berubah).
+  3. MVVM (ekstrak state+business logic ke ViewModel) & DI (Hilt/Koin) SENGAJA
+     DITUNDA ke batch terpisah — 2 perubahan besar sekaligus (struktur file + arsitektur
+     state) tanpa compiler sekali jalan terlalu berisiko (lihat insiden v1.40/v1.46 di
+     bawah, root cause-nya selalu typo kecil yang lolos karena gak ada compile-check).
+  - **File yang berubah**: `MainActivity.kt` dipecah jadi 3 file:
+    - `MainActivity.kt` (318 baris, dari 1421) — CUMA Activity class: lifecycle, service
+      binding, permission launcher, pemanggilan `BoosterScreen()`.
+    - `BoosterScreen.kt` (baru, 824 baris) — `BoosterScreen` + composable spesifik-layar:
+      `ServiceStatusBadge`, `PowerToggleRow`, `CrashBanner`, `ThemeModeToggle`,
+      `EqualizerSection`, `Preset` (data class), `formatFreqLabel`.
+    - `NeumorphicComponents.kt` (baru, 335 baris) — atom UI reusable: `NeumorphicCard`,
+      `NeumorphicTintedCard`, `NeumorphicCircleButton`, `SectionLabel`, `FeatureControl`,
+      `neumorphicDepth()`/`neumorphicInnerShadow()` (2 terakhir tetap `private`, cuma
+      dipakai di file ini).
+  - **Visibility yang diubah** (`private`→`internal`, WAJIB karena sekarang lintas-file):
+    `NeumorphicCard`, `NeumorphicTintedCard`, `NeumorphicCircleButton`, `SectionLabel`,
+    `FeatureControl`. `MainActivity.ConnectionState` (enum nested) TIDAK diubah — sudah
+    public by default, dipanggil dari `BoosterScreen.kt` via `MainActivity.ConnectionState.X`.
+  - **PENTING buat sesi depan**: kalau nambah composable baru yang generik/reusable
+    (bukan spesifik 1 layar), taruh di `NeumorphicComponents.kt`. Kalau spesifik ke layar
+    booster utama, taruh di `BoosterScreen.kt`. JANGAN tambah composable baru langsung di
+    `MainActivity.kt` lagi — file itu sekarang murni Activity/lifecycle.
+  - **Belum dikerjakan dari audit** (urutan rencana, TIDAK diminta dikerjakan sekaligus):
+    1. Ekstrak state (`bass`/`virtualizer`/`loudness`/service-binding fields dkk) +
+       business logic (`applyPreset`, `attemptBindService`, dst) ke `BoosterViewModel.kt`
+       (plain ViewModel dulu, TANPA DI framework) — High #2.
+    2. Introduce Hilt (butuh ubah `build.gradle.kts`+`settings.gradle.kts`, Atomic Change
+       sendiri) — High #3.
+    3. Item Medium (recomposition/reusable component, hierarki visual, white space,
+       micro-animation, loading/success/error feedback, empty/error state) & Low
+       (penjelasan fitur lanjutan) — dikerjain SETELAH arsitektur stabil, biar gak
+       nambah lagi yang perlu di-refactor ulang pas MVVM masuk.
+  - **Belum divalidasi runtime** — sama seperti batch-batch sebelumnya, sandbox Claude
+    gak punya compiler, cuma statis (brace/paren + cross-check deklarasi + grep import).
+
 - ✅ **Batch 15 SELESAI**: user kasih spec design system lengkap ("Hybrid Neumorphism")
   tertulis — diterapkan selektif (bukan semua poin, lihat "Belum dikerjakan" di bawah):
   - **Warna**: SUDAH 100% match sebelum batch ini (`#232220`/`#C2A26B`/`#F6F4EF`/

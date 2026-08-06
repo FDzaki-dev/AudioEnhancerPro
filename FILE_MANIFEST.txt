@@ -9,10 +9,12 @@ app/proguard-rules.pro
 app/src/main/AndroidManifest.xml
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerApp.kt
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt
+app/src/main/java/com/audioenhancer/booster/BoosterScreen.kt
 app/src/main/java/com/audioenhancer/booster/BoosterWidgetProvider.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
+app/src/main/java/com/audioenhancer/booster/NeumorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt

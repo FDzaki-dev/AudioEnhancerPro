@@ -4,6 +4,25 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.55 - Batch 16 (audit dari user): God Activity split (MainActivity.kt → 3 file)
+User kirim audit checklist (High/Medium/Low), serahkan prioritas ke Claude. Detail
+keputusan+alasan lengkap ada di `PROJECT_STATE.md` Batch 16 (baca itu dulu kalau lanjut
+kerjain sisa audit — MVVM/DI/UI polish BELUM dikerjakan, sengaja ditunda).
+- **`MainActivity.kt`**: 1421→318 baris. Sekarang cuma Activity class (lifecycle, service
+  binding, permission launcher, `BoosterScreen()` call).
+- **`BoosterScreen.kt`** (baru): `BoosterScreen`, `ServiceStatusBadge`, `PowerToggleRow`,
+  `CrashBanner`, `ThemeModeToggle`, `EqualizerSection`, `Preset`, `formatFreqLabel`.
+- **`NeumorphicComponents.kt`** (baru): `NeumorphicCard`, `NeumorphicTintedCard`,
+  `NeumorphicCircleButton`, `SectionLabel`, `FeatureControl`, `neumorphicDepth()`,
+  `neumorphicInnerShadow()`.
+- 5 composable (`NeumorphicCard`/`NeumorphicTintedCard`/`NeumorphicCircleButton`/
+  `SectionLabel`/`FeatureControl`) diubah `private`→`internal` karena sekarang dipanggil
+  lintas-file dalam package yang sama.
+- **`build.gradle.kts`**: versionCode 54→55, versionName 1.54→1.55.
+- **ZERO perubahan logic/behavior/UI** — murni pemindahan lokasi kode. Diverifikasi:
+  16/16 deklarasi cocok (tidak ada yang hilang/dobel), brace/paren balance SEMUA file
+  Kotlin project (bukan cuma 3 file baru), string parity ID/EN tetap 95/95.
+
 ## v1.54 - Batch 15 (diminta user): terapkan spec design system "Hybrid Neumorphism"
 User kirim spec lengkap tertulis (color/shadow/radius/elevation/pressed-state/typography/
 layout). Diterapkan selektif — detail lengkap + yang BELUM dikerjakan ada di

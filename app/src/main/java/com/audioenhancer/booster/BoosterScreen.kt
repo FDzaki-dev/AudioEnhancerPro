@@ -1,0 +1,824 @@
+package com.audioenhancer.booster
+
+// Batch 16: dipecah dari MainActivity.kt (God Activity split, audit High-priority item).
+// Berisi layar utama (BoosterScreen) + composable pendukungnya yang SPESIFIK ke layar ini
+// (ServiceStatusBadge, PowerToggleRow, CrashBanner, ThemeModeToggle, EqualizerSection,
+// Preset). Semua tetap `private` (dipakai cuma di dalam file ini) KECUALI `BoosterScreen`
+// sendiri (dipanggil dari MainActivity.kt) dan `formatFreqLabel` (sudah `internal`
+// sebelumnya, ada test unit-nya di FormatFreqLabelTest.kt). Komponen visual generik
+// (NeumorphicCard dkk) sekarang ada di NeumorphicComponents.kt, bukan di file ini lagi —
+// TIDAK ADA perubahan logic/behavior, murni pemindahan lokasi kode.
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+
+@Composable
+private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
+    var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+
+    // Cek status tiap 1 detik selagi layar ini terbuka, biar badge selalu akurat.
+    LaunchedEffect(Unit) {
+        while (true) {
+            isRunning = AudioEnhancerService.isRunning
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    NeumorphicTintedCard(tint = statusTint) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(10.dp)
+                    .clip(CircleShape)
+                    .background(if (isRunning) Color(0xFF30D158) else Color(0xFFFF453A))
+            )
+            Text(
+                if (isRunning) stringResource(R.string.status_running)
+                else stringResource(R.string.status_not_running),
+                style = MaterialTheme.typography.bodySmall,
+                color = statusTint,
+                modifier = Modifier.weight(1f)
+            )
+            if (!isRunning) {
+                Button(onClick = onRestartService) {
+                    Text(stringResource(R.string.restart_service))
+                }
+            }
+        }
+    }
+}
+
+/** Batch 13: tombol toggle utama "Aktif/Nonaktif" — porting 1:1 dari `.power-row`/`.power-btn`
+ *  di docs/preview/current.html. State polling isRunning SENGAJA dibuat independen dari
+ *  ServiceStatusBadge (pola yang sama, duplikasi kecil disengaja) supaya composable ini
+ *  tetap berdiri sendiri dan tidak mengubah perilaku badge yang sudah ada.
+ *  Aksi start/stop pakai AudioEnhancerService.requestStart/requestStop — fungsi yang sama
+ *  dipakai ShortcutHelper (long-press ikon launcher) & QuickToggleTileService, jadi semua
+ *  entry point toggle konsisten satu sumber kebenaran. */
+@Composable
+private fun PowerToggleRow() {
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+    var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            isRunning = AudioEnhancerService.isRunning
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        NeumorphicCircleButton(
+            pressed = isRunning,
+            ringColor = if (isRunning) MaterialTheme.colorScheme.primary else null,
+            onClick = {
+                if (isRunning) AudioEnhancerService.requestStop(context)
+                else AudioEnhancerService.requestStart(context)
+                isRunning = !isRunning
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            },
+            contentDescription = stringResource(R.string.cd_power_toggle)
+        ) {
+            Icon(
+                Icons.Filled.PowerSettingsNew,
+                contentDescription = null,
+                tint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(26.dp)
+            )
+        }
+        Column {
+            Text(
+                if (isRunning) stringResource(R.string.power_toggle_on_label) else stringResource(R.string.power_toggle_off_label),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                if (isRunning) stringResource(R.string.power_toggle_on_desc) else stringResource(R.string.power_toggle_off_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+private data class Preset(
+    val label: String,
+    val bass: Float,
+    val virtualizer: Float,
+    val loudness: Float
+)
+/** Heads-up kecil kalau app sempat crash sejak terakhir dibuka — sebelum ini,
+ *  satu-satunya jejak crash adalah notifikasi "aktif" yang tiba-tiba hilang tanpa
+ *  penjelasan. Cuma muncul sekali per insiden (ditandai "sudah dilihat" saat ditutup). */
+@Composable
+private fun CrashBanner() {
+    val context = LocalContext.current
+    var crashFile by remember {
+        mutableStateOf(if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null)
+    }
+    var showDialog by remember { mutableStateOf(false) }
+    val file = crashFile ?: return
+
+    fun dismiss() {
+        showDialog = false
+        CrashLogger.markCrashSeen(context)
+        crashFile = null
+    }
+
+    NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Filled.BugReport, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+            Text(
+                stringResource(R.string.crash_banner_body),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = { showDialog = true }) {
+                Text(stringResource(R.string.crash_view_button))
+            }
+        }
+    }
+
+    if (showDialog) {
+        val crashText = remember(file) { runCatching { file.readText() }.getOrDefault("") }
+        AlertDialog(
+            onDismissRequest = { dismiss() },
+            title = { Text(stringResource(R.string.crash_dialog_title)) },
+            text = {
+                Text(
+                    crashText,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .heightIn(max = 300.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    CrashLogger.deleteAllLogs(context)
+                    dismiss()
+                }) { Text(stringResource(R.string.crash_delete_button)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { dismiss() }) {
+                    Text(stringResource(R.string.crash_dismiss_button))
+                }
+            }
+        )
+    }
+}
+@Composable
+fun BoosterScreen(
+    onBass: (Short) -> Unit,
+    onVirtualizer: (Short) -> Unit,
+    onLoudness: (Float) -> Unit,
+    onEqualizerBand: (Int, Short) -> Unit = { _, _ -> },
+    onOpenHelp: () -> Unit = {},
+    bassSupported: Boolean = true,
+    virtualizerSupported: Boolean = true,
+    loudnessSupported: Boolean = true,
+    bassStrengthSupported: Boolean = true,
+    virtualizerStrengthSupported: Boolean = true,
+    equalizerSupported: Boolean = false,
+    equalizerBandCount: Int = 0,
+    equalizerLevelMin: Short = -1500,
+    equalizerLevelMax: Short = 1500,
+    equalizerCenterFreqsHz: List<Int> = emptyList(),
+    equalizerInitialLevels: List<Short> = emptyList(),
+    initialBass: Float = 500f,
+    initialVirtualizer: Float = 500f,
+    initialLoudness: Float = 0f,
+    initialActivePreset: String? = null,
+    onActivePresetChange: (String?) -> Unit = {},
+    notificationPermissionGranted: Boolean = true,
+    onOpenNotificationSettings: () -> Unit = {},
+    themeMode: Int = PrefsHelper.THEME_MODE_SYSTEM,
+    onThemeModeChange: (Int) -> Unit = {},
+    useDynamicColor: Boolean = false,
+    onUseDynamicColorChange: (Boolean) -> Unit = {},
+    connectionState: MainActivity.ConnectionState = MainActivity.ConnectionState.CONNECTED,
+    onRetryConnection: () -> Unit = {},
+    onRestartService: () -> Unit = {},
+    requestedCustomPresetName: String? = null,
+    onRequestedPresetConsumed: () -> Unit = {}
+) {
+    val presets = listOf(
+        Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
+        Preset(stringResource(R.string.preset_bass_heavy), bass = 900f, virtualizer = 300f, loudness = 500f),
+        Preset(stringResource(R.string.preset_vocal_boost), bass = 200f, virtualizer = 600f, loudness = 800f),
+        Preset(stringResource(R.string.preset_treble_boost), bass = 100f, virtualizer = 800f, loudness = 600f)
+    )
+    var bass by remember { mutableStateOf(initialBass) }
+    var virtualizer by remember { mutableStateOf(initialVirtualizer) }
+    var loudness by remember { mutableStateOf(initialLoudness) }
+    // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
+    // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
+    var activePreset by remember { mutableStateOf(initialActivePreset) }
+    val haptics = LocalHapticFeedback.current
+    // Counter yang di-increment tiap preset diterapkan, dipakai buat maksa EqualizerSection
+    // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
+    // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
+    var eqResetCounter by remember { mutableStateOf(0) }
+
+    val context = LocalContext.current
+    var customPresets by remember { mutableStateOf(PrefsHelper.getCustomPresets(context)) }
+    var showSavePresetDialog by remember { mutableStateOf(false) }
+    var presetNameInput by remember { mutableStateOf("") }
+    var presetPendingDelete by remember { mutableStateOf<String?>(null) }
+
+    fun applyCustomPreset(preset: PrefsHelper.CustomPreset) {
+        // Preset custom sengaja TIDAK ikut me-reset equalizer manual — beda dari preset
+        // bawaan, preset custom cuma menyimpan bass/virtualizer/loudness, bukan EQ.
+        bass = preset.bass; onBass(preset.bass.toInt().toShort())
+        virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
+        loudness = preset.loudness; onLoudness(preset.loudness)
+        activePreset = preset.name
+        onActivePresetChange(preset.name)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    fun applyPreset(preset: Preset) {
+        bass = preset.bass; onBass(preset.bass.toInt().toShort())
+        virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
+        loudness = preset.loudness; onLoudness(preset.loudness)
+        activePreset = preset.label
+        onActivePresetChange(preset.label)
+        if (equalizerBandCount > 0) {
+            for (band in 0 until equalizerBandCount) onEqualizerBand(band, 0)
+            eqResetCounter++
+        }
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    // Preset custom yang diminta lewat App Shortcut (long-press ikon launcher). LaunchedEffect
+    // dipakai (bukan langsung di body) supaya cuma jalan sekali per request, dan supaya
+    // customPresets sempat ke-load duluan sebelum dicari — kalau presetnya udah kehapus di
+    // antara shortcut dibuat & di-tap, ya didiamkan saja (gak ada preset buat diterapkan).
+    LaunchedEffect(requestedCustomPresetName, customPresets) {
+        if (requestedCustomPresetName != null) {
+            customPresets.firstOrNull { it.name == requestedCustomPresetName }?.let { applyCustomPreset(it) }
+            onRequestedPresetConsumed()
+        }
+    }
+
+    // Sinkronkan dynamic shortcut sekali tiap layar ini kebuka — jaring pengaman kalau ada
+    // preset yang sempat berubah di luar sesi Compose ini (jarang terjadi, tapi murah kok).
+    LaunchedEffect(Unit) {
+        ShortcutHelper.refreshCustomPresetShortcuts(context)
+    }
+
+    // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
+    // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
+    // tetap sama seperti sebelumnya (full width).
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 600.dp)
+                .padding(22.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
+                // kontras maksimum, konsisten di dark & light theme.
+                Text(
+                    stringResource(R.string.app_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ThemeModeToggle(themeMode = themeMode, onThemeModeChange = onThemeModeChange)
+                IconButton(onClick = onOpenHelp) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
+                }
+            }
+        }
+
+        // Batch 13: power toggle "Aktif/Nonaktif" — porting dari docs/preview/current.html
+        // (Neumorphic Hybrid). Ditaruh persis di posisi yang sama seperti mockup: tepat di
+        // bawah header, sebelum status card service.
+        PowerToggleRow()
+
+        // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
+        Row(
+            modifier = Modifier.height(24.dp).padding(start = 4.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            val waveHeights = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
+            waveHeights.forEach { h ->
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .fillMaxHeight(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Brush.verticalGradient(listOf(DynamicColorAccent2, DynamicColorAccent)))
+                )
+            }
+        }
+
+        ServiceStatusBadge(onRestartService = onRestartService)
+        CrashBanner()
+
+        when (connectionState) {
+            MainActivity.ConnectionState.CONNECTING -> {
+                NeumorphicCard {
+                    Row(
+                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.connection_loading), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            MainActivity.ConnectionState.ERROR -> {
+                NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.connection_error_title),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.connection_error_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        )
+                        Button(onClick = onRetryConnection) {
+                            Text(stringResource(R.string.connection_retry))
+                        }
+                    }
+                }
+            }
+            MainActivity.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
+        }
+
+        if (!notificationPermissionGranted) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Text(
+                            stringResource(R.string.notif_perm_title),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.notif_perm_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
+                    Button(onClick = onOpenNotificationSettings) {
+                        Text(stringResource(R.string.notif_perm_button))
+                    }
+                }
+            }
+        }
+
+        if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+                Text(
+                    stringResource(R.string.unsupported_banner),
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
+            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.primary) {
+                Text(
+                    stringResource(R.string.strength_unsupported_banner),
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Column {
+            SectionLabel(stringResource(R.string.presets_title))
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                presets.forEach { preset ->
+                    FilterChip(
+                        selected = activePreset == preset.label,
+                        onClick = { applyPreset(preset) },
+                        label = { Text(preset.label) },
+                        shape = RoundedCornerShape(50),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+                customPresets.forEach { custom ->
+                    FilterChip(
+                        selected = activePreset == custom.name,
+                        onClick = { applyCustomPreset(custom) },
+                        label = { Text(custom.name) },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_delete_preset, custom.name),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { presetPendingDelete = custom.name }
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        border = null,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
+                AssistChip(
+                    onClick = { presetNameInput = ""; showSavePresetDialog = true },
+                    label = { Text(stringResource(R.string.preset_save_chip)) },
+                    leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(50)
+                )
+            }
+        }
+
+        if (showSavePresetDialog) {
+            // Cegah nama custom preset sama persis (case-insensitive) dengan salah satu
+            // dari 4 preset bawaan — tanpa ini, chip built-in & chip custom bisa
+            // sama-sama ke-highlight "selected" bareng saat activePreset match nama itu,
+            // state visual jadi ambigu meski fungsinya sendiri tetap benar.
+            //
+            // Batch 8: cek yang sama juga WAJIB diterapkan ke SESAMA preset custom lain
+            // (bukan cuma built-in) — sebelumnya cuma dicek ke `presets` (built-in), jadi
+            // "Rock" dan "rock" bisa lolos jadi 2 custom preset terpisah yang isinya beda
+            // tapi labelnya nyaris identik (dynamic shortcut & chip jadi membingungkan).
+            // `it.name != trimmedPresetName` sengaja dikecualikan supaya nyimpen ulang
+            // preset custom dengan nama PERSIS SAMA (exact match) tetap diizinkan —
+            // itu perilaku "timpa yang lama" yang memang disengaja di
+            // PrefsHelper.addCustomPreset, bukan bug.
+            val trimmedPresetName = presetNameInput.trim()
+            val nameCollidesWithBuiltIn = presets.any { it.label.equals(trimmedPresetName, ignoreCase = true) } ||
+                customPresets.any { it.name != trimmedPresetName && it.name.equals(trimmedPresetName, ignoreCase = true) }
+            AlertDialog(
+                onDismissRequest = { showSavePresetDialog = false },
+                title = { Text(stringResource(R.string.preset_save_dialog_title)) },
+                text = {
+                    OutlinedTextField(
+                        value = presetNameInput,
+                        onValueChange = { presetNameInput = it },
+                        singleLine = true,
+                        label = { Text(stringResource(R.string.preset_save_dialog_hint)) },
+                        isError = nameCollidesWithBuiltIn,
+                        supportingText = {
+                            if (nameCollidesWithBuiltIn) {
+                                Text(
+                                    stringResource(R.string.preset_save_name_collision_error),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = trimmedPresetName.isNotBlank() && !nameCollidesWithBuiltIn,
+                        onClick = {
+                            val newPreset = PrefsHelper.CustomPreset(trimmedPresetName, bass, virtualizer, loudness)
+                            PrefsHelper.addCustomPreset(context, newPreset)
+                            customPresets = PrefsHelper.getCustomPresets(context)
+                            ShortcutHelper.refreshCustomPresetShortcuts(context)
+                            activePreset = newPreset.name
+                            onActivePresetChange(newPreset.name)
+                            showSavePresetDialog = false
+                        }
+                    ) { Text(stringResource(R.string.preset_save_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showSavePresetDialog = false }) {
+                        Text(stringResource(R.string.preset_save_cancel))
+                    }
+                }
+            )
+        }
+
+        presetPendingDelete?.let { nameToDelete ->
+            AlertDialog(
+                onDismissRequest = { presetPendingDelete = null },
+                title = { Text(stringResource(R.string.preset_delete_dialog_title)) },
+                text = { Text(stringResource(R.string.preset_delete_dialog_body, nameToDelete)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        PrefsHelper.deleteCustomPreset(context, nameToDelete)
+                        customPresets = PrefsHelper.getCustomPresets(context)
+                        ShortcutHelper.refreshCustomPresetShortcuts(context)
+                        if (activePreset == nameToDelete) { activePreset = null; onActivePresetChange(null) }
+                        presetPendingDelete = null
+                    }) { Text(stringResource(R.string.preset_delete_confirm)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { presetPendingDelete = null }) {
+                        Text(stringResource(R.string.preset_delete_cancel))
+                    }
+                }
+            )
+        }
+
+        // Batch 13: label section "Kontrol" — porting dari docs/preview/current.html,
+        // sebelumnya kartu Bass/Virtualizer/Loudness langsung tampil tanpa header section.
+        SectionLabel(stringResource(R.string.controls_title))
+
+        FeatureControl(
+            title = stringResource(R.string.feature_bass_title),
+            icon = Icons.Filled.VolumeUp,
+            accentColor = BassAccent,
+            accentColor2 = BassAccent2,
+            helpText = when {
+                !bassSupported -> stringResource(R.string.feature_help_unsupported)
+                !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                else -> stringResource(R.string.feature_bass_help_normal)
+            },
+            value = bass,
+            valueLabel = bass.toInt().toString(),
+            onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
+            valueRange = 0f..1000f,
+            enabled = bassSupported && bassStrengthSupported
+        )
+
+        FeatureControl(
+            title = stringResource(R.string.feature_virtualizer_title),
+            icon = Icons.Filled.SurroundSound,
+            accentColor = VirtualizerAccent,
+            accentColor2 = VirtualizerAccent2,
+            helpText = when {
+                !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
+                !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                else -> stringResource(R.string.feature_virtualizer_help_normal)
+            },
+            value = virtualizer,
+            valueLabel = virtualizer.toInt().toString(),
+            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
+            valueRange = 0f..1000f,
+            enabled = virtualizerSupported && virtualizerStrengthSupported
+        )
+
+        FeatureControl(
+            title = stringResource(R.string.feature_loudness_title),
+            icon = Icons.Filled.Campaign,
+            accentColor = LoudnessAccent,
+            accentColor2 = LoudnessAccent2,
+            helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
+                       else stringResource(R.string.feature_help_unsupported),
+            value = loudness,
+            valueLabel = "${loudness.toInt()} mB",
+            onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
+            valueRange = 0f..3000f,
+            enabled = loudnessSupported
+        )
+
+        if (equalizerSupported && equalizerBandCount > 0) {
+            EqualizerSection(
+                bandCount = equalizerBandCount,
+                levelMin = equalizerLevelMin,
+                levelMax = equalizerLevelMax,
+                centerFreqsHz = equalizerCenterFreqsHz,
+                initialLevels = if (eqResetCounter == 0) equalizerInitialLevels else List(equalizerBandCount) { 0 },
+                resetKey = eqResetCounter,
+                onBandChange = { band, level ->
+                    onEqualizerBand(band, level)
+                    activePreset = null; onActivePresetChange(null)
+                }
+            )
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            NeumorphicCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = useDynamicColor,
+                            onValueChange = {
+                                onUseDynamicColorChange(it)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                            role = Role.Switch
+                        )
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                        Text(stringResource(R.string.dynamic_color_title), fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.dynamic_color_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = useDynamicColor, onCheckedChange = null)
+                }
+            }
+        }
+
+        NeumorphicCard {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Text(stringResource(R.string.battery_card_title), fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    stringResource(R.string.battery_card_body),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedButton(onClick = { OemAutostartHelper.openAutostartSettings(context) }) {
+                    Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        if (OemAutostartHelper.deviceLikelyNeedsAutostart())
+                            stringResource(R.string.battery_autostart_button)
+                        else
+                            stringResource(R.string.battery_autostart_button_generic)
+                    )
+                }
+            }
+        }
+
+        TextButton(onClick = onOpenHelp) {
+            Text(stringResource(R.string.see_full_explanation))
+        }
+        }
+    }
+}
+/** Satu tombol ikon yang berputar antar 3 mode: ikut sistem → terang → gelap → (ulang). */
+@Composable
+private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
+    val haptics = LocalHapticFeedback.current
+    val (icon, description) = when (themeMode) {
+        PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to stringResource(R.string.theme_desc_light)
+        PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to stringResource(R.string.theme_desc_dark)
+        else -> Icons.Filled.Brightness4 to stringResource(R.string.theme_desc_system)
+    }
+    IconButton(onClick = {
+        val next = when (themeMode) {
+            PrefsHelper.THEME_MODE_SYSTEM -> PrefsHelper.THEME_MODE_LIGHT
+            PrefsHelper.THEME_MODE_LIGHT -> PrefsHelper.THEME_MODE_DARK
+            else -> PrefsHelper.THEME_MODE_SYSTEM
+        }
+        onThemeModeChange(next)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }) {
+        Icon(icon, contentDescription = description)
+    }
+}
+/** Bagian equalizer manual per-pita-frekuensi — collapsible, disembunyikan by default supaya
+ *  tidak membanjiri layar utama (fitur lanjutan, kebanyakan user cukup pakai preset/slider utama). */
+@Composable
+private fun EqualizerSection(
+    bandCount: Int,
+    levelMin: Short,
+    levelMax: Short,
+    centerFreqsHz: List<Int>,
+    initialLevels: List<Short>,
+    resetKey: Int = 0,
+    onBandChange: (Int, Short) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val levels = remember(bandCount, resetKey) {
+        mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })
+    }
+    val haptics = LocalHapticFeedback.current
+
+    NeumorphicCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        expanded = !expanded
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                    Column {
+                        Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.eq_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Icon(
+                    if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                    contentDescription = if (expanded) stringResource(R.string.cd_eq_collapse) else stringResource(R.string.cd_eq_expand)
+                )
+            }
+
+            if (expanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                for (band in 0 until bandCount) {
+                    FeatureControl(
+                        title = formatFreqLabel(centerFreqsHz.getOrElse(band) { 0 }),
+                        helpText = "",
+                        value = levels[band].toFloat(),
+                        valueLabel = "${levels[band]} mB",
+                        onValueChange = {
+                            val level = it.toInt().toShort()
+                            levels[band] = level
+                            onBandChange(band, level)
+                        },
+                        valueRange = levelMin.toFloat()..levelMax.toFloat(),
+                        accentColor = EqualizerAccent,
+                        accentColor2 = EqualizerAccent2,
+                        wrapInCard = false
+                    )
+                }
+            }
+        }
+    }
+}
+
+internal fun formatFreqLabel(hz: Int): String =
+    if (hz >= 1000) "${hz / 1000} kHz" else "$hz Hz"
