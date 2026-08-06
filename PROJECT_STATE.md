@@ -10,7 +10,47 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.56
+- **Versi**: v1.57
+- ⚠️ **Batch 18 SELESAI DIKERJAKAN, TAPI RISIKO PALING TINGGI dari semua batch audit** —
+  Hilt DI (High #3, penutup 3 item High dari audit). WAJIB baca ini sebelum lanjut kalau
+  CI gagal di batch ini.
+  - **Kenapa risiko lebih tinggi dari Batch 16/17**: ini pertama kalinya audit nyentuh
+    LAPISAN BUILD SYSTEM (plugin resolution, annotation processing/`kapt`), bukan cuma
+    kode Kotlin. Sandbox Claude gak bisa verifikasi resolusi plugin/dependency Gradle
+    sama sekali (network disabled, gak ada Gradle/Maven cache) — beda dari
+    brace/paren-check yang cukup buat error kode Kotlin biasa. Kalau ada TYPO versi atau
+    ketidakcocokan Kotlin/Hilt/kapt, itu BARU KETAUAN pas CI jalan, gak bisa dicegah dari
+    sandbox ini.
+  - **Yang ditambahkan**: plugin `com.google.dagger.hilt.android` v2.51.1 (dipilih karena
+    kompatibel dgn Kotlin 1.9.24 + AGP 8.5.2 yang sudah dipakai — BUKAN versi terbaru
+    sembarangan), plugin `org.jetbrains.kotlin.kapt` (annotation processor, bukan KSP —
+    alasan: KSP butuh versi terpisah yang harus persis cocok Kotlin version, kapt lebih
+    aman tanpa compiler buat verifikasi), `kapt { correctErrorTypes = true }` (rekomendasi
+    resmi dokumentasi Hilt).
+  - **File yang berubah**: `build.gradle.kts` (root, +1 plugin), `app/build.gradle.kts`
+    (+kapt/hilt plugin, +2 dependency, +kapt block), `AudioEnhancerApp.kt`
+    (`@HiltAndroidApp`), `MainActivity.kt` (`@AndroidEntryPoint`), `BoosterViewModel.kt`
+    (`@HiltViewModel` + constructor `Application` sekarang `@Inject constructor(...)`,
+    BUKAN lagi constructor polos — `Application` di-provide OTOMATIS oleh Hilt, TIDAK
+    perlu Module/Provides manual buat ini).
+  - **KALAU CI GAGAL** (build error di step `assembleDebug`): kemungkinan besar
+    ketidakcocokan versi Hilt/Kotlin/kapt yang gak kelihatan dari sandbox statis. Cara
+    termudah recover: `git revert` commit batch ini (isinya kecil & terisolasi — cuma
+    5 file berubah, gampang di-revert bersih), balik ke v1.56 (Batch 17, ViewModel tanpa
+    DI, sudah "SELESAI" penuh confidence tinggi), laporkan pesan error CI lengkap biar
+    bisa didiagnosis versi mana yang perlu diganti.
+  - **PENTING buat sesi depan**: kalau nambah dependency/class baru yang butuh
+    di-inject (bukan cuma `Application`), WAJIB pakai constructor injection
+    (`@Inject constructor(...)`) — JANGAN bikin instance manual (`ClassName()`) untuk
+    apapun yang seharusnya di-inject, itu ngelawan tujuan DI. Kalau butuh binding
+    interface→implementation atau provide sesuatu yang bukan constructor-injectable
+    (mis. `SharedPreferences`), butuh `@Module`/`@InstallIn` baru — BELUM ADA di project
+    ini sama sekali, itu scope batch berikutnya kalau diperlukan (`PrefsHelper` saat ini
+    masih object singleton biasa, BUKAN di-inject).
+  - **Belum divalidasi runtime SAMA SEKALI** — ini benar-benar cuma statis (brace/paren
+    balance + baca ulang tiap anotasi/import manual). Confidence rating diturunkan
+    signifikan dibanding batch lain karena alasan di atas.
+
 - ✅ **Batch 17 SELESAI**: lanjutan audit (High #2) — ekstraksi state + business logic
   seputar koneksi `AudioEnhancerService` dari `MainActivity.kt` ke `BoosterViewModel.kt`
   (baru, `AndroidViewModel` polos, **TANPA DI framework**).

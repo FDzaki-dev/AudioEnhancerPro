@@ -43,7 +43,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import dagger.hilt.android.AndroidEntryPoint
 
+// Batch 18: @AndroidEntryPoint WAJIB ada di sini supaya `by viewModels()` di bawah bisa
+// resolve BoosterViewModel lewat Hilt (HiltViewModelFactory) — tanpa ini, `by viewModels()`
+// balik ke default factory biasa yang GAK TAHU cara construct @HiltViewModel (crash
+// runtime "Cannot create an instance of...").
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: BoosterViewModel by viewModels()

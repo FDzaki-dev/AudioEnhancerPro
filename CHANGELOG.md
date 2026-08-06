@@ -4,6 +4,21 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.57 - Batch 18 (penutup audit High): Hilt DI — ⚠️ RISIKO PALING TINGGI
+Detail risiko + rencana recovery kalau CI gagal ada di `PROJECT_STATE.md` Batch 18 —
+WAJIB dibaca sebelum lanjut kalau build error. Batch ini nyentuh build system
+(plugin/annotation-processing), BUKAN cuma kode Kotlin — sandbox Claude gak bisa
+verifikasi resolusi Gradle plugin sama sekali.
+- **`build.gradle.kts`** (root): +plugin `com.google.dagger.hilt.android` v2.51.1.
+- **`app/build.gradle.kts`**: +plugin `kotlin.kapt` + `hilt.android`, +dependency
+  `hilt-android`+`hilt-android-compiler` (v2.51.1), +block `kapt { correctErrorTypes = true }`.
+- **`AudioEnhancerApp.kt`**: `@HiltAndroidApp`.
+- **`MainActivity.kt`**: `@AndroidEntryPoint`.
+- **`BoosterViewModel.kt`**: `@HiltViewModel`, constructor jadi `@Inject constructor(application: Application)`.
+- **`build.gradle.kts`** (app): versionCode 56→57, versionName 1.56→1.57.
+- Belum ada `@Module`/`@InstallIn` — cuma `Application` yang di-inject (binding bawaan
+  Hilt), belum ada binding custom lain.
+
 ## v1.56 - Batch 17 (lanjutan audit High #2): ekstraksi ViewModel
 Detail lengkap + alasan perubahan perilaku Context bindService ada di `PROJECT_STATE.md`
 Batch 17 (Hilt DI & item Medium/Low audit MASIH PENDING, belum dikerjakan batch ini).

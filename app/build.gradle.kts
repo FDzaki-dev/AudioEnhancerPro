@@ -1,6 +1,12 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Batch 18: Hilt DI. `kapt` dipakai (bukan KSP) — annotation processor Hilt resmi
+    // paling teruji di kombinasi Kotlin 1.9.24 ini, KSP support Hilt butuh setup versi
+    // KSP terpisah yang harus persis cocok Kotlin version, risiko mismatch lebih tinggi
+    // tanpa compiler buat verifikasi.
+    id("org.jetbrains.kotlin.kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -11,8 +17,8 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        versionCode = 56
-        versionName = "1.56"
+        versionCode = 57
+        versionName = "1.57"
     }
 
     signingConfigs {
@@ -64,6 +70,13 @@ android {
     }
 }
 
+// Batch 18: rekomendasi resmi dokumentasi Hilt — tanpa ini, error di komponen yang
+// digenerate Hilt kadang muncul sebagai error type asing yang membingungkan alih-alih
+// pesan error yang jelas.
+kapt {
+    correctErrorTypes = true
+}
+
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.1")
@@ -78,6 +91,9 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    // Batch 18: Hilt DI.
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")

@@ -10,6 +10,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
 // koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel
@@ -29,7 +31,12 @@ import androidx.lifecycle.AndroidViewModel
 // user (lihat PROJECT_STATE.md), jadi ViewModel ini efektifnya tetap 1:1 umur dengan
 // MainActivity di app ini. BELUM divalidasi runtime — kalau ada gejala aneh soal
 // binding/unbinding setelah update, laporkan, ini kandidat pertama yang dicurigai.
-class BoosterViewModel(application: Application) : AndroidViewModel(application) {
+// Batch 18: @HiltViewModel + @Inject constructor — Application di-provide OTOMATIS oleh
+// Hilt (binding bawaan ApplicationComponent, TANPA perlu bikin Module/Provides manual).
+// Kelas ini masih AndroidViewModel (bukan ViewModel polos) — @HiltViewModel mendukung
+// dua-duanya, gak perlu diganti.
+@HiltViewModel
+class BoosterViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
 
     /** Status koneksi ke AudioEnhancerService — dipakai UI untuk loading/error state eksplisit. */
     enum class ConnectionState { CONNECTING, CONNECTED, ERROR }
