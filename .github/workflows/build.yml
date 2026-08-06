@@ -15,33 +15,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      # v1.58 fix: root cause build gagal di v1.57 (bukan soal Hilt) — project ini gak
-      # commit gradlew/gradle-wrapper.properties, jadi wrapper di-generate on-the-fly
-      # pakai `gradle wrapper` TANPA versi eksplisit → ikut versi Gradle bawaan runner
-      # image (yang di-update GitHub kapan aja, terakhir jadi 9.6.1 — jauh lebih baru
-      # dari yang didukung Kotlin Gradle Plugin 1.9.24 project ini, bikin gagal di tahap
-      # configuration project SEBELUM compile kode Kotlin manapun sempat jalan). Fix:
-      # PIN versi Gradle secara eksplisit, jangan biarkan ikut versi runner.
-      - name: Grant execute permission for gradlew
-        run: |
-          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.7; fi
-          chmod +x gradlew
-
-      # Ambil versionName di sini juga (bukan cuma di job release) — dipakai buat nama
-      # artifact log kegagalan di bawah, supaya log gagal build gampang dikenali versi
-      # mana tanpa buka run detail.
+      # v1.59 fix: dipindah ke PALING AWAL (sebelum step apapun yang bisa gagal) —
+      # sebelumnya taruh SETELAH step wrapper, jadi kalau step wrapper gagal duluan,
+      # step ini ikut ke-skip dan artifact log kegagalan jadi gak ada nomor versinya
+      # ('log_fail_v-debug-run64', bukan 'log_fail_v1.58-debug-run64' — persis yang
+      # dilaporkan user). Cuma `grep` ke file teks, gak butuh gradlew/JDK sama sekali,
+      # aman dijalankan paling depan.
       - name: Extract version name
         id: version
         run: |
           VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
           if [ -z "$VERSION" ]; then VERSION="0.0"; fi
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # v1.59 fix (v1.58 belum tuntas): `gradle wrapper` — MESKIPUN cuma buat generate
+      # file wrapper — tetap trigger Gradle FASE KONFIGURASI PENUH project ini (baca
+      # settings.gradle.kts + SEMUA build.gradle.kts termasuk ':app') pakai Gradle SISTEM
+      # runner (9.6.1, gak kompatibel Kotlin Gradle Plugin 1.9.24 project ini). Jadi pin
+      # versi di v1.58 ('gradle wrapper --gradle-version 8.7') TETAP gagal, cuma gagalnya
+      # lebih awal (sebelum sempat generate wrapper-nya sendiri). Fix beneran: generate
+      # wrapper di DIREKTORI KOSONG TERPISAH (file wrapper generik, TIDAK bergantung isi
+      # project manapun — sama persis buat project apapun yang target Gradle-nya sama),
+      # baru disalin ke repo. Dengan cara ini Gradle sistem 9.6.1 SAMA SEKALI TIDAK
+      # PERNAH menyentuh build.gradle.kts project ini.
+      - name: Bootstrap Gradle Wrapper (isolated dir)
+        run: |
+          set -o pipefail
+          {
+            if [ ! -f gradlew ]; then
+              BOOTSTRAP_DIR=$(mktemp -d)
+              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
+              cp "$BOOTSTRAP_DIR/gradlew" .
+              cp "$BOOTSTRAP_DIR/gradlew.bat" .
+              mkdir -p gradle/wrapper
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
+              rm -rf "$BOOTSTRAP_DIR"
+            fi
+            chmod +x gradlew
+          } 2>&1 | tee gradle-wrapper-bootstrap.log
 
       # Output gradle di-tee ke file supaya bisa diupload sebagai artifact kalau gagal
       # (sebelumnya cuma bisa dibaca dari tab Actions, harus buka run + scroll manual).
@@ -60,6 +78,7 @@ jobs:
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
           path: |
+            gradle-wrapper-bootstrap.log
             gradle-build-debug.log
             **/build/reports/**
           retention-days: 14
@@ -79,18 +98,42 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # v1.59 fix: dipindah ke PALING AWAL + jadi UNCONDITIONAL (sebelumnya cuma jalan
+      # kalau has_secret==true, dan taruh SETELAH step wrapper). Sekarang dibutuhkan
+      # buat penamaan artifact log kegagalan juga (bukan cuma nama rilis), jadi harus
+      # selalu ada nilainya sedini mungkin, apapun yang terjadi di step-step berikutnya.
+      - name: Extract version name
+        id: version
+        run: |
+          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          if [ -z "$VERSION" ]; then VERSION="0.0"; fi
+          echo "Terdeteksi versionName: $VERSION"
+          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      # v1.58 fix: sama seperti job build — pin versi Gradle eksplisit, jangan ikut
-      # versi bawaan runner (root cause gagal build v1.57, lihat komentar job build).
-      - name: Grant execute permission for gradlew
+      # v1.59 fix: sama seperti job build — generate wrapper di direktori kosong
+      # terpisah, jangan langsung di root project (lihat komentar lengkap di job build).
+      - name: Bootstrap Gradle Wrapper (isolated dir)
         run: |
-          if [ ! -f gradlew ]; then gradle wrapper --gradle-version 8.7; fi
-          chmod +x gradlew
+          set -o pipefail
+          {
+            if [ ! -f gradlew ]; then
+              BOOTSTRAP_DIR=$(mktemp -d)
+              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
+              cp "$BOOTSTRAP_DIR/gradlew" .
+              cp "$BOOTSTRAP_DIR/gradlew.bat" .
+              mkdir -p gradle/wrapper
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
+              rm -rf "$BOOTSTRAP_DIR"
+            fi
+            chmod +x gradlew
+          } 2>&1 | tee gradle-wrapper-bootstrap.log
 
       - name: Check keystore secret availability
         id: secret_check
@@ -106,17 +149,6 @@ jobs:
           else
             echo "has_secret=true" >> "$GITHUB_OUTPUT"
           fi
-
-      # Ambil versionName langsung dari app/build.gradle.kts, jadi nama file/artifact
-      # selalu ikut versi kode saat ini secara otomatis (dinamis, bukan ditulis manual).
-      - name: Extract version name
-        if: steps.secret_check.outputs.has_secret == 'true'
-        id: version
-        run: |
-          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          if [ -z "$VERSION" ]; then VERSION="0.0"; fi
-          echo "Terdeteksi versionName: $VERSION"
-          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Decode keystore from secret
         if: steps.secret_check.outputs.has_secret == 'true'
@@ -135,15 +167,17 @@ jobs:
           set -o pipefail
           ./gradlew assembleRelease --stacktrace 2>&1 | tee gradle-build-release.log
 
-      # Sama seperti job build: artifact 'log_fail_v*' kalau build release gagal.
-      # Dicek 'has_secret' juga supaya gak nyoba upload log yang gak ada kalau step
-      # build-nya sendiri di-skip karena secret belum diset (bukan gagal beneran).
+      # v1.59 fix: SEBELUMNYA kondisi ini juga cek 'has_secret == true' — tapi kalau
+      # step bootstrap wrapper gagal DULUAN (sebelum step secret_check sempat jalan),
+      # output 'has_secret' kosong dan artifact log GAGAL ke-upload padahal build-nya
+      # beneran gagal. Sekarang cukup 'if: failure()' saja, konsisten dengan job build.
       - name: Upload failure log (release build)
-        if: failure() && steps.secret_check.outputs.has_secret == 'true'
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}
           path: |
+            gradle-wrapper-bootstrap.log
             gradle-build-release.log
             **/build/reports/**
           retention-days: 14

@@ -10,10 +10,62 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.58
-- ✅ **Batch 19 SELESAI: CI fix (root cause v1.57 gagal) + failure-log artifact.** User
-  upload log Actions run yang gagal (`logs_84299378158.zip`) setelah v1.57 dipush.
-  - **ROOT CAUSE — BUKAN Hilt sama sekali.** Error sebenarnya:
+- **Versi**: v1.59
+- ✅ **Batch 20 SELESAI: fix LANJUTAN CI (v1.58 belum tuntas) + perbaikan bug penamaan
+  artifact.** User upload log kegagalan run #64 (`log_fail_v-debug-run64.zip` — perhatikan
+  nama filenya SENDIRI udah nunjukkin bug: versi kosong).
+  - **Kenapa v1.58 belum tuntas**: fix v1.58 (`gradle wrapper --gradle-version 8.7`)
+    TETAP dijalankan pakai Gradle SISTEM runner (9.6.1). Ternyata `gradle wrapper` —
+    MESKIPUN cuma buat generate file wrapper — tetap memicu Gradle mengevaluasi PENUH
+    seluruh project (baca `settings.gradle.kts` + SEMUA `build.gradle.kts` termasuk
+    `:app`) di fase konfigurasi, SEBELUM task `wrapper`-nya sendiri sempat jalan. Jadi
+    incompatibility Gradle 9.6.1 vs Kotlin Gradle Plugin 1.9.24 TETAP kena, cuma
+    gagalnya di step yang lebih awal (`Grant execute permission for gradlew`, sebelum
+    sempat `tee` output ke log — makanya log kemarin cuma dapet
+    `build/reports/problems/problems-report.html` isinya laporan WARNING dari task
+    `wrapper` itu sendiri, BUKAN error fatalnya).
+  - **Fix beneran (Batch 20)**: generate wrapper di **direktori kosong terpisah**
+    (`mktemp -d`, file wrapper generik — TIDAK bergantung isi project manapun, sama
+    persis buat project apapun yang target Gradle-nya sama), baru 4 file hasilnya
+    (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`,
+    `gradle/wrapper/gradle-wrapper.properties`) disalin ke root project. Dengan cara
+    ini Gradle sistem 9.6.1 SAMA SEKALI TIDAK PERNAH menyentuh `build.gradle.kts`
+    project ini — cuma dipakai buat bootstrap file wrapper generik doang.
+  - **Bug KEDUA yang ikut ketemu & diperbaiki**: step "Extract version name" sebelumnya
+    ada SETELAH step wrapper (build job) / SETELAH `secret_check` DAN digated
+    `if: has_secret==true` (release job). Kalau step SEBELUM itu gagal (persis kasus
+    kemarin), step ini ikut ke-skip → `steps.version.outputs.name` kosong → nama
+    artifact log jadi `log_fail_v-debug-run64` (versi kosong, susah dikenali). Fix:
+    step ini dipindah ke **paling awal** (langsung setelah Checkout) di KEDUA job, dan
+    di job `release` jadi **unconditional** (sebelumnya gated secret) — cuma `grep` ke
+    file teks, gak butuh gradlew/JDK/secret sama sekali, aman dijalankan paling depan.
+  - **Bug KETIGA**: kondisi upload artifact log di job `release` sebelumnya
+    `if: failure() && steps.secret_check.outputs.has_secret == 'true'` — kalau step
+    wrapper gagal SEBELUM `secret_check` sempat jalan, `has_secret` kosong, kondisi
+    `== 'true'` FALSE, artifact log gagal ke-upload padahal build-nya beneran gagal.
+    Fix: disederhanakan jadi `if: failure()` saja (konsisten sama job `build`).
+  - **File yang berubah**: `.github/workflows/build.yml` (restrukturisasi urutan step +
+    3 fix di atas), `app/build.gradle.kts` (versionCode 58→59, versionName 1.58→1.59).
+    TIDAK ADA perubahan kode Kotlin.
+  - **PENTING buat sesi depan**: kalau nambah step baru di awal job yang BISA GAGAL
+    (network call, external command, dll), taruh SETELAH "Extract version name", JANGAN
+    SEBELUM — supaya penamaan artifact log kegagalan selalu punya nomor versi yang
+    benar apapun yang gagal duluan.
+  - **Belum diverifikasi runtime** — sama seperti Batch 19, HARUS dicek run CI
+    berikutnya. Kalau bootstrap-di-direktori-terpisah ini MASIH gagal juga, kemungkinan
+    besar bukan lagi soal versi Gradle — laporkan log lengkapnya (sekarang harusnya
+    lebih informatif: ada `gradle-wrapper-bootstrap.log` terpisah dari
+    `gradle-build-debug.log`, dan nama artifact-nya bakal ada nomor versi 1.59 dengan
+    benar).
+
+- ✅ **Batch 19 (v1.58)** — status DIPERBARUI: fix di batch itu TIDAK CUKUP (lihat
+  detail Batch 20 di atas), tapi PENEMUAN root cause-nya (Gradle sistem runner naik ke
+  9.6.1, gak kompatibel KGP 1.9.24) tetap BENAR dan jadi dasar fix Batch 20.
+
+- ⚠️ **Batch 18 (v1.57, Hilt DI)** — status TETAP SAMA: masih belum sempat teruji
+  beneran sampai satu run CI penuh berhasil lolos.
+
+- **Detail lengkap Batch 19 (root cause investigation awal + fix parsial v1.58)**:
     `A problem occurred configuring project ':app'` →
     `'...Configuration.fileCollection(...Spec)'` — ini gagal di TAHAP KONFIGURASI
     project, SEBELUM task compile Kotlin manapun sempat jalan. Penyebab: project ini

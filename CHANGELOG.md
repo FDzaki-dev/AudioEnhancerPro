@@ -4,6 +4,23 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.59 - Batch 20: fix LANJUTAN CI (v1.58 belum tuntas) + 3 bug penamaan artifact
+User upload log kegagalan run #64. Detail lengkap kenapa v1.58 belum cukup ada di
+`PROJECT_STATE.md` Batch 20 — ringkas: `gradle wrapper` (bahkan dengan versi eksplisit)
+TETAP mengevaluasi seluruh project pakai Gradle sistem runner (9.6.1) sebelum sempat
+generate wrapper-nya sendiri.
+- **`.github/workflows/build.yml`**:
+  - Fix akar masalah: generate wrapper di **direktori kosong terpisah** (`mktemp -d`),
+    baru salin 4 file hasilnya ke root project — Gradle sistem 9.6.1 gak pernah
+    menyentuh `build.gradle.kts` project sama sekali sekarang.
+  - Fix bug penamaan: step "Extract version name" dipindah ke **paling awal** (sebelum
+    step apapun yang bisa gagal) di kedua job, dan di job `release` jadi
+    **unconditional** (sebelumnya nunggu `has_secret==true`).
+  - Fix kondisi upload log release: `if: failure()` saja (sebelumnya juga cek
+    `has_secret==true`, yang bisa kosong kalau step sebelumnya gagal duluan).
+- **`build.gradle.kts`** (app): versionCode 58→59, versionName 1.58→1.59.
+- Tidak ada perubahan kode Kotlin — murni infra CI (lanjutan v1.58).
+
 ## v1.58 - Batch 19: fix root cause CI gagal (v1.57) + artifact log_fail_v*
 User upload log Actions run yang gagal. Root cause **BUKAN Hilt** — detail lengkap di
 `PROJECT_STATE.md` Batch 19 (WAJIB baca kalau bingung kenapa v1.57 dilabeli ulang jadi
