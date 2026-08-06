@@ -10,11 +10,59 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.59
-- ✅ **Batch 20 SELESAI: fix LANJUTAN CI (v1.58 belum tuntas) + perbaikan bug penamaan
-  artifact.** User upload log kegagalan run #64 (`log_fail_v-debug-run64.zip` — perhatikan
-  nama filenya SENDIRI udah nunjukkin bug: versi kosong).
-  - **Kenapa v1.58 belum tuntas**: fix v1.58 (`gradle wrapper --gradle-version 8.7`)
+- **Versi**: v1.60
+- ✅ **Batch 21 SELESAI: fix LANJUTAN CI lagi (v1.59 belum tuntas).** User upload log
+  run #65 (`log_fail_v1_59-debug-run65.zip` — penamaan versi udah BENAR kali ini,
+  konfirmasi fix Batch 20 soal itu berhasil).
+  - **Progress dari Batch 20**: isolasi direktori scratch BERHASIL — Gradle sistem
+    9.6.1 udah gak lagi coba evaluasi `build.gradle.kts` project kita (gak ada lagi
+    error `Configuration.fileCollection(Spec)`). Tapi ketemu masalah BARU:
+    `Directory '/tmp/tmp.xxx' does not contain a Gradle build` — task `wrapper` Gradle
+    9.6.1 ternyata WAJIB direktorinya "valid Gradle project" (ada file settings) buat
+    bisa jalan sama sekali, beda dari Gradle versi lama yang bisa generate wrapper di
+    direktori kosong tanpa settings file apapun.
+  - **Fix**: bikin `settings.gradle.kts` KOSONG (isinya cuma komentar) di direktori
+    scratch SEBELUM manggil `gradle wrapper --gradle-version 8.7` di sana. File ini
+    sengaja kosong total — gak ada project/subproject/dependency apapun buat
+    dievaluasi, cuma syarat minimal biar Gradle 9.6.1 mau nganggep direktori itu
+    "valid Gradle build".
+  - **File yang berubah**: `.github/workflows/build.yml` (1 baris `echo` baru di kedua
+    job, tepat sebelum pemanggilan `gradle wrapper`), `app/build.gradle.kts`
+    (versionCode 59→60, versionName 1.59→1.60). Tidak ada perubahan kode Kotlin.
+  - **PENTING buat sesi depan**: kalau CI MASIH gagal lagi setelah ini, kemungkinan
+    besar bukan lagi soal bootstrap wrapper (itu levelnya udah makin dalam — versi
+    Gradle, lalu isolasi direktori, lalu syarat settings file — pola berulang "Gradle
+    9.6.1 punya persyaratan lebih ketat dari versi lama"). Kalau ternyata masih ada
+    lapisan masalah lain di titik ini, PERTIMBANGKAN pendekatan alternatif yang lebih
+    permanen: commit LANGSUNG file wrapper (`gradlew`, `gradlew.bat`,
+    `gradle/wrapper/gradle-wrapper.properties`, `gradle/wrapper/gradle-wrapper.jar`) ke
+    repo sekali aja secara manual (dari mesin dev manapun yang punya Gradle terinstal,
+    BUKAN dari CI), supaya CI gak perlu bootstrap apapun lagi selamanya — ini pendekatan
+    paling umum dipakai project Android sungguhan (wrapper SELALU dicommit, bukan
+    di-generate on-the-fly). Sandbox Claude gak bisa lakuin ini sendiri (perlu Gradle
+    binary + network yang gak ada di sandbox).
+  - **Belum diverifikasi runtime** — sama seperti 2 batch CI sebelumnya, HARUS dicek
+    run berikutnya.
+
+- ✅ **Batch 20 (v1.59)** — status DIPERBARUI: fix isolasi direktori TERBUKTI BEKERJA
+  (masalah `Configuration.fileCollection` gak muncul lagi), tapi ketemu lapisan masalah
+  baru (lihat Batch 21). Fix penamaan artifact & kondisi upload log DIKONFIRMASI benar
+  (nama file log kali ini sudah ada versi & timestamp yang tepat).
+
+- ✅ **Batch 19 (v1.58)** — status TETAP: root cause awal (Gradle sistem naik ke 9.6.1)
+  tetap benar dan valid, cuma fix-nya butuh 2 iterasi lagi (Batch 20, Batch 21).
+
+- **Detail lengkap Batch 20 (fix isolasi direktori, v1.59)**: fix v1.58
+  (`gradle wrapper --gradle-version 8.7`) TETAP dijalankan pakai Gradle SISTEM runner
+  (9.6.1). Ternyata `gradle wrapper` — MESKIPUN cuma buat generate file wrapper — tetap
+  memicu Gradle mengevaluasi PENUH seluruh project (baca `settings.gradle.kts` + SEMUA
+  `build.gradle.kts` termasuk `:app`) di fase konfigurasi. Fix: generate wrapper di
+  direktori kosong terpisah (`mktemp -d`), baru salin 4 file hasilnya ke root project.
+  Juga memperbaiki 2 bug penamaan artifact (step "Extract version name" dipindah ke
+  paling awal + jadi unconditional di job release; kondisi upload log release
+  disederhanakan jadi `if: failure()` saja).
+
+- **Detail lengkap Batch 20 (versi panjang, ditulis saat batch itu selesai)**:
     TETAP dijalankan pakai Gradle SISTEM runner (9.6.1). Ternyata `gradle wrapper` —
     MESKIPUN cuma buat generate file wrapper — tetap memicu Gradle mengevaluasi PENUH
     seluruh project (baca `settings.gradle.kts` + SEMUA `build.gradle.kts` termasuk

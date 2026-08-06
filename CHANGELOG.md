@@ -4,6 +4,22 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.60 - Batch 21: fix LANJUTAN CI lagi (v1.59 belum tuntas)
+User upload log run #65 — penamaan artifact sudah benar (konfirmasi fix Batch 20 soal
+itu berhasil). Progress: isolasi direktori scratch (Batch 20) BERHASIL menghindari
+Gradle sistem mengevaluasi project kita. Tapi ketemu lapisan masalah baru: Gradle 9.6.1
+ternyata WAJIB direktori tempat `gradle wrapper` dijalankan punya file settings dulu
+("Directory does not contain a Gradle build"), beda dari versi Gradle lama yang bisa
+bootstrap di direktori kosong tanpa settings apapun.
+- **`.github/workflows/build.yml`**: tambah 1 baris `echo` yang bikin
+  `settings.gradle.kts` KOSONG di direktori scratch, tepat sebelum
+  `gradle wrapper --gradle-version 8.7` dipanggil di sana (kedua job).
+- **`build.gradle.kts`** (app): versionCode 59→60, versionName 1.59→1.60.
+- Tidak ada perubahan kode Kotlin — murni infra CI (lanjutan v1.58/v1.59).
+- **Kalau masih gagal lagi setelah ini**: lihat `PROJECT_STATE.md` Batch 21 — opsi
+  cadangan (commit langsung file wrapper dari mesin dev, bukan generate di CI) sudah
+  dicatat di sana.
+
 ## v1.59 - Batch 20: fix LANJUTAN CI (v1.58 belum tuntas) + 3 bug penamaan artifact
 User upload log kegagalan run #64. Detail lengkap kenapa v1.58 belum cukup ada di
 `PROJECT_STATE.md` Batch 20 — ringkas: `gradle wrapper` (bahkan dengan versi eksplisit)

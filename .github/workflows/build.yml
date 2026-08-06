@@ -50,6 +50,15 @@ jobs:
           {
             if [ ! -f gradlew ]; then
               BOOTSTRAP_DIR=$(mktemp -d)
+              # v1.60 fix (v1.59 belum tuntas): Gradle 9.6.1 ternyata BUKAN cuma nolak
+              # evaluasi project asing (itu udah kefix di v1.59) — task 'wrapper'-nya
+              # sendiri sekarang WAJIB direktori itu udah "valid Gradle project" (ada
+              # file settings), kalau enggak langsung error "does not contain a Gradle
+              # build" duluan sebelum sempat generate apa-apa. Fix: bikin
+              # settings.gradle.kts KOSONG di direktori scratch ini dulu — cukup buat
+              # bikin Gradle 9.6.1 mau jalan, TIDAK ada project asli yang dievaluasi
+              # (file-nya kosong, gak ada subproject/dependency apapun di sini).
+              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
               ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
               cp "$BOOTSTRAP_DIR/gradlew" .
               cp "$BOOTSTRAP_DIR/gradlew.bat" .
@@ -124,6 +133,15 @@ jobs:
           {
             if [ ! -f gradlew ]; then
               BOOTSTRAP_DIR=$(mktemp -d)
+              # v1.60 fix (v1.59 belum tuntas): Gradle 9.6.1 ternyata BUKAN cuma nolak
+              # evaluasi project asing (itu udah kefix di v1.59) — task 'wrapper'-nya
+              # sendiri sekarang WAJIB direktori itu udah "valid Gradle project" (ada
+              # file settings), kalau enggak langsung error "does not contain a Gradle
+              # build" duluan sebelum sempat generate apa-apa. Fix: bikin
+              # settings.gradle.kts KOSONG di direktori scratch ini dulu — cukup buat
+              # bikin Gradle 9.6.1 mau jalan, TIDAK ada project asli yang dievaluasi
+              # (file-nya kosong, gak ada subproject/dependency apapun di sini).
+              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
               ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
               cp "$BOOTSTRAP_DIR/gradlew" .
               cp "$BOOTSTRAP_DIR/gradlew.bat" .
