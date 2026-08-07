@@ -33,7 +33,12 @@ object CrashLogger {
     private const val APP_FOLDER = "AudioEnhancerPro"
     // MediaStore selalu normalisasi RELATIVE_PATH pakai trailing slash — WAJIB disertakan
     // di sini juga, biar query SELECT pas prune/list match persis apa yang tersimpan.
-    private const val RELATIVE_PATH = "${Environment.DIRECTORY_DOCUMENTS}/$APP_FOLDER/logs/"
+    // Bukan `const val` — nilainya bergantung `Environment.DIRECTORY_DOCUMENTS`, yaitu
+    // field Android runtime (String biasa), BUKAN compile-time constant Kotlin. `const`
+    // WAJIB nilai yang bisa di-resolve compiler saat kompilasi (literal/const lain), kalau
+    // dipaksa `const` di sini compiler nolak ("Const 'val' initializer should be a constant
+    // value") — ini yang bikin CI v1.66 gagal di compileDebugKotlin.
+    private val RELATIVE_PATH = "${Environment.DIRECTORY_DOCUMENTS}/$APP_FOLDER/logs/"
     private const val MAX_LOGS = 50
 
     /** Referensi 1 crash log, menyatukan 2 sumber (MediaStore Uri di API 29+, File legacy

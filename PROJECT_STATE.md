@@ -10,15 +10,20 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.66
-- ⚠️ **Batch 27 (v1.66, BELUM diverifikasi CI/runtime)**: `CrashLogger.kt` di-rewrite penuh
-  buat match standing spec crash logger user (MediaStore API 29+ `Documents/AudioEnhancerPro/
-  logs/` tanpa permission legacy, FIFO 50, metadata Version/OS/Model/Timestamp/Thread lengkap,
-  fail-safe) — implementasi lama (`filesDir` internal, rotasi 5, stack trace polos) TIDAK
-  PERNAH sesuai spec ini sejak awal, baru ketauan pas audit sesi ini. Area BARU buat sandbox
-  Claude (ContentResolver/MediaStore, belum pernah disentuh sebelumnya) — confidence lebih
-  rendah dari batch statis biasa. Detail lengkap + catatan unit detik-vs-milidetik (WAJIB
-  dibaca sebelum sentuh file ini lagi) ada di entry Batch 27 CHANGELOG.md.
+- **Versi**: v1.67
+- ⚠️ **Batch 28 (v1.67): HOTFIX CI v1.66 gagal.** `compileDebugKotlin` FAILED — root cause:
+  `CrashLogger.kt` pakai `const val RELATIVE_PATH` tapi nilainya diambil dari
+  `Environment.DIRECTORY_DOCUMENTS` (field runtime Android, bukan compile-time constant
+  Kotlin). Fix: hapus `const`, jadi `val` polos. **BELUM diverifikasi run CI berikutnya.**
+- **LESSON buat sesi depan (WAJIB baca sebelum pakai `const val` lagi)**: `const val` di
+  Kotlin CUMA valid kalau nilainya bisa di-resolve compiler tanpa runtime (literal String/Int/
+  dll, atau referensi ke `const val` lain). Field dari API Android manapun (`Environment.*`,
+  `Build.*`, resource ID, dst) BUKAN compile-time constant walau kelihatannya "konstan" secara
+  semantik — WAJIB `val` biasa. Sandbox Claude gak bisa compile-check, jadi kalau nulis
+  `const val` baru, WAJIB cek dulu nilainya literal murni atau bukan.
+- **Batch 27 (v1.66, konten tetap sama, cuma status berubah)**: rewrite `CrashLogger.kt` ke
+  MediaStore (standing spec) — implementasi TETAP benar secara desain, cuma 1 baris salah
+  keyword (`const`). Detail lengkap tetap di entry Batch 27 CHANGELOG.md, TIDAK berubah.
 - ✅ **CI CONFIRMED HIJAU di v1.65** (body Release dinamis dari CHANGELOG, dikonfirmasi
   user via screenshot — bukan link compare kosong lagi).
 - ✅ **CI CONFIRMED HIJAU di v1.64** (hotfix `NoRippleIndication` Batch 25 berhasil, Release

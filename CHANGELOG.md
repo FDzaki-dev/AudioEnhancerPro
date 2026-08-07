@@ -4,6 +4,26 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.67 - Batch 28: hotfix CI v1.66 (compile error, const val non-constant initializer)
+User upload log run #72 — `compileDebugKotlin FAILED`. Root cause: `CrashLogger.kt:36`,
+`private const val RELATIVE_PATH = "${Environment.DIRECTORY_DOCUMENTS}/$APP_FOLDER/logs/"`
+— `Environment.DIRECTORY_DOCUMENTS` itu field runtime Android (String biasa), BUKAN
+compile-time constant Kotlin. `const val` WAJIB nilai yang bisa di-resolve compiler saat
+kompilasi (literal atau `const` lain) — compiler nolak dengan pesan persis "Const 'val'
+initializer should be a constant value". Ini murni typo kebiasaan (semua konstanta lain di
+file itu memang literal, kebawa reflex pakai `const` tanpa sadar baris ini beda), BUKAN soal
+Gradle/CI infra (wrapper bootstrap di log ini SUKSES).
+- **`CrashLogger.kt`**: `private const val RELATIVE_PATH` → `private val RELATIVE_PATH`
+  (hapus `const` doang, isi/logic TIDAK berubah sama sekali).
+- Audit ikutan: grep semua `const val` di project (17 titik lain) — SEMUA nilainya literal
+  murni (String/Int hardcode), TIDAK ada yang match pola sama seperti `RELATIVE_PATH`. Aman.
+- **`build.gradle.kts`** (app): versionCode 66→67, versionName 1.66→1.67.
+- **PENTING buat sesi depan**: kalau bikin `const val` baru yang nilainya diambil dari API
+  Android (`Environment.*`, `Build.*`, dll, bukan literal string/angka manual), JANGAN pakai
+  `const` — pakai `val` polos. `const` di Kotlin cuma valid buat primitif/String yang
+  benar-benar bisa di-resolve compiler tanpa runtime, bukan field constant dari library luar.
+- **Belum diverifikasi runtime** — HARUS dicek run CI berikutnya.
+
 ## v1.66 - Batch 27: CrashLogger MediaStore (standing spec) + debugging/robustness
 User konfirmasi CI v1.65 HIJAU (Release v1.65 sukses, body dinamis dari CHANGELOG sudah
 tampil, bukan link compare kosong lagi). Lanjut "Next" — audit ketidaksesuaian `CrashLogger.kt`
