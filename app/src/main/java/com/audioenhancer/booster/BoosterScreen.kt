@@ -542,6 +542,19 @@ fun BoosterScreen(
                 )
                 }
             }
+            // Batch 30: empty state — sebelumnya user baru yang belum pernah simpan preset
+            // custom cuma lihat 4 chip bawaan + 1 chip "Simpan" tanpa konteks apapun (chip
+            // "Simpan" doang gak menjelaskan APA yang disimpan/KAPAN berguna). Hint 1 baris
+            // ini CUMA muncul kalau belum ada preset custom sama sekali — begitu user
+            // nyimpen 1 preset pertama, hint otomatis hilang (gak numpuk jadi noise permanen).
+            if (customPresets.isEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.presets_empty_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         if (showSavePresetDialog) {

@@ -4,6 +4,22 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.69 - Batch 30: empty state hint preset custom (polish UI/UX kecil, lanjutan tema Batch 26)
+User konfirmasi crash-loop v1.67 SUDAH gak muncul lagi di v1.68 (screenshot nunjukin banner
+cuma nampilin crash LAMA dari sebelum update, app jalan normal "Aktif"). Lanjut "Next" — audit
+item pending dari daftar Medium ("empty/error state") di PROJECT_STATE.md: user baru yang
+belum pernah simpan preset custom cuma lihat 4 chip bawaan + 1 chip "Simpan" polos tanpa
+konteks apapun soal APA yang disimpan/KAPAN berguna.
+- **`BoosterScreen.kt`**: hint 1 baris (`presets_empty_hint`) ditambahkan di bawah Row chip
+  preset, tapi CUMA render kalau `customPresets.isEmpty()` — begitu user nyimpen preset
+  custom pertama, hint otomatis hilang selamanya (gak numpuk jadi noise permanen tiap buka
+  app). Style `bodySmall` + warna `onSurfaceVariant`, konsisten sama hint/caption lain di app
+  (gak ada style baru yang nyempil beda).
+- **String baru** (ID+EN, parity 97/97): `presets_empty_hint`.
+- Tidak ada perubahan state/behavior fungsional — murni penambahan 1 Text kondisional.
+- **`build.gradle.kts`** (app): versionCode 68→69, versionName 1.68→1.69.
+- **Belum diverifikasi runtime.**
+
 ## v1.68 - Batch 29: hotfix CRASH RUNTIME v1.67 ("Invalid token LIMIT", app crash-loop startup)
 User upload crash log dari device asli (Infinix, Android 16/SDK 36) — SANGAT PENTING:
 CrashLogger v1.66/v1.67 TERBUKTI BEKERJA (metadata Version/OS/Model/Timestamp/Thread lengkap

@@ -10,21 +10,12 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.68
-- 🔴 **Batch 29 (v1.68): HOTFIX CRASH RUNTIME dari device asli** (bukan cuma CI) — user
-  upload crash log Infinix Android 16/SDK 36 yang isinya `IllegalArgumentException: Invalid
-  token LIMIT` dari `ContentResolver.query`, terjadi di startup app (crash-loop, bukan cuma
-  gagal baca log). Root cause: `latestFromMediaStore()` nempel `LIMIT 1` mentah ke parameter
-  `sortOrder` (trik tidak resmi, ditolak provider OEM ini). Fix ganda: (1) hapus `LIMIT` dari
-  sortOrder, (2) bungkus `latestCrashLog()`/`deleteAllLogs()` dengan `runCatching` (defense-
-  in-depth — jalur BACA CrashLogger dipanggil langsung dari inisialisasi Composable state,
-  TIDAK terlindungi try-catch `install()` yang cuma proteksi jalur TULIS). Detail lengkap +
-  lesson "jangan nempel SQL ke sortOrder" di entry Batch 29 CHANGELOG.md. **BELUM
-  dikonfirmasi user app gak crash lagi di device Infinix yang sama.**
-- ✅ **Positif dari insiden ini**: CrashLogger MediaStore (Batch 27) TERBUKTI BEKERJA di
-  device asli — metadata Version/OS/Model/Timestamp/Thread kebaca lengkap & akurat dari log
-  yang user upload. Desain intinya benar, cuma 1 bug teknis (sortOrder LIMIT hack) di jalur
-  baca yang baru ketauan pas ada crash sungguhan buat mancing bug itu keluar.
+- **Versi**: v1.69
+- ✅ **CI CONFIRMED (user) crash-loop v1.68 gak muncul lagi** — banner cuma nampilin crash
+  lama pre-update, app jalan normal.
+- ⚠️ **Batch 30 (v1.69, BELUM diverifikasi CI/runtime)**: empty state hint di preset custom
+  (`BoosterScreen.kt`, string baru `presets_empty_hint`, ID+EN parity 97/97) — polish kecil,
+  murni tambahan 1 Text kondisional, nol perubahan logic/state. Detail di CHANGELOG.md.
 - **Batch 28 (v1.67, riwayat)**: hotfix CI compile error — `const val RELATIVE_PATH` pakai
   `Environment.DIRECTORY_DOCUMENTS` (bukan compile-time constant Kotlin), fix: hapus `const`.
   **LESSON**: `const val` di Kotlin CUMA valid kalau nilainya bisa di-resolve compiler tanpa

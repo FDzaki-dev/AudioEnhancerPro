@@ -17,8 +17,8 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        versionCode = 68
-        versionName = "1.68"
+        versionCode = 69
+        versionName = "1.69"
     }
 
     signingConfigs {
