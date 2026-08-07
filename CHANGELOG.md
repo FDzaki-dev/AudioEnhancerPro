@@ -4,6 +4,37 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.65 - Batch 26: release notes dinamis + polish kecil (char limit preset, haptic konsisten)
+User konfirmasi CI v1.64 HIJAU (Release v1.64 sukses publish, APK signed muncul di sidebar
+Releases — dikonfirmasi via screenshot). 2 permintaan: (1) ganti body GitHub Release yang
+sebelumnya cuma link "Full Changelog: v1.62...v1.64" kosong, jadi info dinamis per-rilis;
+(2) fokus debugging/optimasi + polish UI/UX + detail kecil buat kemudahan user.
+- **`.github/workflows/build.yml`**: step baru "Extract changelog entry for this version"
+  (job `release`) — `awk` ambil isi entry `CHANGELOG.md` versi yang lagi dirilis (dari
+  heading `## v<versi> - <judul>` sampai sebelum heading `## v` berikutnya), ditulis ke
+  `release_notes.md`. `Publish GitHub Release` sekarang pakai `body_path: release_notes.md`
+  (bukan `generate_release_notes: true` lagi) — orang yang buka halaman Release langsung baca
+  ringkasan perubahan sungguhan dari CHANGELOG, bukan cuma link compare mentah tanpa isi.
+  Fallback aman: kalau versionName gak ketemu entry-nya di CHANGELOG (lupa update), body jadi
+  placeholder 1 baris (bukan bikin step gagal).
+- **`BoosterScreen.kt`** (polish kecil, murni UX, tidak ada perubahan state/logic inti):
+  1. Nama custom preset sekarang dibatasi **24 karakter** (`PRESET_NAME_MAX_LENGTH`) + counter
+     "x/24 karakter" real-time di dialog simpan preset (gantiin supporting text kosong kalau
+     gak ada error). Alasan: nama kepanjangan sebelumnya bisa bikin chip preset (scroll
+     horizontal) meluber & dynamic shortcut (label ikon launcher) ke-truncate paksa sistem
+     tanpa peringatan.
+  2. Haptic feedback (`HapticFeedbackType.LongPress`, konsisten sama tombol lain di app)
+     ditambahkan ke 5 titik yang SEBELUMNYA kelewat: tombol "Mulai Ulang" (badge service mati),
+     tombol "Coba Lagi" (connection error), tombol buka pengaturan notifikasi, confirm simpan
+     preset, confirm hapus preset. Sebelumnya tombol-tombol ini "senyap" (gak ada feedback taktil
+     sama sekali) walau hampir semua interaksi lain di app sudah konsisten pakai haptic.
+- **String baru** (ID+EN, parity dijaga 96/96): `preset_save_char_count` ("%1$d/%2$d
+  karakter" / "%1$d/%2$d characters").
+- Tidak ada perubahan state/behavior fungsional inti — murni penyempurnaan detail kecil +
+  infra CI. 1 file Kotlin, 2 file strings.xml, 1 file workflow.
+- **Belum diverifikasi runtime** — HARUS dicek run CI berikutnya (compile) DAN halaman
+  Release v1.65 (isi body sesuai entry ini, bukan lagi link compare kosong).
+
 ## v1.64 - Batch 25: hotfix CI v1.63 (compile error, LocalIndication non-null)
 User upload log run #69 — `compileDebugKotlin FAILED`, 4 error di baris yang SAMA persis
 dengan 4 titik `CompositionLocalProvider(LocalIndication provides null)` dari Batch 24.

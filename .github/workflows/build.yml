@@ -212,6 +212,23 @@ jobs:
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
+      # Batch 26: SEBELUMNYA generate_release_notes:true — GitHub cuma nampilin
+      # "Full Changelog: vX...vY" (link compare mentah, gak ada isi apapun kalau
+      # dibuka dari sidebar tanpa klik lagi). Sekarang body Release diambil LANGSUNG
+      # dari entry CHANGELOG.md versi ini (heading "## v<versi> - <judul>" s.d.
+      # sebelum heading "## v" berikutnya) — jadi orang yang buka halaman Release
+      # langsung baca ringkasan perubahan sungguhan, bukan cuma link compare kosong.
+      # Fallback: kalau entry gak ketemu (lupa update CHANGELOG), body kosong string
+      # (bukan bikin step gagal) + tetap fallback ke link compare commit standar GitHub.
+      - name: Extract changelog entry for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.name }}"
+          awk -v ver="## v${VERSION} " 'BEGIN{p=0} $0 ~ "^## v" && index($0, ver)==1 {p=1; next} p && /^## v/{p=0} p{print}' CHANGELOG.md > release_notes.md
+          if [ ! -s release_notes.md ]; then
+            echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
+          fi
+
       # Batch 11 fix: SEBELUMNYA cuma upload-artifact (ketebak/tersembunyi di tab
       # Actions, kadaluarsa otomatis, gak muncul di sidebar repo). Sekarang publish
       # sebagai GitHub Release beneran — APK signed muncul langsung di sidebar
@@ -225,7 +242,7 @@ jobs:
           tag_name: v${{ steps.version.outputs.name }}
           name: AudioEnhancerPro v${{ steps.version.outputs.name }}
           files: ${{ steps.rename.outputs.path }}
-          generate_release_notes: true
+          body_path: release_notes.md
 
       # Tetap disimpan juga sebagai Actions Artifact (retensi lebih pendek) buat
       # akses cepat dari histori run tanpa harus buka tab Releases.

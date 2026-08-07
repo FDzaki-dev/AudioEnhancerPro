@@ -10,8 +10,23 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.64
-- ⚠️ **Batch 25: HOTFIX CI v1.63 gagal.** compileDebugKotlin FAILED, root cause:
+- **Versi**: v1.65
+- ✅ **CI CONFIRMED HIJAU di v1.64** (hotfix `NoRippleIndication` Batch 25 berhasil, Release
+  v1.64 sukses publish dengan APK signed — dikonfirmasi user via screenshot sidebar Releases).
+- ⚠️ **Batch 26 (v1.65, BELUM diverifikasi run CI berikutnya)**: (1) body GitHub Release
+  sekarang diambil dinamis dari entry CHANGELOG.md versi yang lagi dirilis (`awk` extract di
+  `.github/workflows/build.yml`, `body_path:` bukan `generate_release_notes:true` lagi) — cek
+  halaman Release v1.65 kalau isinya sudah sesuai entry CHANGELOG, bukan link compare kosong
+  lagi. (2) Polish kecil `BoosterScreen.kt`: batas 24 karakter + counter nama custom preset,
+  haptic feedback ditambah di 5 titik yang sebelumnya kelewat (restart service, retry
+  connection, buka setting notifikasi, confirm simpan/hapus preset). Detail lengkap di entry
+  Batch 26 CHANGELOG.md. Statis-only (brace/paren balance OK, parity string ID/EN 96/96, YAML
+  workflow syntax valid via `python3 -c "import yaml"`) — TIDAK ada compile-check sungguhan.
+- **PENTING buat sesi depan**: kalau nambah entry CHANGELOG.md versi baru, WAJIB pertahankan
+  format heading persis `## v<versi> - <judul>` (spasi sebelum & sesudah `v<versi>`) — step
+  ekstraksi release notes di CI (Batch 26) match berdasarkan prefix string ini, kalau formatnya
+  berubah body Release akan fallback ke placeholder kosong.
+- ⚠️ **Batch 25 (v1.64, riwayat)**: hotfix CI v1.63 gagal. compileDebugKotlin FAILED, root cause:
   `LocalIndication` CompositionLocal NON-NULL di compose-foundation versi project ini —
   `provides null` (Batch 24) gagal compile. Fix: `NoRippleIndication` object (no-op
   `Indication`, di `NeumorphicComponents.kt`) dipakai sebagai pengganti `null` di 4 titik

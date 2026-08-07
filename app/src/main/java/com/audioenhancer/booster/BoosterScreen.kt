@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 @Composable
 private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+    val haptics = LocalHapticFeedback.current
 
     // Cek status tiap 1 detik selagi layar ini terbuka, biar badge selalu akurat.
     LaunchedEffect(Unit) {
@@ -91,7 +92,10 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 // NeumorphicCircleButton (Batch 15) — feedback tekan sekarang murni dari
                 // dual-shadow/scale neumorphic, bukan ripple, di SELURUH komponen interaktif.
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                    Button(onClick = onRestartService) {
+                    Button(onClick = {
+                        onRestartService()
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }) {
                         Text(stringResource(R.string.restart_service))
                     }
                 }
@@ -163,6 +167,10 @@ private data class Preset(
     val virtualizer: Float,
     val loudness: Float
 )
+
+/** Batch 26: batas panjang nama custom preset — lihat komentar di pemakaiannya
+ *  (dialog simpan preset) buat alasan lengkap. */
+private const val PRESET_NAME_MAX_LENGTH = 24
 /** Heads-up kecil kalau app sempat crash sejak terakhir dibuka — sebelum ini,
  *  satu-satunya jejak crash adalah notifikasi "aktif" yang tiba-tiba hilang tanpa
  *  penjelasan. Cuma muncul sekali per insiden (ditandai "sudah dilihat" saat ditutup). */
@@ -419,7 +427,10 @@ fun BoosterScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                         )
                         CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                            Button(onClick = onRetryConnection) {
+                            Button(onClick = {
+                                onRetryConnection()
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }) {
                                 Text(stringResource(R.string.connection_retry))
                             }
                         }
@@ -447,7 +458,10 @@ fun BoosterScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
                     CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                        Button(onClick = onOpenNotificationSettings) {
+                        Button(onClick = {
+                            onOpenNotificationSettings()
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }) {
                             Text(stringResource(R.string.notif_perm_button))
                         }
                     }
@@ -553,7 +567,11 @@ fun BoosterScreen(
                 text = {
                     OutlinedTextField(
                         value = presetNameInput,
-                        onValueChange = { presetNameInput = it },
+                        // Batch 26: batas 24 karakter — tanpa ini nama panjang bikin chip
+                        // preset (FilterChip lebar scroll horizontal) jadi meluber/kepotong
+                        // aneh & dynamic shortcut (ShortcutHelper, label ikon launcher) juga
+                        // ke-truncate paksa oleh sistem tanpa peringatan ke user.
+                        onValueChange = { if (it.length <= PRESET_NAME_MAX_LENGTH) presetNameInput = it },
                         singleLine = true,
                         label = { Text(stringResource(R.string.preset_save_dialog_hint)) },
                         isError = nameCollidesWithBuiltIn,
@@ -562,6 +580,15 @@ fun BoosterScreen(
                                 Text(
                                     stringResource(R.string.preset_save_name_collision_error),
                                     color = MaterialTheme.colorScheme.error
+                                )
+                            } else {
+                                Text(
+                                    stringResource(
+                                        R.string.preset_save_char_count,
+                                        presetNameInput.length,
+                                        PRESET_NAME_MAX_LENGTH
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -578,6 +605,7 @@ fun BoosterScreen(
                             activePreset = newPreset.name
                             onActivePresetChange(newPreset.name)
                             showSavePresetDialog = false
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     ) { Text(stringResource(R.string.preset_save_confirm)) }
                 },
@@ -601,6 +629,7 @@ fun BoosterScreen(
                         ShortcutHelper.refreshCustomPresetShortcuts(context)
                         if (activePreset == nameToDelete) { activePreset = null; onActivePresetChange(null) }
                         presetPendingDelete = null
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     }) { Text(stringResource(R.string.preset_delete_confirm)) }
                 },
                 dismissButton = {
