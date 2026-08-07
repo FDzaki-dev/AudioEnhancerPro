@@ -177,16 +177,16 @@ private const val PRESET_NAME_MAX_LENGTH = 24
 @Composable
 private fun CrashBanner() {
     val context = LocalContext.current
-    var crashFile by remember {
+    var crashEntry by remember {
         mutableStateOf(if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null)
     }
     var showDialog by remember { mutableStateOf(false) }
-    val file = crashFile ?: return
+    val entry = crashEntry ?: return
 
     fun dismiss() {
         showDialog = false
         CrashLogger.markCrashSeen(context)
-        crashFile = null
+        crashEntry = null
     }
 
     NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
@@ -208,7 +208,7 @@ private fun CrashBanner() {
     }
 
     if (showDialog) {
-        val crashText = remember(file) { runCatching { file.readText() }.getOrDefault("") }
+        val crashText = remember(entry) { entry.readText(context) }
         AlertDialog(
             onDismissRequest = { dismiss() },
             title = { Text(stringResource(R.string.crash_dialog_title)) },

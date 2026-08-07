@@ -4,6 +4,62 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.66 - Batch 27: CrashLogger MediaStore (standing spec) + debugging/robustness
+User konfirmasi CI v1.65 HIJAU (Release v1.65 sukses, body dinamis dari CHANGELOG sudah
+tampil, bukan link compare kosong lagi). Lanjut "Next" — audit ketidaksesuaian `CrashLogger.kt`
+terhadap standing spec crash logger user (MediaStore API 29+, `Documents/<App>/logs/`, TANPA
+permission legacy, FIFO retention 50, metadata lengkap Version/OS/Model/Timestamp/Thread/
+StackTrace, fail-safe). Implementasi SEBELUMNYA (`filesDir/crash_logs/` internal, rotasi 5,
+cuma isi stack trace polos tanpa metadata) TIDAK PERNAH match spec ini sejak awal project —
+gap nyata, bukan regresi baru.
+- **`CrashLogger.kt`** (rewrite penuh, Atomic Change — 1 file tapi banyak titik saling
+  bergantung, gak bisa dipecah batch tanpa compiler buat verifikasi konsistensi):
+  1. **API 29+ (Q)**: tulis via `ContentResolver.insert()` ke `MediaStore.Files` dengan
+     `RELATIVE_PATH = Documents/AudioEnhancerPro/logs/` — TANPA `WRITE_EXTERNAL_STORAGE` atau
+     permission storage apapun (scoped storage, terverifikasi: `AndroidManifest.xml` TIDAK
+     disentuh, nol permission baru). File langsung terlihat dari File Manager/Files by Google
+     mana pun, bukan cuma bisa dilihat lewat dialog in-app kayak sebelumnya.
+  2. **API 24-28 (di bawah Q, `MediaStore.Files.RELATIVE_PATH` belum ada)**: fallback OTOMATIS
+     ke `filesDir/crash_logs/` (perilaku lama) — tetap tanpa permission apapun, cuma gak nongol
+     di File Manager (keterbatasan versi Android, minSdk project ini 24).
+  3. **Metadata lengkap** ditambahkan di header tiap file log (sebelumnya CUMA stack trace
+     polos): `Version` (dari `PackageManager`), `OS` (`Build.VERSION.RELEASE`+SDK int), `Model`
+     (`Build.MANUFACTURER`+`Build.MODEL`), `Timestamp` (presisi milidetik), `Thread` (nama
+     thread yang crash) — baru diikuti `StackTrace` di bawah separator `---`.
+  4. **FIFO retention naik dari 5 → 50 file** (query+prune MediaStore via `DATE_ADDED DESC`
+     + drop di luar 50 pertama, fallback legacy pakai pola `sortedByDescending` yang sama
+     seperti sebelumnya cuma angkanya disamakan ke 50).
+  5. **Fail-safe TIDAK berubah** (tetap try-catch penuh di `install()`, logger gagal nulis TIDAK
+     PERNAH menelan/mencegah crash asli — `previousHandler?.uncaughtException()` tetap selalu
+     dipanggil di akhir, apapun hasil `writeCrashLog`).
+  6. **Abstraksi baru**: `CrashLogEntry` (data class internal) menyatukan 2 sumber (MediaStore
+     `Uri` di API 29+, `File` legacy di API lama) di balik 1 tipe yang sama — `readText(context)`
+     & `lastModifiedMillis` seragam, pemanggil (`CrashBanner`) gak perlu tahu sumbernya dari
+     mana. `latestCrashLog()`/`hasUnseenCrash()`/`markCrashSeen()`/`deleteAllLogs()` semua
+     dirombak ikut abstraksi baru ini, TAPI signature publiknya (nama fungsi, jumlah/tipe
+     parameter selain return type `latestCrashLog`) sengaja TETAP SAMA — minim blast radius ke
+     pemanggil.
+  - **PENTING (unit konversi waktu, WAJIB dibaca sebelum sentuh ulang file ini)**:
+    `MediaStore.MediaColumns.DATE_MODIFIED`/`DATE_ADDED` tersimpan dalam **DETIK** (Unix epoch),
+    BUKAN milidetik seperti `File.lastModified()` — kalau dibandingkan langsung ke
+    `PrefsHelper.getLastSeenCrashTimestamp()` (yang isinya milidetik dari jalur legacy lama)
+    tanpa dikali 1000, `hasUnseenCrash()` akan SELALU true tiap buka app (banner gak pernah
+    hilang meski udah "dilihat"). Sudah di-fix (`dateModifiedSeconds * 1000` di
+    `latestFromMediaStore()`) — JANGAN dihapus konversi ini kalau refactor lagi.
+- **`BoosterScreen.kt`** (`CrashBanner`, penyesuaian minimal ikutan rewrite di atas):
+  `var crashFile: File?` → `var crashEntry: CrashLogger.CrashLogEntry?`, `file.readText()` →
+  `entry.readText(context)` (butuh `context` sekarang, karena `Uri` di API 29+ perlu
+  `ContentResolver` buat dibaca, beda dari `File` polos yang bisa baca dirinya sendiri).
+  TIDAK ADA perubahan lain di composable ini — dialog, tombol hapus/tutup, semua behavior
+  visual/UX persis sama seperti sebelumnya.
+- Tidak ada string baru (nol perubahan `strings.xml`, parity ID/EN TETAP 96/96).
+- **Belum divalidasi runtime SAMA SEKALI** — ini area BARU yang belum pernah disentuh
+  sandbox Claude sebelumnya (ContentResolver/MediaStore API), confidence diturunkan
+  eksplisit di report. Kandidat pertama dicurigai kalau ada laporan "crash banner gak
+  pernah muncul lagi" atau "log gak ketemu di Files by Google": cek dulu apakah device user
+  API 29+ (harusnya MediaStore) atau di bawahnya (harusnya fallback filesDir, gak akan
+  nongol di File Manager, itu memang expected).
+
 ## v1.65 - Batch 26: release notes dinamis + polish kecil (char limit preset, haptic konsisten)
 User konfirmasi CI v1.64 HIJAU (Release v1.64 sukses publish, APK signed muncul di sidebar
 Releases — dikonfirmasi via screenshot). 2 permintaan: (1) ganti body GitHub Release yang

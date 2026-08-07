@@ -10,7 +10,17 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.65
+- **Versi**: v1.66
+- ⚠️ **Batch 27 (v1.66, BELUM diverifikasi CI/runtime)**: `CrashLogger.kt` di-rewrite penuh
+  buat match standing spec crash logger user (MediaStore API 29+ `Documents/AudioEnhancerPro/
+  logs/` tanpa permission legacy, FIFO 50, metadata Version/OS/Model/Timestamp/Thread lengkap,
+  fail-safe) — implementasi lama (`filesDir` internal, rotasi 5, stack trace polos) TIDAK
+  PERNAH sesuai spec ini sejak awal, baru ketauan pas audit sesi ini. Area BARU buat sandbox
+  Claude (ContentResolver/MediaStore, belum pernah disentuh sebelumnya) — confidence lebih
+  rendah dari batch statis biasa. Detail lengkap + catatan unit detik-vs-milidetik (WAJIB
+  dibaca sebelum sentuh file ini lagi) ada di entry Batch 27 CHANGELOG.md.
+- ✅ **CI CONFIRMED HIJAU di v1.65** (body Release dinamis dari CHANGELOG, dikonfirmasi
+  user via screenshot — bukan link compare kosong lagi).
 - ✅ **CI CONFIRMED HIJAU di v1.64** (hotfix `NoRippleIndication` Batch 25 berhasil, Release
   v1.64 sukses publish dengan APK signed — dikonfirmasi user via screenshot sidebar Releases).
 - ⚠️ **Batch 26 (v1.65, BELUM diverifikasi run CI berikutnya)**: (1) body GitHub Release
