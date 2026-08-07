@@ -10,13 +10,22 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.63
-- ✅ **Batch 24 SELESAI: ripple removal** (`Button`/`FilterChip`/`AssistChip` di
-  `BoosterScreen.kt`, 4 titik pakai `CompositionLocalProvider(LocalIndication provides
-  null)`). **Ini item TERAKHIR dari spec design system "Hybrid Neumorphism" — semua
-  poin pending sejak Batch 15 sekarang SELESAI** (Slider custom Batch 22, ripple
-  removal Batch 24). Sisa: `drawWithCache` (sengaja di-skip permanen, gak ada manfaat
-  di skala app ini) dan radius "Phone 44dp" (diabaikan permanen, gak ada target).
+- **Versi**: v1.64
+- ⚠️ **Batch 25: HOTFIX CI v1.63 gagal.** compileDebugKotlin FAILED, root cause:
+  `LocalIndication` CompositionLocal NON-NULL di compose-foundation versi project ini —
+  `provides null` (Batch 24) gagal compile. Fix: `NoRippleIndication` object (no-op
+  `Indication`, di `NeumorphicComponents.kt`) dipakai sebagai pengganti `null` di 4 titik
+  `BoosterScreen.kt`. **BELUM diverifikasi run CI berikutnya.**
+- **LESSON buat sesi depan (WAJIB baca sebelum pakai `LocalIndication`/`Indication?`
+  lagi)**: versi API Compose Foundation project ini (compose-bom 2024.06.00) TIDAK selalu
+  match asumsi umum dari internet/training data soal nullability — 2 insiden berturut
+  (Batch 23 experimental opt-in, Batch 25 non-null CompositionLocal) SAMA-SAMA soal API
+  surface yang beda dari ekspektasi, BUKAN soal logic. Sandbox Claude gak bisa compile-
+  check, jadi kalau pakai API Compose yang belum pernah dipakai di project ini
+  sebelumnya, confidence HARUS diturunkan eksplisit di report, bukan diasumsikan aman.
+- ✅ **Batch 24 (v1.63): ripple removal** — implementasi TETAP benar secara desain (scope
+  4 titik, `NoRippleIndication` custom), cuma cara nulis Kotlin-nya yang salah tipe.
+  Detail lengkap di entry Batch 24 di bawah.
 - **Next kandidat polish**: audit Medium/Low lama dari Batch 16 (recomposition/reusable
   component review, hierarki visual, white space, micro-animation tambahan, loading/
   success/error feedback, empty/error state, penjelasan fitur lanjutan) — belum pernah

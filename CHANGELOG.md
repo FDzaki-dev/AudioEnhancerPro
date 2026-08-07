@@ -4,6 +4,31 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.64 - Batch 25: hotfix CI v1.63 (compile error, LocalIndication non-null)
+User upload log run #69 — `compileDebugKotlin FAILED`, 4 error di baris yang SAMA persis
+dengan 4 titik `CompositionLocalProvider(LocalIndication provides null)` dari Batch 24.
+Root cause: `LocalIndication` di compose-foundation versi project ini (compose-bom
+2024.06.00) bertipe `CompositionLocal<Indication>` **NON-NULL** — `provides null` gagal
+compile (`Null can not be a value of a non-null type Indication`). BEDA total dari
+asumsi Batch 24 (banyak contoh/tutorial online pakai versi compose-foundation lama yang
+nullable) — bukan soal Gradle/CI infra (wrapper bootstrap di log ini SUKSES lagi).
+- **`NeumorphicComponents.kt`**: `internal object NoRippleIndication : Indication` baru —
+  no-op `IndicationInstance` (`drawIndication()` cuma `drawContent()`, gak gambar apapun
+  ekstra), efek visual identik "ripple hilang" tapi valid secara tipe. Ditaruh di file
+  ini (bukan `BoosterScreen.kt`) karena reusable/shared component, konsisten sama pola
+  file ini.
+- **`BoosterScreen.kt`**: 4 titik `provides null` → `provides NoRippleIndication`.
+  `NeumorphicCircleButton` (`.clickable(indication = null, ...)`, Batch 15) TIDAK
+  disentuh — itu parameter `indication` di modifier `clickable()` yang MEMANG nullable
+  (`Indication?`), API BEDA dari `LocalIndication` CompositionLocal, gak kena masalah
+  yang sama.
+- **`build.gradle.kts`** (app): versionCode 63→64, versionName 1.63→1.64.
+- **PENTING buat sesi depan**: kalau butuh matikan ripple/indication lagi di tempat lain,
+  pakai `NoRippleIndication` yang sudah ada (`CompositionLocalProvider(LocalIndication
+  provides NoRippleIndication)`), JANGAN pakai `provides null` lagi — sudah terbukti
+  gagal compile di versi compose-foundation project ini.
+- **Belum diverifikasi runtime** — HARUS dicek run CI berikutnya.
+
 ## v1.63 - Batch 24: ripple removal Material3 default (Button/FilterChip/AssistChip)
 User konfirmasi v1.62 CI hijau, lanjut "Next" — item terakhir dari spec design system
 yang belum dikerjakan (dicatat pending sejak Batch 15): ripple Material3 bawaan di

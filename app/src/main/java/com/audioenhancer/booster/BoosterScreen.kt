@@ -90,7 +90,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 // Batch 24: ripple Material3 default dimatikan, konsisten sama
                 // NeumorphicCircleButton (Batch 15) — feedback tekan sekarang murni dari
                 // dual-shadow/scale neumorphic, bukan ripple, di SELURUH komponen interaktif.
-                CompositionLocalProvider(LocalIndication provides null) {
+                CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                     Button(onClick = onRestartService) {
                         Text(stringResource(R.string.restart_service))
                     }
@@ -418,7 +418,7 @@ fun BoosterScreen(
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                         )
-                        CompositionLocalProvider(LocalIndication provides null) {
+                        CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                             Button(onClick = onRetryConnection) {
                                 Text(stringResource(R.string.connection_retry))
                             }
@@ -446,7 +446,7 @@ fun BoosterScreen(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
-                    CompositionLocalProvider(LocalIndication provides null) {
+                    CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                         Button(onClick = onOpenNotificationSettings) {
                             Text(stringResource(R.string.notif_perm_button))
                         }
@@ -480,7 +480,7 @@ fun BoosterScreen(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                CompositionLocalProvider(LocalIndication provides null) {
+                CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                 presets.forEach { preset ->
                     FilterChip(
                         selected = activePreset == preset.label,

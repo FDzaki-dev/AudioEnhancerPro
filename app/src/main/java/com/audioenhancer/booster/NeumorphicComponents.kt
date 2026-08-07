@@ -11,9 +11,12 @@ package com.audioenhancer.booster
 import android.graphics.Paint as AndroidPaint
 import android.os.Build
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Indication
+import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -33,6 +36,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
@@ -46,6 +50,27 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+/** Batch 25 (hotfix Batch 24): `LocalIndication` di compose-foundation versi project ini
+ *  (compose-bom 2024.06.00) bertipe `CompositionLocal<Indication>` NON-NULL — `provides
+ *  null` gagal compile ("Null can not be a value of a non-null type Indication"), BEDA
+ *  dari asumsi awal (banyak contoh online pakai versi lama yang nullable). Fix: no-op
+ *  `Indication` instance (drawIndication cuma `drawContent()`, gak gambar apapun extra)
+ *  dipakai lewat `CompositionLocalProvider(LocalIndication provides NoRippleIndication)`
+ *  — efek visual PERSIS SAMA (ripple hilang), cuma cara Kotlin-nya beda dari `null`.
+ *  `internal` biar dipakai dari `BoosterScreen.kt` juga (reusable, bukan cuma di sini). */
+internal object NoRippleIndication : Indication {
+    private object NoRippleIndicationInstance : IndicationInstance {
+        override fun ContentDrawScope.drawIndication() {
+            drawContent()
+        }
+    }
+
+    @Composable
+    override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance =
+        NoRippleIndicationInstance
+}
+
 
 
 /** Varian bundar dari NeumorphicCard, khusus buat power button (64dp) — dual-shadow
