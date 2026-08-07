@@ -9,6 +9,7 @@ package com.audioenhancer.booster
 // (NeumorphicCard dkk) sekarang ada di NeumorphicComponents.kt, bukan di file ini lagi —
 // TIDAK ADA perubahan logic/behavior, murni pemindahan lokasi kode.
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -86,8 +87,13 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 modifier = Modifier.weight(1f)
             )
             if (!isRunning) {
-                Button(onClick = onRestartService) {
-                    Text(stringResource(R.string.restart_service))
+                // Batch 24: ripple Material3 default dimatikan, konsisten sama
+                // NeumorphicCircleButton (Batch 15) — feedback tekan sekarang murni dari
+                // dual-shadow/scale neumorphic, bukan ripple, di SELURUH komponen interaktif.
+                CompositionLocalProvider(LocalIndication provides null) {
+                    Button(onClick = onRestartService) {
+                        Text(stringResource(R.string.restart_service))
+                    }
                 }
             }
         }
@@ -412,8 +418,10 @@ fun BoosterScreen(
                             style = MaterialTheme.typography.bodySmall,
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                         )
-                        Button(onClick = onRetryConnection) {
-                            Text(stringResource(R.string.connection_retry))
+                        CompositionLocalProvider(LocalIndication provides null) {
+                            Button(onClick = onRetryConnection) {
+                                Text(stringResource(R.string.connection_retry))
+                            }
                         }
                     }
                 }
@@ -438,8 +446,10 @@ fun BoosterScreen(
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
-                    Button(onClick = onOpenNotificationSettings) {
-                        Text(stringResource(R.string.notif_perm_button))
+                    CompositionLocalProvider(LocalIndication provides null) {
+                        Button(onClick = onOpenNotificationSettings) {
+                            Text(stringResource(R.string.notif_perm_button))
+                        }
                     }
                 }
             }
@@ -470,6 +480,7 @@ fun BoosterScreen(
                 modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                CompositionLocalProvider(LocalIndication provides null) {
                 presets.forEach { preset ->
                     FilterChip(
                         selected = activePreset == preset.label,
@@ -515,6 +526,7 @@ fun BoosterScreen(
                     leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
                     shape = RoundedCornerShape(50)
                 )
+                }
             }
         }
 

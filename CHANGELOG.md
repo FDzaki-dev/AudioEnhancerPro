@@ -4,6 +4,29 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.63 - Batch 24: ripple removal Material3 default (Button/FilterChip/AssistChip)
+User konfirmasi v1.62 CI hijau, lanjut "Next" — item terakhir dari spec design system
+yang belum dikerjakan (dicatat pending sejak Batch 15): ripple Material3 bawaan di
+`Button`/`FilterChip`/`AssistChip` dimatikan, konsisten sama `NeumorphicCircleButton`
+(sudah `indication = null` sejak Batch 15) — biar SELURUH komponen interaktif app pakai
+1 bahasa feedback (dual-shadow/scale neumorphic), bukan campur ripple Material default +
+custom feedback.
+- **`BoosterScreen.kt`**: 4 titik dibungkus `CompositionLocalProvider(LocalIndication
+  provides null)`: `Button` restart service (badge), `Button` retry connection, `Button`
+  buka notification settings, dan 1 `Row` yang isinya SEMUA preset chip (built-in +
+  custom `FilterChip`, + `AssistChip` simpan preset) — dibungkus sekali di level Row
+  daripada 1-1 per chip, biar gak numpuk boilerplate untuk item dalam `forEach`.
+  +import `androidx.compose.foundation.LocalIndication`.
+- **TIDAK disentuh** (di luar scope spec eksplisit user): `TextButton`, `IconButton`,
+  `OutlinedButton` — spec cuma sebut `Button`/`FilterChip`/`AssistChip` 3 nama itu,
+  bukan semua komponen clickable Material3. Kalau user mau diperluas, minta konfirmasi
+  eksplisit dulu (Strict Delete/Change Guard — jangan extend scope tanpa diminta).
+- **`build.gradle.kts`** (app): versionCode 62→63, versionName 1.62→1.63.
+- Tidak ada perubahan state/logic — murni visual/interaksi, 1 file Kotlin.
+- **Belum diverifikasi runtime** — kandidat pertama dicurigai kalau ada laporan "tombol
+  kerasa gak responsif" (ripple hilang bisa terasa aneh buat sebagian user meski
+  desainnya sengaja).
+
 ## v1.62 - Batch 23: hotfix CI v1.61 (compile error, Slider experimental API)
 User upload log run #67 — `compileDebugKotlin FAILED`. Root cause: API `thumb=`/`track=`/
 `SliderState` yang dipakai Batch 22 masih `@ExperimentalMaterial3Api` di material3 1.2.1 —

@@ -10,14 +10,20 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.62
-- ⚠️ **Batch 23: HOTFIX CI v1.61 gagal.** compileDebugKotlin FAILED — root cause: API
-  `thumb=`/`track=`/`SliderState` (dipakai Batch 22 buat Slider custom) masih
-  `@ExperimentalMaterial3Api`, compiler treat sebagai ERROR tanpa `@OptIn`. Fix:
-  `@OptIn(ExperimentalMaterial3Api::class)` ditambah di `NeumorphicSliderTrack` +
-  `FeatureControl`. **BELUM diverifikasi run CI berikutnya** — kalau MASIH gagal,
-  kemungkinan ada API experimental lain yang lolos deteksi manual (cari lagi baris
-  `e: ... experimental` di log berikutnya, jangan asumsi otomatis root cause sama).
+- **Versi**: v1.63
+- ✅ **Batch 24 SELESAI: ripple removal** (`Button`/`FilterChip`/`AssistChip` di
+  `BoosterScreen.kt`, 4 titik pakai `CompositionLocalProvider(LocalIndication provides
+  null)`). **Ini item TERAKHIR dari spec design system "Hybrid Neumorphism" — semua
+  poin pending sejak Batch 15 sekarang SELESAI** (Slider custom Batch 22, ripple
+  removal Batch 24). Sisa: `drawWithCache` (sengaja di-skip permanen, gak ada manfaat
+  di skala app ini) dan radius "Phone 44dp" (diabaikan permanen, gak ada target).
+- **Next kandidat polish**: audit Medium/Low lama dari Batch 16 (recomposition/reusable
+  component review, hierarki visual, white space, micro-animation tambahan, loading/
+  success/error feedback, empty/error state, penjelasan fitur lanjutan) — belum pernah
+  disentuh sama sekali.
+- ✅ **CI CONFIRMED HIJAU di v1.62** (hotfix `@OptIn` Batch 23 berhasil). Slider custom
+  Batch 22 sekarang FULLY VERIFIED (build + runtime compile, bukan cuma statis lagi).
+  Fase lanjut: **"polish, debugging, eksekusi sampai matang"**.
 - ✅ **CI CONFIRMED HIJAU di v1.60** (sebelum regresi Slider Batch 22 di v1.61) — root
   cause Gradle wrapper bootstrap (Batch 19-21) TETAP final selesai, TIDAK terkait hotfix
   ini. Fase tetap **"polish, debugging, eksekusi sampai matang"**.
