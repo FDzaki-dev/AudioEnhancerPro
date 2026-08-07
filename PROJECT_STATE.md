@@ -10,11 +10,20 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.61
-- ✅ **CI CONFIRMED HIJAU sejak v1.60** — root cause Gradle wrapper bootstrap (Batch 19-21)
-  FINAL selesai, opsi cadangan (commit wrapper manual) TIDAK JADI diperlukan. Fase sekarang:
-  **"polish, debugging, eksekusi sampai matang"** (diminta user eksplisit) — bukan lagi
-  fase fitur baru maupun fire-fighting CI.
+- **Versi**: v1.62
+- ⚠️ **Batch 23: HOTFIX CI v1.61 gagal.** compileDebugKotlin FAILED — root cause: API
+  `thumb=`/`track=`/`SliderState` (dipakai Batch 22 buat Slider custom) masih
+  `@ExperimentalMaterial3Api`, compiler treat sebagai ERROR tanpa `@OptIn`. Fix:
+  `@OptIn(ExperimentalMaterial3Api::class)` ditambah di `NeumorphicSliderTrack` +
+  `FeatureControl`. **BELUM diverifikasi run CI berikutnya** — kalau MASIH gagal,
+  kemungkinan ada API experimental lain yang lolos deteksi manual (cari lagi baris
+  `e: ... experimental` di log berikutnya, jangan asumsi otomatis root cause sama).
+- ✅ **CI CONFIRMED HIJAU di v1.60** (sebelum regresi Slider Batch 22 di v1.61) — root
+  cause Gradle wrapper bootstrap (Batch 19-21) TETAP final selesai, TIDAK terkait hotfix
+  ini. Fase tetap **"polish, debugging, eksekusi sampai matang"**.
+- ✅ **Batch 22 (v1.61): Slider custom** — implementasi TETAP benar secara desain (track
+  10dp, thumb 22dp+shadow+ring, konsisten `neumorphicDepth()`), cuma kurang 1 annotation
+  opt-in. Detail lengkap di entry Batch 22 di bawah.
 - ✅ **Batch 22 SELESAI: Slider custom** (item terakhir pending dari spec design system
   "Hybrid Neumorphism", ditunda sejak Batch 15). `NeumorphicSliderTrack` (10dp, rounded
   5dp) + `NeumorphicSliderThumb` (22dp, `neumorphicDepth()` sama dgn NeumorphicCard, ring

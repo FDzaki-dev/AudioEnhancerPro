@@ -260,6 +260,7 @@ internal fun SectionLabel(text: String, accentColor: Color = MaterialTheme.color
  *  Thumb custom pakai `neumorphicDepth()` yang SAMA PERSIS dipakai NeumorphicCard/
  *  NeumorphicCircleButton — biar dual-shadow-nya konsisten satu bahasa desain di semua
  *  komponen, bukan reimplementasi shadow terpisah. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NeumorphicSliderTrack(
     sliderState: SliderState,
@@ -308,6 +309,7 @@ private fun NeumorphicSliderThumb(accentColor: Color, enabled: Boolean) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FeatureControl(
     title: String,

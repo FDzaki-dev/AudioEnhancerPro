@@ -4,6 +4,26 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.62 - Batch 23: hotfix CI v1.61 (compile error, Slider experimental API)
+User upload log run #67 — `compileDebugKotlin FAILED`. Root cause: API `thumb=`/`track=`/
+`SliderState` yang dipakai Batch 22 masih `@ExperimentalMaterial3Api` di material3 1.2.1 —
+Kotlin compiler treat opt-in annotation ini sebagai **ERROR** (bukan cuma warning) kalau
+dipakai tanpa `@OptIn` eksplisit, bukan soal Gradle/CI infra sama sekali (wrapper bootstrap
+di log ini SUKSES — beda root cause total dari Batch 19-21).
+- **`NeumorphicComponents.kt`**: tambah `@OptIn(ExperimentalMaterial3Api::class)` di
+  `NeumorphicSliderTrack` (pakai `SliderState`) dan `FeatureControl` (pakai overload
+  `thumb=`/`track=`). Scope kecil (2 fungsi), BUKAN ubah compiler flag global — biar
+  opt-in experimental API ini gak diam-diam nutupin API experimental lain yang mungkin
+  kepake gak sengaja di masa depan.
+- **`build.gradle.kts`** (app): versionCode 61→62, versionName 1.61→1.62.
+- **PENTING buat sesi depan**: kalau nambah API Compose baru yang ditandai
+  `@ExperimentalXxxApi` (Material3, Foundation, dll), WAJIB cek dulu apakah perlu
+  `@OptIn` — sandbox Claude gak bisa compile-check, jadi typo/skip opt-in kayak ini BARU
+  ketauan pas CI jalan. Kandidat generalisasi: kalau butuh sering pakai API experimental
+  material3, pertimbangkan `@OptIn` di level file (`@file:OptIn(...)`) daripada per-fungsi
+  — belum dilakukan di batch ini karena baru 2 fungsi yang kena.
+- **Belum diverifikasi runtime** — HARUS dicek run CI berikutnya sebelum dianggap tuntas.
+
 ## v1.61 - Batch 22: Slider custom (CI v1.60 CONFIRMED HIJAU)
 User konfirmasi build v1.60 lolos CI penuh — root cause Gradle wrapper bootstrap (Batch
 19-21) FINAL selesai, tidak perlu opsi cadangan (commit wrapper manual). Sesi ini mulai
