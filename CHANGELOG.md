@@ -4,6 +4,48 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.68 - Batch 29: hotfix CRASH RUNTIME v1.67 ("Invalid token LIMIT", app crash-loop startup)
+User upload crash log dari device asli (Infinix, Android 16/SDK 36) — SANGAT PENTING:
+CrashLogger v1.66/v1.67 TERBUKTI BEKERJA (metadata Version/OS/Model/Timestamp/Thread lengkap
+kebaca), tapi isinya jadi bug BARU yang lebih parah: `java.lang.IllegalArgumentException:
+Invalid token LIMIT` dari `ContentResolver.query`, terjadi SINKRON saat `dispatchAttachedToWindow`
+(startup app, Compose attach) — **app crash total di setiap buka**, bukan cuma gagal baca log.
+- **Root cause**: `latestFromMediaStore()` (dipanggil `CrashBanner` di inisialisasi state,
+  LANGSUNG saat composition, DI LUAR try-catch `install()` yang cuma lindungi jalur TULIS)
+  pakai `sortOrder = "$DATE_MODIFIED DESC LIMIT 1"` — nempelin klausa SQL `LIMIT` mentah ke
+  parameter `sortOrder` itu TRIK, bukan API resmi, cuma "kebetulan" diterima ContentProvider
+  AOSP standar. ContentProvider OEM tertentu (kejadian nyata: MediaProvider Infinix, Android
+  16) validasi `sortOrder`-nya lebih ketat dan NOLAK token `LIMIT`, throw exception yang TIDAK
+  ketangkep di mana pun (crash sampai ke `ActivityThread.main`).
+- **Fix ganda** (defense-in-depth, BUKAN cuma 1 lapis):
+  1. `sortOrder` dikembalikan jadi `"$DATE_MODIFIED DESC"` polos (hapus `LIMIT 1`) — cukup
+     `cursor.moveToFirst()` dari hasil DESC, gak butuh LIMIT di level query (data maks 50
+     baris karena retensi FIFO Batch 27, query tanpa LIMIT tetap murah).
+  2. `latestCrashLog()` (dan turunannya, `latestFromMediaStore`/`latestFromLegacy` via
+     panggilan itu) SEKARANG dibungkus `runCatching { }.getOrNull()` di level PALING LUAR —
+     supaya kalau ada lagi ContentProvider OEM manapun yang nolak query dengan cara TAK
+     TERDUGA lain di masa depan, app TIDAK ikut crash, cuma banner crash gak muncul (gagal
+     aman, bukan gagal total). `hasUnseenCrash()`/`markCrashSeen()` otomatis ikut terlindungi
+     (keduanya manggil `latestCrashLog()`). `deleteAllLogs()` (dipanggil tombol UI, sama-sama
+     di luar try-catch `install()`) juga dibungkus `runCatching` terpisah.
+- **LESSON buat sesi depan (WAJIB baca sebelum sentuh query MediaStore/ContentResolver lagi)**:
+  (a) JANGAN PERNAH nempelin klausa SQL bebas (`LIMIT`, dst) ke parameter `sortOrder`
+  `ContentResolver.query()` — itu bukan kontrak resmi API-nya, perilakunya BEDA-BEDA antar
+  ContentProvider (AOSP vs OEM vs versi Android). Kalau butuh batasi jumlah baris, filter di
+  sisi Kotlin (`moveToFirst()` doang, atau `Bundle` args `ContentResolver.QUERY_ARG_LIMIT` di
+  API 30+ — TAPI project ini minSdk 24, jadi opsi itu pun gak portable ke semua target). (b)
+  Fungsi APAPUN yang manggil `ContentResolver`/API sistem lain dari jalur BACA (bukan cuma
+  tulis) yang dipanggil LANGSUNG dari inisialisasi Composable state — WAJIB dibungkus
+  `runCatching` sendiri, JANGAN asumsikan try-catch di `install()` (yang cuma proteksi jalur
+  tulis crash handler) otomatis melindungi jalur baca juga — 2 jalur yang terpisah total.
+- **`build.gradle.kts`** (app): versionCode 67→68, versionName 1.67→1.68.
+- Tidak ada perubahan string/UI. 1 file Kotlin (`CrashLogger.kt`).
+- **Belum diverifikasi ulang di device Infinix yang sama** — user perlu install v1.68 &
+  konfirmasi app gak crash lagi di startup. Kandidat pertama dicurigai kalau MASIH crash:
+  cek apakah ada ContentProvider OEM lain yang juga nolak `selection`/`args` cara kita query
+  (`RELATIVE_PATH = ?`) — belum pernah dilaporkan gagal, tapi sekarang minimal app gak akan
+  ikut crash total karena sudah dibungkus `runCatching`.
+
 ## v1.67 - Batch 28: hotfix CI v1.66 (compile error, const val non-constant initializer)
 User upload log run #72 — `compileDebugKotlin FAILED`. Root cause: `CrashLogger.kt:36`,
 `private const val RELATIVE_PATH = "${Environment.DIRECTORY_DOCUMENTS}/$APP_FOLDER/logs/"`

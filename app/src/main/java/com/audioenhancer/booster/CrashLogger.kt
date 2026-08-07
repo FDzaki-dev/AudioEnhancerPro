@@ -154,14 +154,21 @@ object CrashLogger {
         }
     }
 
-    /** File crash paling baru yang tersimpan, null kalau belum pernah ada crash. */
-    fun latestCrashLog(context: Context): CrashLogEntry? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+    /** File crash paling baru yang tersimpan, null kalau belum pernah ada crash.
+     *  Batch 29: SELURUH isi fungsi ini (termasuk turunan MediaStore/legacy) dibungkus
+     *  `runCatching` — sebelumnya TIDAK, dan itu jadi penyebab crash-loop nyata di startup
+     *  (lihat detail insiden "Invalid token LIMIT" di CHANGELOG.md Batch 29). Fungsi baca
+     *  dipanggil LANGSUNG dari inisialisasi state Composable (`CrashBanner`), di luar
+     *  try-catch `install()` yang cuma melindungi jalur TULIS — kalau ContentProvider OEM
+     *  manapun nolak query dengan cara yang gak terduga lagi di masa depan, sekarang app
+     *  TIDAK ikut crash, cuma banner crash gak muncul (gagal aman, bukan gagal total). */
+    fun latestCrashLog(context: Context): CrashLogEntry? = runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             latestFromMediaStore(context)
         } else {
             latestFromLegacy(context)
         }
-    }
+    }.getOrNull()
 
     private fun latestFromMediaStore(context: Context): CrashLogEntry? {
         val resolver = context.contentResolver
@@ -173,7 +180,15 @@ object CrashLogger {
         )
         val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
         val args = arrayOf(RELATIVE_PATH)
-        val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC LIMIT 1"
+        // Batch 29 fix (insiden nyata, lihat CHANGELOG): SEBELUMNYA sortOrder di sini
+        // ditempeli "LIMIT 1" mentah (`"$DATE_MODIFIED DESC LIMIT 1"`) — trik ini KADANG
+        // diterima ContentProvider AOSP standar, tapi provider OEM tertentu (kejadian nyata:
+        // Infinix, Android 16/SDK 36) MENOLAKNYA dengan `IllegalArgumentException: Invalid
+        // token LIMIT`, dan itu terjadi SINKRON di main thread saat Compose attach → app
+        // crash total di startup. `sortOrder` bukan tempat yang valid buat clause SQL bebas
+        // di semua ContentProvider — dihapus, cukup `moveToFirst()` dari hasil DESC (data
+        // maks 50 baris karena retensi FIFO, jadi tanpa LIMIT pun query tetap murah).
+        val sortOrder = "${MediaStore.MediaColumns.DATE_MODIFIED} DESC"
         resolver.query(collection, projection, selection, args, sortOrder)?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
@@ -208,14 +223,16 @@ object CrashLogger {
     }
 
     fun deleteAllLogs(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val resolver = context.contentResolver
-            val collection = MediaStore.Files.getContentUri("external")
-            val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
-            val args = arrayOf(RELATIVE_PATH)
-            resolver.delete(collection, selection, args)
-        } else {
-            File(context.filesDir, LEGACY_DIR).listFiles()?.forEach { it.delete() }
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val resolver = context.contentResolver
+                val collection = MediaStore.Files.getContentUri("external")
+                val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ?"
+                val args = arrayOf(RELATIVE_PATH)
+                resolver.delete(collection, selection, args)
+            } else {
+                File(context.filesDir, LEGACY_DIR).listFiles()?.forEach { it.delete() }
+            }
         }
     }
 }

@@ -10,20 +10,29 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.67
-- ⚠️ **Batch 28 (v1.67): HOTFIX CI v1.66 gagal.** `compileDebugKotlin` FAILED — root cause:
-  `CrashLogger.kt` pakai `const val RELATIVE_PATH` tapi nilainya diambil dari
-  `Environment.DIRECTORY_DOCUMENTS` (field runtime Android, bukan compile-time constant
-  Kotlin). Fix: hapus `const`, jadi `val` polos. **BELUM diverifikasi run CI berikutnya.**
-- **LESSON buat sesi depan (WAJIB baca sebelum pakai `const val` lagi)**: `const val` di
-  Kotlin CUMA valid kalau nilainya bisa di-resolve compiler tanpa runtime (literal String/Int/
-  dll, atau referensi ke `const val` lain). Field dari API Android manapun (`Environment.*`,
-  `Build.*`, resource ID, dst) BUKAN compile-time constant walau kelihatannya "konstan" secara
-  semantik — WAJIB `val` biasa. Sandbox Claude gak bisa compile-check, jadi kalau nulis
-  `const val` baru, WAJIB cek dulu nilainya literal murni atau bukan.
-- **Batch 27 (v1.66, konten tetap sama, cuma status berubah)**: rewrite `CrashLogger.kt` ke
-  MediaStore (standing spec) — implementasi TETAP benar secara desain, cuma 1 baris salah
-  keyword (`const`). Detail lengkap tetap di entry Batch 27 CHANGELOG.md, TIDAK berubah.
+- **Versi**: v1.68
+- 🔴 **Batch 29 (v1.68): HOTFIX CRASH RUNTIME dari device asli** (bukan cuma CI) — user
+  upload crash log Infinix Android 16/SDK 36 yang isinya `IllegalArgumentException: Invalid
+  token LIMIT` dari `ContentResolver.query`, terjadi di startup app (crash-loop, bukan cuma
+  gagal baca log). Root cause: `latestFromMediaStore()` nempel `LIMIT 1` mentah ke parameter
+  `sortOrder` (trik tidak resmi, ditolak provider OEM ini). Fix ganda: (1) hapus `LIMIT` dari
+  sortOrder, (2) bungkus `latestCrashLog()`/`deleteAllLogs()` dengan `runCatching` (defense-
+  in-depth — jalur BACA CrashLogger dipanggil langsung dari inisialisasi Composable state,
+  TIDAK terlindungi try-catch `install()` yang cuma proteksi jalur TULIS). Detail lengkap +
+  lesson "jangan nempel SQL ke sortOrder" di entry Batch 29 CHANGELOG.md. **BELUM
+  dikonfirmasi user app gak crash lagi di device Infinix yang sama.**
+- ✅ **Positif dari insiden ini**: CrashLogger MediaStore (Batch 27) TERBUKTI BEKERJA di
+  device asli — metadata Version/OS/Model/Timestamp/Thread kebaca lengkap & akurat dari log
+  yang user upload. Desain intinya benar, cuma 1 bug teknis (sortOrder LIMIT hack) di jalur
+  baca yang baru ketauan pas ada crash sungguhan buat mancing bug itu keluar.
+- **Batch 28 (v1.67, riwayat)**: hotfix CI compile error — `const val RELATIVE_PATH` pakai
+  `Environment.DIRECTORY_DOCUMENTS` (bukan compile-time constant Kotlin), fix: hapus `const`.
+  **LESSON**: `const val` di Kotlin CUMA valid kalau nilainya bisa di-resolve compiler tanpa
+  runtime (literal String/Int/dll). Field dari API Android manapun (`Environment.*`, `Build.*`,
+  dst) BUKAN compile-time constant walau kelihatannya "konstan" secara semantik — WAJIB `val`
+  biasa.
+- **Batch 27 (v1.66, riwayat)**: rewrite `CrashLogger.kt` ke MediaStore (standing spec) —
+  implementasi desain TETAP benar (terbukti Batch 29), detail lengkap di CHANGELOG.md.
 - ✅ **CI CONFIRMED HIJAU di v1.65** (body Release dinamis dari CHANGELOG, dikonfirmasi
   user via screenshot — bukan link compare kosong lagi).
 - ✅ **CI CONFIRMED HIJAU di v1.64** (hotfix `NoRippleIndication` Batch 25 berhasil, Release
