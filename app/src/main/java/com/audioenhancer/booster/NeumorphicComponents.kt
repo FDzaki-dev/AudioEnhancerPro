@@ -252,6 +252,62 @@ internal fun SectionLabel(text: String, accentColor: Color = MaterialTheme.color
     )
 }
 
+/** Batch 22: Slider custom sesuai spec design system user ("Track 10dp, Thumb 22dp +
+ *  shadow + ring") — Compose Slider bawaan Material3 (dipakai apa adanya sejak Batch 12)
+ *  diganti pakai overload `thumb=`/`track=` (tersedia sejak material3 1.2.0, project ini
+ *  di compose-bom 2024.06.00 → material3 1.2.1, aman). Track custom digambar manual
+ *  (Box dual-layer, BUKAN Canvas) biar konsisten sama pola Modifier-chain di file ini.
+ *  Thumb custom pakai `neumorphicDepth()` yang SAMA PERSIS dipakai NeumorphicCard/
+ *  NeumorphicCircleButton — biar dual-shadow-nya konsisten satu bahasa desain di semua
+ *  komponen, bukan reimplementasi shadow terpisah. */
+@Composable
+private fun NeumorphicSliderTrack(
+    sliderState: SliderState,
+    activeColor: Color,
+    inactiveColor: Color,
+    enabled: Boolean
+) {
+    val range = sliderState.valueRange.endInclusive - sliderState.valueRange.start
+    val fraction = if (range != 0f) {
+        ((sliderState.value - sliderState.valueRange.start) / range).coerceIn(0f, 1f)
+    } else 0f
+    val trackColor = if (enabled) activeColor else activeColor.copy(alpha = 0.35f)
+    val bgColor = if (enabled) inactiveColor else inactiveColor.copy(alpha = 0.5f)
+    val shape = RoundedCornerShape(5.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(10.dp)
+            .clip(shape)
+            .background(bgColor)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(fraction)
+                .fillMaxHeight()
+                .clip(shape)
+                .background(trackColor)
+        )
+    }
+}
+
+@Composable
+private fun NeumorphicSliderThumb(accentColor: Color, enabled: Boolean) {
+    val shape = CircleShape
+    val surface = MaterialTheme.colorScheme.surface
+    val lightSide = if (LocalIsDarkTheme.current) NeuShadowLightSideDark else NeuShadowLightSideLight
+    val darkSide = if (LocalIsDarkTheme.current) NeuShadowDarkSide else NeuShadowDarkSideLight
+    val ringAlpha = if (enabled) 1f else 0.4f
+    Box(
+        modifier = Modifier
+            .size(22.dp)
+            .neumorphicDepth(shape = shape, darkColor = darkSide, lightColor = lightSide)
+            .clip(shape)
+            .background(surface)
+            .border(2.dp, accentColor.copy(alpha = ringAlpha), shape)
+    )
+}
+
 @Composable
 internal fun FeatureControl(
     title: String,
@@ -313,11 +369,15 @@ internal fun FeatureControl(
             onValueChangeFinished = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
             valueRange = valueRange,
             enabled = enabled,
-            colors = SliderDefaults.colors(
-                thumbColor = accentColor2,
-                activeTrackColor = accentColor,
-                inactiveTrackColor = accentColor.copy(alpha = 0.18f)
-            ),
+            thumb = { NeumorphicSliderThumb(accentColor = accentColor2, enabled = enabled) },
+            track = { sliderState ->
+                NeumorphicSliderTrack(
+                    sliderState = sliderState,
+                    activeColor = accentColor,
+                    inactiveColor = accentColor.copy(alpha = 0.18f),
+                    enabled = enabled
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)

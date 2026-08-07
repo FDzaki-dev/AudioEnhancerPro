@@ -4,6 +4,31 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.61 - Batch 22: Slider custom (CI v1.60 CONFIRMED HIJAU)
+User konfirmasi build v1.60 lolos CI penuh — root cause Gradle wrapper bootstrap (Batch
+19-21) FINAL selesai, tidak perlu opsi cadangan (commit wrapper manual). Sesi ini mulai
+fase "polish, debugging, eksekusi sampai matang" — item pertama: item pending design
+system terakhir yang belum di-port, **Slider custom** (spec: track 10dp, thumb 22dp +
+shadow + ring).
+- **`NeumorphicComponents.kt`**: `Slider` di `FeatureControl` ganti dari
+  `SliderDefaults.colors()` polos ke overload `thumb=`/`track=` (material3 1.2+, aman di
+  compose-bom 2024.06.00). 2 composable baru: `NeumorphicSliderTrack` (Box dual-layer,
+  height 10dp, rounded 5dp, active-width dari `SliderState.value` fraction) dan
+  `NeumorphicSliderThumb` (22dp circle, `neumorphicDepth()` yang SAMA dipakai
+  NeumorphicCard/NeumorphicCircleButton — dual-shadow konsisten, bukan reimplementasi
+  terpisah — + ring border 2dp warna aksen fitur).
+- Tidak ada perubahan file lain — murni 1 file Kotlin, visual-only, tidak ada perubahan
+  state/logic.
+- **PENTING buat sesi depan**: item design system pending YANG TERSISA:
+  `drawWithCache` optimasi (belum urgent, cuma manfaat di list besar/animasi berat,
+  BUKAN static card — app ini gak punya itu), ripple removal Material3 default
+  (`Button`/`FilterChip`/`AssistChip` di `BoosterScreen.kt` masih pakai ripple bawaan,
+  cuma `NeumorphicCircleButton` yang sudah dimatikan sejak Batch 15). Radius "Phone:
+  44dp" tetap diabaikan (dikonfirmasi ulang, gak ada elemen UI yang jadi target).
+- **Belum divalidasi runtime** — statis only (brace/paren balance). API `thumb=`/`track=`
+  Slider TIDAK PERNAH dipakai sebelumnya di project ini, jadi ini kandidat pertama
+  dicurigai kalau ada laporan render aneh (slider gak muncul/salah posisi) setelah update.
+
 ## v1.60 - Batch 21: fix LANJUTAN CI lagi (v1.59 belum tuntas)
 User upload log run #65 — penamaan artifact sudah benar (konfirmasi fix Batch 20 soal
 itu berhasil). Progress: isolasi direktori scratch (Batch 20) BERHASIL menghindari

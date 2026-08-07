@@ -10,7 +10,28 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.60
+- **Versi**: v1.61
+- ✅ **CI CONFIRMED HIJAU sejak v1.60** — root cause Gradle wrapper bootstrap (Batch 19-21)
+  FINAL selesai, opsi cadangan (commit wrapper manual) TIDAK JADI diperlukan. Fase sekarang:
+  **"polish, debugging, eksekusi sampai matang"** (diminta user eksplisit) — bukan lagi
+  fase fitur baru maupun fire-fighting CI.
+- ✅ **Batch 22 SELESAI: Slider custom** (item terakhir pending dari spec design system
+  "Hybrid Neumorphism", ditunda sejak Batch 15). `NeumorphicSliderTrack` (10dp, rounded
+  5dp) + `NeumorphicSliderThumb` (22dp, `neumorphicDepth()` sama dgn NeumorphicCard, ring
+  2dp aksen) di `NeumorphicComponents.kt`, dipasang ke `Slider` di `FeatureControl` via
+  overload `thumb=`/`track=` (material3 1.2+, tersedia di compose-bom 2024.06.00). 1 file
+  berubah, visual-only, belum divalidasi runtime (API ini baru pertama kali dipakai project
+  ini — kandidat pertama dicurigai kalau ada laporan render slider aneh).
+- **Sisa item design system pending**: `drawWithCache` optimasi (skip, gak ada manfaat
+  nyata di skala app ini — cuma static card, bukan list besar/animasi berat), ripple
+  removal Material3 default di `Button`/`FilterChip`/`AssistChip` (`BoosterScreen.kt`,
+  BELUM dikerjakan — kandidat batch polish berikutnya kalau user lanjut), radius "Phone:
+  44dp" (diabaikan permanen, tidak ada elemen target).
+- **Sisa item audit Medium/Low** (dari Batch 16, belum pernah disentuh): recomposition/
+  reusable component review, hierarki visual, white space, micro-animation tambahan,
+  loading/success/error feedback, empty/error state, penjelasan fitur lanjutan (Low).
+  Kandidat batch polish berikutnya.
+
 - ✅ **Batch 21 SELESAI: fix LANJUTAN CI lagi (v1.59 belum tuntas).** User upload log
   run #65 (`log_fail_v1_59-debug-run65.zip` — penamaan versi udah BENAR kali ini,
   konfirmasi fix Batch 20 soal itu berhasil).
