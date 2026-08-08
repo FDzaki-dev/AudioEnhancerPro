@@ -4,6 +4,45 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.72 - Batch 33: re-theme total ke "AMOLED Glassmorphism Hybrid + Midnight Blue Gradient"
+User upload guide baru `compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md`
+dan minta timpa theme lama sampai bersih, **wajib 100% sesuai** (bukan lagi "suggested
+palette direction" seperti Batch 32 yang sengaja mempertahankan graphite `#232220`).
+Semua token warna diganti total — struktur komponen (SkeuCard/SkeuPowerButton/
+SkeuSliderThumb/SkeuSwitch) TETAP, cuma warnanya.
+- **`Theme.kt`**: palet bronze/graphite (`PremiumBronzeDark #C2A26B`, `SkeuSurfaceTop/
+  Bottom #2E2C29/#201F1D`) DICABUT TOTAL. Token baru persis sesuai guide §2:
+  `AmoledBackground #030508`, `GlassSurface #0A0F16`, `GlassSurfaceElevated #101722`,
+  `GlassSurfacePressed #070B11`, `MidnightBlueTint #191970` (alpha 0.08, HANYA dipakai
+  di dalam gradient glass — guide §2.5 "felt as atmosphere, not the primary background
+  color"), `MidnightBlueAccent #6670FF` (primary/state-aktif, gantikan bronze).
+  `primary` color scheme = MidnightBlueAccent, `background`/`surface`/`surfaceVariant`
+  = Amoled/Glass tokens. `SkeuPrimaryGlow` sekarang derivatif `MidnightBlueAccent`
+  (bukan bronze lagi).
+- **`SkeuomorphicComponents.kt`**: `SkeuCard`/`SkeuTintedCard` — background solid flat
+  DICABUT, ganti `MidnightBlueGlassBrush` (gradient 3-stop AMOLED→midnight-tint-subtle→
+  glass-elevated, sesuai contoh brush guide §2.5) — kartu struktural tetap "quiet"
+  (guide §8) tapi materialnya sekarang frosted-glass wajib, bukan solid lagi. Referensi
+  `SkeuSurfaceTop`/`SkeuSurfaceBottom` lama (slider thumb dial, switch thumb OFF) diganti
+  `GlassSurfaceElevated`/`GlassSurface`.
+- **`widget_background.xml`**: gradient bronze `#2B2620→#141210` diganti gradient 3-stop
+  `#101722→#0F1330(midnight tint)→#030508`, angle 135° dipertahankan (konsisten arah
+  cahaya top-left→bottom-right guide §3). RemoteViews gak dukung Compose Brush jadi
+  Midnight Blue disimulasikan lewat `centerColor` XML gradient.
+- **`values/colors.xml`**: `splash_background` terang `#F7F5F1` DICABUT (guide §1.1 +
+  §13: "introduce a light-mode fallback" = dilarang) — disamakan persis dengan
+  `values-night/colors.xml`, keduanya `#030508` (AmoledBackground). Tidak ada lagi
+  varian terang di splash sama sekali.
+- **`docs/preview/current.html`**: `:root` CSS vars re-theme total (`--bg #030508`,
+  `--surface #0A0F16`, `--primary #6670FF`, `--glow rgba(102,112,255,.28)`, dst),
+  `.card` background diganti gradient midnight-tint (sebelumnya solid `var(--surface)`),
+  judul & header comment diperbarui ke nama guide baru.
+- **`app/build.gradle.kts`**: versionCode 71→72, versionName 1.71→1.72.
+- Feature accent colors (`BassAccent`/`VirtualizerAccent`/`LoudnessAccent`/
+  `EqualizerAccent`/`BatteryAccent`) SENGAJA TIDAK diubah — itu identitas per-fitur,
+  independen dari surface hierarchy AMOLED/Midnight Blue, guide gak melarang variasi
+  hue di accent non-primary.
+
 ## v1.71 - Batch 32: terapkan gap dari update guide `compose-skeuomorphism-lite-dark.md`
 User upload versi acuan design guide yang lebih detail (beda dari `compose-skeuomorphism-lite.md`
 basis Batch 31), minta terapkan poin yang belum ada. Diff dilakukan poin-per-poin ke Definition

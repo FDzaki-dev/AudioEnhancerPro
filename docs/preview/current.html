@@ -3,35 +3,38 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — Skeuomorphism-lite (v2.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
+<title>Preview — AMOLED Glassmorphism Hybrid + Midnight Blue Gradient (v3.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
 <style>
   /* ============================================================
-     DESIGN LANGUAGE BARU (Batch 27): "Skeuomorphism-lite (Tactile UI)"
-     Neumorphic Hybrid (Batch 12-26) DICABUT TOTAL, ganti sesuai acuan
-     compose-skeuomorphism-lite.md. WAJIB dark-mode — tidak ada lagi
-     draft light theme.
+     DESIGN LANGUAGE BATCH 33: "AMOLED Glassmorphism Hybrid + Midnight
+     Blue Gradient (Tactile UI)". Palet bronze/graphite matte (Batch 27-32)
+     DICABUT TOTAL, ganti 100% sesuai acuan
+     compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md.
+     WAJIB dark-mode — tidak ada draft light theme.
      ------------------------------------------------------------
-     1. Kartu struktural FLAT & minimal (bukan dual-shadow neumorphic
-        extruded lagi) — solid surface + border tipis + shadow kecil.
+     1. Kartu struktural quiet TAPI wajib frosted-glass + midnight blue
+        tint gradient (§2.5) — bukan solid flat lagi.
      2. Realisme tactile HANYA di komponen fisik: power button (bevel
         gradient top-down light source + emboss border) & slider knob
         (radial gradient metalik).
      3. Klik fisik disimulasikan scale-down + shadow elevation turun,
         bukan inset-shadow-well custom lagi.
-     4. Dark-mode adaptation: highlight terang diganti primary glow
-        tipis (bukan white alpha mentah).
+     4. Glow (§9) TERBATAS ke state aktif/selected, pakai MidnightBlueAccent
+        (bukan bronze/white alpha mentah lagi).
   ============================================================ */
   :root{
-    --bg:#232220;
-    --surface:#232220;
-    --border:rgba(246,244,239,.12);
-    --bevel-top:#2E2C29; --bevel-bottom:#201F1D;
-    --bevel-hi:rgba(255,255,255,.2); --bevel-lo:rgba(0,0,0,.4);
-    --glow:rgba(194,162,107,.25);
-    --text:#F6F4EF;
-    --muted:#B8B3A8;
+    --bg:#030508;
+    --surface:#0A0F16;
+    --surface-elevated:#101722;
+    --midnight-tint:rgba(25,25,112,.08);
+    --border:rgba(255,255,255,.035);
+    --bevel-top:#101722; --bevel-bottom:#0A0F16;
+    --bevel-hi:rgba(255,255,255,.055); --bevel-lo:rgba(0,0,0,.70);
+    --glow:rgba(102,112,255,.28);
+    --text:#EAF0F8;
+    --muted:#AAB5C4;
     --bass:#E0865B; --virt:#4FB8C9; --loud:#4CB88A; --eq:#D97AA6;
-    --primary:#C2A26B;
+    --primary:#6670FF;
   }
   *{box-sizing:border-box;}
   body{
@@ -52,7 +55,8 @@
 
   /* Kartu struktural — FLAT & minimal, bukan extruded neumorphic lagi */
   .card{
-    background:var(--surface); border-radius:20px; padding:18px; margin-bottom:16px;
+    background:linear-gradient(135deg, var(--surface), var(--midnight-tint), var(--surface-elevated));
+    border-radius:20px; padding:18px; margin-bottom:16px;
     border:1px solid var(--border);
     box-shadow:0 3px 8px rgba(0,0,0,.35);
   }

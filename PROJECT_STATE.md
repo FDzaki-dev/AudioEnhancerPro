@@ -10,8 +10,34 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.71
-- 🎨 **Batch 32 (v1.71, BELUM diverifikasi CI/runtime)**: user upload versi acuan design
+- **Versi**: v1.72
+- 🎨 **Batch 33 (v1.72, BELUM diverifikasi CI/runtime)**: user upload guide baru
+  `compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md` + perintah
+  eksplisit "timpa theme lama hingga bersih, wajib 100% sesuai". BEDA sama Batch 32:
+  Batch 32 sengaja MEMPERTAHANKAN graphite `#232220` karena guide lama cuma kasih
+  "suggested palette direction" (bukan wajib hex). Guide baru ini + perintah user
+  MEWAJIBKAN implementasi 100% — jadi keputusan Batch 32 itu di-OVERRIDE sengaja,
+  BUKAN diabaikan tanpa alasan. Detail lengkap di CHANGELOG.md v1.72. Ringkasan:
+  1. Palet total ganti ke AMOLED (`#030508`) + Glass surfaces (`#0A0F16`/`#101722`) +
+     Midnight Blue HANYA sebagai tint subtle di dalam gradient glass (`MidnightBlueTint`
+     alpha 0.08) — BUKAN identitas background dominan (guide §21 "Final Composition
+     Constraint": salah kalau jadi "blue interface with black elements").
+  2. `primary`/state-aktif/glow ganti dari bronze `#C2A26B` ke `MidnightBlueAccent
+     #6670FF`.
+  3. `SkeuCard`/`SkeuTintedCard` (kartu struktural) yang sebelumnya solid flat
+     (Batch 31 sengaja bikin gini ikut guide lama poin 3) SEKARANG wajib frosted-glass
+     gradient (guide §2.5) — tapi TETAP "quiet" dibanding tactile control fisik (guide
+     §8 gak berubah, cuma materialnya).
+  4. Splash screen (`values/colors.xml`) yang sebelumnya punya varian terang `#F7F5F1`
+     DICABUT — disamakan ke AMOLED persis kayak `values-night`, konsisten sama guide
+     §1.1/§13 "no light-mode fallback ever" (celah lama: splash bisa kilat terang
+     sebelum Compose theme render).
+  5. `docs/preview/current.html` (ground truth visual project ini per CHANGELOG) di-sync
+     juga, TIDAK dibiarkan stale — kalau nggak, sesi depan bisa salah rujuk visual lama.
+  - Feature accent colors (Bass/Virtualizer/Loudness/Equalizer/Battery) SENGAJA tetap
+    dipertahankan — itu identitas per-fitur, bukan bagian surface hierarchy yang diatur
+    guide.
+- 🎨 **Batch 32 (v1.71)**: user upload versi acuan design
   guide yang LEBIH DETAIL (`compose-skeuomorphism-lite-dark.md`, beda dari
   `compose-skeuomorphism-lite.md` yang jadi basis Batch 31) — diminta terapkan poin yang
   BELUM ada dari update Batch 31. Diff dicek poin-per-poin ke Definition-of-Done guide

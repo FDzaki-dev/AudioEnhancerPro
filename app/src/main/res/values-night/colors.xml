@@ -1,5 +1,7 @@
 <resources>
-    <!-- Varian gelap: selaras dengan DarkColors.background di Theme.kt. Sejak
-         redesign matte v1.46, ganti graphite/charcoal netral (violet dicabut). -->
-    <color name="splash_background">#0A0A0A</color>
+    <!-- Selaras dengan DarkColors.background (AmoledBackground) di Theme.kt.
+         Batch 33: re-theme total ke AMOLED Glassmorphism Hybrid + Midnight Blue
+         Gradient — nilai sama persis dengan values/colors.xml (default) karena app
+         WAJIB dark-mode tanpa fallback terang. -->
+    <color name="splash_background">#030508</color>
 </resources>

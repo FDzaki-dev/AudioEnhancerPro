@@ -1,6 +1,7 @@
 <resources>
-    <!-- Warna latar splash screen (Android 12+) — selaras dengan LightColors.background
-         di Theme.kt. Sejak redesign matte v1.46, palet violet/glassmorphism DICABUT
-         total, ganti graphite/charcoal + aksen bronze matte. -->
-    <color name="splash_background">#F7F5F1</color>
+    <!-- Warna latar splash screen (Android 12+) — selaras dengan DarkColors.background
+         di Theme.kt (AmoledBackground). Batch 33: "no light-mode fallback" (guide §1.1
+         + §13) berlaku juga ke splash — default colors.xml disamakan dengan
+         values-night, TIDAK ADA lagi varian terang F7F5F1. -->
+    <color name="splash_background">#030508</color>
 </resources>

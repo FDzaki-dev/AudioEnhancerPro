@@ -1,9 +1,11 @@
 package com.audioenhancer.booster
 
-// Batch 31: ganti total NeumorphicComponents.kt -> mengikuti acuan Jetpack Compose
-// Design Guide "Skeuomorphism-lite (Tactile UI)" user (compose-skeuomorphism-lite.md),
-// WAJIB dark-mode. Neumorphism (dual custom-Paint shadow layer, "sisi gelap 60%
-// black / sisi terang 4% white") DICABUT TOTAL — tidak ada bekasnya lagi di sini.
+// Batch 33: re-theme total ke acuan "AMOLED Glassmorphism Hybrid + Midnight Blue
+// Gradient" (compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md).
+// Struktur komponen (SkeuCard/SkeuPowerButton/SkeuSliderThumb/SkeuSwitch) TETAP,
+// hanya token warna yang dipakai diganti total ke Theme.kt Batch 33 (AmoledBackground/
+// GlassSurface*/MidnightBlueTint/MidnightBlueAccent) — palet bronze/graphite lama
+// (SkeuSurfaceTop/SkeuSurfaceBottom) DICABUT.
 //
 // Prinsip guide yang dipakai:
 // 1. Tactile Depth via bevel gradient + border highlight/shadow (Modifier.background
@@ -11,8 +13,10 @@ package com.audioenhancer.booster
 // 2. Micro-interaction "klik fisik": Modifier.scale + Modifier.shadow(elevation)
 //    animateDpAsState/animateFloatAsState — standar Compose, bukan Paint hack.
 // 3. Realisme tactile HANYA di komponen fisik (power button, slider knob) — kartu
-//    struktural (SkeuCard/SkeuTintedCard) TETAP flat & minimal.
-// 4. Dark-mode adaptation: highlight pakai "primary glow" tipis, bukan Color.White.
+//    struktural (SkeuCard/SkeuTintedCard) TETAP quiet, tapi §2.5 MEWAJIBKAN frosted
+//    glass + midnight blue tint jadi material kartu (bukan solid flat lagi).
+// 4. Dark-mode adaptation: highlight pakai "primary glow" tipis (MidnightBlueAccent),
+//    bukan Color.White.
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -87,9 +91,11 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
     )
 }
 
-/** Kartu struktural flat (guide poin 3: "Keep structural container cards flat and
- *  minimal"). Solid surface + border tipis 1dp + shadow elevation kecil standar
- *  Compose. TIDAK ADA lagi bevel gradient/dual-shadow neumorphic di level kartu. */
+/** Kartu struktural — guide §2.5 mewajibkan material frosted-glass + midnight blue
+ *  tint (bukan solid flat lagi), TAPI tetap "visually quiet" dibanding tactile control
+ *  fisik (guide §8): tint subtle (`MidnightBlueGlassBrush`, alpha rendah), border tipis
+ *  low-alpha, elevation kecil standar Compose. Tidak ada glow di sini (glow guide §9
+ *  cuma buat state aktif/selected, kartu struktural bukan itu). */
 @Composable
 internal fun SkeuCard(
     modifier: Modifier = Modifier,
@@ -101,14 +107,15 @@ internal fun SkeuCard(
         modifier = modifier
             .shadow(elevation = 3.dp, shape = shape, clip = false)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.surface)
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), shape),
+            .background(MidnightBlueGlassBrush)
+            .border(1.dp, GlassBorder, shape),
         content = content
     )
 }
 
-/** Varian tinted buat banner info/warning — tetap flat & solid (blend penuh ke
- *  base color, bukan alpha mentah), konsisten sama SkeuCard. */
+/** Varian tinted buat banner info/warning — glass base yang sama dengan SkeuCard,
+ *  di-blend tambahan ke warna semantik (error/primary) biar tetap dibaca sebagai
+ *  status, bukan solid flat mentah. */
 @Composable
 internal fun SkeuTintedCard(
     modifier: Modifier = Modifier,
@@ -116,12 +123,12 @@ internal fun SkeuTintedCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(SkeuCardRadius)
-    val blended = lerp(MaterialTheme.colorScheme.surface, tint, 0.22f)
+    val blended = lerp(GlassSurface, tint, 0.22f)
     Column(
         modifier = modifier
             .shadow(elevation = 3.dp, shape = shape, clip = false)
             .clip(shape)
-            .background(blended)
+            .background(Brush.linearGradient(listOf(blended, GlassSurfaceElevated)))
             .border(1.dp, tint.copy(alpha = 0.4f), shape),
         content = content
     )
@@ -228,7 +235,7 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
     val shape = CircleShape
     val ringAlpha = if (enabled) 1f else 0.4f
     val dialBrush = Brush.radialGradient(
-        colors = listOf(lerp(accentColor, Color.White, 0.35f), accentColor, SkeuSurfaceBottom),
+        colors = listOf(lerp(accentColor, Color.White, 0.35f), accentColor, GlassSurface),
         radius = 30f
     )
     Box(
@@ -325,7 +332,7 @@ internal fun FeatureControl(
 /** Batch 32: toggle/switch tactile — guide §7 "Toggles / Switches" eksplisit minta
  *  physical indentation (bukan pill Material3 default polos yang dipakai sebelumnya,
  *  0 treatment tactile sama sekali). 3 state wajib guide, semua diimplementasi:
- *  OFF = recessed/muted (track abu netral, thumb SkeuSurfaceTop datar tanpa glow),
+ *  OFF = recessed/muted (track abu netral, thumb GlassSurfaceElevated datar tanpa glow),
  *  ON = active/illuminated (track blend ke accentColor 35%, thumb solid accentColor
  *  + glow tipis via `skeuGlow` — DUA cue sekaligus, structural [posisi+ukuran thumb]
  *  DAN color, sesuai syarat a11y guide §7 "must not depend solely on structural
@@ -395,7 +402,7 @@ internal fun SkeuSwitch(
                 .scale(thumbScale)
                 .shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
                 .clip(CircleShape)
-                .background(if (checked) accentColor else SkeuSurfaceTop)
+                .background(if (checked) accentColor else GlassSurfaceElevated)
                 .alpha(if (enabled) 1f else 0.5f)
         )
     }
