@@ -19,77 +19,99 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 33 — "AMOLED Glassmorphism Hybrid + Midnight Blue Gradient (Skeuomorphism-
-// lite Tactile UI)": palet bronze/graphite matte (Batch 27-32) DICABUT TOTAL, ganti
-// total 100% sesuai acuan design guide user
-// (compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md). Perintah
-// eksplisit: "timpa theme lama hingga bersih". WAJIB dark-mode, tidak ada fallback
-// light theme (lihat PROJECT_STATE.md poin "Riwayat pivot").
-//
-// Komposisi wajib guide §2.5 "Midnight Blue Gradient Layer" (urutan prioritas visual):
-//   AMOLED BLACK (dominan) > FROSTED GLASS (dominan) > MIDNIGHT BLUE TINT (subtle,
-//   HANYA gradient/tint di dalam permukaan glass) > GLASS HIGHLIGHT (restrained).
-// Midnight Blue TIDAK BOLEH jadi identitas warna dominan (guide §21) — token
-// `MidnightBlueAccent` dipakai TERBATAS buat state aktif/glow/border tactile, BUKAN
-// buat mengecat seluruh background jadi biru.
+// BATCH 34 — KOREKSI dari Batch 33: user salah upload file acuan Batch 33
+// (compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md, terlalu
+// tactile-first). File YANG BENAR: compose-amoled-hybrid-glass-final.md —
+// "Premium AMOLED Hybrid Glassmorphism + Subtle Midnight Blue + Micro-Skeuomorphism".
+// Beda kunci vs Batch 33 (lihat PROJECT_STATE.md Batch 34 buat detail lengkap):
+// 1. Glass adalah MATERIAL UTAMA (bukan tactile/bevel) — kartu struktural WAJIB
+//    "glass surfaces first, not physical objects" (guide §14), TIDAK BOLEH strong
+//    bevel/heavy shadow/thick border/bright glow/exaggerated extrusion.
+// 2. Skeuomorphism turun jadi "micro" — HANYA buat interaksi fisik (button/switch/
+//    slider/knob), bukan lagi identitas visual kedua kayak Batch 33.
+// 3. Midnight Blue ambient alpha 0.06 (Batch 33 pakai 0.08 — guide baru eksplisit
+//    kasih angka beda, guide baru menang karena ini instruksi yang benar).
+// 4. Token names disesuaikan PERSIS ke guide baru: GlassBase/GlassElevated/
+//    GlassPressed (ganti GlassSurface/GlassSurfaceElevated/GlassSurfacePressed),
+//    AmoledBlack + AmoledSurface baru (2-tone root buat separasi luminance —
+//    guide §3 "Important": jangan pure black di semua surface), TextMuted baru.
+// 5. Slider knob TIDAK BOLEH lagi "metallic realism" (radial gradient putih->accent
+//    ala dial logam Batch 33) — guide §13 eksplisit "Avoid metallic realism that
+//    conflicts with the glass aesthetic".
 // ============================================================================
 
 // Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon — identitas per
-// fitur, independen dari surface hierarchy AMOLED/Midnight Blue di atas.
+// fitur, independen dari surface hierarchy AMOLED/Glass/Midnight Blue di atas.
 val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
 val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
 val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
 val EqualizerAccent = Color(0xFFD97AA6); val EqualizerAccent2 = Color(0xFFE8A8C6)
 val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
 
-// Aksen "logam" netral matte — dipakai buat swatch toggle Material You & elemen
-// netral lain. Tetap netral (bukan biru) supaya gak rebutan sama MidnightBlueAccent
-// sebagai satu-satunya sinyal "state aktif primary".
+// Aksen "logam" netral matte — dipakai buat swatch toggle Material You. Tetap netral
+// (bukan biru) supaya gak rebutan sama AccentBlue sebagai satu-satunya sinyal
+// "state aktif/functional accent" (guide §17).
 val DynamicColorAccent = Color(0xFF9C9890); val DynamicColorAccent2 = Color(0xFFC9C4BC)
 
-// ---- §2 Dark Surface System — baseline tokens (guide "Suggested palette direction") ----
-val AmoledBackground = Color(0xFF030508)
-val GlassSurface = Color(0xFF0A0F16)
-val GlassSurfaceElevated = Color(0xFF101722)
-val GlassSurfacePressed = Color(0xFF070B11)
+// ---- §3 AMOLED Foundation — 2-tone root buat separasi luminance ----
+// AmoledBlack = root sejati (splash, di belakang segalanya). AmoledSurface =
+// canvas layar app (Level 0), sedikit lebih terang dari AmoledBlack biar glass
+// Level 1+ di atasnya tetap "perceptible" (guide §3 "Important": don't use pure
+// black for every surface).
+val AmoledBlack = Color(0xFF030508)
+val AmoledSurface = Color(0xFF070A0F)
 
-// Midnight Blue = lapisan gradient ambient di DALAM permukaan glass, BUKAN identitas
-// background (guide §2.5 mandatory rule: "felt as atmosphere, not read as the primary
-// background color").
-val MidnightBlueTint = Color(0xFF191970)
-val MidnightBlueAccent = Color(0xFF6670FF)
-val MidnightBlueGradientAlpha = 0.08f
+// ---- §5 Glass Color Tokens — surface hierarchy §4 (Level 1 base, Level 2 elevated,
+// Level 3+ interactive/focused dikomposisi di komponen masing-masing, bukan token
+// warna terpisah). ----
+val GlassBase = Color(0xFF0A0F16)
+val GlassElevated = Color(0xFF101722)
+val GlassPressed = Color(0xFF070B11)
 
-val TextPrimary = Color(0xFFEAF0F8)
-val TextSecondary = Color(0xFFAAB5C4)
-
-val GlassHighlight = Color.White.copy(alpha = 0.055f)
+val GlassWhite = Color.White.copy(alpha = 0.045f)
+val GlassHighlight = Color.White.copy(alpha = 0.065f)
 val GlassBorder = Color.White.copy(alpha = 0.035f)
+
 val GlassShadow = Color.Black.copy(alpha = 0.70f)
 
-// Ring/glow state aktif — guide §9 "Glow Rules": localized only, primary/cool accent,
-// gak pernah Color.White polos.
-val SkeuPrimaryGlow = MidnightBlueAccent.copy(alpha = 0.28f)
+// ---- §6 Midnight Blue — Atmospheric Layer ONLY, gak pernah jadi base surface. ----
+val MidnightBlue = Color(0xFF191970)
+val MidnightBlueAccent = Color(0xFF6670FF)
+val MidnightBlueAmbientAlpha = 0.06f
 
-// ---- §4 Tactile Depth / Bevel — brush terpusat, dipakai SkeuomorphicComponents.kt ----
-// Arah cahaya tunggal top-left -> bottom-right (guide §3): linearGradient tanpa
-// start/end eksplisit sudah diagonal default di Compose, KONSISTEN di semua komponen
-// (jangan overridedengan arah lain di file lain).
-val SkeuBevelBrush: Brush = Brush.linearGradient(listOf(GlassSurfaceElevated, GlassSurface))
-val SkeuBevelBorderBrush: Brush = Brush.linearGradient(listOf(GlassHighlight, Color.Transparent, GlassShadow))
-
-// §2.5 gradient tint contoh guide — dipakai di kartu struktural glass (SkeuCard) biar
-// "atmosphere", bukan solid flat, TAPI tintnya tetap subtle (alpha rendah, bukan biru
-// pekat) sesuai Composition Priority guide.
+// §6 "Correct use" — gradient 3-stop persis contoh guide, dipakai kartu/permukaan
+// glass yang butuh ambient tint (BUKAN semua permukaan — guide §6 "must NOT
+// dominate every card").
 val MidnightBlueGlassBrush: Brush = Brush.linearGradient(
     colors = listOf(
-        GlassSurface,
-        MidnightBlueTint.copy(alpha = MidnightBlueGradientAlpha),
-        GlassSurfaceElevated
+        GlassBase,
+        MidnightBlue.copy(alpha = MidnightBlueAmbientAlpha),
+        GlassElevated
     )
 )
 
-// Radius token terpusat (dipakai SkeuomorphicComponents.kt).
+// ---- §16 Typography colors ----
+val TextPrimary = Color(0xFFEAF0F8)
+val TextSecondary = Color(0xFFAAB5C4)
+val TextMuted = Color(0xFF737E8C)
+
+// ---- §17 Accent System — restrained cool-blue, sama nilainya dengan
+// MidnightBlueAccent (satu accent fungsional, bukan 2 sistem warna berbeda). ----
+val AccentBlue = MidnightBlueAccent
+
+// ---- §18 Glow — accent, BUKAN material. Localized only (focused/selected/active),
+// alpha direstrain biar gak jadi hal pertama yang dilihat user (guide §18 "If glow
+// becomes one of the first things users notice, reduce it"). ----
+val SkeuPrimaryGlow = MidnightBlueAccent.copy(alpha = 0.22f)
+
+// ---- §9 Lighting Model — arah cahaya tunggal top-left -> bottom-right, dipakai
+// HANYA di komponen tactile micro-skeuomorphic (§10: button/switch/slider/knob),
+// TIDAK dipakai di kartu struktural (kartu = glass murni, guide §14 "avoid strong
+// bevel"). ----
+val SkeuBevelBrush: Brush = Brush.linearGradient(listOf(GlassElevated, GlassBase))
+val SkeuBevelBorderBrush: Brush = Brush.linearGradient(listOf(GlassHighlight, Color.Transparent, GlassShadow))
+
+// ---- §19 Spacing & Shape Language ----
 val SkeuCardRadius = 20.dp
 val SkeuIconBoxRadius = 14.dp
 
@@ -100,11 +122,11 @@ private val DarkColors = darkColorScheme(
     onPrimaryContainer = Color(0xFFD4D8FF),
     secondary = Color(0xFF9CA3AC),
     onSecondary = Color(0xFF04050C),
-    background = AmoledBackground,
+    background = AmoledSurface,
     onBackground = TextPrimary,
-    surface = GlassSurface,
+    surface = GlassBase,
     onSurface = TextPrimary,
-    surfaceVariant = GlassSurfaceElevated,
+    surfaceVariant = GlassElevated,
     onSurfaceVariant = TextSecondary,
     error = Color(0xFFFF6B6B),
     onError = Color.White,
@@ -158,8 +180,7 @@ private val AppShapes = Shapes(
 
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
  *  SkeuomorphicComponents.kt) tapi NILAINYA SELALU `true`, tidak ada resolusi/override
- *  light (guide §1.1 + §13: "introduce a light-mode fallback" = implementation guardrail
- *  yang dilarang). */
+ *  light. */
 val LocalIsDarkTheme = compositionLocalOf { true }
 
 @Composable

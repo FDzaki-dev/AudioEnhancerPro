@@ -4,6 +4,49 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.73 - Batch 34: KOREKSI Batch 33 — acuan sebelumnya salah upload
+User bilang eksplisit "saya salah kirim" file acuan Batch 33
+(`compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md`) dan upload
+file yang BENAR: `compose-amoled-hybrid-glass-final.md` — "Premium AMOLED Hybrid
+Glassmorphism + Subtle Midnight Blue + Micro-Skeuomorphism". Filosofi guide baru
+GESER dari Batch 33: glass jadi material utama (bukan tactile/bevel-first), kartu
+struktural wajib "glass surfaces first, not physical objects" (§14), skeuomorphism
+turun jadi "micro" (hanya tactile control, bukan identitas visual kedua).
+- **`Theme.kt`**: token warna diganti nama PERSIS ke guide baru (guide punya
+  penamaan beda dari Batch 33 meski hex banyak yang sama): `GlassBase`/
+  `GlassElevated`/`GlassPressed` (ganti `GlassSurface`/`GlassSurfaceElevated`/
+  `GlassSurfacePressed`), `AmoledBlack #030508` + `AmoledSurface #070A0F` baru
+  (2-tone root — `AmoledBlack` = splash/root sejati, `AmoledSurface` = canvas
+  layar/`colorScheme.background`, biar glass Level 1+ tetap "perceptible" di
+  atasnya sesuai guide §3 "Important"). `MidnightBlueAmbientAlpha` **0.06** (Batch
+  33 pakai 0.08 — guide baru kasih angka eksplisit beda, guide baru menang karena
+  ini instruksi yang benar). `TextMuted #737E8C` baru (hierarki tipografi §16).
+  `SkeuPrimaryGlow` alpha diturunkan 0.28→0.22 (guide §18: "if glow becomes one of
+  the first things users notice, reduce it").
+- **`SkeuomorphicComponents.kt`**: semua referensi token lama diganti ke nama baru.
+  `SkeuCard` elevation shadow 3dp→2dp (guide §14 "avoid heavy shadow" buat kartu
+  struktural — sekarang restrained). `SkeuSliderThumb` di-desain ulang TOTAL:
+  radial gradient putih→accent ala dial logam (Batch 31-33, "metallic realism")
+  DICABUT — guide §13 eksplisit melarang ("Avoid metallic realism that conflicts
+  with the glass aesthetic"). Diganti radial restrained: `GlassHighlight` di pusat
+  (reflection tipis, BUKAN dial metalik) fading ke `GlassElevated` di-tint
+  accentColor 30% (aktif)/8% (nonaktif) di tepi — functional color cue
+  dipertahankan tanpa sheen metalik.
+- **`widget_background.xml`**: `centerColor` dihitung ulang buat alpha 0.06 (bukan
+  0.08) — `#0F1330`→`#0B101B` (mix `GlassElevated` + `MidnightBlue` 6%).
+- **`docs/preview/current.html`**: `:root` CSS var di-kalibrasi ulang (`--bg
+  #070A0F` = AmoledSurface bukan AmoledBlack lagi biar match `colorScheme.
+  background` Kotlin, `--midnight-tint` alpha .08→.06, `--glow` alpha .28→.22,
+  token `--highlight`/`--mutedmost` baru). **Bug ketemu & difix**: `.slider-thumb`
+  CSS masih pakai `color-mix(...var(--accent) 65%, white)` (metallic, sama kayak
+  Kotlin lama) DAN `.skeu-switch.on` border-color masih hardcode bronze lama
+  `rgba(194,162,107,.6)` — DUA-duanya lolos dari sweep Batch 33 (miss, bukan
+  disengaja), sekarang disamakan ke token baru.
+- **`app/build.gradle.kts`**: versionCode 72→73, versionName 1.72→1.73.
+- Feature accent colors (Bass/Virtualizer/Loudness/Equalizer/Battery) TETAP TIDAK
+  diubah — sama seperti Batch 33, identitas per-fitur independen dari surface
+  hierarchy guide.
+
 ## v1.72 - Batch 33: re-theme total ke "AMOLED Glassmorphism Hybrid + Midnight Blue Gradient"
 User upload guide baru `compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md`
 dan minta timpa theme lama sampai bersih, **wajib 100% sesuai** (bukan lagi "suggested

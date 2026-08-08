@@ -3,36 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — AMOLED Glassmorphism Hybrid + Midnight Blue Gradient (v3.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
+<title>Preview — Premium AMOLED Hybrid Glassmorphism + Micro-Skeuomorphism (v4.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
 <style>
   /* ============================================================
-     DESIGN LANGUAGE BATCH 33: "AMOLED Glassmorphism Hybrid + Midnight
-     Blue Gradient (Tactile UI)". Palet bronze/graphite matte (Batch 27-32)
-     DICABUT TOTAL, ganti 100% sesuai acuan
-     compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md.
+     DESIGN LANGUAGE BATCH 34 (koreksi Batch 33 — file acuan sebelumnya
+     salah upload): "Premium AMOLED Hybrid Glassmorphism + Subtle Midnight
+     Blue + Micro-Skeuomorphism" (compose-amoled-hybrid-glass-final.md).
      WAJIB dark-mode — tidak ada draft light theme.
      ------------------------------------------------------------
-     1. Kartu struktural quiet TAPI wajib frosted-glass + midnight blue
-        tint gradient (§2.5) — bukan solid flat lagi.
-     2. Realisme tactile HANYA di komponen fisik: power button (bevel
-        gradient top-down light source + emboss border) & slider knob
-        (radial gradient metalik).
-     3. Klik fisik disimulasikan scale-down + shadow elevation turun,
-        bukan inset-shadow-well custom lagi.
-     4. Glow (§9) TERBATAS ke state aktif/selected, pakai MidnightBlueAccent
-        (bukan bronze/white alpha mentah lagi).
+     1. Glass = MATERIAL UTAMA. Kartu struktural "glass surfaces first, not
+        physical objects" (§14) — TIDAK strong bevel/heavy shadow/thick
+        border/bright glow.
+     2. Skeuomorphism turun jadi MICRO — hanya interaksi fisik (power
+        button, slider knob), bukan identitas visual kedua lagi.
+     3. Slider knob TIDAK metallic realism lagi (§13) — radial restrained
+        (highlight tipis -> glass elevated tinted accent).
+     4. Midnight Blue ambient alpha 0.06 (bukan 0.08) — subtle atmospheric
+        gradient/tint saja, gak pernah jadi base surface (§6).
+     5. Glow (§18) TERBATAS ke state aktif/selected/focused, alpha
+        direstrain (0.22) biar gak jadi hal pertama yang kelihatan.
   ============================================================ */
   :root{
-    --bg:#030508;
+    --bg:#070A0F;
     --surface:#0A0F16;
     --surface-elevated:#101722;
-    --midnight-tint:rgba(25,25,112,.08);
+    --midnight-tint:rgba(25,25,112,.06);
     --border:rgba(255,255,255,.035);
+    --highlight:rgba(255,255,255,.065);
     --bevel-top:#101722; --bevel-bottom:#0A0F16;
-    --bevel-hi:rgba(255,255,255,.055); --bevel-lo:rgba(0,0,0,.70);
-    --glow:rgba(102,112,255,.28);
+    --bevel-hi:rgba(255,255,255,.065); --bevel-lo:rgba(0,0,0,.70);
+    --glow:rgba(102,112,255,.22);
     --text:#EAF0F8;
     --muted:#AAB5C4;
+    --mutedmost:#737E8C;
     --bass:#E0865B; --virt:#4FB8C9; --loud:#4CB88A; --eq:#D97AA6;
     --primary:#6670FF;
   }
@@ -113,13 +116,15 @@
   .feature-value{ font-weight:800; font-size:15px; color:var(--accent); }
   .help{ font-size:12.5px; color:var(--muted); margin-bottom:14px; line-height:1.55; }
 
-  /* Slider: track tetap flat (bukan target tactile), knob dapat radial
-     gradient metalik ("physical utility" kedua, sesuai guide poin 3.2) */
+  /* Batch 34: knob slider TIDAK BOLEH lagi "metallic realism" (guide §13 eksplisit
+     melarang radial gradient putih->accent ala dial logam, dipakai Batch 31-33) —
+     diganti radial restrained (highlight tipis -> glass elevated tinted accent),
+     persis pola `SkeuSliderThumb` Kotlin Batch 34. */
   .slider-track{ height:10px; border-radius:6px; position:relative; background:rgba(255,255,255,.06); }
   .slider-fill{ height:10px; border-radius:6px; background:var(--accent); position:absolute; top:0; left:0; }
   .slider-thumb{
     width:22px; height:22px; border-radius:50%;
-    background:radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent) 65%, white), var(--accent) 55%, var(--bevel-bottom));
+    background:radial-gradient(circle at 35% 30%, var(--highlight), color-mix(in srgb, var(--surface-elevated) 70%, var(--accent)));
     position:absolute; top:-6px;
     box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--accent);
   }
@@ -133,7 +138,7 @@
     width:46px; height:26px; border-radius:50px; position:relative; flex-shrink:0;
     background:var(--surface); border:1px solid var(--border); padding:3px; box-sizing:border-box;
   }
-  .skeu-switch.on{ background:color-mix(in srgb, var(--surface) 65%, var(--primary)); border-color:rgba(194,162,107,.6); box-shadow:0 0 8px var(--glow); }
+  .skeu-switch.on{ background:color-mix(in srgb, var(--surface) 65%, var(--primary)); border-color:rgba(102,112,255,.6); box-shadow:0 0 8px var(--glow); }
   .skeu-switch .thumb{ width:20px; height:20px; border-radius:50%; background:var(--bevel-top); box-shadow:0 1px 3px rgba(0,0,0,.5); transition:transform .15s, background .15s; }
   .skeu-switch.on .thumb{ background:var(--primary); transform:translateX(20px); }
 

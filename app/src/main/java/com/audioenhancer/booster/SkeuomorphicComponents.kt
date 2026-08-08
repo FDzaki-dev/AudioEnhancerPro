@@ -1,11 +1,18 @@
 package com.audioenhancer.booster
 
-// Batch 33: re-theme total ke acuan "AMOLED Glassmorphism Hybrid + Midnight Blue
-// Gradient" (compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md).
-// Struktur komponen (SkeuCard/SkeuPowerButton/SkeuSliderThumb/SkeuSwitch) TETAP,
-// hanya token warna yang dipakai diganti total ke Theme.kt Batch 33 (AmoledBackground/
-// GlassSurface*/MidnightBlueTint/MidnightBlueAccent) — palet bronze/graphite lama
-// (SkeuSurfaceTop/SkeuSurfaceBottom) DICABUT.
+// Batch 34: KOREKSI dari Batch 33 (user salah upload acuan sebelumnya, guide yang
+// benar: compose-amoled-hybrid-glass-final.md — "Premium AMOLED Hybrid Glassmorphism +
+// Subtle Midnight Blue + Micro-Skeuomorphism"). Token warna diganti total ke nama
+// persis guide baru (GlassBase/GlassElevated/GlassPressed, ganti GlassSurface* Batch
+// 33) — lihat Theme.kt Batch 34 buat daftar lengkap. Perubahan filosofi kunci vs
+// Batch 33:
+// 1. Glass adalah MATERIAL UTAMA. Skeuomorphism turun jadi "micro" — HANYA buat
+//    interaksi fisik (button/switch/slider/knob). Kartu struktural (SkeuCard/
+//    SkeuTintedCard) "glass surfaces first, not physical objects" (guide §14) —
+//    TIDAK BOLEH strong bevel/heavy shadow/thick border/bright glow.
+// 2. Slider knob TIDAK BOLEH lagi "metallic realism" (radial gradient putih->accent
+//    ala dial logam) — guide §13 eksplisit melarang, diganti radial gradient
+//    accent-tinted glass (GlassHighlight/GlassElevated based, bukan Color.White sheen).
 //
 // Prinsip guide yang dipakai:
 // 1. Tactile Depth via bevel gradient + border highlight/shadow (Modifier.background
@@ -13,10 +20,9 @@ package com.audioenhancer.booster
 // 2. Micro-interaction "klik fisik": Modifier.scale + Modifier.shadow(elevation)
 //    animateDpAsState/animateFloatAsState — standar Compose, bukan Paint hack.
 // 3. Realisme tactile HANYA di komponen fisik (power button, slider knob) — kartu
-//    struktural (SkeuCard/SkeuTintedCard) TETAP quiet, tapi §2.5 MEWAJIBKAN frosted
-//    glass + midnight blue tint jadi material kartu (bukan solid flat lagi).
-// 4. Dark-mode adaptation: highlight pakai "primary glow" tipis (MidnightBlueAccent),
-//    bukan Color.White.
+//    struktural (SkeuCard/SkeuTintedCard) glass murni, restrained (guide §14).
+// 4. Glow (§18) HANYA buat state aktif/selected/focused, alpha direstrain — bukan
+//    material, bukan Color.White.
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
@@ -105,7 +111,7 @@ internal fun SkeuCard(
     val shape = RoundedCornerShape(radius)
     Column(
         modifier = modifier
-            .shadow(elevation = 3.dp, shape = shape, clip = false)
+            .shadow(elevation = 2.dp, shape = shape, clip = false)
             .clip(shape)
             .background(MidnightBlueGlassBrush)
             .border(1.dp, GlassBorder, shape),
@@ -123,12 +129,12 @@ internal fun SkeuTintedCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(SkeuCardRadius)
-    val blended = lerp(GlassSurface, tint, 0.22f)
+    val blended = lerp(GlassBase, tint, 0.22f)
     Column(
         modifier = modifier
             .shadow(elevation = 3.dp, shape = shape, clip = false)
             .clip(shape)
-            .background(Brush.linearGradient(listOf(blended, GlassSurfaceElevated)))
+            .background(Brush.linearGradient(listOf(blended, GlassElevated)))
             .border(1.dp, tint.copy(alpha = 0.4f), shape),
         content = content
     )
@@ -227,16 +233,20 @@ private fun SkeuSliderTrack(
     }
 }
 
-/** Knob slider — "physical utility" kedua yang dapat realisme tactile penuh: radial
- *  gradient meniru dial metalik (guide poin 3.2: "crisp radial gradient resembling
- *  a tactile metallic dial"), bukan lagi dual-shadow neumorphic bundar. */
+/** Knob slider — guide §13 "Tactile Slider": radial gradient RESTRAINED
+ *  (`GlassHighlight` -> `GlassElevated`, contoh persis guide), accent HANYA sebagai
+ *  tint tipis + border ring buat "clear active/inactive distinction" — BUKAN lagi
+ *  radial gradient putih->accent ala dial logam (guide §13 eksplisit: "Avoid metallic
+ *  realism that conflicts with the glass aesthetic"). */
 @Composable
 private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
     val shape = CircleShape
     val ringAlpha = if (enabled) 1f else 0.4f
     val dialBrush = Brush.radialGradient(
-        colors = listOf(lerp(accentColor, Color.White, 0.35f), accentColor, GlassSurface),
-        radius = 30f
+        colors = listOf(
+            GlassHighlight,
+            lerp(GlassElevated, accentColor, if (enabled) 0.30f else 0.08f)
+        )
     )
     Box(
         modifier = Modifier
@@ -332,7 +342,7 @@ internal fun FeatureControl(
 /** Batch 32: toggle/switch tactile — guide §7 "Toggles / Switches" eksplisit minta
  *  physical indentation (bukan pill Material3 default polos yang dipakai sebelumnya,
  *  0 treatment tactile sama sekali). 3 state wajib guide, semua diimplementasi:
- *  OFF = recessed/muted (track abu netral, thumb GlassSurfaceElevated datar tanpa glow),
+ *  OFF = recessed/muted (track abu netral, thumb GlassElevated datar tanpa glow),
  *  ON = active/illuminated (track blend ke accentColor 35%, thumb solid accentColor
  *  + glow tipis via `skeuGlow` — DUA cue sekaligus, structural [posisi+ukuran thumb]
  *  DAN color, sesuai syarat a11y guide §7 "must not depend solely on structural
@@ -402,7 +412,7 @@ internal fun SkeuSwitch(
                 .scale(thumbScale)
                 .shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
                 .clip(CircleShape)
-                .background(if (checked) accentColor else GlassSurfaceElevated)
+                .background(if (checked) accentColor else GlassElevated)
                 .alpha(if (enabled) 1f else 0.5f)
         )
     }

@@ -10,8 +10,37 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.72
-- 🎨 **Batch 33 (v1.72, BELUM diverifikasi CI/runtime)**: user upload guide baru
+- **Versi**: v1.73
+- 🎨 **Batch 34 (v1.73, BELUM diverifikasi CI/runtime)**: KOREKSI Batch 33 — user
+  eksplisit bilang "salah kirim" file acuan Batch 33, upload ulang file yang benar:
+  `compose-amoled-hybrid-glass-final.md` ("Premium AMOLED Hybrid Glassmorphism +
+  Subtle Midnight Blue + Micro-Skeuomorphism"). PENTING buat sesi depan: kalau ada
+  guide baru lagi yang KELIHATAN mirip tapi beda detail sama yang dipakai batch
+  terakhir, JANGAN asumsikan itu iterasi tambahan — cek dulu apa ini koreksi/ganti
+  total kayak kasus ini (2x berturut-turut user upload file salah dulu). Detail
+  lengkap diff Batch 33→34 ada di CHANGELOG.md v1.73. Ringkasan poin kunci:
+  1. Filosofi geser: Batch 33 tactile/bevel-first ("skeuomorphism-lite" sbg identitas
+     kedua) → Batch 34 GLASS adalah material utama, skeuomorphism turun jadi "micro"
+     (cuma buat physical controls: button/switch/slider/knob).
+  2. Nama token warna beda (`GlassBase` bukan `GlassSurface`, dst) meski sebagian
+     hex sama — SEMUA referensi lama di-rename total, bukan cuma reuse.
+  3. `MidnightBlueAmbientAlpha` 0.06 (bukan 0.08 Batch 33) — guide baru kasih angka
+     eksplisit beda.
+  4. Slider knob "metallic realism" (radial gradient putih→accent ala dial logam,
+     bertahan dari Batch 31 sampai 33) AKHIRNYA dicabut — guide baru eksplisit
+     melarang pola ini di §13. Ganti radial restrained tint accent tanpa sheen putih.
+  5. Nemu 2 BUG dari sweep Batch 33 yang gak lengkap: `docs/preview/current.html`
+     `.slider-thumb` (masih metallic gradient) dan `.skeu-switch.on` border-color
+     (masih hardcode bronze `rgba(194,162,107,.6)` — literally warna lama Batch <31
+     yang lolos 2 batch theme-rewrite berturut-turut karena preview HTML gak
+     ke-grep bareng file .kt). **Lesson**: grep sweep integrity-check theme rewrite
+     ke depan WAJIB include `*.html` juga, bukan cuma `*.kt`/`*.xml`.
+  6. `AmoledBackground` (1 token, dipakai buat splash+background sekaligus di Batch
+     33) dipecah jadi 2: `AmoledBlack` (splash/root sejati) + `AmoledSurface`
+     (`colorScheme.background`, canvas layar) — guide §3 eksplisit minta 2-tone biar
+     glass Level 1+ "perceptible" di atas root.
+- 🎨 **Batch 33 (v1.72, BELUM diverifikasi CI/runtime, referensinya SALAH — lihat
+  Batch 34)**: user upload guide baru
   `compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md` + perintah
   eksplisit "timpa theme lama hingga bersih, wajib 100% sesuai". BEDA sama Batch 32:
   Batch 32 sengaja MEMPERTAHANKAN graphite `#232220` karena guide lama cuma kasih

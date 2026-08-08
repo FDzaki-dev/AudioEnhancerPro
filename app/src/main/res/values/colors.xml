@@ -1,7 +1,7 @@
 <resources>
     <!-- Warna latar splash screen (Android 12+) — selaras dengan DarkColors.background
-         di Theme.kt (AmoledBackground). Batch 33: "no light-mode fallback" (guide §1.1
-         + §13) berlaku juga ke splash — default colors.xml disamakan dengan
-         values-night, TIDAK ADA lagi varian terang F7F5F1. -->
+         di Theme.kt (AmoledSurface) / AmoledBlack (root sejati). Batch 34: tetap
+         no-light-fallback, nilai dipertahankan dari Batch 33 (#030508 = AmoledBlack,
+         guide compose-amoled-hybrid-glass-final.md §3). -->
     <color name="splash_background">#030508</color>
 </resources>
