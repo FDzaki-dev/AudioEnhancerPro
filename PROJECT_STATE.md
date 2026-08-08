@@ -10,8 +10,57 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.70
-- 🎨 **Batch 31 (v1.70, BELUM diverifikasi CI/runtime)**: DESIGN LANGUAGE PIVOT TOTAL —
+- **Versi**: v1.71
+- 🎨 **Batch 32 (v1.71, BELUM diverifikasi CI/runtime)**: user upload versi acuan design
+  guide yang LEBIH DETAIL (`compose-skeuomorphism-lite-dark.md`, beda dari
+  `compose-skeuomorphism-lite.md` yang jadi basis Batch 31) — diminta terapkan poin yang
+  BELUM ada dari update Batch 31. Diff dicek poin-per-poin ke Definition-of-Done guide
+  (section 14) + dibandingkan ke `docs/preview/current.html` (yang ternyata SUDAH lebih
+  maju dari Kotlin di 2 hal — sumber gap konkret, bukan tebakan):
+  1. **Glow state aktif (guide §9 "Glow Rules")**: token `SkeuPrimaryGlow` (Theme.kt)
+     sebelumnya DIDEFINISIKAN TAPI 0 PEMANGGIL — power button ON & chip preset aktif
+     cuma punya ring/border solid, gak ada halo lembut yang HTML preview sudah punya
+     sejak awal (`box-shadow: 0 0 16px var(--glow)` di `.power-btn.on`, `0 0 10px` di
+     `.chip.active`). Fix: `Modifier.skeuGlow(color, spread)` baru (native
+     `Brush.radialGradient` di `drawBehind`, BUKAN `BlurMaskFilter`/Paint hack — lesson
+     Batch 14 soal shadow custom gak reliable lintas API tanpa compiler tetap berlaku),
+     dipasang di `SkeuPowerButton` (saat `pressed=true`) & dibungkus `Box` di 2 loop chip
+     preset (`BoosterScreen.kt`) saat `selected`. Urutan modifier SENGAJA sebelum
+     `.shadow()`/`.clip()` supaya halo boleh \"bleed\" keluar batas shape.
+  2. **Switch tactile (guide §7 "Toggles / Switches", eksplisit minta physical
+     indentation)**: toggle Material You ("Warna ikut wallpaper", satu-satunya `Switch`
+     di app) sebelumnya pakai `Switch` Material3 BAWAAN POLOS — 0 treatment tactile sama
+     sekali, gap paling jelas terhadap guide baru. Fix: `SkeuSwitch` baru
+     (`SkeuomorphicComponents.kt`) — track pill (OFF abu netral/`surfaceVariant` murni =
+     "recessed/muted", ON blend 35% ke `accentColor` = "illuminated"), thumb bundar
+     (OFF `SkeuSurfaceTop` datar, ON solid `accentColor` + `skeuGlow` tipis — 2 cue
+     sekaligus: posisi/offset thumb DAN warna, sesuai syarat a11y guide "state must not
+     depend solely on structural changes"), PRESSED = thumb `scale 0.88` sesaat (micro-
+     interaction §6). `onCheckedChange = null` -> non-interaktif murni (pola sama kayak
+     `Switch` Material3 lama — parent `Row` di `BoosterScreen.kt` yang pegang
+     `toggleable`-nya sendiri, TIDAK diubah).
+  - **Dicek TAPI TERNYATA BUKAN gap** (biar gak diulang tanya/dikerjain 2x sesi depan):
+    (a) arah cahaya "top-left → bottom-right" (guide §3) — `SkeuBevelBrush`/
+    `SkeuBevelBorderBrush` (Theme.kt) SUDAH diagonal SECARA DEFAULT karena
+    `Brush.linearGradient(colors)` tanpa `start`/`end` eksplisit di Compose otomatis
+    resolve ke diagonal pojok-ke-pojok bounding box saat digambar — TIDAK perlu
+    diubah. (b) background AMOLED near-black (guide Definition-of-Done) — HTML preview
+    (ground truth desain yang sudah divalidasi sejak Batch 31) SENGAJA TETAP pakai
+    graphite `#232220`, BUKAN near-black `#05070A` contoh di guide (itu cuma "suggested
+    palette direction", bukan hex wajib) — TIDAK diubah, biar konsisten sama HTML yang
+    sudah jadi acuan visual project ini.
+  - **PENTING buat sesi depan**: kalau butuh glow lagi di komponen baru, pakai
+    `Modifier.skeuGlow(color, spread)` yang sudah ada (`SkeuomorphicComponents.kt`) —
+    JANGAN reimplementasi Paint/BlurMaskFilter manual lagi. Dipakai SELEKTIF (cuma state
+    aktif/selected, bukan didekorasi ke semua kartu/border — guide eksplisit larang itu
+    di §9 & §13 "Implementation Guardrails").
+  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file Kotlin
+    project, bersih). `animateColorAsState`/`toggleable`/`drawBehind`/`Brush.radialGradient`
+    semua API Compose standar yang sudah lama stabil, tapi API `Modifier.skeuGlow` +
+    `SkeuSwitch` ini pertama kali dipakai di project ini — kandidat pertama dicurigai
+    kalau ada laporan render aneh (glow gak nongol/ke-clip, switch thumb salah posisi).
+
+- 🎨 **Batch 31 (v1.70, riwayat)**: DESIGN LANGUAGE PIVOT TOTAL —
   "Neumorphic Hybrid" (Batch 12-26) DICABUT, ganti ke **"Skeuomorphism-lite (Tactile UI)"**
   sesuai acuan `compose-skeuomorphism-lite.md` user, **WAJIB dark-mode** (theme mode
   toggle terang/sistem dihapus total, tidak ada lagi pilihan). Detail teknis lengkap
@@ -834,7 +883,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 ## Struktur proyek singkat
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=...)`, tanpa `darkTheme` param lagi).
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset).
-- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31).
+- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst). Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient).
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31.

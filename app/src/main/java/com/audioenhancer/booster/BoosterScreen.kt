@@ -490,43 +490,49 @@ fun BoosterScreen(
             ) {
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                 presets.forEach { preset ->
-                    FilterChip(
-                        selected = activePreset == preset.label,
-                        onClick = { applyPreset(preset) },
-                        label = { Text(preset.label) },
-                        shape = RoundedCornerShape(50),
-                        border = null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
+                    val selected = activePreset == preset.label
+                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 8.dp) else Modifier)) {
+                        FilterChip(
+                            selected = selected,
+                            onClick = { applyPreset(preset) },
+                            label = { Text(preset.label) },
+                            shape = RoundedCornerShape(50),
+                            border = null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White
+                            )
                         )
-                    )
+                    }
                 }
                 customPresets.forEach { custom ->
-                    FilterChip(
-                        selected = activePreset == custom.name,
-                        onClick = { applyCustomPreset(custom) },
-                        label = { Text(custom.name) },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = stringResource(R.string.cd_delete_preset, custom.name),
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clickable { presetPendingDelete = custom.name }
+                    val selected = activePreset == custom.name
+                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 8.dp) else Modifier)) {
+                        FilterChip(
+                            selected = selected,
+                            onClick = { applyCustomPreset(custom) },
+                            label = { Text(custom.name) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.cd_delete_preset, custom.name),
+                                    modifier = Modifier
+                                        .size(16.dp)
+                                        .clickable { presetPendingDelete = custom.name }
+                                )
+                            },
+                            shape = RoundedCornerShape(50),
+                            border = null,
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White
                             )
-                        },
-                        shape = RoundedCornerShape(50),
-                        border = null,
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = Color.White
                         )
-                    )
+                    }
                 }
                 AssistChip(
                     onClick = { presetNameInput = ""; showSavePresetDialog = true },
@@ -740,7 +746,7 @@ fun BoosterScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Switch(checked = useDynamicColor, onCheckedChange = null)
+                    SkeuSwitch(checked = useDynamicColor, onCheckedChange = null)
                 }
             }
         }

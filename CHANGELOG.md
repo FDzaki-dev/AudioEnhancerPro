@@ -4,6 +4,34 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.71 - Batch 32: terapkan gap dari update guide `compose-skeuomorphism-lite-dark.md`
+User upload versi acuan design guide yang lebih detail (beda dari `compose-skeuomorphism-lite.md`
+basis Batch 31), minta terapkan poin yang belum ada. Diff dilakukan poin-per-poin ke Definition
+of Done guide + dibanding `docs/preview/current.html` (ground truth visual project ini, ternyata
+sudah lebih maju dari Kotlin di 2 hal) — detail alasan lengkap tiap poin ada di `PROJECT_STATE.md`
+Batch 32.
+- **`SkeuomorphicComponents.kt`**: `Modifier.skeuGlow(color, spread)` baru (guide §9 "Glow
+  Rules") — halo lembut native `Brush.radialGradient` via `drawBehind`, dipasang di
+  `SkeuPowerButton` (state ON) & dibungkus `Box` di 2 loop chip preset built-in/custom
+  (`BoosterScreen.kt`, saat `selected`). Token `SkeuPrimaryGlow` (Theme.kt, sejak Batch 31)
+  sekarang BENERAN dipakai — sebelumnya didefinisikan tapi 0 pemanggil.
+- **`SkeuomorphicComponents.kt`**: `SkeuSwitch` baru (guide §7 "Toggles / Switches") — ganti
+  `Switch` Material3 bawaan polos (dipakai toggle "Warna ikut wallpaper", `BoosterScreen.kt`)
+  yang sebelumnya 0 treatment tactile. Track pill (OFF muted/`surfaceVariant`, ON blend 35% ke
+  accent), thumb bundar (OFF flat, ON solid+glow, PRESSED scale 0.88) — 2 cue state (posisi +
+  warna) sesuai syarat a11y guide.
+- **Dicek, TERNYATA BUKAN gap** (didokumentasikan biar gak diulang sesi depan): arah cahaya
+  diagonal top-left→bottom-right (guide §3) — `Brush.linearGradient` tanpa `start`/`end`
+  eksplisit sudah diagonal secara default di Compose. Background AMOLED near-black (guide
+  Definition-of-Done) — TIDAK diubah, HTML preview (ground truth project ini) sengaja tetap
+  pakai graphite `#232220`, guide cuma kasih "suggested palette direction" bukan hex wajib.
+- **`docs/preview/current.html`**: `.skeu-switch` CSS baru + 1 card demo toggle (elemen ini
+  sebelumnya gak pernah ada di mockup sama sekali), footer versi diperbarui.
+- **`build.gradle.kts`** (app): versionCode 70→71, versionName 1.70→1.71.
+- Tidak ada perubahan logic/state audio. **Belum diverifikasi CI/runtime** — `skeuGlow`/
+  `SkeuSwitch` API pertama kali dipakai di project ini, kandidat pertama dicurigai kalau ada
+  laporan glow ke-clip/gak nongol atau thumb switch salah posisi.
+
 ## v1.70 - Batch 31: PIVOT DESAIN TOTAL — Neumorphism dicabut, ganti Skeuomorphism-lite (WAJIB dark-mode)
 User kirim acuan design guide `compose-skeuomorphism-lite.md` + instruksi eksplisit: hapus
 semua jejak neumorphism, ganti total sesuai acuan, **WAJIB dark-mode**. Ini pivot STRUKTUR

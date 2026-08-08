@@ -120,6 +120,19 @@
     box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--accent);
   }
 
+  /* Batch 32: switch tactile (guide §7 Toggles/Switches) — sebelumnya cuma dipakai
+     di Kotlin sebagai pill Material3 default tanpa treatment, gak pernah masuk preview
+     HTML ini sama sekali. OFF = recessed/muted, ON = illuminated + glow (2 cue: warna +
+     posisi thumb), konsisten sama SkeuSwitch di SkeuomorphicComponents.kt. */
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .skeu-switch{
+    width:46px; height:26px; border-radius:50px; position:relative; flex-shrink:0;
+    background:var(--surface); border:1px solid var(--border); padding:3px; box-sizing:border-box;
+  }
+  .skeu-switch.on{ background:color-mix(in srgb, var(--surface) 65%, var(--primary)); border-color:rgba(194,162,107,.6); box-shadow:0 0 8px var(--glow); }
+  .skeu-switch .thumb{ width:20px; height:20px; border-radius:50%; background:var(--bevel-top); box-shadow:0 1px 3px rgba(0,0,0,.5); transition:transform .15s, background .15s; }
+  .skeu-switch.on .thumb{ background:var(--primary); transform:translateX(20px); }
+
   .footer-note{ text-align:center; font-size:10px; color:var(--muted); padding:16px; opacity:.6; }
 </style>
 </head>
@@ -199,8 +212,18 @@
           <span style="color:var(--muted); font-size:15px;">⌄</span>
         </div>
       </div>
+
+      <div class="card">
+        <div class="toggle-row">
+          <div>
+            <div class="name" style="font-weight:700; font-size:15px;">Warna ikut wallpaper</div>
+            <div class="desc" style="font-size:12.5px; color:var(--muted); margin-top:2px;">Material You (opsional)</div>
+          </div>
+          <div class="skeu-switch on"><div class="thumb"></div></div>
+        </div>
+      </div>
     </div>
-    <div class="footer-note">v2.0 — "Skeuomorphism-lite" dark-mode wajib, sudah live di app (Theme.kt + SkeuomorphicComponents.kt).</div>
+    <div class="footer-note">v2.1 — "Skeuomorphism-lite" dark-mode wajib + glow state aktif &amp; switch tactile, sudah live di app (Theme.kt + SkeuomorphicComponents.kt).</div>
   </div>
 </body>
 </html>

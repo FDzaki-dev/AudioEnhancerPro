@@ -14,6 +14,7 @@ package com.audioenhancer.booster
 //    struktural (SkeuCard/SkeuTintedCard) TETAP flat & minimal.
 // 4. Dark-mode adaptation: highlight pakai "primary glow" tipis, bukan Color.White.
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Indication
@@ -25,13 +26,16 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +66,25 @@ internal object NoRippleIndication : Indication {
     @Composable
     override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance =
         NoRippleIndicationInstance
+}
+
+/** Batch 32: guide §9 "Glow Rules" — halo lembut TERBATAS buat state aktif/selected
+ *  (power button ON, preset chip aktif, switch ON), native pakai `Brush.radialGradient`
+ *  (BUKAN `BlurMaskFilter`/Paint hack — sudah kejadian di Batch 14, shadow layer custom
+ *  gak reliable lintas API level tanpa compiler buat verifikasi ulang). Ditaruh SEBELUM
+ *  `.shadow()`/`.clip()` di modifier chain manapun dipakai, supaya halo-nya boleh
+ *  \"bleed\" keluar batas shape (gak ikut ke-clip) — itu kenapa harus tetap sengaja
+ *  dipasang urutannya, JANGAN dipindah ke akhir chain kalau dipakai ulang di komponen
+ *  lain. Dipakai SELEKTIF sesuai guide (\"Do not use glow for every card/border/text\"),
+ *  bukan didekorasi ke semua komponen — token `SkeuPrimaryGlow` (Theme.kt) sekarang
+ *  BENERAN dipakai (sebelumnya didefinisikan tapi 0 pemanggil). */
+internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = this.drawBehind {
+    val glowRadius = ((size.minDimension / 2f) + spread.toPx()).coerceAtLeast(1f)
+    drawCircle(
+        brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center, radius = glowRadius),
+        radius = glowRadius,
+        center = center
+    )
 }
 
 /** Kartu struktural flat (guide poin 3: "Keep structural container cards flat and
@@ -142,6 +165,7 @@ internal fun SkeuPowerButton(
         modifier = Modifier
             .size(64.dp)
             .scale(scale)
+            .then(if (pressed) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 14.dp) else Modifier)
             .shadow(elevation = elevation, shape = shape, clip = false)
             .clip(shape)
             .background(SkeuBevelBrush)
@@ -295,5 +319,84 @@ internal fun FeatureControl(
         }
     } else {
         Column(content = innerContent)
+    }
+}
+
+/** Batch 32: toggle/switch tactile — guide §7 "Toggles / Switches" eksplisit minta
+ *  physical indentation (bukan pill Material3 default polos yang dipakai sebelumnya,
+ *  0 treatment tactile sama sekali). 3 state wajib guide, semua diimplementasi:
+ *  OFF = recessed/muted (track abu netral, thumb SkeuSurfaceTop datar tanpa glow),
+ *  ON = active/illuminated (track blend ke accentColor 35%, thumb solid accentColor
+ *  + glow tipis via `skeuGlow` — DUA cue sekaligus, structural [posisi+ukuran thumb]
+ *  DAN color, sesuai syarat a11y guide §7 "must not depend solely on structural
+ *  changes"), PRESSED = thumb mengecil sesaat (scale 0.88, micro-interaction guide §6,
+ *  BUKAN exclusively-scale karena posisi+warna tetap jadi cue utama). `onCheckedChange
+ *  = null` -> switch murni dekoratif/non-interaktif (dipakai kalau parent Row lain yang
+ *  sudah pegang `toggleable` sendiri, pola yang sama dipakai `Switch` Material3). */
+@Composable
+internal fun SkeuSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
+    enabled: Boolean = true
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressedNow by interactionSource.collectIsPressedAsState()
+    val trackShape = RoundedCornerShape(50)
+
+    val trackColor by animateColorAsState(
+        targetValue = when {
+            !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+            checked -> lerp(MaterialTheme.colorScheme.surfaceVariant, accentColor, 0.35f)
+            else -> MaterialTheme.colorScheme.surfaceVariant
+        },
+        label = "skeuSwitchTrack"
+    )
+    val thumbOffset by animateDpAsState(if (checked) 20.dp else 0.dp, label = "skeuSwitchThumbOffset")
+    val thumbScale by animateFloatAsState(if (isPressedNow) 0.88f else 1f, label = "skeuSwitchThumbScale")
+    val thumbElevation by animateDpAsState(
+        targetValue = when {
+            !enabled -> 0.dp
+            isPressedNow -> 0.5.dp
+            checked -> 3.dp
+            else -> 1.dp
+        },
+        label = "skeuSwitchThumbElevation"
+    )
+
+    Box(
+        modifier = modifier
+            .width(46.dp)
+            .height(26.dp)
+            .clip(trackShape)
+            .background(trackColor)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (checked) 0.6f else 0.35f), trackShape)
+            .then(if (checked && enabled) Modifier.skeuGlow(accentColor.copy(alpha = 0.3f), spread = 6.dp) else Modifier)
+            .then(
+                if (onCheckedChange != null) {
+                    Modifier.toggleable(
+                        value = checked,
+                        enabled = enabled,
+                        interactionSource = interactionSource,
+                        indication = null,
+                        role = Role.Switch,
+                        onValueChange = onCheckedChange
+                    )
+                } else Modifier
+            )
+            .padding(3.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Box(
+            modifier = Modifier
+                .offset(x = thumbOffset)
+                .size(20.dp)
+                .scale(thumbScale)
+                .shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
+                .clip(CircleShape)
+                .background(if (checked) accentColor else SkeuSurfaceTop)
+                .alpha(if (enabled) 1f else 0.5f)
+        )
     }
 }
