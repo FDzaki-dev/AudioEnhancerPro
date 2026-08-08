@@ -2,12 +2,13 @@ package com.audioenhancer.booster
 
 // Batch 16: dipecah dari MainActivity.kt (God Activity split, audit High-priority item).
 // Berisi layar utama (BoosterScreen) + composable pendukungnya yang SPESIFIK ke layar ini
-// (ServiceStatusBadge, PowerToggleRow, CrashBanner, ThemeModeToggle, EqualizerSection,
-// Preset). Semua tetap `private` (dipakai cuma di dalam file ini) KECUALI `BoosterScreen`
-// sendiri (dipanggil dari MainActivity.kt) dan `formatFreqLabel` (sudah `internal`
-// sebelumnya, ada test unit-nya di FormatFreqLabelTest.kt). Komponen visual generik
-// (NeumorphicCard dkk) sekarang ada di NeumorphicComponents.kt, bukan di file ini lagi —
-// TIDAK ADA perubahan logic/behavior, murni pemindahan lokasi kode.
+// (ServiceStatusBadge, PowerToggleRow, CrashBanner, EqualizerSection, Preset). Semua
+// tetap `private` (dipakai cuma di dalam file ini) KECUALI `BoosterScreen` sendiri
+// (dipanggil dari MainActivity.kt) dan `formatFreqLabel` (sudah `internal` sebelumnya,
+// ada test unit-nya di FormatFreqLabelTest.kt). Komponen visual generik (SkeuCard dkk)
+// ada di SkeuomorphicComponents.kt.
+// Batch 31: ThemeModeToggle DIHAPUS — app WAJIB dark-mode, tidak ada lagi pilihan
+// terang/ikuti sistem (lihat PROJECT_STATE.md).
 
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -22,15 +23,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PowerSettingsNew
@@ -68,7 +66,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     }
 
     val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    NeumorphicTintedCard(tint = statusTint) {
+    SkeuTintedCard(tint = statusTint) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -89,8 +87,8 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
             )
             if (!isRunning) {
                 // Batch 24: ripple Material3 default dimatikan, konsisten sama
-                // NeumorphicCircleButton (Batch 15) — feedback tekan sekarang murni dari
-                // dual-shadow/scale neumorphic, bukan ripple, di SELURUH komponen interaktif.
+                // SkeuPowerButton (Batch 15) — feedback tekan sekarang murni dari
+                // scale (SkeuPowerButton), bukan ripple, di SELURUH komponen interaktif.
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                     Button(onClick = {
                         onRestartService()
@@ -129,7 +127,7 @@ private fun PowerToggleRow() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        NeumorphicCircleButton(
+        SkeuPowerButton(
             pressed = isRunning,
             ringColor = if (isRunning) MaterialTheme.colorScheme.primary else null,
             onClick = {
@@ -189,7 +187,7 @@ private fun CrashBanner() {
         crashEntry = null
     }
 
-    NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+    SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
         Row(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -260,8 +258,6 @@ fun BoosterScreen(
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
     onOpenNotificationSettings: () -> Unit = {},
-    themeMode: Int = PrefsHelper.THEME_MODE_SYSTEM,
-    onThemeModeChange: (Int) -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
     connectionState: BoosterViewModel.ConnectionState = BoosterViewModel.ConnectionState.CONNECTED,
@@ -363,16 +359,14 @@ fun BoosterScreen(
                 Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                ThemeModeToggle(themeMode = themeMode, onThemeModeChange = onThemeModeChange)
                 IconButton(onClick = onOpenHelp) {
                     Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
                 }
             }
         }
 
-        // Batch 13: power toggle "Aktif/Nonaktif" — porting dari docs/preview/current.html
-        // (Neumorphic Hybrid). Ditaruh persis di posisi yang sama seperti mockup: tepat di
-        // bawah header, sebelum status card service.
+        // Batch 13: power toggle "Aktif/Nonaktif". Ditaruh persis di posisi yang sama
+        // seperti mockup: tepat di bawah header, sebelum status card service.
         PowerToggleRow()
 
         // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
@@ -398,7 +392,7 @@ fun BoosterScreen(
 
         when (connectionState) {
             BoosterViewModel.ConnectionState.CONNECTING -> {
-                NeumorphicCard {
+                SkeuCard {
                     Row(
                         modifier = Modifier.padding(12.dp).fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -410,7 +404,7 @@ fun BoosterScreen(
                 }
             }
             BoosterViewModel.ConnectionState.ERROR -> {
-                NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+                SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -441,7 +435,7 @@ fun BoosterScreen(
         }
 
         if (!notificationPermissionGranted) {
-            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Column(modifier = Modifier.padding(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
@@ -470,7 +464,7 @@ fun BoosterScreen(
         }
 
         if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.error) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
                 Text(
                     stringResource(R.string.unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -478,7 +472,7 @@ fun BoosterScreen(
                 )
             }
         } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            NeumorphicTintedCard(tint = MaterialTheme.colorScheme.primary) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
                 Text(
                     stringResource(R.string.strength_unsupported_banner),
                     modifier = Modifier.padding(12.dp),
@@ -721,7 +715,7 @@ fun BoosterScreen(
         }
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            NeumorphicCard {
+            SkeuCard {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -751,7 +745,7 @@ fun BoosterScreen(
             }
         }
 
-        NeumorphicCard {
+        SkeuCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Icon(Icons.Filled.Shield, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
@@ -782,27 +776,6 @@ fun BoosterScreen(
         }
     }
 }
-/** Satu tombol ikon yang berputar antar 3 mode: ikut sistem → terang → gelap → (ulang). */
-@Composable
-private fun ThemeModeToggle(themeMode: Int, onThemeModeChange: (Int) -> Unit) {
-    val haptics = LocalHapticFeedback.current
-    val (icon, description) = when (themeMode) {
-        PrefsHelper.THEME_MODE_LIGHT -> Icons.Filled.LightMode to stringResource(R.string.theme_desc_light)
-        PrefsHelper.THEME_MODE_DARK -> Icons.Filled.DarkMode to stringResource(R.string.theme_desc_dark)
-        else -> Icons.Filled.Brightness4 to stringResource(R.string.theme_desc_system)
-    }
-    IconButton(onClick = {
-        val next = when (themeMode) {
-            PrefsHelper.THEME_MODE_SYSTEM -> PrefsHelper.THEME_MODE_LIGHT
-            PrefsHelper.THEME_MODE_LIGHT -> PrefsHelper.THEME_MODE_DARK
-            else -> PrefsHelper.THEME_MODE_SYSTEM
-        }
-        onThemeModeChange(next)
-        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-    }) {
-        Icon(icon, contentDescription = description)
-    }
-}
 /** Bagian equalizer manual per-pita-frekuensi — collapsible, disembunyikan by default supaya
  *  tidak membanjiri layar utama (fitur lanjutan, kebanyakan user cukup pakai preset/slider utama). */
 @Composable
@@ -821,7 +794,7 @@ private fun EqualizerSection(
     }
     val haptics = LocalHapticFeedback.current
 
-    NeumorphicCard {
+    SkeuCard {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier

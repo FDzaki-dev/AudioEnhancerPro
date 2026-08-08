@@ -66,9 +66,6 @@
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
 
     <!-- Toggle tema -->
-    <string name="theme_desc_light">Tema: Terang (tap untuk ganti ke Gelap)</string>
-    <string name="theme_desc_dark">Tema: Gelap (tap untuk ganti ke Ikuti Sistem)</string>
-    <string name="theme_desc_system">Tema: Ikuti Sistem (tap untuk ganti ke Terang)</string>
 
     <!-- Onboarding -->
     <string name="onboarding_skip">Lewati</string>

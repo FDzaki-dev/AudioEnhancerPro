@@ -66,9 +66,6 @@
     <string name="see_full_explanation">See full explanation of each feature →</string>
 
     <!-- Theme toggle -->
-    <string name="theme_desc_light">Theme: Light (tap to switch to Dark)</string>
-    <string name="theme_desc_dark">Theme: Dark (tap to switch to Follow System)</string>
-    <string name="theme_desc_system">Theme: Follow System (tap to switch to Light)</string>
 
     <!-- Onboarding -->
     <string name="onboarding_skip">Skip</string>

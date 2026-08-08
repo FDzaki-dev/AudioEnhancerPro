@@ -10,7 +10,12 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.69
+- **Versi**: v1.70
+- 🎨 **Batch 31 (v1.70, BELUM diverifikasi CI/runtime)**: DESIGN LANGUAGE PIVOT TOTAL —
+  "Neumorphic Hybrid" (Batch 12-26) DICABUT, ganti ke **"Skeuomorphism-lite (Tactile UI)"**
+  sesuai acuan `compose-skeuomorphism-lite.md` user, **WAJIB dark-mode** (theme mode
+  toggle terang/sistem dihapus total, tidak ada lagi pilihan). Detail teknis lengkap
+  di CHANGELOG.md & "Riwayat pivot" di bawah.
 - ✅ **CI CONFIRMED (user) crash-loop v1.68 gak muncul lagi** — banner cuma nampilin crash
   lama pre-update, app jalan normal.
 - ⚠️ **Batch 30 (v1.69, BELUM diverifikasi CI/runtime)**: empty state hint di preset custom
@@ -630,12 +635,13 @@ eksplisit user.
   Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
   atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
   JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif**: "Neumorphic Hybrid" (Batch 12, v1.51, ARAH SEKARANG) —
-  glassmorphism (translucent + border gradient + blur, v1.29-v1.49) DICABUT TOTAL,
-  bukan cuma palet lagi. Kartu sekarang SOLID dengan dual-shadow extruded/pressed,
-  teks selalu warna solid (gradient-clip text dibuang). Detail lengkap: lihat poin 5
-  di "Riwayat pivot" bawah + `CHANGELOG.md` v1.51. Warna aksen per-fitur (Bass/
-  Virtualizer/Loudness/Equalizer) & primary champagne-bronze TETAP dipertahankan.
+- **Arah desain UI aktif**: "Skeuomorphism-lite (Tactile UI)" (Batch 31, v1.70, ARAH SEKARANG, WAJIB dark-mode) —
+  Neumorphic Hybrid (dual-shadow extruded/pressed, v1.51-v1.69) DICABUT TOTAL sesuai
+  acuan `compose-skeuomorphism-lite.md` user. Kartu struktural sekarang FLAT & minimal
+  (solid + border tipis), realisme tactile (bevel gradient/radial metalik) HANYA di
+  power button & slider knob. Detail lengkap: lihat poin 6 di "Riwayat pivot" bawah +
+  `CHANGELOG.md` v1.70. Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) &
+  primary champagne-bronze TETAP dipertahankan.
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,
@@ -673,15 +679,36 @@ eksplisit user.
    dulu apakah masalahnya di STRUKTUR (shape/layout) atau cuma di PALET WARNA
    sebelum redesign besar — di kasus ini cuma palet, jadi scope-nya kecil
    (Theme.kt + 2 colors.xml + 3 drawable hardcoded hex + preview HTML).
-5. **Neumorphic Hybrid** (Batch 12, v1.51, **ARAH SEKARANG** — sudah di-port penuh ke
-   Kotlin) — kali ini STRUKTUR ikut diganti, bukan cuma palet,
+5. **Neumorphic Hybrid** (Batch 12, v1.51-v1.69, riwayat — DICABUT di Batch 31) —
+   kali ini STRUKTUR ikut diganti, bukan cuma palet,
    diminta user eksplisit sambil minta legibility ditingkatkan. Translucency/
    backdrop-blur & gradient-clip text (dua-duanya sumber inkonsistensi kontras di
-   struktur glassmorphism #3/#4) dibuang total. Kedalaman visual sekarang dari
+   struktur glassmorphism #3/#4) dibuang total. Kedalaman visual dari
    dual-shadow neumorphic (extruded = "timbul", inset = "ditekan"), background
    base dinaikkan ke abu graphite medium `#232220` (bukan hitam pekat) supaya sisi
    highlight shadow-nya kelihatan. Warna aksen per-fitur & primary bronze TETAP,
    cuma dipakai lebih hemat (icon/slider/ring, bukan teks).
+6. **Skeuomorphism-lite (Tactile UI)** (Batch 31, v1.70, **ARAH SEKARANG**) — user
+   kirim acuan design guide (`compose-skeuomorphism-lite.md`) minta neumorphism
+   DICABUT TOTAL + **WAJIB dark-mode** (theme mode toggle terang/ikuti-sistem
+   dihapus, `LightColors` scheme dihapus, `LocalIsDarkTheme` sekarang selalu
+   `true`). Beda kunci vs Neumorphic Hybrid:
+   (a) Kedalaman TIDAK LAGI dari dual custom-Paint shadow-layer (`neumorphicDepth`/
+       `neumorphicInnerShadow`, `NeuShadowDarkSide`/`NeuShadowLightSideDark`) — semua
+       dihapus. Sekarang dari bevel gradient (`SkeuBevelBrush` top-down light source)
+       + border highlight/shadow tipis, plus `Modifier.shadow` elevation standar
+       Compose (`animateDpAsState`) buat micro-interaction klik.
+   (b) Realisme tactile DIPERSEMPIT hanya ke komponen "physical utility" (power
+       button, slider knob) sesuai guide poin 3 — kartu struktural (`SkeuCard`/
+       `SkeuTintedCard`, ex `NeumorphicCard`/`NeumorphicTintedCard`) sekarang FLAT
+       & minimal (solid surface + border 1dp + shadow kecil), BUKAN extruded lagi.
+   (c) Slider knob pakai radial gradient metalik (`SkeuSliderThumb`), bukan dual-shadow
+       bundar lagi.
+   (d) Dark-mode adaptation guide: highlight terang diganti "primary glow" tipis
+       (`SkeuPrimaryGlow`), bukan `Color.White` alpha mentah.
+   File `NeumorphicComponents.kt` dihapus, diganti `SkeuomorphicComponents.kt`.
+   `docs/preview/current.html` & warna aksen per-fitur/primary bronze TETAP
+   dipertahankan (bukan sumber keluhan), cuma struktur kartu & shadow yang berubah.
 
 ## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
 - **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
@@ -805,10 +832,12 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 ```
 
 ## Struktur proyek singkat
-- `MainActivity.kt` — semua UI Compose (BoosterScreen, FeatureControl, GlassCard, CrashBanner, dst) + lifecycle Activity + bind ke Service.
+- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=...)`, tanpa `darkTheme` param lagi).
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset).
+- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31).
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
-- `Theme.kt` — palet warna, typography, shape. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient).
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log).
+- `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst). Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient).
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31.
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.

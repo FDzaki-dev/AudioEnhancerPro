@@ -15,13 +15,13 @@ app/src/main/java/com/audioenhancer/booster/BoosterWidgetProvider.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
-app/src/main/java/com/audioenhancer/booster/NeumorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt
 app/src/main/java/com/audioenhancer/booster/QuickToggleTileService.kt
 app/src/main/java/com/audioenhancer/booster/ServiceWatchdogWorker.kt
 app/src/main/java/com/audioenhancer/booster/ShortcutHelper.kt
+app/src/main/java/com/audioenhancer/booster/SkeuomorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt
 app/src/main/res/drawable/ic_launcher_background.xml
 app/src/main/res/drawable/ic_launcher_foreground.xml

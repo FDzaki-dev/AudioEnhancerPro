@@ -1,7 +1,7 @@
 package com.audioenhancer.booster
 
 // Batch 16: God Activity split (audit High-priority item #1) — MainActivity.kt dipecah
-// jadi 3 file (lihat BoosterScreen.kt, NeumorphicComponents.kt).
+// jadi 3 file (lihat BoosterScreen.kt, SkeuomorphicComponents.kt).
 // Batch 17 (audit High #2): state+business logic seputar koneksi AudioEnhancerService
 // (dulu ada di class ini) DIPINDAH ke BoosterViewModel.kt (plain AndroidViewModel, TANPA
 // DI framework — Hilt/Koin PENDING, Atomic Change terpisah, lihat PROJECT_STATE.md
@@ -31,7 +31,6 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
@@ -112,31 +111,20 @@ class MainActivity : ComponentActivity() {
         handleShortcutIntent(intent)
 
         setContent {
-            var themeMode by remember { mutableStateOf(PrefsHelper.getThemeMode(this@MainActivity)) }
             var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }
-            val darkTheme = when (themeMode) {
-                PrefsHelper.THEME_MODE_LIGHT -> false
-                PrefsHelper.THEME_MODE_DARK -> true
-                else -> isSystemInDarkTheme()
-            }
-
-            // Ikon status bar/nav bar (terang/gelap) di-sync ulang tiap kali darkTheme berubah —
-            // bukan cuma sekali dibaca dari system di awal. Tanpa ini, kalau user override tema
-            // manual berlawanan dari sistem (misal sistem terang, dipaksa Dark), ikon status bar
-            // bisa nyaris tidak kelihatan karena warnanya tetap mengikuti sistem, bukan tema aktif.
+            // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
+            // branching (neumorphism + light theme dicabut total). Status bar/nav bar
+            // ikon di-set gelap (kontras di atas base gelap) sekali saja, tidak perlu
+            // SideEffect resync karena darkTheme tidak lagi bisa berubah runtime.
             SideEffect {
                 val controller = WindowCompat.getInsetsController(window, window.decorView)
-                controller.isAppearanceLightStatusBars = !darkTheme
-                controller.isAppearanceLightNavigationBars = !darkTheme
+                controller.isAppearanceLightStatusBars = false
+                controller.isAppearanceLightNavigationBars = false
             }
 
-            AudioEnhancerTheme(darkTheme = darkTheme, useDynamicColor = useDynamicColor) {
+            AudioEnhancerTheme(useDynamicColor = useDynamicColor) {
                 Surface(
-                    // Batch 12: background SELALU flat solid (colorScheme.background), tidak
-                    // ada lagi cabang gradient khusus dark theme. Neumorphism butuh base color
-                    // rata satu warna supaya perhitungan dual-shadow (terang/gelap) konsisten
-                    // di seluruh permukaan — gradient bikin sisi shadow salah kontras di
-                    // sebagian area layar.
+                    // Skeuomorphism-lite: background flat solid (colorScheme.background).
                     modifier = Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.background)
@@ -178,11 +166,6 @@ class MainActivity : ComponentActivity() {
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,
                             onOpenNotificationSettings = { openNotificationSettings() },
-                            themeMode = themeMode,
-                            onThemeModeChange = {
-                                themeMode = it
-                                PrefsHelper.setThemeMode(this@MainActivity, it)
-                            },
                             useDynamicColor = useDynamicColor,
                             onUseDynamicColorChange = {
                                 useDynamicColor = it

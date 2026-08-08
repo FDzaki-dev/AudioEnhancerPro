@@ -4,6 +4,58 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.70 - Batch 31: PIVOT DESAIN TOTAL — Neumorphism dicabut, ganti Skeuomorphism-lite (WAJIB dark-mode)
+User kirim acuan design guide `compose-skeuomorphism-lite.md` + instruksi eksplisit: hapus
+semua jejak neumorphism, ganti total sesuai acuan, **WAJIB dark-mode**. Ini pivot STRUKTUR
+penuh (bukan cuma palet), sama skalanya kayak pivot glassmorphism→Neumorphic Hybrid dulu
+(Batch 12) — lihat "Riwayat pivot" poin 6 di PROJECT_STATE.md buat detail alasan tiap
+perbedaan.
+- **`NeumorphicComponents.kt` DIHAPUS**, diganti **`SkeuomorphicComponents.kt`** (file baru):
+  - `neumorphicDepth()`/`neumorphicInnerShadow()` (dual custom-Paint shadow-layer, teknik inti
+    neumorphism) **dihapus total**, tidak ada penggantinya yang setara — kedalaman sekarang
+    dari pendekatan berbeda (lihat poin di bawah).
+  - `NeumorphicCard`/`NeumorphicTintedCard` → `SkeuCard`/`SkeuTintedCard`: sesuai guide poin 3
+    ("keep structural container cards flat and minimal"), kartu struktural SEKARANG FLAT —
+    solid surface + border 1dp + `Modifier.shadow` kecil (3dp), BUKAN extruded dual-shadow lagi.
+  - `NeumorphicCircleButton` → `SkeuPowerButton`: satu-satunya elemen "physical utility" bundar
+    (guide poin 3) — dapat bevel gradient top-down (`SkeuBevelBrush`) + border emboss
+    (`SkeuBevelBorderBrush`) + micro-interaction klik PERSIS snippet guide poin 2
+    (`Modifier.scale` + `Modifier.shadow(elevation)` via `animateFloatAsState`/`animateDpAsState`),
+    ganti total custom Paint shadow-layer.
+  - `NeumorphicSliderThumb` → `SkeuSliderThumb`: radial gradient metalik (guide poin 3.2 —
+    "crisp radial gradient resembling a tactile metallic dial"), ganti dual-shadow bundar lama.
+  - `NoRippleIndication` dipertahankan apa adanya (utilitas UI generik, bukan neumorphism-specific).
+- **`Theme.kt`**: `LightColors` + parameter `darkTheme` di `AudioEnhancerTheme()` **dihapus** —
+  app WAJIB dark (`DarkColors` satu-satunya scheme, `LocalIsDarkTheme` sekarang selalu `true`).
+  Token neumorphic lama (`NeuShadowDarkSide`, `NeuShadowLightSideDark/Light`, `NeuShadowDarkSideLight`,
+  `NeuCardRadius`, dst) dihapus, diganti token Skeuomorphism-lite: `SkeuSurfaceTop/Bottom`,
+  `SkeuBevelHighlight/Shadow`, `SkeuPrimaryGlow` (pengganti `Color.White` alpha sesuai guide
+  "Dark Mode Adaptation" — highlight terang diganti glow warna primary tipis), `SkeuCardRadius`,
+  `SkeuIconBoxRadius`, `SkeuBevelBrush`/`SkeuBevelBorderBrush`.
+- **`MainActivity.kt`** (edit parsial — protected asset): `themeMode`/`isSystemInDarkTheme`
+  branching dihapus, `AudioEnhancerTheme()` dipanggil tanpa `darkTheme` (selalu dark).
+  Status bar/nav bar icon di-set gelap sekali (tidak perlu `SideEffect` resync lagi karena
+  tema tidak lagi bisa berubah runtime). Param `themeMode`/`onThemeModeChange` dihapus dari
+  pemanggilan `BoosterScreen(...)`.
+- **`BoosterScreen.kt`**: semua referensi `Neumorphic*` di-rename ke `Skeu*`. Composable
+  `ThemeModeToggle` (ikon Terang/Gelap/Ikuti-Sistem) **dihapus total** dari header — tidak ada
+  lagi pilihan tema di UI, konsisten dengan WAJIB dark-mode. Import icon `LightMode`/`DarkMode`/
+  `Brightness4` dihapus (sudah tidak dipakai).
+- **`strings.xml`** (`values/` id + `values-en/`): 3 string unreferenced dihapus —
+  `theme_desc_light`, `theme_desc_dark`, `theme_desc_system` (dulu dipakai `ThemeModeToggle`).
+- **`docs/preview/current.html`**: mockup diupdate penuh ke Skeuomorphism-lite dark-mode — CSS
+  `box-shadow` dual-tone neumorphic diganti `linear-gradient` bevel (power button) +
+  `radial-gradient` metalik (slider thumb) + kartu flat (`border` tipis, shadow kecil).
+- **`PrefsHelper.kt`**: **TIDAK diubah** — `getThemeMode`/`setThemeMode`/`THEME_MODE_*` sengaja
+  dibiarkan sebagai dead code (bukan dipanggil lagi dari UI manapun) supaya `PrefsHelperTest.kt`
+  tidak perlu ikut diubah di batch ini (minimasi resiko regresi test, bukan lupa).
+- **`app/build.gradle.kts`** (edit parsial — protected asset): versionCode 69→70, versionName
+  1.69→1.70.
+- Tidak ada perubahan logic/state audio (Bass/Virtualizer/Loudness/Equalizer) — murni pivot
+  visual/tema. **Belum diverifikasi CI/runtime** — rekomendasi: cek render power button
+  (bevel+ring saat ON), slider knob (radial gradient), dan pastikan tidak ada crash
+  `Unresolved reference` sisa `Neumorphic*`/`darkTheme`/`themeMode` di titik lain.
+
 ## v1.69 - Batch 30: empty state hint preset custom (polish UI/UX kecil, lanjutan tema Batch 26)
 User konfirmasi crash-loop v1.67 SUDAH gak muncul lagi di v1.68 (screenshot nunjukin banner
 cuma nampilin crash LAMA dari sebelum update, app jalan normal "Aktif"). Lanjut "Next" — audit

@@ -1,18 +1,16 @@
 package com.audioenhancer.booster
 
 import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -21,27 +19,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 12 — "Neumorphic Hybrid": glassmorphism (Batch 2-4, v1.29-v1.49)
-// DICABUT TOTAL di level struktur, bukan cuma palet lagi. Draft divalidasi
-// dulu di docs/preview/current.html sebelum di-port ke sini (lihat
-// PROJECT_STATE.md poin 5 "Riwayat pivot"). Perubahan kunci:
-// 1. TIDAK ADA translucency/alpha-blend surface lagi — semua kartu SOLID
-//    (containerColor = surface tanpa .copy(alpha=...)). Translucent+blur
-//    adalah sumber utama kontras teks yang tidak konsisten di struktur lama.
-// 2. Background dinaikkan dari hitam pekat (#0A0A0A) / putih nyaris murni
-//    (#F7F5F1) ke abu graphite medium (dark) / abu hangat medium (light).
-//    WAJIB — neumorphism butuh base color yang tidak terlalu gelap ATAU
-//    terlalu terang supaya SISI TERANG dual-shadow-nya (bukan cuma sisi
-//    gelap) kelihatan. Kalau base terlalu ekstrem, satu sisi shadow jadi
-//    nyaris invisible (persis pola masalah alpha-di-atas-hitam-pekat era
-//    Apple-style, Batch 1 — LESSON yang sama berlaku lagi di sini).
-// 3. Tidak ada lagi gradient-clip TEXT (headline/value yang teksnya sendiri
-//    di-gradient) — kontras jadi tidak konsisten tergantung posisi. Gradient
-//    sekarang HANYA dipakai di elemen non-teks (ikon, waveform dekoratif).
+// BATCH 31 — "Skeuomorphism-lite (Tactile UI)": neumorphism DICABUT TOTAL, ganti
+// total sesuai acuan design guide user (compose-skeuomorphism-lite.md). WAJIB
+// dark-mode — tidak ada lagi light theme / theme mode toggle (lihat
+// PROJECT_STATE.md poin "Riwayat pivot"). Perubahan kunci vs Batch 12-26:
+// 1. TIDAK ADA lagi dual-shadow neumorphic (dark-side/light-side Paint layer).
+//    Kedalaman sekarang dari bevel gradient + border highlight/shadow tipis
+//    (native vector primitives) sesuai Golden Rule guide — no heavy texture asset.
+// 2. Struktur kartu kembali FLAT & minimal (guide poin 3: "Isolated Skeuomorphic
+//    Accents") — realisme tactile HANYA dipakai di elemen fisik (power button,
+//    slider knob), bukan lagi di semua kartu.
+// 3. Dark-mode adaptation (guide poin "Accessibility & Performance Safeguards"):
+//    highlight terang diganti "primary glow" tipis, bukan Color.White alpha.
 // ============================================================================
 
-// Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon (bukan lagi
-// buat border/teks — lihat NeumorphicCard di MainActivity.kt).
+// Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon.
 val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
 val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
 val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
@@ -53,27 +45,25 @@ val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
 val DynamicColorAccent = Color(0xFF9C9890); val DynamicColorAccent2 = Color(0xFFC9C4BC)
 
 private val PremiumBronzeDark = Color(0xFFC2A26B)
-private val PremiumBronzeLight = Color(0xFF8A6D3B)
 
-// Warna dual-shadow neumorphic — dipakai lewat Modifier.neumorphicDepth() /
-// neumorphicInnerShadow() (MainActivity.kt, drawBehind manual, BUKAN Modifier.shadow
-// elevation — lihat catatan Batch 14). Batch 15: alpha diselaraskan PERSIS ke spec
-// design system user ("Hybrid Neumorphism"): sisi gelap ~60% black, sisi terang ~4%
-// white (dark theme) — jauh lebih tipis dari draft Batch 12/14 (0x33=20%), tapi justru
-// itu yang bikin efeknya "subtle premium" bukan glow norak, PERSIS kayak HTML aslinya.
-val NeuShadowDarkSide = Color(0x99000000)        // ~60% black — dark theme, sisi gelap
-val NeuShadowLightSideDark = Color(0x0AFFFFFF)   // ~4% white — dark theme, sisi terang
-val NeuShadowLightSideLight = Color(0xFFFFFFFF)  // dipakai di light theme (di luar scope spec user)
-val NeuShadowDarkSideLight = Color(0x40000000)   // sisi gelap versi light theme (di luar scope spec user)
+// ---- Skeuomorphism-lite tactile tokens (dark-mode only) --------------------
+// Simulasi sumber cahaya top-down: gradient permukaan gelap->lebih gelap (bukan
+// dual-shadow neumorphic). Dipakai oleh komponen "physical utility" saja
+// (SkeuPowerButton/SkeuSliderThumb) — kartu struktural TETAP flat.
+val SkeuSurfaceTop = Color(0xFF2E2C29)
+val SkeuSurfaceBottom = Color(0xFF201F1D)
+val SkeuBevelHighlight = Color(0x33FFFFFF)   // tepi terang tipis (emboss)
+val SkeuBevelShadow = Color(0x66000000)      // tepi gelap (recessed edge)
+// Dark-mode adaptation guide: pengganti highlight putih -> glow primary tipis,
+// dipakai buat ring/state aktif komponen tactile (bukan Color.White alpha lagi).
+val SkeuPrimaryGlow = Color(0x40C2A26B)
 
-// Batch 15: token radius & parameter shadow terpusat di sini (bukan angka hardcode
-// tersebar di MainActivity.kt) — sesuai spec design system user.
-val NeuCardRadius = 22.dp
-val NeuIconBoxRadius = 14.dp
-val NeuShadowDarkOffset = 8.dp
-val NeuShadowDarkBlur = 17.dp
-val NeuShadowLightOffset = 6.dp
-val NeuShadowLightBlur = 15.dp
+val SkeuBevelBrush: Brush = Brush.linearGradient(listOf(SkeuSurfaceTop, SkeuSurfaceBottom))
+val SkeuBevelBorderBrush: Brush = Brush.linearGradient(listOf(SkeuBevelHighlight, Color.Transparent, SkeuBevelShadow))
+
+// Radius token terpusat (dipakai SkeuomorphicComponents.kt).
+val SkeuCardRadius = 20.dp
+val SkeuIconBoxRadius = 14.dp
 
 private val DarkColors = darkColorScheme(
     primary = PremiumBronzeDark,
@@ -93,26 +83,6 @@ private val DarkColors = darkColorScheme(
     errorContainer = Color(0xFF4A1616),
     onErrorContainer = Color(0xFFFFD8D8),
     outline = Color(0xFF3E3B35)
-)
-
-private val LightColors = lightColorScheme(
-    primary = PremiumBronzeLight,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFEEE0C4),
-    onPrimaryContainer = Color(0xFF3D311B),
-    secondary = Color(0xFF5B6068),
-    onSecondary = Color.White,
-    background = Color(0xFFE7E4DC),
-    onBackground = Color(0xFF1C1B18),
-    surface = Color(0xFFE7E4DC),
-    onSurface = Color(0xFF1C1B18),
-    surfaceVariant = Color(0xFFDEDBD2),
-    onSurfaceVariant = Color(0xFF5C594F),
-    error = Color(0xFFD32F2F),
-    onError = Color.White,
-    errorContainer = Color(0xFFFFDAD6),
-    onErrorContainer = Color(0xFF410002),
-    outline = Color(0xFFD9D4C7)
 )
 
 private val AppTypography = Typography(
@@ -150,38 +120,32 @@ private val AppTypography = Typography(
     )
 )
 
-// Shape kembali membulat lembut (kesan "kaca premium"), bukan sudut tajam
-// brutalist Batch 1 ataupun super-bulat minimal Apple.
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(22.dp),
+    medium = RoundedCornerShape(20.dp),
     large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(32.dp)
 )
 
-/** Batch 12: NeumorphicCard/NeumorphicTintedCard (MainActivity.kt) butuh tahu status
- *  dark/light AKTUAL (hasil resolusi override manual user di ThemeModeToggle), BUKAN
- *  cuma `isSystemInDarkTheme()` — kalau dipakai langsung, kartu bakal salah pilih
- *  warna shadow pas user override tema berlawanan dari sistem. `darkTheme` yang
- *  sudah diresolusi di sini (bukan raw system value) di-broadcast lewat CompositionLocal
- *  ini supaya composable manapun di bawah bisa ikut tahu tanpa perlu parameter manual. */
-val LocalIsDarkTheme = compositionLocalOf { false }
+/** Sebelumnya (Batch 12-26) broadcast status dark/light hasil resolusi manual user
+ *  buat pilih warna shadow neumorphic. WAJIB dark-mode sekarang -> CompositionLocal
+ *  ini dipertahankan (dipakai SkeuomorphicComponents.kt) tapi NILAINYA SELALU `true`,
+ *  tidak ada lagi resolusi/override light. */
+val LocalIsDarkTheme = compositionLocalOf { true }
 
 @Composable
 fun AudioEnhancerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
     useDynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colors = when {
-        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        darkTheme -> DarkColors
-        else -> LightColors
+    val colors = if (useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        dynamicDarkColorScheme(context)
+    } else {
+        DarkColors
     }
-    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+    CompositionLocalProvider(LocalIsDarkTheme provides true) {
         MaterialTheme(
             colorScheme = colors,
             typography = AppTypography,
