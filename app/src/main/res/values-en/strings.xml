@@ -58,6 +58,10 @@
     <string name="dynamic_color_title">Match wallpaper colors</string>
     <string name="dynamic_color_desc">Use Material You colors from your wallpaper, replacing this app\'s signature blue theme.</string>
 
+    <!-- Batch 36: theme style switch -->
+    <string name="theme_style_title">Radical Visual Style</string>
+    <string name="theme_style_desc">Switch to Radical Literal Skeuomorphism — physical bevels, pure dark, readability first. Off = AMOLED Glass (default).</string>
+
     <!-- Battery card -->
     <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>
     <string name="battery_card_body">So the booster keeps running even when your phone is locked or the app is swiped away from recent apps. On MIUI/ColorOS/EMUI/XOS/HiOS phones, also enable \'Autostart\' manually in phone settings.</string>

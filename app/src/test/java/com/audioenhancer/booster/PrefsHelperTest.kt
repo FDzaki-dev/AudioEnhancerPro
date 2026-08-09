@@ -155,4 +155,18 @@ class PrefsHelperTest {
         PrefsHelper.setLastSeenCrashTimestamp(context, 1_700_000_000_000L)
         assertEquals(1_700_000_000_000L, PrefsHelper.getLastSeenCrashTimestamp(context))
     }
+
+    @Test
+    fun `app theme style defaults to amoled glass`() {
+        assertEquals(PrefsHelper.APP_THEME_AMOLED_GLASS, PrefsHelper.getAppThemeStyle(context))
+    }
+
+    @Test
+    fun `app theme style round-trips through prefs`() {
+        PrefsHelper.setAppThemeStyle(context, PrefsHelper.APP_THEME_RADICAL_SKEUO)
+        assertEquals(PrefsHelper.APP_THEME_RADICAL_SKEUO, PrefsHelper.getAppThemeStyle(context))
+
+        PrefsHelper.setAppThemeStyle(context, PrefsHelper.APP_THEME_AMOLED_GLASS)
+        assertEquals(PrefsHelper.APP_THEME_AMOLED_GLASS, PrefsHelper.getAppThemeStyle(context))
+    }
 }

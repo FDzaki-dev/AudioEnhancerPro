@@ -4,6 +4,84 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.75 - Batch 36: fitur baru — switch 2 sistem desain (AMOLED Glass vs Radical Literal Skeuomorphism)
+User minta fitur "setting custom switch theme" yang konfigurasinya 100% mengikuti guide
+baru yang diupload: `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`
+("Radical + Literal Skeuomorphism — Dark Mode Only — Performance First"). Guide ini BEDA
+TOTAL dari guide AMOLED Hybrid Glass yang jadi tema aktif sekarang (Batch 33-35) —
+sebelum implementasi, scope dikonfirmasi eksplisit ke user via pilihan (bukan diasumsikan,
+lihat lesson Batch 34 soal ini): user pilih opsi **"tambah toggle pilih salah satu dari 2
+tema, dua-duanya tetap ada"** — BUKAN replace total, BUKAN switch mandiri di luar tema aktif.
+
+**Implementasi (arsitektur token, BUKAN duplikasi composable per-tema)**:
+1. `Theme.kt` — port token warna guide baru 1:1 (0 interpretasi hex): `RadicalBackground
+   #050505`, `RadicalSurface #101010`, `RadicalSurfaceRaised #171717`,
+   `RadicalSurfaceRecessed #080808`, `RadicalEdgeHighlight` (white@7.5%), `RadicalEdgeShadow`
+   (black@80%), `RadicalTextPrimary/Secondary/Muted`, `RadicalAccent #5F9EFF` (guide §2).
+   Bevel brush top-left→bottom-right (guide §4/§5) & glow (guide §18) turunan dari token ini.
+2. `data class SkeuTokens` (Theme.kt, baru) — kumpulan field yang beda FILOSOFI antar 2 tema
+   (card fill/border/elevation, muted text, bevel brush, slider knob highlight). 2 instance:
+   `AmoledGlassSkeuTokens` (existing, glass-first, kartu flat-tint) & `RadicalSkeuoSkeuTokens`
+   (baru, bevel-first — guide §1 "every major interactive object should have implied
+   physical construction", jadi KARTU STRUKTURAL di tema ini pun raised-bevel, BEDA dari
+   AMOLED Glass yang sengaja "glass murni" di kartu). Disediakan lewat `LocalSkeuTokens`
+   (CompositionLocal) + `LocalAppThemeStyle` (`enum AppThemeStyle { AMOLED_GLASS,
+   RADICAL_SKEUO }`), di-provide `AudioEnhancerTheme(themeStyle=...)` (param baru).
+3. `SkeuomorphicComponents.kt` — `SkeuCard`/`SkeuTintedCard`/`SkeuPowerButton`/
+   `SkeuSliderThumb`/`SkeuSwitch`/`FeatureControl` (helpText) di-refactor baca
+   `LocalSkeuTokens.current` (fill/border/elevation/glow/muted-text/knob-highlight),
+   BUKAN lagi val top-level `Glass*`/`TextMuted`/`SkeuBevelBrush`/`SkeuPrimaryGlow`
+   hardcoded — 1 kode komponen jalan otomatis buat 2 tema, TANPA percabangan `when()`
+   di tiap komponen maupun duplikasi file composable.
+4. `BoosterScreen.kt` — SEMUA referensi `TextMuted`/`SkeuPrimaryGlow` langsung (7+2
+   lokasi: desc power toggle, label chip preset built-in+custom, hint preset kosong,
+   char-count nama preset, desc Material You, subtitle equalizer, glow chip preset aktif)
+   diganti `LocalSkeuTokens.current.mutedText`/`.primaryGlow` — supaya readability &
+   glow ikut 100% konsisten ke tema aktif di SELURUH layar, bukan cuma komponen baru
+   (guide baru §26 final checklist "Readability" + final verdict "if physical realism
+   and readability conflict, readability wins" — jadi WAJIB scope-nya menyeluruh, bukan
+   parsial di 1 kartu doang). Kartu baru "Gaya Tampilan Radikal" (`SkeuSwitch`) ditaruh
+   persis di bawah kartu Material You (pattern UI identik: icon + title + desc + switch,
+   `toggleable` di `Row`, `onCheckedChange=null` di `SkeuSwitch` — sama seperti Material
+   You, parent `Row` yang pegang `toggleable`-nya sendiri).
+5. `MainActivity.kt` — state `appThemeStyleKey` (String, persisted) di-`remember` di
+   `setContent{}` sejajar `useDynamicColor`, di-map ke `AppThemeStyle` enum lalu di-pass
+   ke `AudioEnhancerTheme(themeStyle=...)` & `BoosterScreen(themeStyleIsRadical=...,
+   onThemeStyleChange=...)`. Ganti tema = langsung recompose (tidak perlu restart Activity).
+6. `PrefsHelper.kt` — `KEY_APP_THEME_STYLE` baru (String, "amoled_glass"/"radical_skeuo"),
+   default `APP_THEME_AMOLED_GLASS` (user lama TIDAK berubah tampilannya kalau belum
+   pernah sentuh switch baru). `KEY_THEME_MODE` (dead code sejak Batch 31, soal terang/
+   gelap) TIDAK disentuh — ini fitur BEDA (2 sistem desain, app tetap dark-only).
+7. String baru (ID+EN, parity dijaga 96/96): `theme_style_title`, `theme_style_desc`.
+8. `PrefsHelperTest.kt` — 2 test baru (`app theme style defaults to amoled glass`,
+   `app theme style round-trips through prefs`), pola sama persis test dynamic color
+   yang sudah ada.
+9. `app/build.gradle.kts`: versionCode 74→75, versionName 1.74→1.75.
+
+**Batch Limit**: 8 file kode+test (`Theme.kt`, `SkeuomorphicComponents.kt`,
+`BoosterScreen.kt`, `MainActivity.kt`, `PrefsHelper.kt`, `PrefsHelperTest.kt`,
+`strings.xml` x2) + `build.gradle.kts` = 9 file — dalam batas 10 file/1 modul, TIDAK
+perlu diklaim Atomic Change meski scope-nya lumayan luas (semua touch point saling
+terkait sebagai 1 fitur utuh, gak bisa dipecah tanpa state setengah jadi).
+
+**SENGAJA TIDAK dikerjakan di batch ini (transparan)**:
+- `docs/preview/current.html` TIDAK disinkronkan ke tema Radical baru — mockup HTML
+  statis butuh 1 varian visual baru penuh (bukan cuma ganti beberapa hex) buat
+  merepresentasikan bevel-first card structure yang beda filosofi dari glass existing;
+  effort-nya melebihi scope batch ini. **PENTING buat sesi depan**: HTML preview
+  SEKARANG CUMA merepresentasikan tema AMOLED Glass (state ON switch baru TIDAK
+  tervisualisasi di sana) — kalau user minta validasi visual tema Radical, JANGAN
+  rujuk ke `current.html`, harus build APK asli atau bikin varian HTML terpisah.
+- Icon/asset splash (`values/colors.xml`, `ic_launcher_background.xml`, dst) TIDAK
+  ikut berubah — 2 tema ini cuma soal Compose runtime UI, splash screen (native,
+  render sebelum Compose sempat jalan) TETAP 1 warna AMOLED Glass apapun switch-nya
+  (guide baru TIDAK eksplisit minta splash ikut berubah, dan splash by design render
+  duluan sebelum ada state buat tahu preferensi user).
+- **Belum divalidasi runtime** — sama seperti batch-batch sebelumnya, sandbox Claude
+  gak punya compiler. Kandidat pertama dicurigai kalau ada laporan render aneh: state
+  `RADICAL_SKEUO` (API `CompositionLocalProvider` 3-value baru di `AudioEnhancerTheme`,
+  `SkeuTokens` data class baru pertama kali dipakai di project ini).
+
 ## v1.74 - Batch 35: tutup technical debt Batch 34 — TextMuted dipakai + §15 Navigation dikonfirmasi N/A
 User minta gabung semua item yang sempat disebutkan (belum wajib, opsional) jadi 1 batch
 biar gak numpuk technical debt ke depan. 2 item dari closing note Batch 34:

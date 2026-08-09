@@ -1,5 +1,12 @@
 package com.audioenhancer.booster
 
+// Batch 36: SkeuCard/SkeuTintedCard/SkeuPowerButton/SkeuSliderThumb/SkeuSwitch (helpText
+// muted color, thumb OFF color) sekarang baca warna/brush/elevation lewat
+// `LocalSkeuTokens.current` (Theme.kt), BUKAN lagi val top-level Glass*/TextMuted
+// hardcoded — supaya 1 kode komponen jalan dinamis buat 2 sistem desain (AMOLED Glass
+// existing + Radical Literal Skeuomorphism baru), dipilih via switch baru di Settings.
+// Detail lengkap token per-tema: lihat blok "BATCH 36" di Theme.kt.
+//
 // Batch 35: TextMuted (Theme.kt, didefinisikan sejak Batch 34 tapi 0 pemanggil —
 // technical debt) sekarang BENERAN dipakai — guide §16 hierarki tipografi (Display>
 // Title>Section>Body>Secondary>Caption), helpText slider ini caption-tier (bukan
@@ -114,12 +121,17 @@ internal fun SkeuCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius)
+    // Batch 36: fill/border/elevation sekarang datang dari `LocalSkeuTokens.current`
+    // (Theme.kt) — AMOLED Glass tetap frosted-glass tint (persis sebelumnya), Radical
+    // Literal Skeuomorphism jadi raised-bevel surface (guide §5 "Raised object").
+    // 1 kode komponen, 2 tema, TANPA duplikasi/percabangan when() di sini.
+    val tokens = LocalSkeuTokens.current
     Column(
         modifier = modifier
-            .shadow(elevation = 2.dp, shape = shape, clip = false)
+            .shadow(elevation = tokens.cardElevation, shape = shape, clip = false)
             .clip(shape)
-            .background(MidnightBlueGlassBrush)
-            .border(1.dp, GlassBorder, shape),
+            .background(tokens.cardBrush)
+            .border(1.dp, tokens.cardBorderBrush, shape),
         content = content
     )
 }
@@ -134,12 +146,13 @@ internal fun SkeuTintedCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(SkeuCardRadius)
-    val blended = lerp(GlassBase, tint, 0.22f)
+    val tokens = LocalSkeuTokens.current
+    val blended = lerp(tokens.baseSurface, tint, 0.22f)
     Column(
         modifier = modifier
-            .shadow(elevation = 3.dp, shape = shape, clip = false)
+            .shadow(elevation = tokens.cardElevation + 1.dp, shape = shape, clip = false)
             .clip(shape)
-            .background(Brush.linearGradient(listOf(blended, GlassElevated)))
+            .background(Brush.linearGradient(listOf(blended, tokens.elevatedSurface)))
             .border(1.dp, tint.copy(alpha = 0.4f), shape),
         content = content
     )
@@ -173,6 +186,7 @@ internal fun SkeuPowerButton(
 ) {
     val shape = CircleShape
     val desc = contentDescription
+    val tokens = LocalSkeuTokens.current
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedNow by interactionSource.collectIsPressedAsState()
@@ -183,11 +197,11 @@ internal fun SkeuPowerButton(
         modifier = Modifier
             .size(64.dp)
             .scale(scale)
-            .then(if (pressed) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 14.dp) else Modifier)
+            .then(if (pressed) Modifier.skeuGlow(tokens.primaryGlow, spread = 14.dp) else Modifier)
             .shadow(elevation = elevation, shape = shape, clip = false)
             .clip(shape)
-            .background(SkeuBevelBrush)
-            .border(1.5.dp, SkeuBevelBorderBrush, shape)
+            .background(tokens.bevelBrush)
+            .border(1.5.dp, tokens.bevelBorderBrush, shape)
             .then(
                 if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
             )
@@ -245,12 +259,13 @@ private fun SkeuSliderTrack(
  *  realism that conflicts with the glass aesthetic"). */
 @Composable
 private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
+    val tokens = LocalSkeuTokens.current
     val shape = CircleShape
     val ringAlpha = if (enabled) 1f else 0.4f
     val dialBrush = Brush.radialGradient(
         colors = listOf(
-            GlassHighlight,
-            lerp(GlassElevated, accentColor, if (enabled) 0.30f else 0.08f)
+            tokens.sliderKnobHighlight,
+            lerp(tokens.elevatedSurface, accentColor, if (enabled) 0.30f else 0.08f)
         )
     )
     Box(
@@ -309,7 +324,7 @@ internal fun FeatureControl(
             Text(
                 helpText,
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted,
+                color = LocalSkeuTokens.current.mutedText,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -363,6 +378,7 @@ internal fun SkeuSwitch(
     accentColor: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true
 ) {
+    val tokens = LocalSkeuTokens.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedNow by interactionSource.collectIsPressedAsState()
     val trackShape = RoundedCornerShape(50)
@@ -417,7 +433,7 @@ internal fun SkeuSwitch(
                 .scale(thumbScale)
                 .shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
                 .clip(CircleShape)
-                .background(if (checked) accentColor else GlassElevated)
+                .background(if (checked) accentColor else tokens.elevatedSurface)
                 .alpha(if (enabled) 1f else 0.5f)
         )
     }

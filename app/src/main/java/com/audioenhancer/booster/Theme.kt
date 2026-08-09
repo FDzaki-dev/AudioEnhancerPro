@@ -12,6 +12,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -115,6 +117,138 @@ val SkeuBevelBorderBrush: Brush = Brush.linearGradient(listOf(GlassHighlight, Co
 val SkeuCardRadius = 20.dp
 val SkeuIconBoxRadius = 14.dp
 
+// ============================================================================
+// BATCH 36 — fitur baru: "setting custom switch theme" (diminta user eksplisit).
+// User upload guide KEDUA yang beda total dari guide AMOLED Glass di atas:
+// `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`
+// ("Radical + Literal Skeuomorphism — Dark Mode Only — Performance First"). SESUAI
+// PILIHAN USER (ask_user_input_v0): guide baru ini TIDAK menggantikan tema AMOLED
+// Glass (Batch 33-35) — dua-duanya dipertahankan sebagai 2 sistem desain terpisah,
+// dipilih via 1 switch baru di Settings (BoosterScreen.kt, `AppThemeStyle`,
+// persisted `PrefsHelper.getAppThemeStyle`). Token di bawah adalah PORT LANGSUNG
+// dari palet §2 guide baru — nilai hex TIDAK diubah dari guide (0 interpretasi).
+// LESSON buat sesi depan: JANGAN campur token "Radical*" ini ke token AMOLED Glass
+// di atas — dua sistem desain independen, disatukan HANYA lewat `SkeuTokens` +
+// `LocalSkeuTokens`/`LocalAppThemeStyle` di bawah supaya komponen (SkeuCard dkk,
+// SkeuomorphicComponents.kt) baca token secara dinamis sesuai style aktif, TANPA
+// duplikasi composable per-tema.
+// ============================================================================
+
+/** §2 Dark-mode color foundation — port langsung dari guide, dark-only (guide §24
+ *  "there is only one visual theme: DARK ONLY", sama seperti tema AMOLED Glass). */
+val RadicalBackground = Color(0xFF050505)
+val RadicalSurface = Color(0xFF101010)
+val RadicalSurfaceRaised = Color(0xFF171717)
+val RadicalSurfaceRecessed = Color(0xFF080808)
+
+val RadicalEdgeHighlight = Color.White.copy(alpha = 0.075f)
+val RadicalEdgeShadow = Color.Black.copy(alpha = 0.80f)
+
+val RadicalTextPrimary = Color(0xFFECECEC)
+val RadicalTextSecondary = Color(0xFFA6A6A6)
+val RadicalTextMuted = Color(0xFF707070)
+
+val RadicalAccent = Color(0xFF5F9EFF)
+
+/** §4 Virtual lighting model: satu arah cahaya konsisten top-left -> bottom-right,
+ *  sama seperti prinsip `SkeuBevelBrush`/`SkeuBevelBorderBrush` di atas (Batch 32
+ *  sudah konfirmasi `Brush.linearGradient` tanpa start/end eksplisit otomatis
+ *  resolve diagonal pojok-ke-pojok) — dipakai §5 Bevel System buat SEMUA objek
+ *  interaktif major (guide §1: kartu struktural ikut dapat physical construction di
+ *  tema ini, BEDA dari AMOLED Glass yang sengaja "glass murni" di kartu). */
+val RadicalBevelBrush: Brush = Brush.linearGradient(listOf(RadicalSurfaceRaised, RadicalSurface))
+val RadicalBevelBorderBrush: Brush = Brush.linearGradient(
+    listOf(RadicalEdgeHighlight, Color.Transparent, RadicalEdgeShadow)
+)
+
+/** §18 State Design "SELECTED = Raised + accent" — glow accent restrained, konsisten
+ *  prinsip guide §16 typography "avoid heavy... shadow" (readability-first, bukan
+ *  cinematic). Alpha sama nilainya dengan `SkeuPrimaryGlow` AMOLED Glass (0.22),
+ *  cuma warnanya ganti ke `RadicalAccent`. */
+val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.22f)
+
+/** Highlight solid buat radial gradient knob slider/tombol (bukan alpha-composited
+ *  edge highlight yang didesain buat border tipis di atas surface gelap) — biar
+ *  "titik terang" fisik pas dijadikan pusat radial gradient (guide §8/§9). */
+val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.12f)
+
+/** Token yang beda struktur/filosofi antara 2 sistem desain (dipakai
+ *  SkeuomorphicComponents.kt) — komponen baca lewat `LocalSkeuTokens.current`,
+ *  BUKAN referensi langsung ke `Glass*`/`Radical*` val, supaya 1 kode komponen jalan
+ *  buat 2 tema tanpa duplikasi. Field baru WAJIB diisi di KEDUA instance
+ *  (`AmoledGlassSkeuTokens`+`RadicalSkeuoSkeuTokens`) di bawah kalau ditambah. */
+data class SkeuTokens(
+    val mutedText: Color,
+    val bevelBrush: Brush,
+    val bevelBorderBrush: Brush,
+    val primaryGlow: Color,
+    val baseSurface: Color,
+    val elevatedSurface: Color,
+    val cardBrush: Brush,
+    val cardBorderBrush: Brush,
+    val cardElevation: Dp,
+    val sliderKnobHighlight: Color
+)
+
+/** Tema 1 (default, existing sejak Batch 33-35): AMOLED Hybrid Glass. */
+val AmoledGlassSkeuTokens = SkeuTokens(
+    mutedText = TextMuted,
+    bevelBrush = SkeuBevelBrush,
+    bevelBorderBrush = SkeuBevelBorderBrush,
+    primaryGlow = SkeuPrimaryGlow,
+    baseSurface = GlassBase,
+    elevatedSurface = GlassElevated,
+    cardBrush = MidnightBlueGlassBrush,
+    cardBorderBrush = SolidColor(GlassBorder),
+    cardElevation = 2.dp,
+    sliderKnobHighlight = GlassHighlight
+)
+
+/** Tema 2 (baru, Batch 36): Radical Literal Skeuomorphism — kartu struktural juga
+ *  bevel-raised (bukan glass gradient), elevasi lebih kuat sesuai guide "obvious
+ *  depth" (§25), border pakai bevel highlight/shadow bukan solid tipis. */
+val RadicalSkeuoSkeuTokens = SkeuTokens(
+    mutedText = RadicalTextMuted,
+    bevelBrush = RadicalBevelBrush,
+    bevelBorderBrush = RadicalBevelBorderBrush,
+    primaryGlow = RadicalPrimaryGlow,
+    baseSurface = RadicalSurface,
+    elevatedSurface = RadicalSurfaceRaised,
+    cardBrush = SolidColor(RadicalSurfaceRaised),
+    cardBorderBrush = RadicalBevelBorderBrush,
+    cardElevation = 4.dp,
+    sliderKnobHighlight = RadicalKnobHighlight
+)
+
+/** Pilihan sistem desain aktif — persisted lewat `PrefsHelper.getAppThemeStyle`
+ *  (String constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`), di-map ke
+ *  enum ini di `MainActivity.kt`. Default `AMOLED_GLASS` (perilaku existing user
+ *  lama TIDAK berubah kalau belum pernah sentuh switch baru). */
+enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO }
+
+val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
+val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
+
+private val RadicalDarkColors = darkColorScheme(
+    primary = RadicalAccent,
+    onPrimary = Color(0xFF04070C),
+    primaryContainer = Color(0xFF16324F),
+    onPrimaryContainer = Color(0xFFD6E7FF),
+    secondary = RadicalTextSecondary,
+    onSecondary = Color(0xFF04070C),
+    background = RadicalBackground,
+    onBackground = RadicalTextPrimary,
+    surface = RadicalSurface,
+    onSurface = RadicalTextPrimary,
+    surfaceVariant = RadicalSurfaceRaised,
+    onSurfaceVariant = RadicalTextSecondary,
+    error = Color(0xFFFF6B6B),
+    onError = Color.White,
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = RadicalEdgeHighlight
+)
+
 private val DarkColors = darkColorScheme(
     primary = MidnightBlueAccent,
     onPrimary = Color(0xFF04050C),
@@ -186,15 +320,24 @@ val LocalIsDarkTheme = compositionLocalOf { true }
 @Composable
 fun AudioEnhancerTheme(
     useDynamicColor: Boolean = false,
+    themeStyle: AppThemeStyle = AppThemeStyle.AMOLED_GLASS,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colors = if (useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        dynamicDarkColorScheme(context)
-    } else {
-        DarkColors
+    // Material You (wallpaper) MENANG kalau opt-in aktif — independen dari pilihan
+    // Radical/Glass (guide §2 warna dasar cuma dipakai kalau dynamic color OFF, sama
+    // seperti perilaku existing sebelum Batch 36).
+    val colors = when {
+        useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
+        themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
+        else -> DarkColors
     }
-    CompositionLocalProvider(LocalIsDarkTheme provides true) {
+    val skeuTokens = if (themeStyle == AppThemeStyle.RADICAL_SKEUO) RadicalSkeuoSkeuTokens else AmoledGlassSkeuTokens
+    CompositionLocalProvider(
+        LocalIsDarkTheme provides true,
+        LocalAppThemeStyle provides themeStyle,
+        LocalSkeuTokens provides skeuTokens
+    ) {
         MaterialTheme(
             colorScheme = colors,
             typography = AppTypography,

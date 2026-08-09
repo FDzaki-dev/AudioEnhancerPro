@@ -15,11 +15,21 @@ object PrefsHelper {
     private const val KEY_CUSTOM_PRESETS = "custom_presets_json"
     private const val KEY_LAST_SEEN_CRASH = "last_seen_crash_ts"
     private const val KEY_USER_WANTS_RUNNING = "user_wants_running"
+    private const val KEY_APP_THEME_STYLE = "app_theme_style"
 
     /** 0 = ikut sistem, 1 = terang, 2 = gelap. */
     const val THEME_MODE_SYSTEM = 0
     const val THEME_MODE_LIGHT = 1
     const val THEME_MODE_DARK = 2
+
+    /** Batch 36: pilihan SISTEM DESAIN (bukan terang/gelap — app tetap dark-only sejak
+     *  Batch 31). "amoled_glass" = existing (Batch 33-35), "radical_skeuo" = guide baru
+     *  `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`.
+     *  Disimpan String (bukan enum langsung) biar aman kalau enum `AppThemeStyle`
+     *  (Theme.kt) di-refactor/tambah varian di masa depan — mapping String->enum ada
+     *  di `MainActivity.kt`. */
+    const val APP_THEME_AMOLED_GLASS = "amoled_glass"
+    const val APP_THEME_RADICAL_SKEUO = "radical_skeuo"
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -67,6 +77,18 @@ object PrefsHelper {
 
     fun setThemeMode(context: Context, mode: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_THEME_MODE, mode).apply()
+    }
+
+    // --- Batch 36: switch sistem desain (AMOLED Glass <-> Radical Literal
+    // Skeuomorphism) — default APP_THEME_AMOLED_GLASS supaya user lama TIDAK berubah
+    // tampilannya kalau belum pernah sentuh switch baru ini. ---
+    fun getAppThemeStyle(context: Context): String =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_APP_THEME_STYLE, APP_THEME_AMOLED_GLASS) ?: APP_THEME_AMOLED_GLASS
+
+    fun setAppThemeStyle(context: Context, style: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_APP_THEME_STYLE, style).apply()
     }
 
     // --- Equalizer per-band: tiap pita frekuensi disimpan terpisah, dipulihkan tiap service dibuat ulang ---

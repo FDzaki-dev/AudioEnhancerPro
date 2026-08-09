@@ -112,6 +112,15 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }
+            // Batch 36: switch sistem desain baru (AMOLED Glass <-> Radical Literal
+            // Skeuomorphism), TERPISAH dari Material You (useDynamicColor di atas) &
+            // dari themeMode lama (dead code sejak Batch 31, tetap tidak dipakai).
+            var appThemeStyleKey by remember { mutableStateOf(PrefsHelper.getAppThemeStyle(this@MainActivity)) }
+            val appThemeStyle = if (appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO) {
+                AppThemeStyle.RADICAL_SKEUO
+            } else {
+                AppThemeStyle.AMOLED_GLASS
+            }
             // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
             // branching (neumorphism + light theme dicabut total). Status bar/nav bar
             // ikon di-set gelap (kontras di atas base gelap) sekali saja, tidak perlu
@@ -122,7 +131,7 @@ class MainActivity : ComponentActivity() {
                 controller.isAppearanceLightNavigationBars = false
             }
 
-            AudioEnhancerTheme(useDynamicColor = useDynamicColor) {
+            AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
                 Surface(
                     // Skeuomorphism-lite: background flat solid (colorScheme.background).
                     modifier = Modifier
@@ -170,6 +179,15 @@ class MainActivity : ComponentActivity() {
                             onUseDynamicColorChange = {
                                 useDynamicColor = it
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
+                            },
+                            themeStyleIsRadical = appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO,
+                            onThemeStyleChange = { isRadical ->
+                                appThemeStyleKey = if (isRadical) {
+                                    PrefsHelper.APP_THEME_RADICAL_SKEUO
+                                } else {
+                                    PrefsHelper.APP_THEME_AMOLED_GLASS
+                                }
+                                PrefsHelper.setAppThemeStyle(this@MainActivity, appThemeStyleKey)
                             },
                             connectionState = viewModel.connectionState,
                             onRetryConnection = { viewModel.attemptBindService() },

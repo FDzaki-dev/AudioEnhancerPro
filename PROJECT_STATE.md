@@ -10,8 +10,45 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.74
-- 🎨 **Batch 35 (v1.74, BELUM diverifikasi CI/runtime)**: user minta gabung SEMUA item
+- **Versi**: v1.75
+- 🎨 **Batch 36 (v1.75, BELUM diverifikasi CI/runtime)**: fitur baru diminta user —
+  "setting custom switch theme" yang konfigurasinya 100% mengikuti guide baru user-upload
+  `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`. Guide ini
+  BEDA TOTAL secara filosofi dari AMOLED Hybrid Glass (Batch 33-35, tema aktif sebelumnya):
+  Radical = bevel/geometry-first + kartu struktural ikut physical construction; AMOLED
+  Glass = frosted-glass first, kartu sengaja "quiet"/flat. **PENTING — scope dikonfirmasi
+  via `ask_user_input_v0` SEBELUM implementasi** (ikuti lesson Batch 34 di bawah: guide
+  baru yang beda detail dari batch terakhir JANGAN diasumsikan otomatis "ganti total"):
+  user pilih **kedua tema TETAP ADA, dipilih via 1 switch baru di Settings** — BUKAN
+  replace tema aktif, BUKAN switch berdiri sendiri di luar konteks tema.
+  1. **Arsitektur**: `SkeuTokens` data class baru (`Theme.kt`) + `LocalSkeuTokens`/
+     `LocalAppThemeStyle` CompositionLocal — komponen (`SkeuCard`/`SkeuTintedCard`/
+     `SkeuPowerButton`/`SkeuSliderThumb`/`SkeuSwitch`/`FeatureControl`) baca token
+     dinamis, BUKAN lagi val top-level `Glass*`/`TextMuted`/`SkeuBevelBrush`/
+     `SkeuPrimaryGlow` hardcoded. **PENTING buat sesi depan**: kalau nambah komponen
+     Skeu baru yang butuh warna surface/border/muted-text/glow, WAJIB baca dari
+     `LocalSkeuTokens.current`, JANGAN reference `Glass*`/`Radical*` val langsung —
+     kalau begitu komponen itu TIDAK akan ikut berubah pas user switch tema.
+  2. **Semua** referensi `TextMuted`/`SkeuPrimaryGlow` di `BoosterScreen.kt` (9 lokasi
+     total) ikut di-migrasi ke token dinamis — bukan cuma di kartu switch baru, biar
+     readability & glow 100% konsisten ke tema aktif di SELURUH layar (guide baru §26 +
+     final verdict eksplisit soal ini).
+  3. Persisted via `PrefsHelper.getAppThemeStyle`/`setAppThemeStyle` (String
+     "amoled_glass"/"radical_skeuo", default AMOLED — user lama tidak berubah kalau
+     belum sentuh switch baru), di-map ke `AppThemeStyle` enum di `MainActivity.kt`.
+  - **SENGAJA TIDAK dikerjakan (transparan, biar gak dikira 100%)**:
+    (a) `docs/preview/current.html` TIDAK disinkronkan — HANYA merepresentasikan AMOLED
+    Glass, state tema Radical TIDAK ada di sana. Kalau user minta validasi visual
+    Radical, JANGAN rujuk HTML preview, harus build APK asli. (b) Splash screen
+    (`values/colors.xml` dkk) TIDAK ikut berubah per-tema — tetap 1 warna AMOLED Glass
+    apapun switch-nya (render sebelum Compose tahu preferensi user).
+  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file Kotlin,
+    parity string ID/EN 96/96, XML valid). `CompositionLocalProvider` 3-value di
+    `AudioEnhancerTheme` & `SkeuTokens` data class BARU PERTAMA KALI dipakai project
+    ini — kandidat pertama dicurigai kalau ada laporan render aneh (switch gak
+    ke-apply, tema gak konsisten di sebagian komponen).
+  - Detail lengkap per-file: lihat CHANGELOG.md v1.75.
+- 🎨 **Batch 35 (v1.74, riwayat)**: user minta gabung SEMUA item
   opsional yang disebutkan di closing note Batch 34 jadi 1 batch (biar gak numpuk
   technical debt). 2 item, KEDUANYA CLOSED sekarang:
   1. `TextMuted` (dead code sejak Batch 34) sekarang dipakai di semua teks caption-tier
@@ -759,6 +796,12 @@ eksplisit user.
   power button & slider knob. Detail lengkap: lihat poin 6 di "Riwayat pivot" bawah +
   `CHANGELOG.md` v1.70. Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) &
   primary champagne-bronze TETAP dipertahankan.
+  **Batch 36 (v1.75) update**: arah di atas SEKARANG cuma 1 dari 2 opsi (default,
+  "AMOLED Hybrid Glass" gabungan Batch 33-35). User BISA switch ke opsi ke-2, "Radical
+  Literal Skeuomorphism" (acuan `compose-skeuomorphism-radical-literal-dark-readability-
+  performance-final.md`, dark-only juga) via toggle baru di Settings — kartu struktural
+  di opsi ke-2 ini JADI bevel-raised (beda dari "flat & minimal" di atas). Default app
+  TETAP opsi 1, tidak ada breaking change buat user lama. Detail: `CHANGELOG.md` v1.75.
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,
@@ -949,12 +992,12 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 ```
 
 ## Struktur proyek singkat
-- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=...)`, tanpa `darkTheme` param lagi).
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset).
-- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32.
+- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
+- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
-- `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst). Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient).
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31.
+- `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.

@@ -154,7 +154,7 @@ private fun PowerToggleRow() {
             Text(
                 if (isRunning) stringResource(R.string.power_toggle_on_desc) else stringResource(R.string.power_toggle_off_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = TextMuted
+                color = LocalSkeuTokens.current.mutedText
             )
         }
     }
@@ -260,6 +260,8 @@ fun BoosterScreen(
     onOpenNotificationSettings: () -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
+    themeStyleIsRadical: Boolean = false,
+    onThemeStyleChange: (Boolean) -> Unit = {},
     connectionState: BoosterViewModel.ConnectionState = BoosterViewModel.ConnectionState.CONNECTED,
     onRetryConnection: () -> Unit = {},
     onRestartService: () -> Unit = {},
@@ -491,7 +493,7 @@ fun BoosterScreen(
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                 presets.forEach { preset ->
                     val selected = activePreset == preset.label
-                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 8.dp) else Modifier)) {
+                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(LocalSkeuTokens.current.primaryGlow, spread = 8.dp) else Modifier)) {
                         FilterChip(
                             selected = selected,
                             onClick = { applyPreset(preset) },
@@ -500,7 +502,7 @@ fun BoosterScreen(
                             border = null,
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = TextMuted,
+                                labelColor = LocalSkeuTokens.current.mutedText,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
                             )
@@ -509,7 +511,7 @@ fun BoosterScreen(
                 }
                 customPresets.forEach { custom ->
                     val selected = activePreset == custom.name
-                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(SkeuPrimaryGlow, spread = 8.dp) else Modifier)) {
+                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(LocalSkeuTokens.current.primaryGlow, spread = 8.dp) else Modifier)) {
                         FilterChip(
                             selected = selected,
                             onClick = { applyCustomPreset(custom) },
@@ -527,7 +529,7 @@ fun BoosterScreen(
                             border = null,
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = TextMuted,
+                                labelColor = LocalSkeuTokens.current.mutedText,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
                             )
@@ -552,7 +554,7 @@ fun BoosterScreen(
                 Text(
                     stringResource(R.string.presets_empty_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextMuted
+                    color = LocalSkeuTokens.current.mutedText
                 )
             }
         }
@@ -601,7 +603,7 @@ fun BoosterScreen(
                                         presetNameInput.length,
                                         PRESET_NAME_MAX_LENGTH
                                     ),
-                                    color = TextMuted
+                                    color = LocalSkeuTokens.current.mutedText
                                 )
                             }
                         }
@@ -743,11 +745,45 @@ fun BoosterScreen(
                         Text(
                             stringResource(R.string.dynamic_color_desc),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted
+                            color = LocalSkeuTokens.current.mutedText
                         )
                     }
                     SkeuSwitch(checked = useDynamicColor, onCheckedChange = null)
                 }
+            }
+        }
+
+        // Batch 36: switch "Gaya Tampilan Radikal" — pilih antar 2 sistem desain
+        // (AMOLED Glass existing vs Radical Literal Skeuomorphism, guide baru user).
+        // SkeuCard/SkeuSwitch di sini otomatis ikut re-render pakai token tema yang
+        // BARU dipilih (LocalSkeuTokens di-provide ulang dari MainActivity begitu
+        // `onThemeStyleChange` mengubah state di atas AudioEnhancerTheme).
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = themeStyleIsRadical,
+                        onValueChange = {
+                            onThemeStyleChange(it)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Settings, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = themeStyleIsRadical, onCheckedChange = null)
             }
         }
 
@@ -819,7 +855,7 @@ private fun EqualizerSection(
                         Text(
                             stringResource(R.string.eq_subtitle),
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextMuted
+                            color = LocalSkeuTokens.current.mutedText
                         )
                     }
                 }
