@@ -4,6 +4,25 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.75.1 - Batch 36 Fix: kaptGenerateStubsDebugKotlin FAILED (CI run #81)
+**Root cause**: `Theme.kt` (Batch 36) nambah `data class SkeuTokens(..., val cardElevation:
+Dp, ...)` — tipe `Dp` dipakai eksplisit sebagai type annotation tapi importnya cuma
+`androidx.compose.ui.unit.dp` (extension property lowercase, buat nulis `20.dp`), BUKAN
+`androidx.compose.ui.unit.Dp` (class-nya, huruf besar). Unresolved reference ini di-swallow
+kapt jadi pesan generik `e: Could not load module <Error module>` tanpa file:line — makanya
+butuh baca `gradle-build-debug.log` mentah (bukan cuma pesan permukaan) buat ketemu akar
+masalahnya: satu file (`Theme.kt`) dicek baris-per-baris terhadap semua import yang
+dipakai, ketemu `SkeuomorphicComponents.kt` sudah lama import `Dp` classnya (dipakai di
+`skeuGlow`/`SkeuCard` param) tapi `Theme.kt` belum pernah butuh sampai Batch 36 nambah
+field baru itu.
+**Fix**: tambah `import androidx.compose.ui.unit.Dp` di `Theme.kt`. 1 baris, 0 perubahan
+logika/fitur — semua yang di CHANGELOG v1.75 di atas TETAP BERLAKU APA ADANYA.
+**Lesson buat sesi depan**: `e: Could not load module <Error module>` dari
+`kaptGenerateStubsDebugKotlin` HAMPIR SELALU unresolved reference/import kurang di salah
+satu file yang BARU diubah di batch itu — cek dulu SEMUA tipe eksplisit (`: Dp`, `: Color`,
+`: Brush`, dst) di file yang disentuh punya import class-nya (bukan cuma extension
+property/fungsinya), sebelum curiga ke hal lain (dependency version, kapt config, dst).
+
 ## v1.75 - Batch 36: fitur baru — switch 2 sistem desain (AMOLED Glass vs Radical Literal Skeuomorphism)
 User minta fitur "setting custom switch theme" yang konfigurasinya 100% mengikuti guide
 baru yang diupload: `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`

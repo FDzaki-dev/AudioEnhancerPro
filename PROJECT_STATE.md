@@ -10,7 +10,16 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.75
+- **Versi**: v1.75.1
+- 🔧 **Batch 36 Fix (v1.75.1)**: CI run #81 FAILED di `kaptGenerateStubsDebugKotlin`
+  (`e: Could not load module <Error module>` — generik, kapt swallow detail). Root cause:
+  `Theme.kt` field baru `SkeuTokens.cardElevation: Dp` pakai tipe `Dp` tanpa
+  `import androidx.compose.ui.unit.Dp` (yang ada cuma `import ...unit.dp` extension
+  property). Fix: tambah 1 baris import. **PENTING buat sesi depan**: kalau ketemu error
+  kapt generik serupa lagi, cek dulu semua type annotation eksplisit di file yang BARU
+  disentuh batch itu (paling sering `Dp`/`Color`/`Brush` yang lupa di-import class-nya,
+  cuma extension function-nya doang) — jangan langsung curiga config/dependency. Detail:
+  `CHANGELOG.md` v1.75.1.
 - 🎨 **Batch 36 (v1.75, BELUM diverifikasi CI/runtime)**: fitur baru diminta user —
   "setting custom switch theme" yang konfigurasinya 100% mengikuti guide baru user-upload
   `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`. Guide ini
