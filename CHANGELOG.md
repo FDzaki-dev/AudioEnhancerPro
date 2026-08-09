@@ -4,6 +4,31 @@
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.
 
+## v1.74 - Batch 35: tutup technical debt Batch 34 — TextMuted dipakai + §15 Navigation dikonfirmasi N/A
+User minta gabung semua item yang sempat disebutkan (belum wajib, opsional) jadi 1 batch
+biar gak numpuk technical debt ke depan. 2 item dari closing note Batch 34:
+1. **`TextMuted`** (`Theme.kt`, didefinisikan sejak Batch 34, 0 pemanggil) — sekarang
+   dipakai di semua teks caption-tier (guide §16 hierarki: Display>Title>Section>Body>
+   Secondary>Caption). `MaterialTheme.colorScheme.onSurfaceVariant` (= `TextSecondary`)
+   DIPERTAHANKAN buat teks "Secondary" (supporting/body-level), diganti `TextMuted`
+   HANYA di teks yang bener-bener caption-tier:
+   - `SkeuomorphicComponents.kt`: `FeatureControl` helpText (bodySmall di bawah slider).
+   - `BoosterScreen.kt`: desc power toggle (bodySmall di bawah label), hint preset kosong
+     (bodySmall), char-count input nama preset custom, subtitle "Warna ikut wallpaper"
+     & subtitle equalizer (2x pola title+bodySmall-desc), label chip preset UNSELECTED
+     (2x — built-in & custom preset chips; guide §15 nav pattern "unselected item: muted
+     text/icon" analog dipakai ke chip selection, konsisten sama semantik "muted").
+   - **SENGAJA TIDAK diubah**: icon tint power button state OFF (`BoosterScreen.kt` baris
+     144) — itu tint ikon (state visual), bukan teks, di luar scope hierarki tipografi
+     §16. Tetap `onSurfaceVariant`.
+2. **§15 Navigation** — dicek ulang, DIKONFIRMASI N/A: app ini gak punya bottom
+   navigation/nav rail/tab bar (single-screen `BoosterScreen` + onboarding flow), jadi
+   gak ada "selected/unselected nav item" buat diterapin. Didokumentasikan di sini biar
+   gak dicek ulang sesi depan tanpa alasan.
+- **`app/build.gradle.kts`**: versionCode 73→74, versionName 1.73→1.74.
+- Tidak ada perubahan token/hex warna di batch ini — murni migrasi pemakaian token yang
+  sudah ada (0 breaking change ke palet).
+
 ## v1.73 - Batch 34: KOREKSI Batch 33 — acuan sebelumnya salah upload
 User bilang eksplisit "saya salah kirim" file acuan Batch 33
 (`compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md`) dan upload

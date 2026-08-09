@@ -154,7 +154,7 @@ private fun PowerToggleRow() {
             Text(
                 if (isRunning) stringResource(R.string.power_toggle_on_desc) else stringResource(R.string.power_toggle_off_desc),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = TextMuted
             )
         }
     }
@@ -500,7 +500,7 @@ fun BoosterScreen(
                             border = null,
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                labelColor = TextMuted,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
                             )
@@ -527,7 +527,7 @@ fun BoosterScreen(
                             border = null,
                             colors = FilterChipDefaults.filterChipColors(
                                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                labelColor = TextMuted,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
                             )
@@ -552,7 +552,7 @@ fun BoosterScreen(
                 Text(
                     stringResource(R.string.presets_empty_hint),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextMuted
                 )
             }
         }
@@ -601,7 +601,7 @@ fun BoosterScreen(
                                         presetNameInput.length,
                                         PRESET_NAME_MAX_LENGTH
                                     ),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = TextMuted
                                 )
                             }
                         }
@@ -743,7 +743,7 @@ fun BoosterScreen(
                         Text(
                             stringResource(R.string.dynamic_color_desc),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextMuted
                         )
                     }
                     SkeuSwitch(checked = useDynamicColor, onCheckedChange = null)
@@ -819,7 +819,7 @@ private fun EqualizerSection(
                         Text(
                             stringResource(R.string.eq_subtitle),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = TextMuted
                         )
                     }
                 }

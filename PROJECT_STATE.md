@@ -10,7 +10,20 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.73
+- **Versi**: v1.74
+- 🎨 **Batch 35 (v1.74, BELUM diverifikasi CI/runtime)**: user minta gabung SEMUA item
+  opsional yang disebutkan di closing note Batch 34 jadi 1 batch (biar gak numpuk
+  technical debt). 2 item, KEDUANYA CLOSED sekarang:
+  1. `TextMuted` (dead code sejak Batch 34) sekarang dipakai di semua teks caption-tier
+     — daftar lengkap file/lokasi ada di CHANGELOG.md v1.74. `onSurfaceVariant`
+     (`TextSecondary`) tetap dipakai buat teks "Secondary" tier, TextMuted khusus
+     caption/hint/unselected-label. Icon tint (bukan teks) SENGAJA tetap onSurfaceVariant
+     — di luar scope §16 tipografi.
+  2. §15 Navigation dicek ulang & DIKONFIRMASI N/A permanen — app single-screen, gak ada
+     nav component. JANGAN dicek ulang lagi sesi depan kecuali app beneran nambah nav
+     bottom-bar/rail baru.
+  - 0 perubahan hex/token warna di batch ini — murni migrasi pemakaian token existing,
+    resiko regresi rendah.
 - 🎨 **Batch 34 (v1.73, BELUM diverifikasi CI/runtime)**: KOREKSI Batch 33 — user
   eksplisit bilang "salah kirim" file acuan Batch 33, upload ulang file yang benar:
   `compose-amoled-hybrid-glass-final.md` ("Premium AMOLED Hybrid Glassmorphism +

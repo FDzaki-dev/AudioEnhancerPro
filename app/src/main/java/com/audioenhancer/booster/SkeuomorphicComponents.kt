@@ -1,5 +1,10 @@
 package com.audioenhancer.booster
 
+// Batch 35: TextMuted (Theme.kt, didefinisikan sejak Batch 34 tapi 0 pemanggil —
+// technical debt) sekarang BENERAN dipakai — guide §16 hierarki tipografi (Display>
+// Title>Section>Body>Secondary>Caption), helpText slider ini caption-tier (bukan
+// Secondary/onSurfaceVariant lagi).
+//
 // Batch 34: KOREKSI dari Batch 33 (user salah upload acuan sebelumnya, guide yang
 // benar: compose-amoled-hybrid-glass-final.md — "Premium AMOLED Hybrid Glassmorphism +
 // Subtle Midnight Blue + Micro-Skeuomorphism"). Token warna diganti total ke nama
@@ -304,7 +309,7 @@ internal fun FeatureControl(
             Text(
                 helpText,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = TextMuted,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
