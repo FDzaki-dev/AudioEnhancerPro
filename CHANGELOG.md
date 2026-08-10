@@ -1,5 +1,61 @@
 # Changelog
 
+## v1.80.0 - Battery optimization exemption resmi + konfirmasi Snackbar (Batch 41)
+
+Diminta user eksplisit, terinspirasi app VPN dia yang "dengan mudah memunculkan izin
+aktifkan penggunaan latar belakang dan langsung tampil snackbar-nya". Ditambahkan
+sebagai LAPISAN TAMBAHAN, bukan pengganti `OemAutostartHelper.kt` (dua-duanya beda
+level masalah — lihat penjelasan di chat sebelum batch ini): ini API resmi AOSP
+(`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, didukung semua merk), Autostart itu
+deep-link proprietary per-OEM tanpa API resmi.
+
+**Sebelum batch ini**: `MainActivity.requestIgnoreBatteryOptimizations()` SUDAH ADA
+(riwayat lama) tapi fire-and-forget murni (`startActivity(intent)` polos) — gak
+pernah tahu hasilnya, gak ada feedback UI, gak bisa di-retrigger manual dari mana pun.
+
+**1. `MainActivity.kt`**: fungsi di atas di-upgrade pakai
+`registerForActivityResult(ActivityResultContracts.StartActivityForResult())` (pola
+SAMA PERSIS `notificationPermissionLauncher` yang sudah ada) — begitu user balik dari
+halaman sistem, `refreshBatteryOptimizationState()` re-cek status ASLI ke
+`PowerManager.isIgnoringBatteryOptimizations()` (bukan asumsi dari result code, App
+bisa aja commit dialog tapi OS tetap nolak di device tertentu) + increment
+`batteryOptimizationResultTick` (dipakai sebagai key `LaunchedEffect` biar Snackbar
+nembak SEKALI per kembalian, bukan tiap recomposition). State ini JUGA di-refresh di
+`onResume()` (user mungkin ubah dari App Info langsung, di luar flow launcher kita) —
+TAPI TIDAK increment tick di situ (Snackbar cuma relevan kalau abis diarahkan lewat
+app ini, bukan tiap resume biasa).
+
+**2. Snackbar overlay**: `Box` baru membungkus `Surface` root (SATU-SATUNYA alasan —
+supaya `SnackbarHost` bisa melayang di atas konten, TIDAK mengubah layout Surface di
+dalamnya). `SnackbarHostState` di-`remember` di scope `AudioEnhancerTheme`, pesan
+diambil dari `battery_opt_granted_snackbar`/`battery_opt_denied_snackbar` tergantung
+hasil re-cek. **PERTAMA KALI Snackbar dipakai di project ini** (kandidat pertama
+dicurigai kalau ada laporan snackbar gak nongol/salah posisi/ke-clip status bar).
+
+**3. `BoosterScreen.kt` — kartu baterai (existing, sekarang ada 2 tombol)**: 2
+parameter baru (`batteryOptimizationIgnored`, `onRequestIgnoreBatteryOptimizations`).
+Kalau BELUM diizinkan: `OutlinedButton` baru "Nonaktifkan Optimasi Baterai" (icon
+Shield, style SAMA PERSIS tombol Autostart di bawahnya — konsisten visual). Kalau
+SUDAH diizinkan: tombol diganti jadi teks status "✓ ... sudah dinonaktifkan" (primary
+color) — gak ada gunanya nawarin tombol buat sesuatu yang udah granted. Tombol
+Autostart (OemAutostartHelper) TETAP ADA persis di bawahnya, TIDAK diubah/dihapus.
+
+**4. String baru** (ID+EN, parity 98->102/102): `battery_opt_button`,
+`battery_opt_status_granted`, `battery_opt_granted_snackbar`,
+`battery_opt_denied_snackbar`.
+
+**SENGAJA TIDAK diubah**: auto-prompt di `onCreate` (fungsi ini SUDAH dipanggil
+otomatis tiap app dibuka selama belum granted — perilaku lama, BUKAN yang diminta
+diubah batch ini, cuma upgrade cara nangani hasilnya). `AndroidManifest.xml` TIDAK
+disentuh — permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` SUDAH ADA dari riwayat
+lama (dicek dulu sebelum batch ini, bukan ditambah baru).
+
+**Belum divalidasi runtime** — statis only (brace/paren balance 0/0 di
+`MainActivity.kt` & `BoosterScreen.kt`, parity string 102/102). Pola `Box` overlay +
+`SnackbarHost` + `ActivityResultContracts.StartActivityForResult` PERTAMA KALI dipakai
+project ini — lihat poin 2 di atas & PROJECT_STATE.md "Batasan sandbox".
+
+
 ## v1.79.0 - Pangkas waktu compile CI (Batch 40, infra-only, 0 perubahan kode Kotlin)
 
 Diminta user eksplisit: "terapkan konfigurasi agar waktu compile GitHub project ini

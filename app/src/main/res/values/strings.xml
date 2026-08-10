@@ -69,6 +69,13 @@
     <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI/XOS/HiOS, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
     <string name="battery_autostart_button">Buka Pengaturan Autostart</string>
     <string name="battery_autostart_button_generic">Buka Pengaturan Aplikasi</string>
+    <!-- Batch 41: tombol manual + status + pesan Snackbar buat exemption battery optimization
+         resmi Android (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) — terpisah dari tombol
+         Autostart di atas (itu deep-link OEM proprietary, ini API resmi AOSP). -->
+    <string name="battery_opt_button">Nonaktifkan Optimasi Baterai</string>
+    <string name="battery_opt_status_granted">✓ Optimasi baterai sudah dinonaktifkan untuk app ini</string>
+    <string name="battery_opt_granted_snackbar">Optimasi baterai untuk app ini sudah dinonaktifkan.</string>
+    <string name="battery_opt_denied_snackbar">Optimasi baterai masih aktif — app bisa dihentikan sistem saat idle. Bisa dicoba lagi kapan saja lewat tombol di atas.</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur →</string>
 
     <!-- Toggle tema -->

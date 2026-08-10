@@ -10,8 +10,19 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.79.0
-- ⚡ **Batch 40 (v1.79.0, BELUM diverifikasi CI)**: pangkas waktu compile CI,
+- **Versi**: v1.80.0
+- 🔋 **Batch 41 (v1.80.0, BELUM diverifikasi runtime)**: battery optimization
+  exemption RESMI Android (`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) di-upgrade
+  dari fire-and-forget (riwayat lama) jadi pakai `ActivityResultLauncher` + konfirmasi
+  **Snackbar** (PERTAMA KALI dipakai project ini) — diminta user eksplisit, terinspirasi
+  app VPN dia. LAPISAN TAMBAHAN ke `OemAutostartHelper.kt` (beda level masalah: ini API
+  resmi AOSP, itu deep-link OEM proprietary — dua-duanya saling melengkapi, TIDAK ada
+  yang dihapus/diganti). Kartu baterai (`BoosterScreen.kt`) sekarang punya 2 tombol:
+  battery-opt (baru, jadi teks status ✓ kalau udah granted) + Autostart (lama, tetap
+  sama). String baru 4 (ID+EN parity 98->102/102). **PENTING buat sesi depan**: kalau
+  ada laporan Snackbar gak nongol/salah posisi, itu kandidat pertama dicurigai — lihat
+  "Batasan sandbox" di bawah. Detail lengkap: `CHANGELOG.md` v1.80.0.
+- ⚡ **Batch 40 (v1.79.0, riwayat)**: pangkas waktu compile CI,
   diminta user eksplisit ("apapun caranya"). Infra-only, 0 file Kotlin disentuh.
   Ganti bootstrap wrapper manual (Batch 19-21) -> `gradle/actions/setup-gradle@v4`
   (provision + **cache** Gradle 8.7 + dependency + Build Cache antar-run CI —
@@ -1044,6 +1055,15 @@ eksplisit user.
   reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
 
 ## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
+- **Batch 41 (v1.80.0)**: `SnackbarHost`+`Box` overlay di atas `Surface` root DAN
+  `ActivityResultContracts.StartActivityForResult()` PERTAMA KALI dipakai project ini
+  (`MainActivity.kt`). Kandidat pertama dicurigai kalau ada laporan: Snackbar gak
+  nongol sama sekali, posisi ke-clip status/navigation bar, atau battery-opt launcher
+  gak balik hasil apa-apa. Brace/paren balance sudah dicek (0/0), tapi urutan Box/
+  Surface/SnackbarHost & scope `remember`/`LaunchedEffect` di dalam `AudioEnhancerTheme`
+  belum pernah divalidasi runtime — kalau device asli nunjukkin Snackbar ketutup
+  navigation bar gestur, coba tambah `.padding(bottom = ...)` lebih besar di
+  `SnackbarHost`, bukan restructure ulang.
 - **Batch 40 (v1.79.0)**: `gradle/actions/setup-gradle@v4` PERTAMA KALI dipakai
   project ini (gantiin bootstrap wrapper manual Batch 19-21) — kandidat pertama
   dicurigai kalau CI gagal di step "Setup Gradle 8.7" (nama action/versi/input
@@ -1156,7 +1176,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 ```
 
 ## Struktur proyek singkat
-- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
+- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`. Batch 41: `batteryOptimizationLauncher` (ActivityResultLauncher) + `SnackbarHostState` (di-`remember` dalam scope `AudioEnhancerTheme`, `Box` baru membungkus `Surface` biar `SnackbarHost` bisa melayang di atasnya).
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
