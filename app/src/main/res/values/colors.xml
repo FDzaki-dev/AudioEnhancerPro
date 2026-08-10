@@ -1,7 +1,8 @@
 <resources>
-    <!-- Warna latar splash screen (Android 12+) — selaras dengan DarkColors.background
-         di Theme.kt (AmoledSurface) / AmoledBlack (root sejati). Batch 34: tetap
-         no-light-fallback, nilai dipertahankan dari Batch 33 (#030508 = AmoledBlack,
-         guide compose-amoled-hybrid-glass-final.md §3). -->
-    <color name="splash_background">#030508</color>
+    <!-- Warna latar splash screen (Android 12+) — selaras dengan AmoledBlack di
+         Theme.kt (root sejati, dipakai sebelum Compose render). Batch 37: rewrite UI
+         total ke iOS Glassmorphism + Midnight-Blue dominan — splash tetap near-black
+         (bukan biru terang) supaya TIDAK kelip terang sebelum masuk ke gradient
+         Midnight-Blue di layar utama (ScreenBackgroundBrush). -->
+    <color name="splash_background">#03040B</color>
 </resources>

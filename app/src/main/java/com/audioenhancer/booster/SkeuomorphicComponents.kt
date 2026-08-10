@@ -1,5 +1,14 @@
 package com.audioenhancer.booster
 
+// Batch 37: rewrite total UI/UX -> iOS Glassmorphism dominan + Midnight-Blue jadi hint
+// yang kentara (lihat blok komentar panjang di Theme.kt). Perubahan struktural (bukan
+// cuma warna) di file ini: (1) SkeuCard/SkeuTintedCard/SkeuPowerButton sekarang punya
+// layer `.background(tokens.specularBrush)` KEDUA di atas base glass -> sheen kaca ala
+// iOS di pojok kiri-atas. (2) SkeuSwitch: blend ON 0.35->0.55 (midnight-blue lebih
+// dominan saat aktif) + thumb OFF dinaikkan ke campuran putih 45% (bead kaca terang ala
+// iOS, bukan abu gelap polos). Nama fungsi/komponen TIDAK diubah (dipanggil dari banyak
+// tempat di BoosterScreen.kt) — cukup isi render-nya yang di-rewrite.
+//
 // Batch 36: SkeuCard/SkeuTintedCard/SkeuPowerButton/SkeuSliderThumb/SkeuSwitch (helpText
 // muted color, thumb OFF color) sekarang baca warna/brush/elevation lewat
 // `LocalSkeuTokens.current` (Theme.kt), BUKAN lagi val top-level Glass*/TextMuted
@@ -131,6 +140,11 @@ internal fun SkeuCard(
             .shadow(elevation = tokens.cardElevation, shape = shape, clip = false)
             .clip(shape)
             .background(tokens.cardBrush)
+            // Batch 37: layer sheen kaca KEDUA di atas base glass — pojok kiri-atas
+            // konsentrasi terang lalu transparan penuh (readability aman, gak nutup
+            // teks). Ini yang bikin kartu kebaca sebagai KACA, bukan cuma kartu
+            // gelap solid berwarna biru.
+            .background(tokens.specularBrush)
             .border(1.dp, tokens.cardBorderBrush, shape),
         content = content
     )
@@ -153,6 +167,7 @@ internal fun SkeuTintedCard(
             .shadow(elevation = tokens.cardElevation + 1.dp, shape = shape, clip = false)
             .clip(shape)
             .background(Brush.linearGradient(listOf(blended, tokens.elevatedSurface)))
+            .background(tokens.specularBrush)
             .border(1.dp, tint.copy(alpha = 0.4f), shape),
         content = content
     )
@@ -201,6 +216,7 @@ internal fun SkeuPowerButton(
             .shadow(elevation = elevation, shape = shape, clip = false)
             .clip(shape)
             .background(tokens.bevelBrush)
+            .background(tokens.specularBrush)
             .border(1.5.dp, tokens.bevelBorderBrush, shape)
             .then(
                 if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
@@ -386,7 +402,7 @@ internal fun SkeuSwitch(
     val trackColor by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-            checked -> lerp(MaterialTheme.colorScheme.surfaceVariant, accentColor, 0.35f)
+            checked -> lerp(MaterialTheme.colorScheme.surfaceVariant, accentColor, 0.55f)
             else -> MaterialTheme.colorScheme.surfaceVariant
         },
         label = "skeuSwitchTrack"
@@ -433,7 +449,7 @@ internal fun SkeuSwitch(
                 .scale(thumbScale)
                 .shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
                 .clip(CircleShape)
-                .background(if (checked) accentColor else tokens.elevatedSurface)
+                .background(if (checked) accentColor else lerp(tokens.elevatedSurface, Color.White, 0.45f))
                 .alpha(if (enabled) 1f else 0.5f)
         )
     }

@@ -1,7 +1,5 @@
 <resources>
-    <!-- Selaras dengan AmoledBlack di Theme.kt (root splash). Batch 34: koreksi acuan ke
-         compose-amoled-hybrid-glass-final.md, nilai splash dipertahankan sama dari
-         Batch 33 — sama persis dengan values/colors.xml (default), app WAJIB
-         dark-mode tanpa fallback terang. -->
-    <color name="splash_background">#030508</color>
+    <!-- Sama persis dengan values/colors.xml (default) — app WAJIB dark-mode tanpa
+         fallback terang, splash selaras AmoledBlack (Theme.kt), Batch 37. -->
+    <color name="splash_background">#03040B</color>
 </resources>

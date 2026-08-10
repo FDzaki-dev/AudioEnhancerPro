@@ -3,41 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — Premium AMOLED Hybrid Glassmorphism + Micro-Skeuomorphism (v4.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
+<title>Preview — iOS Glassmorphism + Midnight-Blue Dominan (v5.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
 <style>
   /* ============================================================
-     DESIGN LANGUAGE BATCH 34 (koreksi Batch 33 — file acuan sebelumnya
-     salah upload): "Premium AMOLED Hybrid Glassmorphism + Subtle Midnight
-     Blue + Micro-Skeuomorphism" (compose-amoled-hybrid-glass-final.md).
-     WAJIB dark-mode — tidak ada draft light theme.
+     DESIGN LANGUAGE BATCH 37 — REWRITE TOTAL sektor UI/UX (diminta user
+     eksplisit): "iOS-style Glassmorphism" jadi bahasa desain DOMINAN,
+     Midnight-Blue sekarang hint yang KENTARA (bukan subtle 6% era Batch
+     34), readability tetap prioritas #1 (kontras teks dinaikkan tegas).
      ------------------------------------------------------------
-     1. Glass = MATERIAL UTAMA. Kartu struktural "glass surfaces first, not
-        physical objects" (§14) — TIDAK strong bevel/heavy shadow/thick
-        border/bright glow.
-     2. Skeuomorphism turun jadi MICRO — hanya interaksi fisik (power
-        button, slider knob), bukan identitas visual kedua lagi.
-     3. Slider knob TIDAK metallic realism lagi (§13) — radial restrained
-        (highlight tipis -> glass elevated tinted accent).
-     4. Midnight Blue ambient alpha 0.06 (bukan 0.08) — subtle atmospheric
-        gradient/tint saja, gak pernah jadi base surface (§6).
-     5. Glow (§18) TERBATAS ke state aktif/selected/focused, alpha
-        direstrain (0.22) biar gak jadi hal pertama yang kelihatan.
+     1. Kartu = 4-stop diagonal glass gradient + layer sheen KEDUA (pojok
+        kiri-atas, meniru kilau kaca ala iOS Control Center).
+     2. Border kartu = gradient highlight->transparan (bukan solid tipis).
+     3. Radius dinaikkan (kartu 26px, icon-orb 16px) — lebih membulat ala iOS.
+     4. Background layar = gradient vertikal Midnight-Blue -> nyaris-hitam
+        (bukan flat solid) — supaya kartu kaca kebaca sebagai kaca.
+     5. Midnight Blue ambient alpha 0.20 (naik dari 0.06) — dominan tapi
+        tetap dikomposisi lewat gradient multi-stop, bukan solid penuh.
+     Detail lengkap & rasional: Theme.kt (Kotlin, ground truth kode).
   ============================================================ */
   :root{
-    --bg:#070A0F;
-    --surface:#0A0F16;
-    --surface-elevated:#101722;
-    --midnight-tint:rgba(25,25,112,.06);
-    --border:rgba(255,255,255,.035);
-    --highlight:rgba(255,255,255,.065);
-    --bevel-top:#101722; --bevel-bottom:#0A0F16;
-    --bevel-hi:rgba(255,255,255,.065); --bevel-lo:rgba(0,0,0,.70);
-    --glow:rgba(102,112,255,.22);
-    --text:#EAF0F8;
-    --muted:#AAB5C4;
-    --mutedmost:#737E8C;
+    --bg-top:#10173A; --bg-mid:#080B1A; --bg-bottom:#03040B;
+    --surface:#121A33;
+    --surface-elevated:#1C2748;
+    --midnight:#24359E;
+    --border:rgba(255,255,255,.16);
+    --highlight:rgba(255,255,255,.22);
+    --specular:rgba(255,255,255,.16);
+    --bevel-top:#1C2748; --bevel-bottom:#121A33;
+    --bevel-hi:rgba(255,255,255,.22); --bevel-lo:rgba(0,0,0,.55);
+    --glow:rgba(94,123,255,.30);
+    --text:#F3F6FF;
+    --muted:#C5CCE2;
+    --mutedmost:#8D96AC;
     --bass:#E0865B; --virt:#4FB8C9; --loud:#4CB88A; --eq:#D97AA6;
-    --primary:#6670FF;
+    --primary:#5E7BFF;
   }
   *{box-sizing:border-box;}
   body{
@@ -45,7 +44,9 @@
     font-family:-apple-system,'Segoe UI',Roboto,sans-serif; padding:24px;
   }
   .phone{
-    width:390px; min-height:844px; background:var(--bg); color:var(--text);
+    width:390px; min-height:844px;
+    background:linear-gradient(180deg, var(--bg-top), var(--bg-mid) 45%, var(--bg-bottom));
+    color:var(--text);
     border-radius:44px; overflow:hidden; border:8px solid #050505;
     box-shadow:0 30px 80px rgba(0,0,0,.7);
     position:relative;
@@ -56,20 +57,29 @@
   h1{ font-size:28px; font-weight:800; margin:0; letter-spacing:-.3px; color:var(--text); }
   .subtitle{ font-size:13.5px; font-weight:500; color:var(--muted); margin-top:6px; }
 
-  /* Kartu struktural — FLAT & minimal, bukan extruded neumorphic lagi */
+  /* Kartu struktural — glass genuine: base gradient 4-stop + sheen kaca
+     (::before) di pojok kiri-atas, border gradient highlight->transparan. */
   .card{
-    background:linear-gradient(135deg, var(--surface), var(--midnight-tint), var(--surface-elevated));
-    border-radius:20px; padding:18px; margin-bottom:16px;
-    border:1px solid var(--border);
-    box-shadow:0 3px 8px rgba(0,0,0,.35);
+    background:linear-gradient(135deg, color-mix(in srgb, var(--surface-elevated) 80%, var(--midnight)), var(--surface-elevated), var(--surface));
+    border-radius:26px; padding:18px; margin-bottom:16px;
+    border:1px solid transparent;
+    border-image:linear-gradient(135deg, var(--highlight), var(--border), transparent) 1;
+    box-shadow:0 4px 14px rgba(0,0,0,.4);
+    position:relative; overflow:hidden;
   }
+  .card::before{
+    content:""; position:absolute; inset:0;
+    background:linear-gradient(135deg, var(--specular), rgba(255,255,255,.03) 35%, transparent 60%);
+    pointer-events:none;
+  }
+  .card > *{ position:relative; }
 
   /* Power button — satu-satunya elemen "physical utility" bundar: bevel
      gradient top-down light source + border emboss (highlight atas/shadow bawah) */
   .power-row{ display:flex; align-items:center; gap:16px; margin-bottom:18px; }
   .power-btn{
     width:64px; height:64px; border-radius:50%;
-    background:linear-gradient(180deg, var(--bevel-top), var(--bevel-bottom));
+    background:linear-gradient(135deg, color-mix(in srgb, var(--bevel-top) 93%, white), var(--bevel-top), var(--bevel-bottom));
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
     border:1.5px solid; border-image:linear-gradient(135deg, var(--bevel-hi), transparent 50%, var(--bevel-lo)) 1;
     box-shadow:0 6px 14px rgba(0,0,0,.45);
@@ -107,7 +117,7 @@
   .feature-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .feature-id{ display:flex; align-items:center; gap:12px; }
   .icon-orb{
-    width:40px; height:40px; border-radius:14px; background:var(--surface);
+    width:40px; height:40px; border-radius:16px; background:var(--surface);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
     border:1px solid var(--border);
   }
@@ -138,8 +148,8 @@
     width:46px; height:26px; border-radius:50px; position:relative; flex-shrink:0;
     background:var(--surface); border:1px solid var(--border); padding:3px; box-sizing:border-box;
   }
-  .skeu-switch.on{ background:color-mix(in srgb, var(--surface) 65%, var(--primary)); border-color:rgba(102,112,255,.6); box-shadow:0 0 8px var(--glow); }
-  .skeu-switch .thumb{ width:20px; height:20px; border-radius:50%; background:var(--bevel-top); box-shadow:0 1px 3px rgba(0,0,0,.5); transition:transform .15s, background .15s; }
+  .skeu-switch.on{ background:color-mix(in srgb, var(--surface) 45%, var(--primary)); border-color:rgba(94,123,255,.6); box-shadow:0 0 8px var(--glow); }
+  .skeu-switch .thumb{ width:20px; height:20px; border-radius:50%; background:color-mix(in srgb, var(--bevel-top) 55%, white); box-shadow:0 1px 3px rgba(0,0,0,.5); transition:transform .15s, background .15s; }
   .skeu-switch.on .thumb{ background:var(--primary); transform:translateX(20px); }
 
   .footer-note{ text-align:center; font-size:10px; color:var(--muted); padding:16px; opacity:.6; }
@@ -232,7 +242,7 @@
         </div>
       </div>
     </div>
-    <div class="footer-note">v2.1 — "Skeuomorphism-lite" dark-mode wajib + glow state aktif &amp; switch tactile, sudah live di app (Theme.kt + SkeuomorphicComponents.kt).</div>
+    <div class="footer-note">v3.0 — iOS Glassmorphism + Midnight-Blue dominan, dark-mode wajib, readability-first. Varian ke-2 "Aurora Glass" (switch Settings) lebih vivid, sudah live di app (Theme.kt + SkeuomorphicComponents.kt).</div>
   </div>
 </body>
 </html>

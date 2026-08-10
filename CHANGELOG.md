@@ -1,5 +1,77 @@
 # Changelog
 
+## v1.76.0 - Rewrite total UI/UX: iOS Glassmorphism + Midnight-Blue dominan
+
+Diminta user eksplisit: "Rewrite total (bukan ganti pallet warna murahan) di sektor
+UI & UX dengan gaya visual 'Glassmorphism ios-style' dominan, dengan tambahan hint &
+gradasi 'Midnight-Blue' tanpa embel-embel yang bikin desain gagal. Readability
+maksimal." Arsitektur 2-varian (`SkeuTokens`/`AppThemeStyle`, Batch 36) DIPERTAHANKAN
+— bukan fitur yang dihapus — tapi ISI kedua varian ditulis ulang total jadi iOS
+Glassmorphism (sebelumnya 1 glass restrained + 1 skeuomorphism bevel-raised).
+
+**File yang berubah (Atomic Change, 1 batch — total UI/UX rewrite, alasan sama
+seperti pivot desain besar sebelumnya Batch 31/33/36):**
+1. `Theme.kt` — token warna & brush ditulis ulang total (bukan cuma ganti hex di
+   posisi sama): kartu jadi 4-stop diagonal glass gradient (`MidnightBlueGlassBrush`/
+   `RadicalGlassBrush`, sebelumnya 3-stop rata & solid flat), border kartu jadi
+   gradient highlight->transparan (`GlassBorderBrush`, sebelumnya solid alpha tipis),
+   token BARU `specularBrush` (sheen kaca ala iOS) di `SkeuTokens`, radius naik
+   (kartu 20->26dp, icon-orb 14->16dp, `AppShapes` semua step), background layar
+   baru `ScreenBackgroundBrush`/`AuroraScreenBackgroundBrush` (gradient vertikal
+   Midnight-Blue -> nyaris-hitam, ganti flat `colorScheme.background`), kontras teks
+   dinaikkan tegas (`TextPrimary` #EAF0F8->#F3F6FF, `TextSecondary` #AAB5C4->#C5CCE2,
+   `TextMuted` #737E8C->#8D96AC, setara di varian Aurora), `MidnightBlueAmbientAlpha`
+   0.06->0.20 (hint dominan, bukan subtle lagi).
+2. `SkeuomorphicComponents.kt` — perubahan STRUKTURAL, bukan cuma warna:
+   `SkeuCard`/`SkeuTintedCard`/`SkeuPowerButton` sekarang punya layer
+   `.background(tokens.specularBrush)` KEDUA (sheen kaca pojok kiri-atas). `SkeuSwitch`
+   blend ON dinaikkan 0.35->0.55 (midnight-blue lebih dominan saat aktif), thumb OFF
+   dinaikkan ke campuran putih 45% (bead kaca terang ala iOS, sebelumnya abu gelap
+   polos `tokens.elevatedSurface`). Nama fungsi/komponen TIDAK diubah.
+3. `MainActivity.kt` (edit parsial, protected asset) — root `Surface` background
+   diganti dari `MaterialTheme.colorScheme.background` flat ke
+   `ScreenBackgroundBrush`/`AuroraScreenBackgroundBrush` (dipilih sesuai varian aktif).
+4. `values/colors.xml` + `values-night/colors.xml` — splash `#030508`->`#03040B`
+   (selaras `AmoledBlack` baru).
+5. `drawable/widget_background.xml` — gradient 3-stop XML disesuaikan ke komposisi
+   `MidnightBlueGlassBrush` baru + radius 20dp->26dp.
+6. `drawable/ic_shortcut_preset.xml` — fill `#6670FF`->`#5E7BFF` (selaras
+   `MidnightBlueAccent` baru).
+7. `values/strings.xml` + `values-en/strings.xml` — copy switch tema disesuaikan ke
+   nama varian baru: "Gaya Aurora Glass"/"Aurora Glass Style" (sebelumnya "Gaya
+   Tampilan Radikal"/"Radical Visual Style"), desc dijelaskan sebagai varian glass
+   lebih vivid (bukan lagi "physical bevels"). Parity ID/EN tetap 96/96.
+8. `docs/preview/current.html` — disinkronkan penuh ke komposisi baru (gradient
+   background, sheen kartu via `::before`, radius, token warna) — ground truth visual
+   project ini, WAJIB ikut berubah bareng Kotlin (lesson lama Batch 33/34).
+9. `app/build.gradle.kts` — versionCode 76->77, versionName 1.75.1->1.76.0.
+
+**SENGAJA TIDAK diubah (transparan)**:
+- Nama const persistence (`PrefsHelper.APP_THEME_AMOLED_GLASS`/
+  `APP_THEME_RADICAL_SKEUO`) & nama enum (`AppThemeStyle.AMOLED_GLASS`/
+  `RADICAL_SKEUO`) — Protected Asset persistence key, ganti nama akan pecah data
+  user lama tanpa migrasi. Cukup REPRESENTASI VISUAL yang di-rewrite total; secara
+  konsep sekarang "Midnight Glass" (default) & "Aurora Glass" (switch ON).
+- Warna aksen per-fitur (`BassAccent`, `VirtualizerAccent`, dst) — bukan sumber
+  keluhan, identitas per-fitur independen dari surface hierarchy.
+- Typography scale (ukuran/berat font) — sudah readable, resiko layout kalau diubah
+  tanpa compiler tidak sepadan manfaatnya untuk task ini.
+- App launcher icon (`ic_launcher_background.xml`, era palet bronze lama) — di luar
+  scope "sektor UI & UX" (ini brand icon, bukan layar app), TIDAK disentuh supaya
+  tidak merusak Adaptive Icon tanpa diminta eksplisit.
+
+**Belum divalidasi runtime** — statis only (brace/paren balance 0/0 di 3 file Kotlin
+yang disentuh + full sweep project, parity string ID/EN 96/96, XML valid semua file
+resource yang disentuh). `Modifier.background(brush)` dipanggil 2x berurutan
+(base + specular) adalah pola BARU pertama kali dipakai di project ini — kandidat
+pertama dicurigai kalau ada laporan kartu render aneh (sheen gak nongol/salah posisi).
+Referensi: Compose foundation `background(brush: Brush, shape: Shape, alpha: Float)`
+API standar sejak lama, dipanggil berurutan pada modifier chain yang sama dijamin
+digambar berurutan (base dulu, lalu specular di atasnya) — perilaku ini konsisten
+dengan cara `Modifier.background()` bekerja di seluruh ekosistem Compose.
+
+
+
 > 🧠 **Sesi Claude baru?** Baca `PROJECT_STATE.md` dulu (bukan file ini) — didesain khusus buat konteks AI: keputusan desain+alasannya, batasan teknis, riwayat pivot. File ini (CHANGELOG) cuma buat detail teknis per-versi.
 
 > 🎨 **Preview UI/UX terkini (live, selalu update)**: [buka di sini](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html) — render langsung dari `docs/preview/current.html` di repo ini, jadi selalu mencerminkan arah desain yang lagi didiskusikan sebelum di-build jadi APK.

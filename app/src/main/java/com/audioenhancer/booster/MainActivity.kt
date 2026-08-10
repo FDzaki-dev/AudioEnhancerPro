@@ -132,11 +132,19 @@ class MainActivity : ComponentActivity() {
             }
 
             AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
+                // Batch 37: root background sekarang gradient Midnight-Blue -> nyaris-
+                // hitam (bukan flat solid lagi) — glassmorphism butuh backdrop
+                // bervariasi supaya kartu kaca di atasnya kebaca sebagai kaca. Aurora
+                // Glass (varian ke-2) pakai gradient sedikit lebih vivid.
+                val screenBrush = if (appThemeStyle == AppThemeStyle.RADICAL_SKEUO) {
+                    AuroraScreenBackgroundBrush
+                } else {
+                    ScreenBackgroundBrush
+                }
                 Surface(
-                    // Skeuomorphism-lite: background flat solid (colorScheme.background).
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.background)
+                        .background(screenBrush)
                         .safeDrawingPadding(),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground

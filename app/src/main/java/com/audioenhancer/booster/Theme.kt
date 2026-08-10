@@ -22,162 +22,194 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 34 — KOREKSI dari Batch 33: user salah upload file acuan Batch 33
-// (compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md, terlalu
-// tactile-first). File YANG BENAR: compose-amoled-hybrid-glass-final.md —
-// "Premium AMOLED Hybrid Glassmorphism + Subtle Midnight Blue + Micro-Skeuomorphism".
-// Beda kunci vs Batch 33 (lihat PROJECT_STATE.md Batch 34 buat detail lengkap):
-// 1. Glass adalah MATERIAL UTAMA (bukan tactile/bevel) — kartu struktural WAJIB
-//    "glass surfaces first, not physical objects" (guide §14), TIDAK BOLEH strong
-//    bevel/heavy shadow/thick border/bright glow/exaggerated extrusion.
-// 2. Skeuomorphism turun jadi "micro" — HANYA buat interaksi fisik (button/switch/
-//    slider/knob), bukan lagi identitas visual kedua kayak Batch 33.
-// 3. Midnight Blue ambient alpha 0.06 (Batch 33 pakai 0.08 — guide baru eksplisit
-//    kasih angka beda, guide baru menang karena ini instruksi yang benar).
-// 4. Token names disesuaikan PERSIS ke guide baru: GlassBase/GlassElevated/
-//    GlassPressed (ganti GlassSurface/GlassSurfaceElevated/GlassSurfacePressed),
-//    AmoledBlack + AmoledSurface baru (2-tone root buat separasi luminance —
-//    guide §3 "Important": jangan pure black di semua surface), TextMuted baru.
-// 5. Slider knob TIDAK BOLEH lagi "metallic realism" (radial gradient putih->accent
-//    ala dial logam Batch 33) — guide §13 eksplisit "Avoid metallic realism that
-//    conflicts with the glass aesthetic".
+// BATCH 37 — REWRITE TOTAL sektor UI/UX (diminta user eksplisit): "iOS-style
+// Glassmorphism" jadi bahasa desain DOMINAN di seluruh app, dengan Midnight-Blue
+// SEKARANG sebagai gradasi/hint yang kelihatan jelas (bukan lagi "subtle 6%" era
+// Batch 34) — TAPI readability tetap prioritas #1 (kontras teks dinaikkan
+// signifikan, bukan dikorbankan demi estetika). Ini BUKAN ganti palet warna doang:
+// 1. `MidnightBlueGlassBrush`/`RadicalGlassBrush` (kartu) sekarang multi-stop
+//    diagonal genuine frosted-glass composition (4 stop, bukan 3 stop lama).
+// 2. Token BARU `specularBrush` (SkeuTokens) — sheen/kilau kaca ala iOS di
+//    pojok kiri-atas kartu & tombol power, digambar sebagai layer background
+//    KEDUA (lihat SkeuomorphicComponents.kt `SkeuCard`/`SkeuTintedCard`/
+//    `SkeuPowerButton` — bukan cuma warna, tapi layer render baru).
+// 3. Border kartu (`cardBorderBrush`) sekarang gradient highlight->transparent
+//    (`GlassBorderBrush`), bukan solid alpha tipis — emulasi tepi kaca miring
+//    kena cahaya, ciri khas iOS glass (Control Center/Notification Shade).
+// 4. Radius dinaikkan (`SkeuCardRadius` 20->26dp, `SkeuIconBoxRadius` 14->16dp,
+//    `AppShapes` semua step) — iOS-style rounded, bukan Android-standar.
+// 5. Root screen background (dipakai `MainActivity.kt`) sekarang
+//    `ScreenBackgroundBrush` — vertical gradient Midnight-Blue -> nyaris-hitam,
+//    supaya kartu glass punya backdrop ber-variasi buat "dibaca" sebagai kaca
+//    (glassmorphism butuh backdrop yang gak flat monoton di baliknya).
+// 6. 2 sistem desain (switch Settings, arsitektur `SkeuTokens`/`AppThemeStyle`
+//    dari Batch 36 DIPERTAHANKAN — bukan fitur yang dihapus) SEKARANG DUA-DUANYA
+//    varian iOS Glassmorphism (dominan), bukan lagi 1 glass + 1 skeuomorphism
+//    bevel-raised: default "Midnight Glass" (restrained, tenang), varian kedua
+//    "Aurora Glass" (lebih vivid/saturated, sheen & glow lebih kuat) — beda
+//    intensitas, BUKAN beda bahasa desain lagi. Nama const persistence
+//    (`APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, `PrefsHelper.kt`) & nama
+//    enum (`AppThemeStyle.AMOLED_GLASS`/`RADICAL_SKEUO`) SENGAJA TIDAK diubah —
+//    itu Protected Asset persistence key, ganti nama const akan pecah data user
+//    lama tanpa migrasi; cukup REPRESENTASI VISUAL-nya yang di-rewrite total.
+// 7. Kontras teks dinaikkan tegas (`TextPrimary`/`TextSecondary`/`TextMuted`,
+//    `RadicalText*`) — permintaan eksplisit user "readability maksimal", bukan
+//    dikorbankan demi efek kaca.
 // ============================================================================
 
 // Tiap fitur punya PASANGAN warna (gelap->terang) buat gradient icon — identitas per
-// fitur, independen dari surface hierarchy AMOLED/Glass/Midnight Blue di atas.
+// fitur, independen dari surface hierarchy glass di atas. Dipertahankan dari batch
+// sebelumnya (bukan sumber keluhan desain).
 val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
 val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
 val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
 val EqualizerAccent = Color(0xFFD97AA6); val EqualizerAccent2 = Color(0xFFE8A8C6)
 val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
 
-// Aksen "logam" netral matte — dipakai buat swatch toggle Material You. Tetap netral
-// (bukan biru) supaya gak rebutan sama AccentBlue sebagai satu-satunya sinyal
-// "state aktif/functional accent" (guide §17).
+// Aksen netral buat swatch toggle Material You — tetap netral, gak rebutan sama
+// AccentBlue sebagai satu-satunya sinyal "state aktif/functional accent".
 val DynamicColorAccent = Color(0xFF9C9890); val DynamicColorAccent2 = Color(0xFFC9C4BC)
 
-// ---- §3 AMOLED Foundation — 2-tone root buat separasi luminance ----
-// AmoledBlack = root sejati (splash, di belakang segalanya). AmoledSurface =
-// canvas layar app (Level 0), sedikit lebih terang dari AmoledBlack biar glass
-// Level 1+ di atasnya tetap "perceptible" (guide §3 "Important": don't use pure
-// black for every surface).
-val AmoledBlack = Color(0xFF030508)
-val AmoledSurface = Color(0xFF070A0F)
+// ---- Root — 2-tone dasar (splash + di balik gradient layar). Midnight-blue-black,
+// BUKAN abu-netral/graphite lama — root sekarang eksplisit condong biru gelap supaya
+// hint Midnight-Blue kerasa dari detik pertama (splash), bukan cuma di dalam kartu. ----
+val AmoledBlack = Color(0xFF03040B)
+val AmoledSurface = Color(0xFF080B1A)
 
-// ---- §5 Glass Color Tokens — surface hierarchy §4 (Level 1 base, Level 2 elevated,
-// Level 3+ interactive/focused dikomposisi di komponen masing-masing, bukan token
-// warna terpisah). ----
-val GlassBase = Color(0xFF0A0F16)
-val GlassElevated = Color(0xFF101722)
-val GlassPressed = Color(0xFF070B11)
+// ---- Glass surface hierarchy — base kartu jadi lebih pekat biru-navy (bukan
+// nyaris-netral lama) supaya "midnight" beneran kebaca sebagai warna, bukan cuma
+// tint 6% yang nyaris gak kelihatan. ----
+val GlassBase = Color(0xFF121A33)
+val GlassElevated = Color(0xFF1C2748)
+val GlassPressed = Color(0xFF0A0E20)
 
-val GlassWhite = Color.White.copy(alpha = 0.045f)
-val GlassHighlight = Color.White.copy(alpha = 0.065f)
-val GlassBorder = Color.White.copy(alpha = 0.035f)
+val GlassWhite = Color.White.copy(alpha = 0.08f)
+val GlassHighlight = Color.White.copy(alpha = 0.22f)
+val GlassBorder = Color.White.copy(alpha = 0.16f)
+val GlassShadow = Color.Black.copy(alpha = 0.55f)
 
-val GlassShadow = Color.Black.copy(alpha = 0.70f)
+// ---- Midnight Blue — sekarang HINT DOMINAN (bukan atmospheric 6% lama), tapi tetap
+// dikomposisi lewat brush multi-stop (poin 1 catatan batch di atas), bukan solid
+// dominan penuh 1 warna (biar gak jadi "blue interface with black elements" versi
+// ekstrem lain — tetap glass, cuma birunya sekarang kentara). ----
+val MidnightBlue = Color(0xFF24359E)
+val MidnightBlueAccent = Color(0xFF5E7BFF)
+val MidnightBlueAmbientAlpha = 0.20f
 
-// ---- §6 Midnight Blue — Atmospheric Layer ONLY, gak pernah jadi base surface. ----
-val MidnightBlue = Color(0xFF191970)
-val MidnightBlueAccent = Color(0xFF6670FF)
-val MidnightBlueAmbientAlpha = 0.06f
-
-// §6 "Correct use" — gradient 3-stop persis contoh guide, dipakai kartu/permukaan
-// glass yang butuh ambient tint (BUKAN semua permukaan — guide §6 "must NOT
-// dominate every card").
+/** Kartu struktural — 4-stop diagonal (top-left cerah/biru -> bottom-right gelap),
+ *  komposisi genuine frosted-glass, bukan 3-stop rata lama. `lerp()` dipakai biar
+ *  tiap stop punya campuran biru midnight yang konsisten satu sama lain, bukan
+ *  hex hardcode independen per-stop. */
 val MidnightBlueGlassBrush: Brush = Brush.linearGradient(
-    colors = listOf(
+    listOf(
+        lerp(GlassElevated, MidnightBlue, MidnightBlueAmbientAlpha + 0.12f),
+        GlassElevated,
         GlassBase,
-        MidnightBlue.copy(alpha = MidnightBlueAmbientAlpha),
-        GlassElevated
+        lerp(GlassBase, MidnightBlue, MidnightBlueAmbientAlpha * 0.55f)
     )
 )
 
-// ---- §16 Typography colors ----
-val TextPrimary = Color(0xFFEAF0F8)
-val TextSecondary = Color(0xFFAAB5C4)
-val TextMuted = Color(0xFF737E8C)
+/** Border kartu — gradient highlight->transparent (bukan solid alpha tipis lama),
+ *  emulasi tepi kaca miring kena cahaya dari sudut kiri-atas (§ konsisten arah
+ *  cahaya tunggal top-left->bottom-right yang sudah dipakai project ini sejak
+ *  Batch 32). */
+val GlassBorderBrush: Brush = Brush.linearGradient(listOf(GlassHighlight, GlassBorder, Color.Transparent))
 
-// ---- §17 Accent System — restrained cool-blue, sama nilainya dengan
-// MidnightBlueAccent (satu accent fungsional, bukan 2 sistem warna berbeda). ----
+/** Sheen/kilau kaca ala iOS — layer BACKGROUND KEDUA (bukan cuma warna dipakai di
+ *  1 tempat), dipasang di atas `cardBrush`/`bevelBrush` tapi di bawah `border()` &
+ *  konten (lihat `SkeuomorphicComponents.kt`). Diagonal default (tanpa start/end
+ *  eksplisit) otomatis resolve pojok-ke-pojok bounding box (perilaku Compose yang
+ *  sudah dikonfirmasi dipakai sejak Batch 32) — 3 stop supaya sheen-nya
+ *  terkonsentrasi di ~30% pojok kiri-atas, sisanya transparan penuh (TIDAK menutupi
+ *  teks di tengah/bawah kartu, readability tetap aman). */
+val GlassSpecularBrush: Brush = Brush.linearGradient(
+    listOf(Color.White.copy(alpha = 0.16f), Color.White.copy(alpha = 0.03f), Color.Transparent)
+)
+
+// ---- Typography colors — kontras dinaikkan tegas dari batch sebelumnya (permintaan
+// eksplisit user "readability maksimal"). TextMuted khususnya naik cukup jauh
+// (#737E8C -> #8D96AC) karena sebelumnya ini dipakai buat caption/hint yang justru
+// paling gampang gak kebaca di atas kartu kaca gelap. ----
+val TextPrimary = Color(0xFFF3F6FF)
+val TextSecondary = Color(0xFFC5CCE2)
+val TextMuted = Color(0xFF8D96AC)
+
+// ---- Accent System — restrained cool-blue, sama nilainya dengan MidnightBlueAccent
+// (satu accent fungsional). ----
 val AccentBlue = MidnightBlueAccent
 
-// ---- §18 Glow — accent, BUKAN material. Localized only (focused/selected/active),
-// alpha direstrain biar gak jadi hal pertama yang dilihat user (guide §18 "If glow
-// becomes one of the first things users notice, reduce it"). ----
-val SkeuPrimaryGlow = MidnightBlueAccent.copy(alpha = 0.22f)
+// ---- Glow — dinaikkan sedikit dari 0.22 lama biar sepadan sama sheen kaca yang
+// sekarang lebih hidup, tapi tetap direstrain (bukan neon). ----
+val SkeuPrimaryGlow = MidnightBlueAccent.copy(alpha = 0.30f)
 
-// ---- §9 Lighting Model — arah cahaya tunggal top-left -> bottom-right, dipakai
-// HANYA di komponen tactile micro-skeuomorphic (§10: button/switch/slider/knob),
-// TIDAK dipakai di kartu struktural (kartu = glass murni, guide §14 "avoid strong
-// bevel"). ----
-val SkeuBevelBrush: Brush = Brush.linearGradient(listOf(GlassElevated, GlassBase))
+// ---- Lighting model komponen fisik (power button/knob) — arah cahaya tunggal
+// top-left -> bottom-right, sekarang stop pertama dicampur sedikit putih biar ada
+// highlight nyata di puncak tombol (bukan cuma 2-stop rata lama). ----
+val SkeuBevelBrush: Brush = Brush.linearGradient(
+    listOf(lerp(GlassElevated, Color.White, 0.07f), GlassElevated, GlassBase)
+)
 val SkeuBevelBorderBrush: Brush = Brush.linearGradient(listOf(GlassHighlight, Color.Transparent, GlassShadow))
 
-// ---- §19 Spacing & Shape Language ----
-val SkeuCardRadius = 20.dp
-val SkeuIconBoxRadius = 14.dp
+// ---- Spacing & Shape Language — radius dinaikkan (iOS-style lebih membulat,
+// bukan radius standar Android lama). ----
+val SkeuCardRadius = 26.dp
+val SkeuIconBoxRadius = 16.dp
 
 // ============================================================================
-// BATCH 36 — fitur baru: "setting custom switch theme" (diminta user eksplisit).
-// User upload guide KEDUA yang beda total dari guide AMOLED Glass di atas:
-// `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`
-// ("Radical + Literal Skeuomorphism — Dark Mode Only — Performance First"). SESUAI
-// PILIHAN USER (ask_user_input_v0): guide baru ini TIDAK menggantikan tema AMOLED
-// Glass (Batch 33-35) — dua-duanya dipertahankan sebagai 2 sistem desain terpisah,
-// dipilih via 1 switch baru di Settings (BoosterScreen.kt, `AppThemeStyle`,
-// persisted `PrefsHelper.getAppThemeStyle`). Token di bawah adalah PORT LANGSUNG
-// dari palet §2 guide baru — nilai hex TIDAK diubah dari guide (0 interpretasi).
-// LESSON buat sesi depan: JANGAN campur token "Radical*" ini ke token AMOLED Glass
-// di atas — dua sistem desain independen, disatukan HANYA lewat `SkeuTokens` +
-// `LocalSkeuTokens`/`LocalAppThemeStyle` di bawah supaya komponen (SkeuCard dkk,
-// SkeuomorphicComponents.kt) baca token secara dinamis sesuai style aktif, TANPA
-// duplikasi composable per-tema.
+// Varian kedua ("Aurora Glass", Settings switch existing dari Batch 36 — nama
+// const/enum TETAP `RADICAL_SKEUO` di kode, lihat catatan poin 6 di atas) — SAMA
+// bahasa desain iOS Glassmorphism + Midnight Blue, cuma lebih vivid/saturated:
+// sheen lebih terang, elevation lebih terasa, accent lebih cerah. Dipilih via
+// switch "Gaya Tampilan" di Settings, dipersist `PrefsHelper.getAppThemeStyle`.
 // ============================================================================
 
-/** §2 Dark-mode color foundation — port langsung dari guide, dark-only (guide §24
- *  "there is only one visual theme: DARK ONLY", sama seperti tema AMOLED Glass). */
-val RadicalBackground = Color(0xFF050505)
-val RadicalSurface = Color(0xFF101010)
-val RadicalSurfaceRaised = Color(0xFF171717)
-val RadicalSurfaceRecessed = Color(0xFF080808)
+val RadicalBackground = Color(0xFF05070F)
+val RadicalSurface = Color(0xFF141C3E)
+val RadicalSurfaceRaised = Color(0xFF212C5C)
+val RadicalSurfaceRecessed = Color(0xFF090C1C)
 
-val RadicalEdgeHighlight = Color.White.copy(alpha = 0.075f)
-val RadicalEdgeShadow = Color.Black.copy(alpha = 0.80f)
+val RadicalEdgeHighlight = Color.White.copy(alpha = 0.26f)
+val RadicalEdgeShadow = Color.Black.copy(alpha = 0.62f)
 
-val RadicalTextPrimary = Color(0xFFECECEC)
-val RadicalTextSecondary = Color(0xFFA6A6A6)
-val RadicalTextMuted = Color(0xFF707070)
+val RadicalTextPrimary = Color(0xFFF6F8FF)
+val RadicalTextSecondary = Color(0xFFCCD3EA)
+val RadicalTextMuted = Color(0xFF9AA2C0)
 
-val RadicalAccent = Color(0xFF5F9EFF)
+val RadicalAccent = Color(0xFF7C93FF)
 
-/** §4 Virtual lighting model: satu arah cahaya konsisten top-left -> bottom-right,
- *  sama seperti prinsip `SkeuBevelBrush`/`SkeuBevelBorderBrush` di atas (Batch 32
- *  sudah konfirmasi `Brush.linearGradient` tanpa start/end eksplisit otomatis
- *  resolve diagonal pojok-ke-pojok) — dipakai §5 Bevel System buat SEMUA objek
- *  interaktif major (guide §1: kartu struktural ikut dapat physical construction di
- *  tema ini, BEDA dari AMOLED Glass yang sengaja "glass murni" di kartu). */
-val RadicalBevelBrush: Brush = Brush.linearGradient(listOf(RadicalSurfaceRaised, RadicalSurface))
+val RadicalBevelBrush: Brush = Brush.linearGradient(
+    listOf(lerp(RadicalSurfaceRaised, Color.White, 0.09f), RadicalSurfaceRaised, RadicalSurface)
+)
 val RadicalBevelBorderBrush: Brush = Brush.linearGradient(
     listOf(RadicalEdgeHighlight, Color.Transparent, RadicalEdgeShadow)
 )
 
-/** §18 State Design "SELECTED = Raised + accent" — glow accent restrained, konsisten
- *  prinsip guide §16 typography "avoid heavy... shadow" (readability-first, bukan
- *  cinematic). Alpha sama nilainya dengan `SkeuPrimaryGlow` AMOLED Glass (0.22),
- *  cuma warnanya ganti ke `RadicalAccent`. */
-val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.22f)
+/** Kartu struktural varian Aurora — SEKARANG juga genuine glass (bukan lagi
+ *  `SolidColor` flat bevel-raised era Batch 36) supaya "iOS Glassmorphism dominan"
+ *  berlaku di KEDUA varian tema, bukan cuma default. */
+val RadicalGlassBrush: Brush = Brush.linearGradient(
+    listOf(
+        lerp(RadicalSurfaceRaised, Color.White, 0.08f),
+        RadicalSurfaceRaised,
+        RadicalSurface,
+        RadicalSurfaceRecessed
+    )
+)
 
-/** Highlight solid buat radial gradient knob slider/tombol (bukan alpha-composited
- *  edge highlight yang didesain buat border tipis di atas surface gelap) — biar
- *  "titik terang" fisik pas dijadikan pusat radial gradient (guide §8/§9). */
-val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.12f)
+val RadicalGlassSpecularBrush: Brush = Brush.linearGradient(
+    listOf(Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.05f), Color.Transparent)
+)
 
-/** Token yang beda struktur/filosofi antara 2 sistem desain (dipakai
- *  SkeuomorphicComponents.kt) — komponen baca lewat `LocalSkeuTokens.current`,
- *  BUKAN referensi langsung ke `Glass*`/`Radical*` val, supaya 1 kode komponen jalan
- *  buat 2 tema tanpa duplikasi. Field baru WAJIB diisi di KEDUA instance
- *  (`AmoledGlassSkeuTokens`+`RadicalSkeuoSkeuTokens`) di bawah kalau ditambah. */
+val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.34f)
+
+/** Highlight solid buat radial gradient knob slider — dinaikkan ke nyaris putih
+ *  penuh, meniru bead/thumb kaca-terang khas iOS Slider (accent tetap dibawa lewat
+ *  ring border 2dp di komponennya, bukan lewat warna isi thumb). */
+val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.32f)
+
+/** Token yang beda antara 2 varian desain, dibaca lewat `LocalSkeuTokens.current`
+ *  (SkeuomorphicComponents.kt) — 1 kode komponen, 2 varian, TANPA duplikasi. Field
+ *  baru WAJIB diisi di KEDUA instance di bawah kalau ditambah lagi. */
 data class SkeuTokens(
     val mutedText: Color,
     val bevelBrush: Brush,
@@ -188,10 +220,11 @@ data class SkeuTokens(
     val cardBrush: Brush,
     val cardBorderBrush: Brush,
     val cardElevation: Dp,
-    val sliderKnobHighlight: Color
+    val sliderKnobHighlight: Color,
+    val specularBrush: Brush
 )
 
-/** Tema 1 (default, existing sejak Batch 33-35): AMOLED Hybrid Glass. */
+/** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
 val AmoledGlassSkeuTokens = SkeuTokens(
     mutedText = TextMuted,
     bevelBrush = SkeuBevelBrush,
@@ -200,14 +233,15 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     baseSurface = GlassBase,
     elevatedSurface = GlassElevated,
     cardBrush = MidnightBlueGlassBrush,
-    cardBorderBrush = SolidColor(GlassBorder),
-    cardElevation = 2.dp,
-    sliderKnobHighlight = GlassHighlight
+    cardBorderBrush = GlassBorderBrush,
+    cardElevation = 3.dp,
+    sliderKnobHighlight = Color.White.copy(alpha = 0.92f),
+    specularBrush = GlassSpecularBrush
 )
 
-/** Tema 2 (baru, Batch 36): Radical Literal Skeuomorphism — kartu struktural juga
- *  bevel-raised (bukan glass gradient), elevasi lebih kuat sesuai guide "obvious
- *  depth" (§25), border pakai bevel highlight/shadow bukan solid tipis. */
+/** Varian 2: "Aurora Glass" — iOS glassmorphism lebih vivid/saturated, sheen &
+ *  elevation lebih terasa, accent lebih cerah. Tetap glass murni, BUKAN
+ *  skeuomorphism bevel-raised lagi (beda dari era Batch 36). */
 val RadicalSkeuoSkeuTokens = SkeuTokens(
     mutedText = RadicalTextMuted,
     bevelBrush = RadicalBevelBrush,
@@ -215,26 +249,42 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     primaryGlow = RadicalPrimaryGlow,
     baseSurface = RadicalSurface,
     elevatedSurface = RadicalSurfaceRaised,
-    cardBrush = SolidColor(RadicalSurfaceRaised),
+    cardBrush = RadicalGlassBrush,
     cardBorderBrush = RadicalBevelBorderBrush,
-    cardElevation = 4.dp,
-    sliderKnobHighlight = RadicalKnobHighlight
+    cardElevation = 6.dp,
+    sliderKnobHighlight = RadicalKnobHighlight,
+    specularBrush = RadicalGlassSpecularBrush
 )
 
-/** Pilihan sistem desain aktif — persisted lewat `PrefsHelper.getAppThemeStyle`
- *  (String constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`), di-map ke
- *  enum ini di `MainActivity.kt`. Default `AMOLED_GLASS` (perilaku existing user
- *  lama TIDAK berubah kalau belum pernah sentuh switch baru). */
+/** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
+ *  constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, nama TIDAK diubah
+ *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
+ *  `AMOLED_GLASS` ("Midnight Glass"). */
 enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
 val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
 
+/** Background layar root (`MainActivity.kt` Surface) — vertical gradient
+ *  Midnight-Blue -> nyaris-hitam. Glassmorphism butuh backdrop yang gak flat
+ *  monoton di baliknya supaya translucency kartu di atasnya "kebaca" sebagai kaca
+ *  (bukan cuma kartu solid dengan border) — sekaligus ini tempat hint Midnight-Blue
+ *  paling kentara di seluruh app (splash + kanvas layar, dua-duanya). */
+val ScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(Color(0xFF10173A), AmoledSurface, AmoledBlack)
+)
+
+/** Varian Aurora Glass — background sedikit lebih vivid, konsisten sama sheen &
+ *  elevation yang lebih kuat di varian ini. */
+val AuroraScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(Color(0xFF161F4C), RadicalBackground, AmoledBlack)
+)
+
 private val RadicalDarkColors = darkColorScheme(
     primary = RadicalAccent,
     onPrimary = Color(0xFF04070C),
-    primaryContainer = Color(0xFF16324F),
-    onPrimaryContainer = Color(0xFFD6E7FF),
+    primaryContainer = Color(0xFF1E2C63),
+    onPrimaryContainer = Color(0xFFDCE3FF),
     secondary = RadicalTextSecondary,
     onSecondary = Color(0xFF04070C),
     background = RadicalBackground,
@@ -253,9 +303,9 @@ private val RadicalDarkColors = darkColorScheme(
 private val DarkColors = darkColorScheme(
     primary = MidnightBlueAccent,
     onPrimary = Color(0xFF04050C),
-    primaryContainer = Color(0xFF1E2340),
-    onPrimaryContainer = Color(0xFFD4D8FF),
-    secondary = Color(0xFF9CA3AC),
+    primaryContainer = Color(0xFF232C5C),
+    onPrimaryContainer = Color(0xFFDBE0FF),
+    secondary = Color(0xFFA9B0C4),
     onSecondary = Color(0xFF04050C),
     background = AmoledSurface,
     onBackground = TextPrimary,
@@ -298,19 +348,22 @@ private val AppTypography = Typography(
         lineHeight = 20.sp
     ),
     bodySmall = TextStyle(
-        fontWeight = FontWeight.Normal,
+        fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
         lineHeight = 18.sp,
         letterSpacing = 0.1.sp
     )
 )
 
+// iOS-style rounded — radius dinaikkan di semua step (dipakai otomatis oleh
+// komponen Material3 default: AlertDialog, Button, OutlinedButton, TextButton, dst
+// yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
 private val AppShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(16.dp),
+    medium = RoundedCornerShape(22.dp),
+    large = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(34.dp)
 )
 
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
@@ -326,8 +379,7 @@ fun AudioEnhancerTheme(
 ) {
     val context = LocalContext.current
     // Material You (wallpaper) MENANG kalau opt-in aktif — independen dari pilihan
-    // Radical/Glass (guide §2 warna dasar cuma dipakai kalau dynamic color OFF, sama
-    // seperti perilaku existing sebelum Batch 36).
+    // Midnight/Aurora Glass.
     val colors = when {
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
