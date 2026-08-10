@@ -1,5 +1,69 @@
 # Changelog
 
+## v1.79.0 - Pangkas waktu compile CI (Batch 40, infra-only, 0 perubahan kode Kotlin)
+
+Diminta user eksplisit: "terapkan konfigurasi agar waktu compile GitHub project ini
+dapat dipangkas sebanyak mungkin, apapun caranya". Batch INFRA MURNI — 3 file
+berubah (`.github/workflows/build.yml`, `gradle.properties`, `app/build.gradle.kts`
+cuma version bump), **0 file Kotlin/Compose/resource disentuh**, jadi risiko regresi
+visual/fungsional = nihil. Root cause utama lambatnya CI project ini SELAMA INI:
+**tidak ada caching sama sekali** — tiap push, CI bootstrap wrapper Gradle dari nol
+(generate via Gradle sistem 9.6.1 di direktori scratch, insiden Batch 19-21) LALU
+download distribusi Gradle 8.7 dari internet LAGI buat jalanin build-nya — 2x
+overhead per run, TANPA ada dependency AndroidX/Compose/Hilt yang di-cache antar-run
+sama sekali (~150-300MB re-download tiap push kode sekecil apapun).
+
+**1. Ganti bootstrap manual -> `gradle/actions/setup-gradle@v4` (win terbesar):**
+- Step "Bootstrap Gradle Wrapper (isolated dir)" (workaround Batch 19-21, ~35 baris
+  script) DIHAPUS TOTAL di kedua job (`build`+`release`). Diganti 1 step:
+  `gradle/actions/setup-gradle@v4` dengan `gradle-version: '8.7'` — action resmi ini
+  provision Gradle 8.7 langsung ke PATH (gak perlu wrapper/gradlew apapun) DAN
+  otomatis cache distribusi Gradle + `~/.gradle/caches/modules-2` (semua dependency
+  AndroidX/Compose/Hilt) + Gradle Build Cache lokal **ANTAR-RUN CI** lewat GitHub
+  Actions cache backend. Run pertama sama kayak sebelumnya (semua di-download), tapi
+  run berikutnya (update harian, dependency gak berubah): dependency di-restore dari
+  cache dalam hitungan detik, task kapt/compileKotlin yang input-nya gak berubah
+  di-restore dari Build Cache (bukan dieksekusi ulang).
+- Kedua job sekarang panggil `gradle assembleDebug`/`gradle assembleRelease`
+  langsung (bukan `./gradlew`) — action yang expose binary `gradle` ke PATH.
+- `gradle-wrapper-bootstrap.log` dihapus dari path upload artifact kegagalan (gak
+  ada lagi step yang menghasilkan file itu).
+
+**2. `gradle.properties` — flag compile-time (lihat komentar inline di file):**
+- `org.gradle.parallel=true`, `org.gradle.caching=true` (WAJIB biar Build Cache di
+  atas kepakai), `org.gradle.configureondemand=true`.
+- `kapt.incremental.apt=true`, `kapt.use.worker.api=true`,
+  `kapt.include.compile.classpath=false` — kapt (Hilt annotation processing) adalah
+  task PALING LAMBAT di build project ini, 3 flag resmi ini mempercepatnya langsung.
+- `org.gradle.jvmargs` heap dinaikkan `-Xmx2048m` -> `-Xmx4096m` — kapt+Compose
+  compiler plugin butuh heap lebih besar biar gak GC-thrashing (runner ubuntu-latest
+  7GB RAM, 4GB buat Gradle daemon masih aman).
+
+**3. Job `release` gak lagi nunggu job `build` (`needs: build` dicabut):**
+- Sebelumnya SEQUENTIAL (release nunggu build selesai duluan) — sekarang PARALEL.
+  Waktu WALL-CLOCK CI total = `max(waktu build, waktu release)`, bukan lagi
+  `waktu build + waktu release`. **TRADE-OFF disengaja** (didokumentasikan lengkap
+  di komentar `build.yml`): kalau kode beneran gak kompilasi, dulu job `release`
+  otomatis ke-skip (hemat waktu), sekarang tetap jalan sampai gagal sendiri secara
+  paralel — tapi karena PARALEL (bukan nambah di belakang), durasi TOTAL run tetap
+  gak lebih lambat dari sebelumnya, dan repo ini PUBLIC (GitHub Actions minutes
+  gratis/unlimited, dicatat eksplisit di PROJECT_STATE.md) jadi gak ada biaya nyata.
+
+**SENGAJA TIDAK dikerjakan (dipertimbangkan, ditunda — alasan di PROJECT_STATE.md
+bagian "Batasan sandbox"):** `org.gradle.configuration-cache=true` — berpotensi
+mempercepat fase konfigurasi Gradle lebih jauh, TAPI kompatibilitasnya dengan
+kapt+Hilt di kombinasi AGP 8.5.2/Kotlin 1.9.24 project ini belum bisa diverifikasi
+tanpa compiler (sandbox Claude gak bisa compile-check) — resiko break build lebih
+besar dari manfaat speed tambahannya untuk project 1-modul ini. Kandidat lanjutan
+kalau user mau coba (dengan resiko yang dipahami).
+
+**Belum divalidasi CI/runtime** — perubahan ini PALING GAMPANG diverifikasi
+dibanding batch-batch sebelumnya (bukan logic Kotlin, sandbox Claude gak bisa
+compile-check gimanapun), tapi validasi SEBENARNYA baru kelihatan di run CI ke-2
+setelah batch ini (run pertama masih cold-cache, seharusnya durasi mirip biasanya;
+run kedua dst BARU kelihatan efek cache-nya — itu ukuran keberhasilan sebenarnya).
+
+
 ## v1.78.0 - Skeuomorphism 100% otonom + aksen titanium-silver metalik
 
 Diminta user 2 hal eksplisit: (1) buat varian Skeuomorphism (Batch 38) berdiri

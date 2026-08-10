@@ -17,10 +17,9 @@ jobs:
 
       # v1.59 fix: dipindah ke PALING AWAL (sebelum step apapun yang bisa gagal) —
       # sebelumnya taruh SETELAH step wrapper, jadi kalau step wrapper gagal duluan,
-      # step ini ikut ke-skip dan artifact log kegagalan jadi gak ada nomor versinya
-      # ('log_fail_v-debug-run64', bukan 'log_fail_v1.58-debug-run64' — persis yang
-      # dilaporkan user). Cuma `grep` ke file teks, gak butuh gradlew/JDK sama sekali,
-      # aman dijalankan paling depan.
+      # step ini ikut ke-skip dan artifact log kegagalan jadi gak ada nomor versinya.
+      # Cuma `grep` ke file teks, gak butuh gradlew/JDK sama sekali, aman dijalankan
+      # paling depan.
       - name: Extract version name
         id: version
         run: |
@@ -34,48 +33,31 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # v1.59 fix (v1.58 belum tuntas): `gradle wrapper` — MESKIPUN cuma buat generate
-      # file wrapper — tetap trigger Gradle FASE KONFIGURASI PENUH project ini (baca
-      # settings.gradle.kts + SEMUA build.gradle.kts termasuk ':app') pakai Gradle SISTEM
-      # runner (9.6.1, gak kompatibel Kotlin Gradle Plugin 1.9.24 project ini). Jadi pin
-      # versi di v1.58 ('gradle wrapper --gradle-version 8.7') TETAP gagal, cuma gagalnya
-      # lebih awal (sebelum sempat generate wrapper-nya sendiri). Fix beneran: generate
-      # wrapper di DIREKTORI KOSONG TERPISAH (file wrapper generik, TIDAK bergantung isi
-      # project manapun — sama persis buat project apapun yang target Gradle-nya sama),
-      # baru disalin ke repo. Dengan cara ini Gradle sistem 9.6.1 SAMA SEKALI TIDAK
-      # PERNAH menyentuh build.gradle.kts project ini.
-      - name: Bootstrap Gradle Wrapper (isolated dir)
-        run: |
-          set -o pipefail
-          {
-            if [ ! -f gradlew ]; then
-              BOOTSTRAP_DIR=$(mktemp -d)
-              # v1.60 fix (v1.59 belum tuntas): Gradle 9.6.1 ternyata BUKAN cuma nolak
-              # evaluasi project asing (itu udah kefix di v1.59) — task 'wrapper'-nya
-              # sendiri sekarang WAJIB direktori itu udah "valid Gradle project" (ada
-              # file settings), kalau enggak langsung error "does not contain a Gradle
-              # build" duluan sebelum sempat generate apa-apa. Fix: bikin
-              # settings.gradle.kts KOSONG di direktori scratch ini dulu — cukup buat
-              # bikin Gradle 9.6.1 mau jalan, TIDAK ada project asli yang dievaluasi
-              # (file-nya kosong, gak ada subproject/dependency apapun di sini).
-              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
-              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
-              cp "$BOOTSTRAP_DIR/gradlew" .
-              cp "$BOOTSTRAP_DIR/gradlew.bat" .
-              mkdir -p gradle/wrapper
-              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
-              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
-              rm -rf "$BOOTSTRAP_DIR"
-            fi
-            chmod +x gradlew
-          } 2>&1 | tee gradle-wrapper-bootstrap.log
+      # Batch 40 (pemangkasan waktu compile): GANTI TOTAL pendekatan lama
+      # "Bootstrap Gradle Wrapper (isolated dir)" (generate wrapper via Gradle
+      # sistem 9.6.1 di direktori scratch, baru dipakai buat jalanin ./gradlew —
+      # 2 tahap, 2x kemungkinan download Gradle terpisah, TANPA cache sama sekali
+      # antar-run). Action resmi ini provision Gradle 8.7 LANGSUNG (gak perlu
+      # wrapper/gradlew apapun, cukup panggil `gradle` di PATH) DAN — ini yang
+      # paling penting — otomatis cache distribusi Gradle + dependency (~/.gradle/
+      # caches/modules-2) + Gradle Build Cache lokal ANTAR-RUN CI lewat GitHub
+      # Actions cache backend. Run pertama sama seperti sebelumnya (download
+      # semua), tapi run KEDUA dst kalau gradle.properties/build.gradle.kts gak
+      # berubah: dependency di-restore dari cache dalam hitungan detik (bukan
+      # download ulang ratusan MB AndroxX/Compose/Hilt tiap push), dan task
+      # kapt/compileKotlin yang inputnya gak berubah di-restore dari Build Cache
+      # (org.gradle.caching=true di gradle.properties), bukan dieksekusi ulang.
+      # Ini win compile-time TERBESAR di batch ini.
+      - name: Setup Gradle 8.7 (cached, no wrapper needed)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
 
-      # Output gradle di-tee ke file supaya bisa diupload sebagai artifact kalau gagal
-      # (sebelumnya cuma bisa dibaca dari tab Actions, harus buka run + scroll manual).
+      # Output gradle di-tee ke file supaya bisa diupload sebagai artifact kalau gagal.
       - name: Build debug APK
         run: |
           set -o pipefail
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee gradle-build-debug.log
+          gradle assembleDebug --stacktrace --build-cache 2>&1 | tee gradle-build-debug.log
 
       # Diminta user: artifact 'log_fail_v*' biar gampang diunduh langsung kalau CI
       # gagal, tanpa perlu buka & scroll log mentah di tab Actions. Cuma jalan kalau
@@ -87,30 +69,37 @@ jobs:
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
           path: |
-            gradle-wrapper-bootstrap.log
             gradle-build-debug.log
             **/build/reports/**
           retention-days: 14
           if-no-files-found: warn
 
-  # Job ini CUMA jalan kalau KEYSTORE_BASE64 sudah diset di GitHub Secrets.
-  # Kalau belum, job ini di-skip (bukan gagal) — supaya CI tidak menampilkan ❌
-  # menyesatkan cuma karena secrets belum disiapkan.
+  # Job ini CUMA build/publish beneran kalau KEYSTORE_BASE64 sudah diset di GitHub
+  # Secrets (lihat step secret_check). Kalau belum, sebagian besar step di-skip
+  # (bukan gagal).
+  #
+  # Batch 40: `needs: build` DICABUT — sebelumnya job ini SENGAJA nunggu job
+  # `build` selesai duluan (sequential), sekarang jalan PARALEL bareng job `build`.
+  # TRADE-OFF yang disadari & disengaja (waktu total, bukan gratis):
+  #   (+) Waktu WALL-CLOCK CI total kepotong signifikan — sebelumnya total waktu =
+  #       waktu(build) + waktu(release), sekarang = max(waktu(build), waktu(release))
+  #       karena jalan bersamaan. ***Ini tujuan utama batch ini.***
+  #   (-) Kalau kode BENERAN gak kompilasi (assembleDebug bakal gagal di job
+  #       `build`), job `release` TETAP jalan assembleRelease sampai selesai/gagal
+  #       sendiri (dulu: kalau job build gagal, release otomatis di-skip, hemat
+  #       waktu). Repo ini PUBLIC (GitHub Actions minutes gratis/unlimited, dicatat
+  #       eksplisit di PROJECT_STATE.md) — biaya cuma waktu, dan assembleRelease
+  #       yang gagal juga cuma makan waktu paralel yang sama, bukan nambah durasi
+  #       total run. Net: tetap lebih cepat, gak ada skenario yang jadi LEBIH LAMBAT
+  #       dari sebelumnya.
   release:
-    needs: build
     runs-on: ubuntu-latest
-    # Batch 11 fix: WAJIB buat publish GitHub Release (bukan cuma Actions Artifact) —
-    # softprops/action-gh-release butuh izin tulis ke repo (bikin release + upload asset).
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # v1.59 fix: dipindah ke PALING AWAL + jadi UNCONDITIONAL (sebelumnya cuma jalan
-      # kalau has_secret==true, dan taruh SETELAH step wrapper). Sekarang dibutuhkan
-      # buat penamaan artifact log kegagalan juga (bukan cuma nama rilis), jadi harus
-      # selalu ada nilainya sedini mungkin, apapun yang terjadi di step-step berikutnya.
       - name: Extract version name
         id: version
         run: |
@@ -125,33 +114,12 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      # v1.59 fix: sama seperti job build — generate wrapper di direktori kosong
-      # terpisah, jangan langsung di root project (lihat komentar lengkap di job build).
-      - name: Bootstrap Gradle Wrapper (isolated dir)
-        run: |
-          set -o pipefail
-          {
-            if [ ! -f gradlew ]; then
-              BOOTSTRAP_DIR=$(mktemp -d)
-              # v1.60 fix (v1.59 belum tuntas): Gradle 9.6.1 ternyata BUKAN cuma nolak
-              # evaluasi project asing (itu udah kefix di v1.59) — task 'wrapper'-nya
-              # sendiri sekarang WAJIB direktori itu udah "valid Gradle project" (ada
-              # file settings), kalau enggak langsung error "does not contain a Gradle
-              # build" duluan sebelum sempat generate apa-apa. Fix: bikin
-              # settings.gradle.kts KOSONG di direktori scratch ini dulu — cukup buat
-              # bikin Gradle 9.6.1 mau jalan, TIDAK ada project asli yang dievaluasi
-              # (file-nya kosong, gak ada subproject/dependency apapun di sini).
-              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
-              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
-              cp "$BOOTSTRAP_DIR/gradlew" .
-              cp "$BOOTSTRAP_DIR/gradlew.bat" .
-              mkdir -p gradle/wrapper
-              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
-              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
-              rm -rf "$BOOTSTRAP_DIR"
-            fi
-            chmod +x gradlew
-          } 2>&1 | tee gradle-wrapper-bootstrap.log
+      # Batch 40: sama seperti job `build` di atas — provision + cache Gradle 8.7
+      # lewat action resmi, gak perlu bootstrap wrapper manual lagi.
+      - name: Setup Gradle 8.7 (cached, no wrapper needed)
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
 
       - name: Check keystore secret availability
         id: secret_check
@@ -183,19 +151,14 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ./gradlew assembleRelease --stacktrace 2>&1 | tee gradle-build-release.log
+          gradle assembleRelease --stacktrace --build-cache 2>&1 | tee gradle-build-release.log
 
-      # v1.59 fix: SEBELUMNYA kondisi ini juga cek 'has_secret == true' — tapi kalau
-      # step bootstrap wrapper gagal DULUAN (sebelum step secret_check sempat jalan),
-      # output 'has_secret' kosong dan artifact log GAGAL ke-upload padahal build-nya
-      # beneran gagal. Sekarang cukup 'if: failure()' saja, konsisten dengan job build.
       - name: Upload failure log (release build)
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}
           path: |
-            gradle-wrapper-bootstrap.log
             gradle-build-release.log
             **/build/reports/**
           retention-days: 14
@@ -212,14 +175,8 @@ jobs:
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
-      # Batch 26: SEBELUMNYA generate_release_notes:true — GitHub cuma nampilin
-      # "Full Changelog: vX...vY" (link compare mentah, gak ada isi apapun kalau
-      # dibuka dari sidebar tanpa klik lagi). Sekarang body Release diambil LANGSUNG
-      # dari entry CHANGELOG.md versi ini (heading "## v<versi> - <judul>" s.d.
-      # sebelum heading "## v" berikutnya) — jadi orang yang buka halaman Release
-      # langsung baca ringkasan perubahan sungguhan, bukan cuma link compare kosong.
-      # Fallback: kalau entry gak ketemu (lupa update CHANGELOG), body kosong string
-      # (bukan bikin step gagal) + tetap fallback ke link compare commit standar GitHub.
+      # Body Release diambil LANGSUNG dari entry CHANGELOG.md versi ini (heading
+      # "## v<versi> - <judul>" s.d. sebelum heading "## v" berikutnya).
       - name: Extract changelog entry for this version
         id: changelog
         run: |
@@ -229,12 +186,10 @@ jobs:
             echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
           fi
 
-      # Batch 11 fix: SEBELUMNYA cuma upload-artifact (ketebak/tersembunyi di tab
-      # Actions, kadaluarsa otomatis, gak muncul di sidebar repo). Sekarang publish
-      # sebagai GitHub Release beneran — APK signed muncul langsung di sidebar
-      # beranda repo (bagian "Releases"), bisa diunduh langsung tanpa buka Actions
-      # sama sekali dan tanpa terbungkus .zip. Tag dipakai ulang (bukan re-create)
-      # kalau versionName sama persis dipush lagi — asset APK-nya di-overwrite.
+      # APK signed muncul langsung di sidebar beranda repo (bagian "Releases"),
+      # bisa diunduh langsung tanpa buka Actions sama sekali dan tanpa terbungkus
+      # .zip. Tag dipakai ulang (bukan re-create) kalau versionName sama persis
+      # dipush lagi — asset APK-nya di-overwrite.
       - name: Publish GitHub Release
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: softprops/action-gh-release@v2

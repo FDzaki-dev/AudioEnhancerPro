@@ -10,8 +10,19 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.78.0
-- 🔩 **Batch 39 (v1.78.0, BELUM diverifikasi CI/runtime)**: 2 perbaikan varian
+- **Versi**: v1.79.0
+- ⚡ **Batch 40 (v1.79.0, BELUM diverifikasi CI)**: pangkas waktu compile CI,
+  diminta user eksplisit ("apapun caranya"). Infra-only, 0 file Kotlin disentuh.
+  Ganti bootstrap wrapper manual (Batch 19-21) -> `gradle/actions/setup-gradle@v4`
+  (provision + **cache** Gradle 8.7 + dependency + Build Cache antar-run CI —
+  sebelumnya TIDAK ADA caching sama sekali, ini gap terbesar). + flag
+  `gradle.properties` (parallel/caching/kapt speed). + job `release` gak lagi
+  `needs: build` (jalan paralel, bukan sequential). **PENTING buat sesi depan**:
+  efek cache BARU kelihatan di run CI KE-2 dst (run pertama tetap cold-cache,
+  durasi mirip biasanya) — kalau user lapor "run pertama kok masih lama", itu
+  NORMAL, bukan gagal, minta user push sekali lagi (perubahan kecil apapun) buat
+  lihat run kedua. Detail lengkap: `CHANGELOG.md` v1.79.0.
+- 🔩 **Batch 39 (v1.78.0, riwayat)**: 2 perbaikan varian
   Skeuomorphism (Batch 38) diminta user eksplisit setelah ditanya "apakah otonom
   penuh, gak numpang baseline default":
   1. **Radius/shape sekarang 100% otonom** — sebelumnya `SkeuCardRadius`/
@@ -1033,6 +1044,18 @@ eksplisit user.
   reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
 
 ## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
+- **Batch 40 (v1.79.0)**: `gradle/actions/setup-gradle@v4` PERTAMA KALI dipakai
+  project ini (gantiin bootstrap wrapper manual Batch 19-21) — kandidat pertama
+  dicurigai kalau CI gagal di step "Setup Gradle 8.7" (nama action/versi/input
+  salah tidak bisa diverifikasi tanpa jalanin CI beneran, sandbox gak ada network).
+  Kalau gagal: cek dulu apakah `gradle-version: '8.7'` didukung action versi
+  terbaru (kadang action butuh Gradle >= versi minimum tertentu), fallback paling
+  aman adalah balikin sementara ke pola bootstrap manual lama (ada di histori git
+  commit sebelum batch ini). `org.gradle.configuration-cache=true` SENGAJA TIDAK
+  diaktifkan di batch ini meski berpotensi mempercepat lebih jauh — kompatibilitas
+  dengan kapt+Hilt (AGP 8.5.2/Kotlin 1.9.24) belum bisa diverifikasi tanpa
+  compiler, resiko break lebih besar dari manfaat speed tambahannya. Kandidat
+  lanjutan kalau user eksplisit mau coba & terima resikonya.
 - **Insiden nyata (v1.40 → v1.41, build gagal di CI)**: `ic_qs_tile.xml` (drawable
   baru buat Quick Settings Tile) pakai `android:tint="?attr/colorControlNormal"`
   TANPA prefix `android:` di depan `attr`. Ini bikin AAPT2 nyari attr itu di
