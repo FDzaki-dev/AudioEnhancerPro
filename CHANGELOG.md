@@ -1,5 +1,74 @@
 # Changelog
 
+## v1.77.0 - Tambah varian tema ke-3: Skeuomorphism (dark-mode asli)
+
+Diminta user eksplisit: tambahkan toggle theme baru di bawah "Gaya Aurora Glass",
+berisi theme custom "Skeuomorphism" dark mode yang asli — "gak kurang, gak lebih".
+Scope SENGAJA dibatasi ketat: nambah 1 varian tema baru + toggle-nya saja, TIDAK
+menyentuh/mengubah 2 varian glass (Midnight Glass, Aurora Glass) dari Batch 37.
+
+**Bahasa desain varian baru** — beda total dari 2 varian glass (bukan sub-opsi/
+turunan-nya): panel gunmetal/charcoal netral (`SkeuoBackground`/`SkeuoPanel`, BUKAN
+biru-tint), bevel raised/recessed dengan extrusion shadow lebih dalam
+(`SkeuoBevelBrush`/`SkeuoBevelBorderBrush`, meniru panel fisik nyata — bukan sheen
+kaca lembut), highlight glossy lebih tajam/terkonsentrasi (`SkeuoSpecularBrush`,
+meniru reflection keras di permukaan tombol fisik berlapis kaca/plastik, beda dari
+sheen airy iOS di varian glass), dan aksen metalik hangat tembaga/perunggu
+(`SkeuoAccent` #C98A4C — SENGAJA beda hue dari accent biru dingin 2 varian lain, ciri
+khas skeuomorphism klasik era iOS 6/brushed-metal UI).
+
+**File yang berubah:**
+1. `Theme.kt` — enum `AppThemeStyle` tambah `SKEUOMORPHISM` (dari 2 jadi 3 nilai).
+   Token baru: `SkeuoBackground`/`SkeuoPanel`/`SkeuoPanelRaised`/`SkeuoPanelRecessed`,
+   `SkeuoEdgeHighlight`/`SkeuoEdgeShadow`, `SkeuoText*`, `SkeuoAccent`,
+   `SkeuoBevelBrush`/`SkeuoBevelBorderBrush`, `SkeuoSpecularBrush`,
+   `SkeuoPrimaryGlow`, `SkeuoKnobHighlight`, `SkeuoScreenBackgroundBrush` (gradient
+   netral gunmetal, ganti dari gradient biru 2 varian lain). Instance baru
+   `SkeuomorphismSkeuTokens` (cardElevation 8dp — extrusion paling kuat dari 3
+   varian) & `SkeuomorphismDarkColors`. `AudioEnhancerTheme` composable di-`when`-kan
+   (dari if/else 2-cabang) buat resolve 3 varian.
+2. `PrefsHelper.kt` — const baru `APP_THEME_SKEUOMORPHISM = "skeuomorphism"`. Const
+   lama (`APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`) TIDAK diubah (persisted
+   String, sudah didesain sejak Batch 36 buat nampung >2 varian — data user lama
+   tetap valid).
+3. `MainActivity.kt` — mapping String->enum & pemilihan `screenBrush` di-`when`-kan
+   (dari if/else). Param `BoosterScreen` ganti dari
+   `themeStyleIsRadical: Boolean`/`onThemeStyleChange: (Boolean) -> Unit` jadi
+   `appThemeStyleKey: String`/`onThemeStyleChange: (String) -> Unit` — perlu String
+   langsung karena sekarang 3 pilihan saling eksklusif, bukan cuma on/off.
+4. `BoosterScreen.kt` — signature param ikut berubah (lihat poin 3). Kartu toggle
+   "Gaya Aurora Glass" (existing) logic-nya disesuaikan ke pola String. Kartu BARU
+   "Skeuomorphism" ditambahkan PERSIS DI BAWAHNYA (posisi sesuai permintaan user),
+   struktur/style kartu 100% konsisten dengan kartu Aurora Glass di atasnya (SkeuCard
+   + Icon + judul + desc + SkeuSwitch, toggleable Role.Switch + haptic). Icon baru
+   `Icons.Filled.Build` (import ditambah). Toggle salah satu varian otomatis
+   nonaktifkan varian lain (1 pilihan tunggal, 3 opsi) — matiin toggle mana pun balik
+   ke default Midnight Glass.
+5. `values/strings.xml` + `values-en/strings.xml` — string baru
+   `theme_style_skeuo_title`/`theme_style_skeuo_desc` (ID+EN). Parity tetap terjaga:
+   98/98.
+6. `docs/preview/current.html` — footer note diperbarui (transparan, menyebut
+   varian ke-3 ada), TIDAK dibuatkan mockup visual terpisah untuk varian ini (di
+   luar scope "toggle + theme", preview HTML tetap representasi varian default/
+   Aurora seperti sebelumnya — kalau user mau preview visual Skeuomorphism secara
+   HTML, minta eksplisit di sesi berikutnya).
+7. `app/build.gradle.kts` — versionCode 77->78, versionName 1.76.0->1.77.0.
+
+**SENGAJA TIDAK diubah**: 2 varian glass (Midnight Glass/Aurora Glass) dari Batch 37
+— warna, brush, radius, semuanya utuh. `SkeuomorphicComponents.kt` (render logic
+SkeuCard/SkeuSwitch/dll) TIDAK disentuh — sudah generik lewat `LocalSkeuTokens`,
+otomatis kompatibel dengan varian baru tanpa perubahan kode render.
+
+**Belum divalidasi runtime** — statis only (brace/paren balance 0/0 di 4 file Kotlin
+yang disentuh + full sweep project, parity string ID/EN 98/98, tidak ada referensi
+`AppThemeStyle`/`themeStyleIsRadical` lain yang kelewat di luar `Theme.kt`/
+`MainActivity.kt`/`BoosterScreen.kt`). `when` di `AudioEnhancerTheme`/`MainActivity`
+punya `else` branch (exhaustive secara efektif), aman dari missing-branch compile
+error meski Kotlin `when` atas non-sealed subject tetap technically butuh else/
+default.
+
+
+
 ## v1.76.0 - Rewrite total UI/UX: iOS Glassmorphism + Midnight-Blue dominan
 
 Diminta user eksplisit: "Rewrite total (bukan ganti pallet warna murahan) di sektor

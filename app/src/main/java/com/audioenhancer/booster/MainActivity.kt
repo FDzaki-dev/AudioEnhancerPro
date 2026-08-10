@@ -116,10 +116,13 @@ class MainActivity : ComponentActivity() {
             // Skeuomorphism), TERPISAH dari Material You (useDynamicColor di atas) &
             // dari themeMode lama (dead code sejak Batch 31, tetap tidak dipakai).
             var appThemeStyleKey by remember { mutableStateOf(PrefsHelper.getAppThemeStyle(this@MainActivity)) }
-            val appThemeStyle = if (appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO) {
-                AppThemeStyle.RADICAL_SKEUO
-            } else {
-                AppThemeStyle.AMOLED_GLASS
+            // Batch 38: tambah varian ke-3 SKEUOMORPHISM (`when`, bukan lagi if/else
+            // 2-cabang) — String persistence sudah didesain sejak Batch 36 buat
+            // nampung >2 varian, jadi cukup nambah 1 cabang di sini.
+            val appThemeStyle = when (appThemeStyleKey) {
+                PrefsHelper.APP_THEME_RADICAL_SKEUO -> AppThemeStyle.RADICAL_SKEUO
+                PrefsHelper.APP_THEME_SKEUOMORPHISM -> AppThemeStyle.SKEUOMORPHISM
+                else -> AppThemeStyle.AMOLED_GLASS
             }
             // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
             // branching (neumorphism + light theme dicabut total). Status bar/nav bar
@@ -132,14 +135,16 @@ class MainActivity : ComponentActivity() {
             }
 
             AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
-                // Batch 37: root background sekarang gradient Midnight-Blue -> nyaris-
-                // hitam (bukan flat solid lagi) — glassmorphism butuh backdrop
-                // bervariasi supaya kartu kaca di atasnya kebaca sebagai kaca. Aurora
-                // Glass (varian ke-2) pakai gradient sedikit lebih vivid.
-                val screenBrush = if (appThemeStyle == AppThemeStyle.RADICAL_SKEUO) {
-                    AuroraScreenBackgroundBrush
-                } else {
-                    ScreenBackgroundBrush
+                // Batch 37: root background sekarang gradient (bukan flat solid) —
+                // glassmorphism butuh backdrop bervariasi supaya kartu kaca di atasnya
+                // kebaca sebagai kaca. Batch 38: varian Skeuomorphism BUKAN glass (gak
+                // butuh backdrop vivid buat efek translucency), pakai gradient netral
+                // gunmetal sendiri (`SkeuoScreenBackgroundBrush`) — konsisten sama
+                // bahasa desain bevel/material fisiknya, bukan biru.
+                val screenBrush = when (appThemeStyle) {
+                    AppThemeStyle.RADICAL_SKEUO -> AuroraScreenBackgroundBrush
+                    AppThemeStyle.SKEUOMORPHISM -> SkeuoScreenBackgroundBrush
+                    else -> ScreenBackgroundBrush
                 }
                 Surface(
                     modifier = Modifier
@@ -188,14 +193,14 @@ class MainActivity : ComponentActivity() {
                                 useDynamicColor = it
                                 PrefsHelper.setUseDynamicColor(this@MainActivity, it)
                             },
-                            themeStyleIsRadical = appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO,
-                            onThemeStyleChange = { isRadical ->
-                                appThemeStyleKey = if (isRadical) {
-                                    PrefsHelper.APP_THEME_RADICAL_SKEUO
-                                } else {
-                                    PrefsHelper.APP_THEME_AMOLED_GLASS
-                                }
-                                PrefsHelper.setAppThemeStyle(this@MainActivity, appThemeStyleKey)
+                            // Batch 38: BoosterScreen sekarang terima String key langsung
+                            // (bukan Boolean themeStyleIsRadical, Batch 36) — mewadahi 3
+                            // varian tema (Midnight Glass/Aurora Glass/Skeuomorphism)
+                            // tanpa Boolean kedua yang gampang rancu.
+                            appThemeStyleKey = appThemeStyleKey,
+                            onThemeStyleChange = { newKey ->
+                                appThemeStyleKey = newKey
+                                PrefsHelper.setAppThemeStyle(this@MainActivity, newKey)
                             },
                             connectionState = viewModel.connectionState,
                             onRetryConnection = { viewModel.attemptBindService() },

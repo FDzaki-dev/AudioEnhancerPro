@@ -10,7 +10,32 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.76.0
+- **Versi**: v1.77.0
+- ➕ **Batch 38 (v1.77.0, BELUM diverifikasi CI/runtime)**: tambah varian tema ke-3
+  "Skeuomorphism" (dark-mode asli, bahasa desain fisik/bevel — BUKAN glass), diminta
+  user eksplisit "gak kurang gak lebih". Toggle baru di Settings, PERSIS DI BAWAH
+  toggle "Gaya Aurora Glass" (posisi sesuai permintaan), 1 pilihan tunggal dari 3
+  opsi (nyalain 1 otomatis matiin yang lain, matiin balik ke default Midnight Glass).
+  - `AppThemeStyle` enum: 2->3 nilai (`SKEUOMORPHISM` baru). `PrefsHelper`: const baru
+    `APP_THEME_SKEUOMORPHISM`, const lama TIDAK diubah (persistence user lama aman).
+  - Token baru di `Theme.kt`: `SkeuoXxx` (panel gunmetal netral, bevel extrusion kuat,
+    aksen tembaga #C98A4C — SENGAJA beda hue dari accent biru 2 varian glass),
+    `SkeuomorphismSkeuTokens` (cardElevation 8dp, paling kuat dari 3 varian),
+    `SkeuomorphismDarkColors`, `SkeuoScreenBackgroundBrush`.
+  - `MainActivity.kt`: mapping String->enum & screenBrush pakai `when` (bukan
+    if/else lagi). `BoosterScreen.kt`: param `themeStyleIsRadical: Boolean` ->
+    `appThemeStyleKey: String` (perlu String karena sekarang 3 opsi saling
+    eksklusif, bukan cuma on/off) — kartu toggle Skeuomorphism ditambah persis di
+    bawah kartu Aurora Glass, struktur SAMA PERSIS (SkeuCard+Icon+judul+desc+
+    SkeuSwitch) biar konsisten visual.
+  - `SkeuomorphicComponents.kt` TIDAK disentuh — sudah generik lewat
+    `LocalSkeuTokens`, otomatis kompatibel varian baru.
+  - String baru `theme_style_skeuo_title`/`theme_style_skeuo_desc` (ID+EN, parity
+    98/98). `docs/preview/current.html` cuma footer note diperbarui (TIDAK ada
+    mockup visual terpisah utk varian ini — di luar scope "toggle + theme").
+  - **Belum divalidasi runtime** — statis only (brace/paren 0/0 semua file Kotlin
+    disentuh + full sweep project, parity string 98/98, grep `AppThemeStyle` di luar
+    3 file yang disentuh: nihil). Detail lengkap: `CHANGELOG.md` v1.77.0.
 - 🎨 **Batch 37 (v1.76.0, BELUM diverifikasi CI/runtime)**: REWRITE TOTAL sektor
   UI/UX diminta user eksplisit — "iOS-style Glassmorphism" jadi bahasa desain
   DOMINAN di seluruh app, Midnight-Blue sekarang hint yang KENTARA (ambient alpha
@@ -850,21 +875,28 @@ eksplisit user.
   Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
   atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
   JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif (Batch 37, v1.76.0, ARAH SEKARANG)**: "iOS Glassmorphism +
-  Midnight-Blue dominan", WAJIB dark-mode. Kartu struktural = genuine frosted-glass
-  (4-stop gradient + layer sheen kedua), border gradient highlight->transparan,
-  radius besar ala iOS, background layar gradient Midnight-Blue->nyaris-hitam,
-  kontras teks dinaikkan (readability-first). 2 varian tetap ada via switch Settings
-  (arsitektur `SkeuTokens`/`AppThemeStyle` dari Batch 36 dipertahankan): default
-  "Midnight Glass" (restrained), opsi ke-2 "Aurora Glass" (lebih vivid/saturated) —
-  DUA-DUANYA sekarang genuine glass, bukan lagi 1 glass + 1 skeuomorphism bevel-raised
-  seperti era Batch 36. Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer)
-  TETAP dipertahankan (bukan sumber keluhan). Detail lengkap: `CHANGELOG.md` v1.76.0.
+- **Arah desain UI aktif (Batch 37, v1.76.0 + Batch 38, v1.77.0, ARAH SEKARANG)**:
+  "iOS Glassmorphism + Midnight-Blue dominan", WAJIB dark-mode. Kartu struktural =
+  genuine frosted-glass (4-stop gradient + layer sheen kedua), border gradient
+  highlight->transparan, radius besar ala iOS, background layar gradient
+  Midnight-Blue->nyaris-hitam, kontras teks dinaikkan (readability-first). **3
+  varian** tersedia via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle`
+  dari Batch 36 dipertahankan & diperluas Batch 38): default "Midnight Glass"
+  (restrained), "Aurora Glass" (lebih vivid/saturated, DUA-DUANYA genuine glass),
+  dan "Skeuomorphism" (Batch 38, BUKAN glass — panel gunmetal netral + bevel
+  extrusion fisik + aksen tembaga hangat, bahasa desain sengaja berbeda total dari
+  2 varian glass). 1 pilihan tunggal dari 3 (bukan kombinasi). Warna aksen per-fitur
+  (Bass/Virtualizer/Loudness/Equalizer) TETAP dipertahankan (bukan sumber keluhan,
+  independen dari 3 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.
   **Riwayat sebelum Batch 37** (biar gak nyoba ulang): "Skeuomorphism-lite (Tactile
   UI)" (Batch 31-36, v1.70-v1.75.1) — kartu flat/minimal + tactile HANYA di power
   button/slider — DICABUT TOTAL di Batch 37 atas permintaan eksplisit user (bukan
   cuma ganti palet, struktur render kartu juga berubah). Lihat "Riwayat pivot" di
-  bawah buat kronologi lengkap.
+  bawah buat kronologi lengkap. **Catatan penting**: varian "Skeuomorphism" Batch 38
+  BUKAN kebangkitan "Skeuomorphism-lite" Batch 31-36 — beda total (Batch 31-36 =
+  kartu flat + tactile micro di 2 komponen saja; Batch 38 = 1 varian tema penuh
+  dengan bevel-extrusion di SEMUA kartu, dipilih eksplisit lewat toggle, hidup
+  berdampingan dengan 2 varian glass, bukan menggantikannya).
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,

@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
@@ -260,8 +261,12 @@ fun BoosterScreen(
     onOpenNotificationSettings: () -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
-    themeStyleIsRadical: Boolean = false,
-    onThemeStyleChange: (Boolean) -> Unit = {},
+    // Batch 38: appThemeStyleKey ganti dari Boolean (themeStyleIsRadical, Batch 36)
+    // jadi String langsung — mewadahi >2 varian tema (sekarang 3: Midnight Glass /
+    // Aurora Glass / Skeuomorphism) tanpa perlu Boolean kedua yang gampang rancu.
+    // Default `PrefsHelper.APP_THEME_AMOLED_GLASS` konsisten dengan `MainActivity.kt`.
+    appThemeStyleKey: String = PrefsHelper.APP_THEME_AMOLED_GLASS,
+    onThemeStyleChange: (String) -> Unit = {},
     connectionState: BoosterViewModel.ConnectionState = BoosterViewModel.ConnectionState.CONNECTED,
     onRetryConnection: () -> Unit = {},
     onRestartService: () -> Unit = {},
@@ -753,19 +758,25 @@ fun BoosterScreen(
             }
         }
 
-        // Batch 36: switch "Gaya Tampilan Radikal" — pilih antar 2 sistem desain
-        // (AMOLED Glass existing vs Radical Literal Skeuomorphism, guide baru user).
+        // Batch 36: switch "Gaya Tampilan Radikal" — pilih antar sistem desain
+        // (default Midnight Glass vs Aurora Glass vs Skeuomorphism, Batch 38).
         // SkeuCard/SkeuSwitch di sini otomatis ikut re-render pakai token tema yang
         // BARU dipilih (LocalSkeuTokens di-provide ulang dari MainActivity begitu
         // `onThemeStyleChange` mengubah state di atas AudioEnhancerTheme).
+        // Batch 38: appThemeStyleKey adalah 1 nilai String tunggal (3 pilihan saling
+        // eksklusif) — nyalain toggle ini otomatis matiin toggle Skeuomorphism di
+        // bawahnya (dan sebaliknya); matiin salah satu toggle balik ke default
+        // Midnight Glass (APP_THEME_AMOLED_GLASS).
         SkeuCard {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .toggleable(
-                        value = themeStyleIsRadical,
-                        onValueChange = {
-                            onThemeStyleChange(it)
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_RADICAL_SKEUO else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         },
                         role = Role.Switch
@@ -783,7 +794,44 @@ fun BoosterScreen(
                         color = LocalSkeuTokens.current.mutedText
                     )
                 }
-                SkeuSwitch(checked = themeStyleIsRadical, onCheckedChange = null)
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_RADICAL_SKEUO, onCheckedChange = null)
+            }
+        }
+
+        // Batch 38: switch "Skeuomorphism" — varian ke-3, SATU tingkat sejajar dengan
+        // Aurora Glass di atas (bukan sub-opsi-nya), bahasa desain BEDA total dari 2
+        // varian glass (bevel/shadow/tekstur fisik realistis, aksen metalik hangat,
+        // BUKAN kaca/blue-tint). Diminta user eksplisit "gak kurang gak lebih" — jadi
+        // scope-nya cuma nambah toggle ini + token visual-nya (Theme.kt/
+        // SkeuomorphicComponents.kt), TIDAK menyentuh fitur lain.
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_SKEUOMORPHISM,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_SKEUOMORPHISM else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Build, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_skeuo_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_skeuo_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_SKEUOMORPHISM, onCheckedChange = null)
             }
         }
 

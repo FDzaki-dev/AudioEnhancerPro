@@ -27,9 +27,13 @@ object PrefsHelper {
      *  `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`.
      *  Disimpan String (bukan enum langsung) biar aman kalau enum `AppThemeStyle`
      *  (Theme.kt) di-refactor/tambah varian di masa depan — mapping String->enum ada
-     *  di `MainActivity.kt`. */
+     *  di `MainActivity.kt`.
+     *  Batch 38: tambah varian ke-3 `APP_THEME_SKEUOMORPHISM` — Skeuomorphism dark-mode
+     *  ASLI (bevel/shadow/tekstur fisik realistis), independen dari 2 varian glass di
+     *  atas. Const lama TIDAK diganti (persistence key user existing tetap valid). */
     const val APP_THEME_AMOLED_GLASS = "amoled_glass"
     const val APP_THEME_RADICAL_SKEUO = "radical_skeuo"
+    const val APP_THEME_SKEUOMORPHISM = "skeuomorphism"
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

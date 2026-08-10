@@ -22,6 +22,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
+// BATCH 38 — tambahan (BUKAN rewrite ulang Batch 37): varian tema ke-3
+// "Skeuomorphism" diminta user eksplisit ("theme custom Skeuomorphism dark mode
+// yang asli, gak kurang gak lebih") — toggle baru di Settings, SEJAJAR toggle Aurora
+// Glass (bukan sub-opsinya), TIDAK mengubah/menghapus 2 varian glass Batch 37.
+// Bahasa desain beda total dari glass: panel gunmetal/charcoal netral (bukan biru),
+// bevel raised/recessed extrusion kuat, aksen metalik hangat (tembaga #C98A4C, bukan
+// biru dingin). Lihat blok token `SkeuoXxx` & `SkeuomorphismSkeuTokens`/
+// `SkeuomorphismDarkColors` di bawah. Detail: `CHANGELOG.md` v1.77.0.
+// ============================================================================
+
+// ============================================================================
 // BATCH 37 — REWRITE TOTAL sektor UI/UX (diminta user eksplisit): "iOS-style
 // Glassmorphism" jadi bahasa desain DOMINAN di seluruh app, dengan Midnight-Blue
 // SEKARANG sebagai gradasi/hint yang kelihatan jelas (bukan lagi "subtle 6%" era
@@ -207,6 +218,61 @@ val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.34f)
  *  ring border 2dp di komponennya, bukan lewat warna isi thumb). */
 val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.32f)
 
+// ============================================================================
+// Varian ke-3 ("Skeuomorphism", Batch 38) — diminta user eksplisit di luar 2 varian
+// glass di atas: "theme custom Skeuomorphism dark mode yang asli". Bahasa desain
+// BEDA TOTAL, bukan sub-varian glass: panel gunmetal/charcoal netral (BUKAN
+// biru-tint), bevel raised/recessed tegas dengan shadow lebih dalam (ekstrusi fisik
+// nyata, bukan sheen kaca lembut), aksen metalik hangat (tembaga/perunggu — kontras
+// sengaja dari accent biru dingin 2 varian lain, ciri khas skeuomorphism klasik era
+// iOS 6 / brushed-metal UI). Dipilih via toggle "Skeuomorphism" di Settings (sejajar
+// toggle Aurora Glass, BoosterScreen.kt), TIDAK mengubah/menghapus 2 varian existing.
+// ============================================================================
+
+val SkeuoBackground = Color(0xFF19191C)
+val SkeuoPanel = Color(0xFF232326)
+val SkeuoPanelRaised = Color(0xFF2E2E33)
+val SkeuoPanelRecessed = Color(0xFF131315)
+
+val SkeuoEdgeHighlight = Color.White.copy(alpha = 0.12f)
+val SkeuoEdgeShadow = Color.Black.copy(alpha = 0.78f)
+
+val SkeuoTextPrimary = Color(0xFFF1F1EF)
+val SkeuoTextSecondary = Color(0xFFBBBBC0)
+val SkeuoTextMuted = Color(0xFF8B8B90)
+
+/** Aksen tembaga/perunggu hangat — SENGAJA beda hue dari `MidnightBlueAccent`/
+ *  `RadicalAccent` (biru dingin), ciri khas warm-metal skeuomorphism klasik. */
+val SkeuoAccent = Color(0xFFC98A4C)
+
+/** Panel fisik raised — extrusion kuat (highlight tipis di puncak, shadow dalam di
+ *  dasar), BUKAN sheen kaca lembut seperti 2 varian glass. */
+val SkeuoBevelBrush: Brush = Brush.linearGradient(
+    listOf(lerp(SkeuoPanelRaised, Color.White, 0.06f), SkeuoPanelRaised, SkeuoPanel, SkeuoPanelRecessed)
+)
+val SkeuoBevelBorderBrush: Brush = Brush.linearGradient(
+    listOf(SkeuoEdgeHighlight, Color.Transparent, SkeuoEdgeShadow)
+)
+
+/** Highlight glossy lebih tajam/terkonsentrasi (bukan sheen airy iOS) — meniru
+ *  reflection keras di permukaan tombol/dial fisik berlapis kaca/plastik glossy. */
+val SkeuoSpecularBrush: Brush = Brush.linearGradient(
+    listOf(Color.White.copy(alpha = 0.24f), Color.White.copy(alpha = 0.03f), Color.Transparent)
+)
+
+val SkeuoPrimaryGlow = SkeuoAccent.copy(alpha = 0.30f)
+
+/** Knob slider — nyaris putih, meniru bead kaca/plastik glossy fisik (ring accent
+ *  tembaga dibawa lewat border 2dp di komponennya, bukan warna isi). */
+val SkeuoKnobHighlight: Color = lerp(SkeuoPanelRaised, Color.White, 0.34f)
+
+/** Background layar — vertical gradient gunmetal netral, BUKAN biru. Skeuomorphism
+ *  gak butuh backdrop vivid (beda dari glass yang butuh variasi buat translucency
+ *  kebaca) — cukup shading halus konsisten sama arah cahaya panel fisik. */
+val SkeuoScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(Color(0xFF232327), SkeuoPanel, SkeuoBackground)
+)
+
 /** Token yang beda antara 2 varian desain, dibaca lewat `LocalSkeuTokens.current`
  *  (SkeuomorphicComponents.kt) — 1 kode komponen, 2 varian, TANPA duplikasi. Field
  *  baru WAJIB diisi di KEDUA instance di bawah kalau ditambah lagi. */
@@ -256,11 +322,27 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     specularBrush = RadicalGlassSpecularBrush
 )
 
+/** Varian 3: "Skeuomorphism" — bahasa desain fisik/tekstural asli (bevel-shadow
+ *  ekstrusi kuat + aksen metalik hangat), BUKAN glass sama sekali. */
+val SkeuomorphismSkeuTokens = SkeuTokens(
+    mutedText = SkeuoTextMuted,
+    bevelBrush = SkeuoBevelBrush,
+    bevelBorderBrush = SkeuoBevelBorderBrush,
+    primaryGlow = SkeuoPrimaryGlow,
+    baseSurface = SkeuoPanel,
+    elevatedSurface = SkeuoPanelRaised,
+    cardBrush = SkeuoBevelBrush,
+    cardBorderBrush = SkeuoBevelBorderBrush,
+    cardElevation = 8.dp,
+    sliderKnobHighlight = SkeuoKnobHighlight,
+    specularBrush = SkeuoSpecularBrush
+)
+
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
  *  constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, nama TIDAK diubah
  *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
  *  `AMOLED_GLASS` ("Midnight Glass"). */
-enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO }
+enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
 val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
@@ -318,6 +400,26 @@ private val DarkColors = darkColorScheme(
     errorContainer = Color(0xFF4A1616),
     onErrorContainer = Color(0xFFFFD8D8),
     outline = GlassBorder
+)
+
+private val SkeuomorphismDarkColors = darkColorScheme(
+    primary = SkeuoAccent,
+    onPrimary = Color(0xFF1A1005),
+    primaryContainer = Color(0xFF4A331A),
+    onPrimaryContainer = Color(0xFFF5DFC4),
+    secondary = SkeuoTextSecondary,
+    onSecondary = Color(0xFF1A1005),
+    background = SkeuoBackground,
+    onBackground = SkeuoTextPrimary,
+    surface = SkeuoPanel,
+    onSurface = SkeuoTextPrimary,
+    surfaceVariant = SkeuoPanelRaised,
+    onSurfaceVariant = SkeuoTextSecondary,
+    error = Color(0xFFFF6B6B),
+    onError = Color.White,
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = SkeuoEdgeHighlight
 )
 
 private val AppTypography = Typography(
@@ -383,9 +485,14 @@ fun AudioEnhancerTheme(
     val colors = when {
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
+        themeStyle == AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismDarkColors
         else -> DarkColors
     }
-    val skeuTokens = if (themeStyle == AppThemeStyle.RADICAL_SKEUO) RadicalSkeuoSkeuTokens else AmoledGlassSkeuTokens
+    val skeuTokens = when (themeStyle) {
+        AppThemeStyle.RADICAL_SKEUO -> RadicalSkeuoSkeuTokens
+        AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismSkeuTokens
+        else -> AmoledGlassSkeuTokens
+    }
     CompositionLocalProvider(
         LocalIsDarkTheme provides true,
         LocalAppThemeStyle provides themeStyle,

@@ -61,6 +61,8 @@
     <!-- Batch 36: theme style switch -->
     <string name="theme_style_title">Aurora Glass Style</string>
     <string name="theme_style_desc">Turn on Aurora Glass — more vivid glass, stronger sheen and midnight-blue glow. Off = Midnight Glass (default, calmer).</string>
+    <string name="theme_style_skeuo_title">Skeuomorphism</string>
+    <string name="theme_style_skeuo_desc">Turn on Skeuomorphism — physical bevel-shadow panels with a warm copper accent, not glass. Off = Midnight Glass (default).</string>
 
     <!-- Battery card -->
     <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>
