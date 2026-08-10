@@ -219,14 +219,16 @@ val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.34f)
 val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.32f)
 
 // ============================================================================
-// Varian ke-3 ("Skeuomorphism", Batch 38) — diminta user eksplisit di luar 2 varian
-// glass di atas: "theme custom Skeuomorphism dark mode yang asli". Bahasa desain
-// BEDA TOTAL, bukan sub-varian glass: panel gunmetal/charcoal netral (BUKAN
-// biru-tint), bevel raised/recessed tegas dengan shadow lebih dalam (ekstrusi fisik
-// nyata, bukan sheen kaca lembut), aksen metalik hangat (tembaga/perunggu — kontras
-// sengaja dari accent biru dingin 2 varian lain, ciri khas skeuomorphism klasik era
-// iOS 6 / brushed-metal UI). Dipilih via toggle "Skeuomorphism" di Settings (sejajar
-// toggle Aurora Glass, BoosterScreen.kt), TIDAK mengubah/menghapus 2 varian existing.
+// Varian ke-3 ("Skeuomorphism", Batch 38, warna direvisi Batch 39) — diminta user
+// eksplisit di luar 2 varian glass di atas: "theme custom Skeuomorphism dark mode
+// yang asli". Bahasa desain BEDA TOTAL, bukan sub-varian glass: panel gunmetal/
+// charcoal netral (BUKAN biru-tint), bevel raised/recessed tegas dengan shadow
+// lebih dalam (ekstrusi fisik nyata, bukan sheen kaca lembut), aksen metalik
+// titanium+silver (Batch 39 — sebelumnya tembaga/perunggu di Batch 38, diganti atas
+// permintaan user; kontras sengaja dari accent biru dingin 2 varian lain TETAP
+// dipertahankan lewat saturasi netral-cool, bukan lewat hue hangat lagi). Dipilih
+// via toggle "Skeuomorphism" di Settings (sejajar toggle Aurora Glass,
+// BoosterScreen.kt), TIDAK mengubah/menghapus 2 varian existing.
 // ============================================================================
 
 val SkeuoBackground = Color(0xFF19191C)
@@ -241,14 +243,30 @@ val SkeuoTextPrimary = Color(0xFFF1F1EF)
 val SkeuoTextSecondary = Color(0xFFBBBBC0)
 val SkeuoTextMuted = Color(0xFF8B8B90)
 
-/** Aksen tembaga/perunggu hangat — SENGAJA beda hue dari `MidnightBlueAccent`/
- *  `RadicalAccent` (biru dingin), ciri khas warm-metal skeuomorphism klasik. */
-val SkeuoAccent = Color(0xFFC98A4C)
+/** Aksen titanium+silver metalik (Batch 39, ganti dari tembaga/perunggu Batch 38) —
+ *  cool neutral-grey dengan sedikit undertone biru-baja, meniru permukaan titanium
+ *  brushed asli (BUKAN pure grey netral/abu-abu polos — ada hint kebiruan tipis
+ *  yang khas logam titanium teroksidasi). Tetap kontras dari `MidnightBlueAccent`/
+ *  `RadicalAccent` (biru SATURATED) karena ini desaturated/metalik, bukan pure hue. */
+val SkeuoAccent = Color(0xFFAEB4BF)
+
+/** Nada titanium lebih gelap — dipakai buat variasi highlight/shadow metalik di
+ *  komponen yang butuh 2 stop metalik (bukan cuma 1 warna flat), meniru refleksi
+ *  brushed-metal yang selalu punya gradasi terang-gelap di permukaannya. */
+val SkeuoAccentDeep = Color(0xFF6E737D)
 
 /** Panel fisik raised — extrusion kuat (highlight tipis di puncak, shadow dalam di
- *  dasar), BUKAN sheen kaca lembut seperti 2 varian glass. */
+ *  dasar), BUKAN sheen kaca lembut seperti 2 varian glass. Batch 39: stop
+ *  puncak/dasar dicampur sedikit `SkeuoAccent`/`SkeuoAccentDeep` (bukan cuma
+ *  putih/hitam polos) — biar karakter metalik titanium-silver kerasa di SELURUH
+ *  panel, bukan cuma di 1 chip accent kecil. */
 val SkeuoBevelBrush: Brush = Brush.linearGradient(
-    listOf(lerp(SkeuoPanelRaised, Color.White, 0.06f), SkeuoPanelRaised, SkeuoPanel, SkeuoPanelRecessed)
+    listOf(
+        lerp(SkeuoPanelRaised, SkeuoAccent, 0.10f),
+        SkeuoPanelRaised,
+        SkeuoPanel,
+        lerp(SkeuoPanelRecessed, SkeuoAccentDeep, 0.08f)
+    )
 )
 val SkeuoBevelBorderBrush: Brush = Brush.linearGradient(
     listOf(SkeuoEdgeHighlight, Color.Transparent, SkeuoEdgeShadow)
@@ -263,8 +281,17 @@ val SkeuoSpecularBrush: Brush = Brush.linearGradient(
 val SkeuoPrimaryGlow = SkeuoAccent.copy(alpha = 0.30f)
 
 /** Knob slider — nyaris putih, meniru bead kaca/plastik glossy fisik (ring accent
- *  tembaga dibawa lewat border 2dp di komponennya, bukan warna isi). */
+ *  titanium-silver dibawa lewat border 2dp di komponennya, bukan warna isi). */
 val SkeuoKnobHighlight: Color = lerp(SkeuoPanelRaised, Color.White, 0.34f)
+
+/** Radius kartu/icon-box KHUSUS varian ini (Batch 39) — lebih kecil/tegas dari
+ *  `SkeuCardRadius`/`SkeuIconBoxRadius` (26dp/16dp, radius iOS-glass Batch 37) —
+ *  skeuomorphism klasik pakai sudut lebih tegas/hardware-like, bukan bubbly-rounded
+ *  ala iOS. Dibaca lewat `SkeuTokens.cardRadius`/`iconBoxRadius`, BUKAN const
+ *  global lagi — supaya benar-benar otonom per-varian (lihat catatan Batch 39 di
+ *  `SkeuTokens` di bawah). */
+val SkeuoCardRadius = 14.dp
+val SkeuoIconBoxRadius = 10.dp
 
 /** Background layar — vertical gradient gunmetal netral, BUKAN biru. Skeuomorphism
  *  gak butuh backdrop vivid (beda dari glass yang butuh variasi buat translucency
@@ -273,9 +300,14 @@ val SkeuoScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(Color(0xFF232327), SkeuoPanel, SkeuoBackground)
 )
 
-/** Token yang beda antara 2 varian desain, dibaca lewat `LocalSkeuTokens.current`
- *  (SkeuomorphicComponents.kt) — 1 kode komponen, 2 varian, TANPA duplikasi. Field
- *  baru WAJIB diisi di KEDUA instance di bawah kalau ditambah lagi. */
+/** Token yang beda antar 3 varian desain, dibaca lewat `LocalSkeuTokens.current`
+ *  (SkeuomorphicComponents.kt) — 1 kode komponen, 3 varian, TANPA duplikasi. Field
+ *  baru WAJIB diisi di SEMUA instance di bawah kalau ditambah lagi.
+ *  Batch 39: `cardRadius`/`iconBoxRadius` ditambah — sebelumnya radius kartu/icon-box
+ *  hardcode ke const global `SkeuCardRadius`/`SkeuIconBoxRadius` (dipakai SEMUA
+ *  varian tanpa beda), sekarang per-varian supaya Skeuomorphism (radius lebih
+ *  tegas/kecil, khas hardware fisik) beneran otonom — gak numpang radius iOS-glass
+ *  Batch 37 punya 2 varian glass. */
 data class SkeuTokens(
     val mutedText: Color,
     val bevelBrush: Brush,
@@ -287,7 +319,9 @@ data class SkeuTokens(
     val cardBorderBrush: Brush,
     val cardElevation: Dp,
     val sliderKnobHighlight: Color,
-    val specularBrush: Brush
+    val specularBrush: Brush,
+    val cardRadius: Dp,
+    val iconBoxRadius: Dp
 )
 
 /** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
@@ -302,7 +336,9 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     cardBorderBrush = GlassBorderBrush,
     cardElevation = 3.dp,
     sliderKnobHighlight = Color.White.copy(alpha = 0.92f),
-    specularBrush = GlassSpecularBrush
+    specularBrush = GlassSpecularBrush,
+    cardRadius = SkeuCardRadius,
+    iconBoxRadius = SkeuIconBoxRadius
 )
 
 /** Varian 2: "Aurora Glass" — iOS glassmorphism lebih vivid/saturated, sheen &
@@ -319,11 +355,15 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     cardBorderBrush = RadicalBevelBorderBrush,
     cardElevation = 6.dp,
     sliderKnobHighlight = RadicalKnobHighlight,
-    specularBrush = RadicalGlassSpecularBrush
+    specularBrush = RadicalGlassSpecularBrush,
+    cardRadius = SkeuCardRadius,
+    iconBoxRadius = SkeuIconBoxRadius
 )
 
 /** Varian 3: "Skeuomorphism" — bahasa desain fisik/tekstural asli (bevel-shadow
- *  ekstrusi kuat + aksen metalik hangat), BUKAN glass sama sekali. */
+ *  ekstrusi kuat + aksen metalik titanium-silver, Batch 39), BUKAN glass sama
+ *  sekali. Radius sendiri (`SkeuoCardRadius`/`SkeuoIconBoxRadius`, 14dp/10dp) —
+ *  BUKAN numpang const iOS-glass punya 2 varian di atas. */
 val SkeuomorphismSkeuTokens = SkeuTokens(
     mutedText = SkeuoTextMuted,
     bevelBrush = SkeuoBevelBrush,
@@ -335,7 +375,9 @@ val SkeuomorphismSkeuTokens = SkeuTokens(
     cardBorderBrush = SkeuoBevelBorderBrush,
     cardElevation = 8.dp,
     sliderKnobHighlight = SkeuoKnobHighlight,
-    specularBrush = SkeuoSpecularBrush
+    specularBrush = SkeuoSpecularBrush,
+    cardRadius = SkeuoCardRadius,
+    iconBoxRadius = SkeuoIconBoxRadius
 )
 
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
@@ -404,11 +446,15 @@ private val DarkColors = darkColorScheme(
 
 private val SkeuomorphismDarkColors = darkColorScheme(
     primary = SkeuoAccent,
-    onPrimary = Color(0xFF1A1005),
-    primaryContainer = Color(0xFF4A331A),
-    onPrimaryContainer = Color(0xFFF5DFC4),
+    // Batch 39: onPrimary/primaryContainer diganti dari warm-brown (era aksen
+    // tembaga) ke neutral-cool (era aksen titanium-silver) — teks di atas swatch
+    // primary sekarang near-black netral (bukan coklat gelap), container-nya
+    // steel-grey gelap (bukan coklat tua).
+    onPrimary = Color(0xFF15161A),
+    primaryContainer = Color(0xFF3A3D44),
+    onPrimaryContainer = Color(0xFFE7E9ED),
     secondary = SkeuoTextSecondary,
-    onSecondary = Color(0xFF1A1005),
+    onSecondary = Color(0xFF15161A),
     background = SkeuoBackground,
     onBackground = SkeuoTextPrimary,
     surface = SkeuoPanel,
@@ -460,12 +506,25 @@ private val AppTypography = Typography(
 // iOS-style rounded — radius dinaikkan di semua step (dipakai otomatis oleh
 // komponen Material3 default: AlertDialog, Button, OutlinedButton, TextButton, dst
 // yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
+// Dipakai 2 varian glass (Midnight Glass, Aurora Glass).
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(16.dp),
     medium = RoundedCornerShape(22.dp),
     large = RoundedCornerShape(28.dp),
     extraLarge = RoundedCornerShape(34.dp)
+)
+
+/** Batch 39: shape khusus varian Skeuomorphism — sudut lebih tegas/kecil (konsisten
+ *  sama `SkeuoCardRadius`/`SkeuoIconBoxRadius` di atas), supaya komponen Material3
+ *  default (AlertDialog/Button/dll) yang belum pakai shape manual JUGA otonom, gak
+ *  ikut radius iOS-glass punya 2 varian lain. */
+private val SkeuomorphismShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(20.dp)
 )
 
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
@@ -481,7 +540,7 @@ fun AudioEnhancerTheme(
 ) {
     val context = LocalContext.current
     // Material You (wallpaper) MENANG kalau opt-in aktif — independen dari pilihan
-    // Midnight/Aurora Glass.
+    // Midnight/Aurora Glass/Skeuomorphism.
     val colors = when {
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
@@ -493,6 +552,9 @@ fun AudioEnhancerTheme(
         AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismSkeuTokens
         else -> AmoledGlassSkeuTokens
     }
+    // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
+    // semua) — Skeuomorphism pakai `SkeuomorphismShapes` (sudut lebih tegas).
+    val shapes = if (themeStyle == AppThemeStyle.SKEUOMORPHISM) SkeuomorphismShapes else AppShapes
     CompositionLocalProvider(
         LocalIsDarkTheme provides true,
         LocalAppThemeStyle provides themeStyle,
@@ -501,7 +563,7 @@ fun AudioEnhancerTheme(
         MaterialTheme(
             colorScheme = colors,
             typography = AppTypography,
-            shapes = AppShapes,
+            shapes = shapes,
             content = content
         )
     }

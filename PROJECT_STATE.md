@@ -10,7 +10,32 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.77.0
+- **Versi**: v1.78.0
+- 🔩 **Batch 39 (v1.78.0, BELUM diverifikasi CI/runtime)**: 2 perbaikan varian
+  Skeuomorphism (Batch 38) diminta user eksplisit setelah ditanya "apakah otonom
+  penuh, gak numpang baseline default":
+  1. **Radius/shape sekarang 100% otonom** — sebelumnya `SkeuCardRadius`/
+     `SkeuIconBoxRadius` (const global 26dp/16dp, era iOS-glass Batch 37) dipakai
+     SEMUA varian termasuk Skeuomorphism. Sekarang `SkeuTokens` punya field
+     `cardRadius`/`iconBoxRadius` per-varian: 2 varian glass tetap 26dp/16dp,
+     Skeuomorphism dapat radius sendiri `SkeuoCardRadius`/`SkeuoIconBoxRadius`
+     (14dp/10dp, lebih tegas/kecil, khas hardware fisik). Material3 `Shapes`
+     (dipakai default `Button`/`AlertDialog`/dll) juga di-pisah:
+     `SkeuomorphismShapes` baru (4-20dp) vs `AppShapes` lama (10-34dp, 2 varian
+     glass), dipilih di `AudioEnhancerTheme` composable via `themeStyle`.
+  2. **Aksen tembaga -> titanium+silver metalik** — `SkeuoAccent` `#C98A4C` ->
+     `#AEB4BF` (silver cool-neutral, hint biru-baja). Token baru `SkeuoAccentDeep`
+     (`#6E737D`) dipakai buat variasi 2-stop metalik di `SkeuoBevelBrush` (bukan
+     cuma di 1 accent chip — karakter metalik sekarang kerasa di SELURUH panel
+     kartu). `SkeuomorphismDarkColors` (onPrimary/primaryContainer/
+     onPrimaryContainer) disesuaikan ke neutral-cool.
+  - File: `Theme.kt`, `SkeuomorphicComponents.kt` (baca `tokens.cardRadius`/
+    `iconBoxRadius`, bukan const global lagi), `values/strings.xml`+`values-en/
+    strings.xml` (desc toggle: "titanium-silver metalik", parity tetap 98/98).
+  - **SENGAJA TIDAK diubah**: 2 varian glass (radius/shape/warna utuh), panel
+    netral Skeuomorphism (`SkeuoBackground`/`SkeuoPanel`, sudah netral/cocok buat
+    titanium-silver, gak perlu diubah).
+  - Detail lengkap: `CHANGELOG.md` v1.78.0.
 - ➕ **Batch 38 (v1.77.0, BELUM diverifikasi CI/runtime)**: tambah varian tema ke-3
   "Skeuomorphism" (dark-mode asli, bahasa desain fisik/bevel — BUKAN glass), diminta
   user eksplisit "gak kurang gak lebih". Toggle baru di Settings, PERSIS DI BAWAH
@@ -883,8 +908,9 @@ eksplisit user.
   varian** tersedia via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle`
   dari Batch 36 dipertahankan & diperluas Batch 38): default "Midnight Glass"
   (restrained), "Aurora Glass" (lebih vivid/saturated, DUA-DUANYA genuine glass),
-  dan "Skeuomorphism" (Batch 38, BUKAN glass — panel gunmetal netral + bevel
-  extrusion fisik + aksen tembaga hangat, bahasa desain sengaja berbeda total dari
+  dan "Skeuomorphism" (Batch 38, radius/shape 100% otonom + aksen titanium-silver
+  sejak Batch 39 — BUKAN glass — panel gunmetal netral + bevel
+  extrusion fisik + aksen titanium-silver metalik, bahasa desain sengaja berbeda total dari
   2 varian glass). 1 pilihan tunggal dari 3 (bukan kombinasi). Warna aksen per-fitur
   (Bass/Virtualizer/Loudness/Equalizer) TETAP dipertahankan (bukan sumber keluhan,
   independen dari 3 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.

@@ -126,14 +126,18 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
 @Composable
 internal fun SkeuCard(
     modifier: Modifier = Modifier,
-    radius: Dp = SkeuCardRadius,
+    // Batch 39: default radius sekarang baca `LocalSkeuTokens.current.cardRadius`
+    // (per-varian, lihat Theme.kt) — bukan const global `SkeuCardRadius` lagi, biar
+    // varian Skeuomorphism (radius lebih tegas/kecil) beneran otonom, gak numpang
+    // radius iOS-glass 2 varian lain.
+    radius: Dp = LocalSkeuTokens.current.cardRadius,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(radius)
     // Batch 36: fill/border/elevation sekarang datang dari `LocalSkeuTokens.current`
     // (Theme.kt) — AMOLED Glass tetap frosted-glass tint (persis sebelumnya), Radical
     // Literal Skeuomorphism jadi raised-bevel surface (guide §5 "Raised object").
-    // 1 kode komponen, 2 tema, TANPA duplikasi/percabangan when() di sini.
+    // 1 kode komponen, 3 tema, TANPA duplikasi/percabangan when() di sini.
     val tokens = LocalSkeuTokens.current
     Column(
         modifier = modifier
@@ -159,8 +163,10 @@ internal fun SkeuTintedCard(
     tint: Color,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(SkeuCardRadius)
     val tokens = LocalSkeuTokens.current
+    // Batch 39: radius dari token per-varian (`tokens.cardRadius`), bukan const
+    // global `SkeuCardRadius` lagi (sama alasannya dengan SkeuCard di atas).
+    val shape = RoundedCornerShape(tokens.cardRadius)
     val blended = lerp(tokens.baseSurface, tint, 0.22f)
     Column(
         modifier = modifier
@@ -318,7 +324,9 @@ internal fun FeatureControl(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (icon != null) {
-                    SkeuCard(radius = SkeuIconBoxRadius) {
+                    // Batch 39: radius icon-box dari token per-varian (otonom), bukan
+                    // const global `SkeuIconBoxRadius` lagi.
+                    SkeuCard(radius = LocalSkeuTokens.current.iconBoxRadius) {
                         Box(
                             modifier = Modifier.size(40.dp),
                             contentAlignment = Alignment.Center

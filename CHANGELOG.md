@@ -1,5 +1,54 @@
 # Changelog
 
+## v1.78.0 - Skeuomorphism 100% otonom + aksen titanium-silver metalik
+
+Diminta user 2 hal eksplisit: (1) buat varian Skeuomorphism (Batch 38) berdiri
+otonom penuh — jangan numpang radius/shape ke baseline glass; (2) ganti aksen dari
+tembaga/perunggu ke titanium+silver metalik.
+
+**1. Otonomi radius/shape (sebelumnya numpang ke const global iOS-glass Batch 37):**
+- `SkeuTokens` (Theme.kt) tambah 2 field baru: `cardRadius`, `iconBoxRadius`. SEMUA
+  instance (`AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens`/
+  `SkeuomorphismSkeuTokens`) diisi eksplisit — 2 varian glass tetap pakai
+  `SkeuCardRadius`/`SkeuIconBoxRadius` (26dp/16dp, TIDAK berubah), Skeuomorphism
+  dapat radius sendiri: `SkeuoCardRadius` (14dp) & `SkeuoIconBoxRadius` (10dp) —
+  lebih tegas/kecil, khas hardware fisik, bukan bubbly-rounded ala iOS.
+- `SkeuomorphicComponents.kt`: `SkeuCard`/`SkeuTintedCard`/icon-box baca radius dari
+  `LocalSkeuTokens.current.cardRadius`/`iconBoxRadius` (bukan const global
+  `SkeuCardRadius`/`SkeuIconBoxRadius` langsung lagi).
+- `Theme.kt`: `Shapes` Material3 (dipakai default oleh `Button`/`AlertDialog`/dll)
+  sekarang juga per-varian — `SkeuomorphismShapes` baru (4/8/12/16/20dp, sudut
+  tegas) dipilih via `AudioEnhancerTheme` composable kalau `themeStyle ==
+  SKEUOMORPHISM`, 2 varian glass tetap pakai `AppShapes` (10/16/22/28/34dp) lama.
+
+**2. Aksen tembaga -> titanium+silver metalik:**
+- `SkeuoAccent`: `#C98A4C` (tembaga hangat) -> `#AEB4BF` (silver-titanium cool
+  neutral-grey, sedikit undertone biru-baja).
+- Token baru `SkeuoAccentDeep` (`#6E737D`, nada titanium lebih gelap) — dipakai di
+  `SkeuoBevelBrush` (stop puncak/dasar panel dicampur sedikit `SkeuoAccent`/
+  `SkeuoAccentDeep`, bukan cuma putih/hitam polos) supaya karakter metalik
+  titanium-silver kerasa di SELURUH panel kartu, bukan cuma di 1 chip accent kecil.
+- `SkeuomorphismDarkColors`: `onPrimary`/`primaryContainer`/`onPrimaryContainer`
+  diganti dari warm-brown (`#1A1005`/`#4A331A`/`#F5DFC4`) ke neutral-cool
+  (`#15161A`/`#3A3D44`/`#E7E9ED`) — konsisten sama accent baru.
+- `values/strings.xml` + `values-en/strings.xml`: desc toggle diganti "aksen
+  titanium-silver metalik"/"metallic titanium-silver accent" (sebelumnya "tembaga
+  hangat"/"warm copper"). Parity tetap 98/98 (isi string diganti, jumlah tidak).
+- `app/build.gradle.kts`: versionCode 78->79, versionName 1.77.0->1.78.0.
+
+**SENGAJA TIDAK diubah**: 2 varian glass (Midnight Glass/Aurora Glass) — warna,
+radius, shape, semuanya utuh sejak Batch 37/38. Panel netral
+(`SkeuoBackground`/`SkeuoPanel`/dll, charcoal netral) tidak diubah — sudah cocok
+buat titanium/silver (netral, bukan warm-tinted), cukup accent + bevel yang
+disesuaikan.
+
+**Belum divalidasi runtime** — statis only (brace/paren balance 0/0 full sweep
+project, parity string ID/EN 98/98, grep konfirmasi tidak ada referensi
+`SkeuCardRadius`/`SkeuIconBoxRadius` yang kelewat di luar Theme.kt & 2 instance
+token glass).
+
+
+
 ## v1.77.0 - Tambah varian tema ke-3: Skeuomorphism (dark-mode asli)
 
 Diminta user eksplisit: tambahkan toggle theme baru di bawah "Gaya Aurora Glass",
