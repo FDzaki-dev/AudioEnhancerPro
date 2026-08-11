@@ -1,123 +1,69 @@
 # Changelog
 
-## v1.80.0 - Battery optimization exemption resmi + konfirmasi Snackbar (Batch 41)
+## v1.79.0 - Pangkas waktu compile GitHub Actions CI
 
-Diminta user eksplisit, terinspirasi app VPN dia yang "dengan mudah memunculkan izin
-aktifkan penggunaan latar belakang dan langsung tampil snackbar-nya". Ditambahkan
-sebagai LAPISAN TAMBAHAN, bukan pengganti `OemAutostartHelper.kt` (dua-duanya beda
-level masalah — lihat penjelasan di chat sebelum batch ini): ini API resmi AOSP
-(`ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, didukung semua merk), Autostart itu
-deep-link proprietary per-OEM tanpa API resmi.
+Diminta user: "bagaimana caranya agar waktu compile action GitHub bisa dipangkas
+sebanyak mungkin". 3 perubahan, urutan dari dampak terbesar:
 
-**Sebelum batch ini**: `MainActivity.requestIgnoreBatteryOptimizations()` SUDAH ADA
-(riwayat lama) tapi fire-and-forget murni (`startActivity(intent)` polos) — gak
-pernah tahu hasilnya, gak ada feedback UI, gak bisa di-retrigger manual dari mana pun.
+**1. `.github/workflows/build.yml` — job `build` + `release` DIGABUNG jadi 1 job
+`build-and-release`** (sebelumnya 2 job terpisah, `release: needs: build`):
+- 2 job = 2 runner VM terpisah dari nol tiap run: checkout+setup-JDK+bootstrap
+  wrapper KEDUA KALI (overhead murni ~30-60 detik x2). Digabung 1 job = overhead
+  ini cuma sekali.
+- Gradle/Kotlin daemon TETAP HIDUP antar step dalam 1 job — `assembleRelease`
+  sekarang start dengan daemon yang udah panas dari `assembleDebug` barusan
+  (beda VM = daemon dingin dari nol, ini yang HILANG di setup 2-job lama).
+- Semantik "skip release kalau debug gagal" TIDAK berubah — step tanpa
+  `if: always()`/`if: failure()` otomatis di-skip GitHub Actions kalau ada step
+  sebelumnya gagal di job yang sama, PERSIS sama seperti efek `needs: build` yang
+  lama. Semua nama step & artifact log (`log_fail_v*-debug-run*`/
+  `log_fail_v*-release-run*`) TETAP SAMA, cuma sekarang di 1 job bukan 2.
 
-**1. `MainActivity.kt`**: fungsi di atas di-upgrade pakai
-`registerForActivityResult(ActivityResultContracts.StartActivityForResult())` (pola
-SAMA PERSIS `notificationPermissionLauncher` yang sudah ada) — begitu user balik dari
-halaman sistem, `refreshBatteryOptimizationState()` re-cek status ASLI ke
-`PowerManager.isIgnoringBatteryOptimizations()` (bukan asumsi dari result code, App
-bisa aja commit dialog tapi OS tetap nolak di device tertentu) + increment
-`batteryOptimizationResultTick` (dipakai sebagai key `LaunchedEffect` biar Snackbar
-nembak SEKALI per kembalian, bukan tiap recomposition). State ini JUGA di-refresh di
-`onResume()` (user mungkin ubah dari App Info langsung, di luar flow launcher kita) —
-TAPI TIDAK increment tick di situ (Snackbar cuma relevan kalau abis diarahkan lewat
-app ini, bukan tiap resume biasa).
+**2. `actions/setup-java@v4` — tambah `cache: 'gradle'`**: cache bawaan resmi,
+nyimpen `~/.gradle/caches` (SEMUA dependency Maven — AndroidX, Compose, Hilt,
+Kotlin stdlib) + `~/.gradle/wrapper/dists` (distribusi Gradle 8.7 itu sendiri,
+~120MB, yang SEBELUMNYA didownload ULANG SETIAP RUN karena `gradlew` di-generate
+on-the-fly & gak pernah di-commit — lihat step "Bootstrap Gradle Wrapper"). Cache
+key di-hash dari isi `build.gradle.kts`/`settings.gradle.kts`/`gradle.properties`
+di repo — otomatis invalidate sendiri kalau dependency berubah. **Run PERTAMA
+setelah ini tetap full-download** (belum ada cache lama), run KEDUA dst baru
+kerasa jauh lebih cepat.
 
-**2. Snackbar overlay**: `Box` baru membungkus `Surface` root (SATU-SATUNYA alasan —
-supaya `SnackbarHost` bisa melayang di atas konten, TIDAK mengubah layout Surface di
-dalamnya). `SnackbarHostState` di-`remember` di scope `AudioEnhancerTheme`, pesan
-diambil dari `battery_opt_granted_snackbar`/`battery_opt_denied_snackbar` tergantung
-hasil re-cek. **PERTAMA KALI Snackbar dipakai di project ini** (kandidat pertama
-dicurigai kalau ada laporan snackbar gak nongol/salah posisi/ke-clip status bar).
+**3. `gradle.properties` — `org.gradle.parallel=true` + `org.gradle.caching=true`
++ heap 2048m->3072m**: flag bawaan Gradle, gratis, TANPA ubah dependency/kode
+apapun. `parallel` manfaatnya kecil sekarang (project cuma 1 module `:app`) tapi
+gak ada downside & siap kalau nanti multi-module. `caching` (build cache LOKAL di
+runner yang sama) bisa reuse task-output antara `assembleDebug`/`assembleRelease`
+yang sekarang jalan berurutan di 1 job yang sama (poin 1). Heap dinaikkan karena
+runner `ubuntu-latest` punya RAM 7GB, ada headroom aman.
 
-**3. `BoosterScreen.kt` — kartu baterai (existing, sekarang ada 2 tombol)**: 2
-parameter baru (`batteryOptimizationIgnored`, `onRequestIgnoreBatteryOptimizations`).
-Kalau BELUM diizinkan: `OutlinedButton` baru "Nonaktifkan Optimasi Baterai" (icon
-Shield, style SAMA PERSIS tombol Autostart di bawahnya — konsisten visual). Kalau
-SUDAH diizinkan: tombol diganti jadi teks status "✓ ... sudah dinonaktifkan" (primary
-color) — gak ada gunanya nawarin tombol buat sesuatu yang udah granted. Tombol
-Autostart (OemAutostartHelper) TETAP ADA persis di bawahnya, TIDAK diubah/dihapus.
+**SENGAJA TIDAK dilakukan (dijelaskan biar gak dicoba ulang tanpa alasan baru)**:
+- **`org.gradle.configuration-cache`** — kapt (Hilt, `app/build.gradle.kts`)
+  riwayatnya kurang mulus dikombinasi configuration cache di kombinasi Kotlin
+  1.9.24/AGP 8.5.2 project ini, dan gak ada cara verifikasi lokal (sandbox ini gak
+  ada Android SDK/Gradle) sebelum push ke CI sungguhan.
+- **kapt -> KSP (Hilt)** — lever paling besar berikutnya kalau butuh lebih cepat
+  lagi (kapt jauh lebih lambat dari KSP buat annotation processing), TAPI ini
+  keputusan sadar Batch 18 ("kapt dipakai karena paling teruji buat kombinasi
+  Kotlin 1.9.24 ini, KSP-Hilt butuh versi KSP yang harus persis cocok, risiko
+  mismatch lebih tinggi tanpa compiler buat verifikasi") — TIDAK diubah tanpa
+  user minta eksplisit, karena riskan & gak bisa divalidasi di sandbox ini.
+- **Commit `gradlew`+`gradle-wrapper.jar` permanen ke repo** (bukan
+  di-generate ulang tiap run) — akan hilangin overhead "Bootstrap Gradle Wrapper"
+  sepenuhnya (bukan cuma di-cache), tapi ini ubah arsitektur delivery
+  ZIP/Termux-nya project ini (kenapa gradlew gak pernah di-commit dari awal gak
+  terdokumentasi di riwayat batch manapun) — di luar scope "pangkas waktu compile"
+  murni, disebut di sini sebagai opsi lanjutan kalau user mau.
 
-**4. String baru** (ID+EN, parity 98->102/102): `battery_opt_button`,
-`battery_opt_status_granted`, `battery_opt_granted_snackbar`,
-`battery_opt_denied_snackbar`.
+**File yang berubah:** `.github/workflows/build.yml` (restrukturisasi 2 job -> 1
+job + `cache: 'gradle'`), `gradle.properties` (parallel+caching+heap),
+`app/build.gradle.kts` (versionCode 79->80, versionName 1.78.0->1.79.0).
 
-**SENGAJA TIDAK diubah**: auto-prompt di `onCreate` (fungsi ini SUDAH dipanggil
-otomatis tiap app dibuka selama belum granted — perilaku lama, BUKAN yang diminta
-diubah batch ini, cuma upgrade cara nangani hasilnya). `AndroidManifest.xml` TIDAK
-disentuh — permission `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` SUDAH ADA dari riwayat
-lama (dicek dulu sebelum batch ini, bukan ditambah baru).
+**Belum divalidasi runtime** — YAML disyntax-check (`yaml.safe_load`, valid), TAPI
+efek pemangkasan waktu SEBENARNYA cuma bisa dikonfirmasi setelah run CI beneran
+(terutama cache hit di run KEDUA dst — run pertama setelah update ini gak akan
+kerasa lebih cepat karena cache masih kosong).
 
-**Belum divalidasi runtime** — statis only (brace/paren balance 0/0 di
-`MainActivity.kt` & `BoosterScreen.kt`, parity string 102/102). Pola `Box` overlay +
-`SnackbarHost` + `ActivityResultContracts.StartActivityForResult` PERTAMA KALI dipakai
-project ini — lihat poin 2 di atas & PROJECT_STATE.md "Batasan sandbox".
-
-
-## v1.79.0 - Pangkas waktu compile CI (Batch 40, infra-only, 0 perubahan kode Kotlin)
-
-Diminta user eksplisit: "terapkan konfigurasi agar waktu compile GitHub project ini
-dapat dipangkas sebanyak mungkin, apapun caranya". Batch INFRA MURNI — 3 file
-berubah (`.github/workflows/build.yml`, `gradle.properties`, `app/build.gradle.kts`
-cuma version bump), **0 file Kotlin/Compose/resource disentuh**, jadi risiko regresi
-visual/fungsional = nihil. Root cause utama lambatnya CI project ini SELAMA INI:
-**tidak ada caching sama sekali** — tiap push, CI bootstrap wrapper Gradle dari nol
-(generate via Gradle sistem 9.6.1 di direktori scratch, insiden Batch 19-21) LALU
-download distribusi Gradle 8.7 dari internet LAGI buat jalanin build-nya — 2x
-overhead per run, TANPA ada dependency AndroidX/Compose/Hilt yang di-cache antar-run
-sama sekali (~150-300MB re-download tiap push kode sekecil apapun).
-
-**1. Ganti bootstrap manual -> `gradle/actions/setup-gradle@v4` (win terbesar):**
-- Step "Bootstrap Gradle Wrapper (isolated dir)" (workaround Batch 19-21, ~35 baris
-  script) DIHAPUS TOTAL di kedua job (`build`+`release`). Diganti 1 step:
-  `gradle/actions/setup-gradle@v4` dengan `gradle-version: '8.7'` — action resmi ini
-  provision Gradle 8.7 langsung ke PATH (gak perlu wrapper/gradlew apapun) DAN
-  otomatis cache distribusi Gradle + `~/.gradle/caches/modules-2` (semua dependency
-  AndroidX/Compose/Hilt) + Gradle Build Cache lokal **ANTAR-RUN CI** lewat GitHub
-  Actions cache backend. Run pertama sama kayak sebelumnya (semua di-download), tapi
-  run berikutnya (update harian, dependency gak berubah): dependency di-restore dari
-  cache dalam hitungan detik, task kapt/compileKotlin yang input-nya gak berubah
-  di-restore dari Build Cache (bukan dieksekusi ulang).
-- Kedua job sekarang panggil `gradle assembleDebug`/`gradle assembleRelease`
-  langsung (bukan `./gradlew`) — action yang expose binary `gradle` ke PATH.
-- `gradle-wrapper-bootstrap.log` dihapus dari path upload artifact kegagalan (gak
-  ada lagi step yang menghasilkan file itu).
-
-**2. `gradle.properties` — flag compile-time (lihat komentar inline di file):**
-- `org.gradle.parallel=true`, `org.gradle.caching=true` (WAJIB biar Build Cache di
-  atas kepakai), `org.gradle.configureondemand=true`.
-- `kapt.incremental.apt=true`, `kapt.use.worker.api=true`,
-  `kapt.include.compile.classpath=false` — kapt (Hilt annotation processing) adalah
-  task PALING LAMBAT di build project ini, 3 flag resmi ini mempercepatnya langsung.
-- `org.gradle.jvmargs` heap dinaikkan `-Xmx2048m` -> `-Xmx4096m` — kapt+Compose
-  compiler plugin butuh heap lebih besar biar gak GC-thrashing (runner ubuntu-latest
-  7GB RAM, 4GB buat Gradle daemon masih aman).
-
-**3. Job `release` gak lagi nunggu job `build` (`needs: build` dicabut):**
-- Sebelumnya SEQUENTIAL (release nunggu build selesai duluan) — sekarang PARALEL.
-  Waktu WALL-CLOCK CI total = `max(waktu build, waktu release)`, bukan lagi
-  `waktu build + waktu release`. **TRADE-OFF disengaja** (didokumentasikan lengkap
-  di komentar `build.yml`): kalau kode beneran gak kompilasi, dulu job `release`
-  otomatis ke-skip (hemat waktu), sekarang tetap jalan sampai gagal sendiri secara
-  paralel — tapi karena PARALEL (bukan nambah di belakang), durasi TOTAL run tetap
-  gak lebih lambat dari sebelumnya, dan repo ini PUBLIC (GitHub Actions minutes
-  gratis/unlimited, dicatat eksplisit di PROJECT_STATE.md) jadi gak ada biaya nyata.
-
-**SENGAJA TIDAK dikerjakan (dipertimbangkan, ditunda — alasan di PROJECT_STATE.md
-bagian "Batasan sandbox"):** `org.gradle.configuration-cache=true` — berpotensi
-mempercepat fase konfigurasi Gradle lebih jauh, TAPI kompatibilitasnya dengan
-kapt+Hilt di kombinasi AGP 8.5.2/Kotlin 1.9.24 project ini belum bisa diverifikasi
-tanpa compiler (sandbox Claude gak bisa compile-check) — resiko break build lebih
-besar dari manfaat speed tambahannya untuk project 1-modul ini. Kandidat lanjutan
-kalau user mau coba (dengan resiko yang dipahami).
-
-**Belum divalidasi CI/runtime** — perubahan ini PALING GAMPANG diverifikasi
-dibanding batch-batch sebelumnya (bukan logic Kotlin, sandbox Claude gak bisa
-compile-check gimanapun), tapi validasi SEBENARNYA baru kelihatan di run CI ke-2
-setelah batch ini (run pertama masih cold-cache, seharusnya durasi mirip biasanya;
-run kedua dst BARU kelihatan efek cache-nya — itu ukuran keberhasilan sebenarnya).
 
 
 ## v1.78.0 - Skeuomorphism 100% otonom + aksen titanium-silver metalik

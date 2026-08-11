@@ -259,12 +259,6 @@ fun BoosterScreen(
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
     onOpenNotificationSettings: () -> Unit = {},
-    // Batch 41: exemption battery optimization resmi Android (ACTION_REQUEST_IGNORE_
-    // BATTERY_OPTIMIZATIONS) — beda dari tombol Autostart di bawah (OemAutostartHelper,
-    // deep-link OEM proprietary). Status dibaca buat toggle status/tombol di kartu
-    // baterai, callback dipanggil dari tombol manual (MainActivity yang punya launcher-nya).
-    batteryOptimizationIgnored: Boolean = true,
-    onRequestIgnoreBatteryOptimizations: () -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
     // Batch 38: appThemeStyleKey ganti dari Boolean (themeStyleIsRadical, Batch 36)
@@ -853,27 +847,6 @@ fun BoosterScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                // Batch 41: exemption battery optimization resmi Android — TERPISAH dari
-                // tombol Autostart di bawah (itu deep-link OEM proprietary). Kalau sudah
-                // diizinkan, tampilkan status ✓ (bukan tombol lagi, gak ada gunanya minta
-                // ulang sesuatu yang udah granted). Kalau belum, tombol yang manggil
-                // `onRequestIgnoreBatteryOptimizations` (launcher-nya di MainActivity,
-                // hasilnya dikonfirmasi lewat Snackbar).
-                if (batteryOptimizationIgnored) {
-                    Text(
-                        stringResource(R.string.battery_opt_status_granted),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                } else {
-                    OutlinedButton(onClick = onRequestIgnoreBatteryOptimizations) {
-                        Icon(Icons.Filled.Shield, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(stringResource(R.string.battery_opt_button))
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
                 OutlinedButton(onClick = { OemAutostartHelper.openAutostartSettings(context) }) {
                     Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))

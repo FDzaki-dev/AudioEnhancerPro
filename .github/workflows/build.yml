@@ -5,101 +5,32 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+# Batch 40: debug+release DIGABUNG jadi 1 job (sebelumnya 2 job terpisah,
+# `release: needs: build`) — kenapa ini pemangkasan waktu paling besar:
+# 1. 2 job = 2 runner VM terpisah, masing-masing checkout+setup-JDK+bootstrap
+#    wrapper dari NOL (~30-60 detik overhead murni, dikali 2).
+# 2. Gradle daemon & local build cache (poin 3 di bawah) HIDUP SELAMA 1 JOB —
+#    assembleRelease di job terpisah gak bisa manfaatin daemon warm/task-output
+#    cache dari assembleDebug barusan karena beda VM sama sekali. Digabung 1 job
+#    -> assembleRelease start dengan JVM/Kotlin-daemon udah panas.
+# Semantik TIDAK berubah: `needs: build` sebelumnya bikin job release otomatis
+# ke-skip kalau job build gagal — sekarang persis sama (step berkondisi biasa,
+# bukan `if: always()`, otomatis ke-skip kalau step sebelumnya gagal, standar
+# GitHub Actions).
 jobs:
-  # Job ini SELALU jalan dan tidak butuh secret apapun — build debug murni buat
-  # verifikasi cepat kalau kode-nya kompilasi dengan benar, independen dari status
-  # keystore secrets.
-  build:
+  build-and-release:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # v1.59 fix: dipindah ke PALING AWAL (sebelum step apapun yang bisa gagal) —
-      # sebelumnya taruh SETELAH step wrapper, jadi kalau step wrapper gagal duluan,
-      # step ini ikut ke-skip dan artifact log kegagalan jadi gak ada nomor versinya.
-      # Cuma `grep` ke file teks, gak butuh gradlew/JDK sama sekali, aman dijalankan
-      # paling depan.
-      - name: Extract version name
-        id: version
-        run: |
-          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          if [ -z "$VERSION" ]; then VERSION="0.0"; fi
-          echo "name=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      # Batch 40 (pemangkasan waktu compile): GANTI TOTAL pendekatan lama
-      # "Bootstrap Gradle Wrapper (isolated dir)" (generate wrapper via Gradle
-      # sistem 9.6.1 di direktori scratch, baru dipakai buat jalanin ./gradlew —
-      # 2 tahap, 2x kemungkinan download Gradle terpisah, TANPA cache sama sekali
-      # antar-run). Action resmi ini provision Gradle 8.7 LANGSUNG (gak perlu
-      # wrapper/gradlew apapun, cukup panggil `gradle` di PATH) DAN — ini yang
-      # paling penting — otomatis cache distribusi Gradle + dependency (~/.gradle/
-      # caches/modules-2) + Gradle Build Cache lokal ANTAR-RUN CI lewat GitHub
-      # Actions cache backend. Run pertama sama seperti sebelumnya (download
-      # semua), tapi run KEDUA dst kalau gradle.properties/build.gradle.kts gak
-      # berubah: dependency di-restore dari cache dalam hitungan detik (bukan
-      # download ulang ratusan MB AndroxX/Compose/Hilt tiap push), dan task
-      # kapt/compileKotlin yang inputnya gak berubah di-restore dari Build Cache
-      # (org.gradle.caching=true di gradle.properties), bukan dieksekusi ulang.
-      # Ini win compile-time TERBESAR di batch ini.
-      - name: Setup Gradle 8.7 (cached, no wrapper needed)
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.7'
-
-      # Output gradle di-tee ke file supaya bisa diupload sebagai artifact kalau gagal.
-      - name: Build debug APK
-        run: |
-          set -o pipefail
-          gradle assembleDebug --stacktrace --build-cache 2>&1 | tee gradle-build-debug.log
-
-      # Diminta user: artifact 'log_fail_v*' biar gampang diunduh langsung kalau CI
-      # gagal, tanpa perlu buka & scroll log mentah di tab Actions. Cuma jalan kalau
-      # step build di atas gagal (if: failure()) — kalau sukses, gak ada artifact ini
-      # sama sekali (gak numpuk artifact percuma tiap build sukses).
-      - name: Upload failure log (debug build)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
-          path: |
-            gradle-build-debug.log
-            **/build/reports/**
-          retention-days: 14
-          if-no-files-found: warn
-
-  # Job ini CUMA build/publish beneran kalau KEYSTORE_BASE64 sudah diset di GitHub
-  # Secrets (lihat step secret_check). Kalau belum, sebagian besar step di-skip
-  # (bukan gagal).
-  #
-  # Batch 40: `needs: build` DICABUT — sebelumnya job ini SENGAJA nunggu job
-  # `build` selesai duluan (sequential), sekarang jalan PARALEL bareng job `build`.
-  # TRADE-OFF yang disadari & disengaja (waktu total, bukan gratis):
-  #   (+) Waktu WALL-CLOCK CI total kepotong signifikan — sebelumnya total waktu =
-  #       waktu(build) + waktu(release), sekarang = max(waktu(build), waktu(release))
-  #       karena jalan bersamaan. ***Ini tujuan utama batch ini.***
-  #   (-) Kalau kode BENERAN gak kompilasi (assembleDebug bakal gagal di job
-  #       `build`), job `release` TETAP jalan assembleRelease sampai selesai/gagal
-  #       sendiri (dulu: kalau job build gagal, release otomatis di-skip, hemat
-  #       waktu). Repo ini PUBLIC (GitHub Actions minutes gratis/unlimited, dicatat
-  #       eksplisit di PROJECT_STATE.md) — biaya cuma waktu, dan assembleRelease
-  #       yang gagal juga cuma makan waktu paralel yang sama, bukan nambah durasi
-  #       total run. Net: tetap lebih cepat, gak ada skenario yang jadi LEBIH LAMBAT
-  #       dari sebelumnya.
-  release:
-    runs-on: ubuntu-latest
+    # Batch 11: WAJIB buat publish GitHub Release (bukan cuma Actions Artifact).
     permissions:
       contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # v1.59 fix: dipindah ke PALING AWAL (sebelum step apapun yang bisa gagal) —
+      # dibutuhkan buat penamaan artifact log kegagalan & nama rilis, jadi harus
+      # selalu ada nilainya sedini mungkin. Cuma `grep` ke file teks, gak butuh
+      # gradlew/JDK sama sekali, aman dijalankan paling depan.
       - name: Extract version name
         id: version
         run: |
@@ -108,19 +39,74 @@ jobs:
           echo "Terdeteksi versionName: $VERSION"
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
 
+      # Batch 40: tambah `cache: 'gradle'` — bawaan actions/setup-java, cache
+      # ~/.gradle/caches (SEMUA dependency Maven yang di-resolve: AndroxX, Compose,
+      # Hilt, Kotlin stdlib, dll) + ~/.gradle/wrapper/dists (distribusi Gradle 8.7
+      # itu sendiri, ~120MB, yang sebelumnya didownload ULANG SETIAP RUN karena
+      # gradlew di-generate on-the-fly dan gak pernah di-commit ke repo — lihat
+      # step "Bootstrap Gradle Wrapper" di bawah). Key cache di-hash dari isi
+      # build.gradle.kts/settings.gradle.kts/gradle.properties yang ADA di repo —
+      # cache otomatis invalidate sendiri kalau dependency berubah. Run PERTAMA
+      # setelah workflow ini tetap full-download (gak ada cache lama buat
+      # dipakai), tapi run KEDUA dst jauh lebih cepat.
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      # Batch 40: sama seperti job `build` di atas — provision + cache Gradle 8.7
-      # lewat action resmi, gak perlu bootstrap wrapper manual lagi.
-      - name: Setup Gradle 8.7 (cached, no wrapper needed)
-        uses: gradle/actions/setup-gradle@v4
+      # v1.60 fix: generate wrapper di direktori kosong terpisah (Gradle 9.6.1
+      # sistem WAJIB direktori target udah "valid Gradle project", makanya ada
+      # settings.gradle.kts kosong di scratch dir) — dengan cara ini Gradle sistem
+      # 9.6.1 SAMA SEKALI TIDAK PERNAH menyentuh build.gradle.kts project ini.
+      - name: Bootstrap Gradle Wrapper (isolated dir)
+        run: |
+          set -o pipefail
+          {
+            if [ ! -f gradlew ]; then
+              BOOTSTRAP_DIR=$(mktemp -d)
+              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
+              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
+              cp "$BOOTSTRAP_DIR/gradlew" .
+              cp "$BOOTSTRAP_DIR/gradlew.bat" .
+              mkdir -p gradle/wrapper
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
+              rm -rf "$BOOTSTRAP_DIR"
+            fi
+            chmod +x gradlew
+          } 2>&1 | tee gradle-wrapper-bootstrap.log
+
+      # Job ini SELALU jalan dan tidak butuh secret apapun — build debug murni buat
+      # verifikasi cepat kalau kode-nya kompilasi dengan benar, independen dari
+      # status keystore secrets. Output di-tee ke file buat diupload sebagai
+      # artifact kalau gagal.
+      - name: Build debug APK
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee gradle-build-debug.log
+
+      # Diminta user: artifact 'log_fail_v*' biar gampang diunduh langsung kalau CI
+      # gagal, tanpa perlu buka & scroll log mentah di tab Actions.
+      - name: Upload failure log (debug build)
+        if: failure()
+        uses: actions/upload-artifact@v4
         with:
-          gradle-version: '8.7'
+          name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
+          path: |
+            gradle-wrapper-bootstrap.log
+            gradle-build-debug.log
+            **/build/reports/**
+          retention-days: 14
+          if-no-files-found: warn
 
+      # Dari sini setara job "release" lama — CUMA jalan kalau KEYSTORE_BASE64 dkk
+      # sudah diset di GitHub Secrets. Kalau belum, step-step ini di-skip (bukan
+      # gagal). Kalau "Build debug APK" di atas gagal, SEMUA step berikut ini
+      # otomatis ke-skip juga (perilaku standar GitHub Actions: job berstatus
+      # failing, step tanpa `if: failure()`/`if: always()` otomatis dilewati) —
+      # persis sama seperti sebelumnya waktu masih `needs: build` antar-job.
       - name: Check keystore secret availability
         id: secret_check
         env:
@@ -130,7 +116,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::warning::Salah satu/lebih dari 4 secrets keystore (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) belum diset lengkap di GitHub Secrets — job release di-skip (bukan gagal). Jalankan Kotak Perintah B (setup awal) untuk set keempat secrets sekaligus."
+            echo "::warning::Salah satu/lebih dari 4 secrets keystore (KEYSTORE_BASE64, KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) belum diset lengkap di GitHub Secrets — sisa step release di-skip (bukan gagal). Jalankan Kotak Perintah B (setup awal) untuk set keempat secrets sekaligus."
             echo "has_secret=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_secret=true" >> "$GITHUB_OUTPUT"
@@ -142,6 +128,9 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
 
+      # Batch 40: daemon Gradle/Kotlin dari step "Build debug APK" di atas masih
+      # panas (1 job = 1 VM = 1 daemon yang bisa dipakai ulang), jadi step ini
+      # start lebih cepat dibanding dulu (job terpisah = daemon dingin dari nol).
       - name: Build signed release APK
         if: steps.secret_check.outputs.has_secret == 'true'
         env:
@@ -151,7 +140,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -o pipefail
-          gradle assembleRelease --stacktrace --build-cache 2>&1 | tee gradle-build-release.log
+          ./gradlew assembleRelease --stacktrace 2>&1 | tee gradle-build-release.log
 
       - name: Upload failure log (release build)
         if: failure()
@@ -159,6 +148,7 @@ jobs:
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}
           path: |
+            gradle-wrapper-bootstrap.log
             gradle-build-release.log
             **/build/reports/**
           retention-days: 14
@@ -175,9 +165,12 @@ jobs:
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
-      # Body Release diambil LANGSUNG dari entry CHANGELOG.md versi ini (heading
-      # "## v<versi> - <judul>" s.d. sebelum heading "## v" berikutnya).
+      # Batch 26: body Release diambil LANGSUNG dari entry CHANGELOG.md versi ini
+      # (heading "## v<versi> - <judul>" s.d. sebelum heading "## v" berikutnya).
+      # Fallback: kalau entry gak ketemu, body kosong string + fallback ke link
+      # compare commit standar GitHub.
       - name: Extract changelog entry for this version
+        if: steps.secret_check.outputs.has_secret == 'true'
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.name }}"
@@ -186,10 +179,10 @@ jobs:
             echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
           fi
 
-      # APK signed muncul langsung di sidebar beranda repo (bagian "Releases"),
-      # bisa diunduh langsung tanpa buka Actions sama sekali dan tanpa terbungkus
-      # .zip. Tag dipakai ulang (bukan re-create) kalau versionName sama persis
-      # dipush lagi — asset APK-nya di-overwrite.
+      # Batch 11: publish sebagai GitHub Release beneran — APK signed muncul
+      # langsung di sidebar beranda repo ("Releases"). Tag dipakai ulang (bukan
+      # re-create) kalau versionName sama persis dipush lagi — asset APK-nya
+      # di-overwrite.
       - name: Publish GitHub Release
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: softprops/action-gh-release@v2

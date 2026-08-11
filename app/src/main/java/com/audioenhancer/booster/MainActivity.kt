@@ -31,24 +31,17 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import dagger.hilt.android.AndroidEntryPoint
 
 // Batch 18: @AndroidEntryPoint WAJIB ada di sini supaya `by viewModels()` di bawah bisa
@@ -61,28 +54,6 @@ class MainActivity : ComponentActivity() {
     private val viewModel: BoosterViewModel by viewModels()
 
     private var notificationPermissionGranted by mutableStateOf(true)
-
-    // Batch 41: exemption battery optimization resmi Android (beda dari Autostart OEM di
-    // OemAutostartHelper.kt — itu deep-link proprietary per-merk, ini API standar AOSP
-    // API 23+). `batteryOptimizationIgnored` dibaca UI buat status ✓, `...ResultTick`
-    // di-increment tiap user BALIK dari halaman sistem (commit ATAU cancel, gak bisa
-    // dibedakan dari hasil intent-nya — makanya kita re-cek langsung ke PowerManager,
-    // bukan asumsi dari result code) — dipakai sebagai key LaunchedEffect di Compose
-    // buat trigger Snackbar SEKALI per kembalian (bukan tiap recomposition biasa).
-    private var batteryOptimizationIgnored by mutableStateOf(true)
-    private var batteryOptimizationResultTick by mutableStateOf(0)
-
-    private val batteryOptimizationLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) {
-        refreshBatteryOptimizationState()
-        batteryOptimizationResultTick++
-    }
-
-    private fun refreshBatteryOptimizationState() {
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        batteryOptimizationIgnored = pm.isIgnoringBatteryOptimizations(packageName)
-    }
 
     // Diisi kalau app dibuka lewat App Shortcut (long-press ikon launcher) yang nunjuk
     // ke preset custom tertentu. BoosterScreen yang nge-apply beneran (butuh akses ke
@@ -175,27 +146,6 @@ class MainActivity : ComponentActivity() {
                     AppThemeStyle.SKEUOMORPHISM -> SkeuoScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }
-                // Batch 41: Box pembungkus baru — SATU-SATUNYA alasan ditambah adalah supaya
-                // SnackbarHost bisa "melayang" di atas Surface (konfirmasi battery-optimization),
-                // TIDAK mengubah layout/perilaku konten Surface di dalamnya sama sekali.
-                val snackbarHostState = remember { SnackbarHostState() }
-
-                // Snackbar muncul SEKALI tiap user balik dari halaman battery-optimization
-                // sistem (key = tick, guard tick>0 biar gak nembak pas komposisi pertama
-                // sebelum user pernah diarahkan kemanapun — lihat komentar
-                // batteryOptimizationResultTick di atas).
-                LaunchedEffect(batteryOptimizationResultTick) {
-                    if (batteryOptimizationResultTick > 0) {
-                        val message = if (batteryOptimizationIgnored) {
-                            getString(R.string.battery_opt_granted_snackbar)
-                        } else {
-                            getString(R.string.battery_opt_denied_snackbar)
-                        }
-                        snackbarHostState.showSnackbar(message)
-                    }
-                }
-
-                Box(modifier = Modifier.fillMaxSize()) {
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
@@ -238,8 +188,6 @@ class MainActivity : ComponentActivity() {
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,
                             onOpenNotificationSettings = { openNotificationSettings() },
-                            batteryOptimizationIgnored = batteryOptimizationIgnored,
-                            onRequestIgnoreBatteryOptimizations = { requestIgnoreBatteryOptimizations() },
                             useDynamicColor = useDynamicColor,
                             onUseDynamicColorChange = {
                                 useDynamicColor = it
@@ -262,16 +210,6 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-                // Batch 41: SnackbarHost "melayang" di atas Surface (sibling terakhir di
-                // Box, jadi digambar paling atas) — konfirmasi hasil battery-optimization.
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .safeDrawingPadding()
-                        .padding(bottom = 8.dp)
-                )
-                }
             }
         }
     }
@@ -285,23 +223,14 @@ class MainActivity : ComponentActivity() {
         } catch (_: Exception) { }
     }
 
-    // Batch 41: SEBELUMNYA `startActivity(intent)` fire-and-forget — gak pernah tahu hasilnya
-    // (user commit atau cancel), gak ada feedback ke UI. Sekarang lewat
-    // `batteryOptimizationLauncher` (ActivityResultContracts.StartActivityForResult) supaya
-    // begitu user balik ke app, kita re-cek status asli via PowerManager & kasih feedback
-    // Snackbar (lihat BoosterScreen.kt) — pola SAMA PERSIS seperti
-    // `notificationPermissionLauncher` di atas. Dipanggil otomatis dari onCreate (perilaku
-    // existing TIDAK diubah — SENGAJA tetap auto-prompt tiap app dibuka selama belum granted,
-    // lihat PROJECT_STATE.md Batch 41) DAN bisa dipanggil manual dari tombol baru di
-    // BoosterScreen (`onRequestIgnoreBatteryOptimizations`).
     private fun requestIgnoreBatteryOptimizations() {
-        refreshBatteryOptimizationState()
-        if (!batteryOptimizationIgnored) {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        if (!pm.isIgnoringBatteryOptimizations(packageName)) {
             try {
                 val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
                     data = Uri.parse("package:$packageName")
                 }
-                batteryOptimizationLauncher.launch(intent)
+                startActivity(intent)
             } catch (_: Exception) { }
         }
     }
@@ -313,12 +242,5 @@ class MainActivity : ComponentActivity() {
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         }
-        // Batch 41: user bisa juga ubah battery optimization dari Settings sistem di luar
-        // flow launcher kita (mis. lewat App Info langsung) — re-cek tiap resume, konsisten
-        // dengan pola notification permission di atas. TIDAK increment
-        // batteryOptimizationResultTick di sini (itu KHUSUS buat hasil dari launcher kita,
-        // biar Snackbar cuma muncul setelah user beneran diarahkan lewat tombol/app ini,
-        // bukan tiap kali app di-resume).
-        refreshBatteryOptimizationState()
     }
 }
