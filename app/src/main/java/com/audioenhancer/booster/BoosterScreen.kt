@@ -804,6 +804,11 @@ fun BoosterScreen(
         // BUKAN kaca/blue-tint). Diminta user eksplisit "gak kurang gak lebih" — jadi
         // scope-nya cuma nambah toggle ini + token visual-nya (Theme.kt/
         // SkeuomorphicComponents.kt), TIDAK menyentuh fitur lain.
+        // Batch 44: rebrand "Skeuomorphism 2.0 (Hyper-Realism UI)" — cuma teks label
+        // (`theme_style_skeuo_title`/`_desc`, strings.xml) + visual token/komponen
+        // yang di-upgrade (Theme.kt/SkeuomorphicComponents.kt). Key persistence
+        // (`PrefsHelper.APP_THEME_SKEUOMORPHISM`) & logic toggle di bawah ini TIDAK
+        // diubah sama sekali — data user lama tetap valid.
         SkeuCard {
             Row(
                 modifier = Modifier

@@ -61,8 +61,8 @@
     <!-- Batch 36: switch sistem desain -->
     <string name="theme_style_title">Gaya Aurora Glass</string>
     <string name="theme_style_desc">Aktifkan Aurora Glass — kaca lebih vivid, sheen &amp; cahaya midnight-blue lebih terasa. Nonaktif = Midnight Glass (bawaan, lebih tenang).</string>
-    <string name="theme_style_skeuo_title">Skeuomorphism</string>
-    <string name="theme_style_skeuo_desc">Aktifkan tampilan Skeuomorphism — panel fisik bevel-shadow dengan aksen titanium-silver metalik, bukan kaca. Nonaktif = Midnight Glass (bawaan).</string>
+    <string name="theme_style_skeuo_title">Skeuomorphism 2.0 (Hyper-Realism)</string>
+    <string name="theme_style_skeuo_desc">Aktifkan tampilan Skeuomorphism 2.0 — panel fisik bevel-shadow ekstra dalam, aksen titanium-silver metalik, rivet/screw di tombol power, dial slider bertekstur knurl. Nonaktif = Midnight Glass (bawaan).</string>
 
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>

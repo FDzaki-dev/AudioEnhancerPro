@@ -1,5 +1,63 @@
 # Changelog
 
+## v1.82.0 - Skeuomorphism 2.0 (Hyper-Realism UI) (Batch 44)
+
+Diminta user eksplisit: "lanjut upgrade skeuomorphism -> Skeuomorphism 2.0
+(Hyper-Realism UI). otonom & gak pakai baseline theme lain!!". SEMUA token/efek
+baru DEDICATED buat Skeuomorphism (prefix `Skeuo*`), NOL reuse dari token
+`Glass*`/`Radical*` — sama prinsip yang sudah dipegang sejak Batch 39.
+
+**Theme.kt:**
+1. `SkeuoBevelBrush` 4-stop -> 6-stop + streak anisotropic tengah (brushed-metal
+   difoto kena cahaya, bukan gradasi tunggal halus).
+2. `SkeuoBevelBorderBrush`/`SkeuoSpecularBrush` — kontras dinaikkan, specular
+   dapat 1 stop tambahan (streak sempit, bukan sheen lebar).
+3. Token baru DEDICATED: `SkeuoRivetBrush` (radial gradient, simulasi kepala
+   screw metal), `SkeuoKnurlColor` (warna groove cincin dial).
+4. `SkeuTokens` (data class shared 3 varian) +5 field BARU **dengan default
+   value = perilaku lama persis** (`hyperRealism=false`,
+   `buttonRestElevation=6.dp`, `buttonGlowSpread=14.dp`, sama persis angka
+   hardcode lama; `rivetBrush`/`knurlColor` default transparent) — DEVIASI
+   SADAR dari konvensi "wajib diisi eksplisit di semua instance": dipilih
+   justru supaya `AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens` (2 varian
+   glass) **TIDAK PERLU diedit sama sekali**, nol resiko regresi.
+5. `SkeuomorphismSkeuTokens`: `cardElevation` 8dp->10dp, `hyperRealism=true`,
+   `buttonRestElevation=11dp`, `buttonGlowSpread=20dp`, `rivetBrush`/
+   `knurlColor` diisi token baru poin 3.
+
+**SkeuomorphicComponents.kt:**
+1. `skeuRivets()` fungsi baru — 4 titik rivet di pojok (`drawBehind`+
+   `drawCircle`, pola PERSIS `skeuGlow` yang sudah ada). SENGAJA cuma
+   dipasang di `SkeuPowerButton` (bukan `SkeuCard` generik) — `SkeuCard` juga
+   dipakai buat icon-box 40dp kecil (`FeatureControl`), 4 rivet bakal
+   kelihatan sesak di situ.
+2. `SkeuPowerButton`: elevation/glow-spread sekarang baca token (bukan
+   hardcode `6.dp`/`14.dp`) + rivet 4 pojok + glow "LED" 2-lapis (inti
+   terang kecil + halo existing) saat pressed — SEMUA gated `hyperRealism`,
+   2 varian glass nol perubahan visual (default token = angka lama).
+3. `SkeuSliderThumb`: 3 cincin knurl (`drawCircle(style=Stroke)`, API
+   standar Compose sejak 1.0) — gated `hyperRealism`.
+
+**strings.xml (id+en):** `theme_style_skeuo_title`/`_desc` di-update jadi
+"Skeuomorphism 2.0 (Hyper-Realism)" + deskripsi sebut rivet/knurl. Parity
+tetap 98/98. Persistence key (`PrefsHelper.APP_THEME_SKEUOMORPHISM`) TIDAK
+disentuh — data user lama valid.
+
+**File yang berubah:** `Theme.kt`, `SkeuomorphicComponents.kt`,
+`values/strings.xml`, `values-en/strings.xml`, `BoosterScreen.kt` (komentar
+saja), `app/build.gradle.kts` (versionCode 82->83, versionName 1.81.0->1.82.0).
+
+**Teknik SENGAJA dipilih yang SUDAH terbukti jalan di file ini** (Brush multi-
+stop, `drawBehind`+`drawCircle`, `Stroke`, `shadow()` ambientColor/spotColor
+TIDAK disentuh) — BUKAN `Modifier.blur()`/`RenderEffect` atau API belum
+pernah dipakai lain yang gak bisa dipastikan sintaksnya tanpa compiler.
+
+**Belum divalidasi runtime** — brace/paren balance sudah dicek manual (41/41,
+284/284 di SkeuomorphicComponents.kt; 8/8, 298/298 di Theme.kt), tapi
+kompilasi Kotlin beneran (kotlinc gak tersedia di sandbox, offline) & hasil
+visual asli baru kekonfirmasi setelah build + lihat langsung di device.
+
+
 ## v1.81.0 - Unique key GitHub Release, anti stale-cache duplikat (Batch 42)
 
 Diminta user eksplisit: "tambahkan unique key pada Github release. karena

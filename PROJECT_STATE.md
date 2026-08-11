@@ -10,7 +10,23 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.81.0
+- **Versi**: v1.82.0
+- 🔧 **Batch 44 (v1.82.0, BELUM diverifikasi build+visual beneran)**: "Skeuomorphism
+  2.0 (Hyper-Realism UI)" — diminta user eksplisit "otonom & gak pakai baseline
+  theme lain". SEMUA token/efek baru DEDICATED `Skeuo*`, nol reuse dari
+  `Glass*`/`Radical*`. Ringkasan: (1) bevel/specular brush naik ke 6-stop +
+  streak anisotropic, (2) rivet/screw accent 4 pojok di `SkeuPowerButton`
+  (fungsi baru `skeuRivets()`, pola sama `skeuGlow`), (3) glow "LED" 2-lapis
+  pas power button pressed, (4) knurl ring texture di slider knob, (5)
+  `cardElevation` Skeuomorphism 8dp->10dp. `SkeuTokens` (data class shared 3
+  varian) dapat 5 field baru TAPI semua ADA DEFAULT VALUE = perilaku lama
+  persis — jadi 2 varian glass (`AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens`)
+  **TIDAK diedit sama sekali**, nol resiko regresi ke variant yang sudah
+  kerja. Label toggle di Settings direbrand "Skeuomorphism 2.0 (Hyper-Realism)"
+  (`strings.xml` id+en, parity 98/98 tetap) — persistence key TIDAK berubah.
+  Detail lengkap: `CHANGELOG.md` v1.82.0. **Next**: minta user build + lihat
+  visual beneran di device (kotlinc gak ada di sandbox, brace/paren cuma
+  dicek manual balance-nya, bukan compile beneran).
 - 🔑 **Batch 42 (v1.81.0, BELUM diverifikasi push beneran)**: fix keluhan user
   "GitHub Release sering ke-duplikat/pakai cache lama yang basi dibanding
   Artifact langsung". Root cause: `tag_name` + nama file APK di
