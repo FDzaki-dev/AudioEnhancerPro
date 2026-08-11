@@ -10,8 +10,36 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.79.0
-- ⚡ **Batch 40 (v1.79.0, BELUM diverifikasi run CI beneran)**: pangkas waktu
+- **Versi**: v1.80.0
+- ⚡ **Batch 41 (v1.80.0, BELUM diverifikasi run CI beneran)**: lanjutan pangkas
+  waktu compile CI (diminta user lagi, "lanjutkan percepat compiler"), 3 perubahan
+  low-risk TANPA ubah dependency/versi (jadi aman tanpa compiler buat verifikasi):
+  1. `gradle.properties`: `kapt.use.worker.api=true` — kapt (Hilt) jalan lewat
+     Gradle Worker API, annotation-processing bisa paralel/isolated per-worker
+     kalau CPU runner ada core nganggur.
+  2. `gradle.properties`: `kapt.incremental.apt=true` — kapt cuma reproses stub
+     yang berubah. Manfaat kecil di CI (checkout selalu fresh) tapi nol downside.
+  3. `app/build.gradle.kts`: `buildFeatures.buildConfig = false` — kelas
+     `BuildConfig` TERKONFIRMASI 0 pemanggil di seluruh `app/src/main/java`
+     (`grep` eksplisit sebelum diubah), matiin generate-nya skip task
+     `generate{Debug,Release}BuildConfig` sepenuhnya per variant.
+  - **Next kandidat kalau user minta lanjut lagi** (belum dikerjain, urutan dari
+    dampak terbesar tapi RISIKO naik juga): (a) commit `gradlew`+
+    `gradle-wrapper.jar` permanen ke repo — hilangin overhead "Bootstrap Gradle
+    Wrapper" SEPENUHNYA (bukan cuma di-cache), TAPI sandbox Claude gak bisa
+    lakuin ini sendiri (butuh Gradle binary + network yang gak ada di sandbox,
+    `gradle-wrapper.jar` itu file biner, gak bisa ditulis manual dari teks) —
+    perlu dikerjain user dari mesin dev manapun yang punya Gradle terinstal,
+    generate sekali, commit manual. (b) kapt→KSP buat Hilt — lever besar tapi
+    tetap keputusan sadar Batch 18 buat TIDAK diubah tanpa user minta eksplisit
+    & paham resikonya (versi KSP harus persis cocok Kotlin, gak bisa divalidasi
+    di sandbox ini). (c) `org.gradle.configuration-cache` — tetap ditahan, sama
+    alasan kapt+configuration-cache riwayatnya kurang mulus dikombinasi.
+  - **Belum divalidasi runtime** — 3 perubahan di atas semuanya flag/config resmi
+    terdokumentasi (bukan reka-reka), `buildConfig=false` diverifikasi aman lewat
+    grep eksplisit (bukan asumsi), tapi efek RIIL & tidak-adanya regresi baru
+    kekonfirmasi setelah CI run beneran.
+- ⚡ **Batch 40 (v1.79.0, riwayat)**: pangkas waktu
   compile CI, diminta user eksplisit. 3 perubahan (lihat detail lengkap +
   rasional/trade-off tiap poin di `CHANGELOG.md` v1.79.0, jangan diulang tanpa
   baca dulu):

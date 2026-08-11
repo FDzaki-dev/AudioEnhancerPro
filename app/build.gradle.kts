@@ -17,8 +17,8 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        versionCode = 80
-        versionName = "1.79.0"
+        versionCode = 81
+        versionName = "1.80.0"
     }
 
     signingConfigs {
@@ -58,6 +58,11 @@ android {
     }
     buildFeatures {
         compose = true
+        // Batch 41: BuildConfig class TIDAK PERNAH dipakai di project ini (grep
+        // `BuildConfig` di seluruh app/src/main/java: 0 hasil) — matiin generate-nya
+        // skip task `generate{Debug,Release}BuildConfig` sepenuhnya, aman 100% karena
+        // memang nol pemanggil, bukan cuma "kelihatannya nol".
+        buildConfig = false
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"

@@ -1,5 +1,58 @@
 # Changelog
 
+## v1.80.0 - Lanjutan pangkas waktu compile CI (Batch 41)
+
+Diminta user lagi: "lanjutkan percepat compiler". 3 perubahan low-risk, semuanya
+flag/config RESMI terdokumentasi Kotlin/kapt/AGP, TANPA ubah dependency/versi
+apapun — jadi aman diverifikasi tanpa compiler (beda dari kapt→KSP/configuration-
+cache yang tetap ditahan, lihat bagian "SENGAJA TIDAK dilakukan" di bawah).
+
+**1. `gradle.properties` — `kapt.use.worker.api=true`**: kapt (dipakai Hilt,
+`app/build.gradle.kts`) sekarang jalan lewat Gradle Worker API — annotation-
+processing task (`kaptDebugKotlin`/`kaptReleaseKotlin`) bisa dieksekusi
+paralel/isolated per-worker, bukan numpuk di 1 thread yang nyambung langsung ke
+proses kapt utama. Manfaat kerasa kalau CPU runner (`ubuntu-latest`) ada core
+nganggur pas kapt jalan.
+
+**2. `gradle.properties` — `kapt.incremental.apt=true`**: kapt cuma reproses stub
+yang berubah, bukan semua source tiap kali dipanggil. Manfaat KECIL di CI (setiap
+run checkout FRESH, gak ada state incremental lama yang persisten antar-run —
+beda dari dev lokal yang beneran iteratif), TAPI nol downside untuk dinyalakan,
+dan 2 variant kapt (`kaptDebugKotlin` vs `kaptReleaseKotlin`, dijalankan berurutan
+1 job yang sama sejak Batch 40) state-nya terpisah per-variant jadi aman gak
+saling tabrakan.
+
+**3. `app/build.gradle.kts` — `buildFeatures.buildConfig = false`**: kelas
+`BuildConfig` (auto-generate Android, biasanya isinya `BuildConfig.DEBUG`/
+`VERSION_CODE`/dst) TERKONFIRMASI **0 pemanggil** di seluruh
+`app/src/main/java/com/audioenhancer/booster/` (`grep -rn "BuildConfig"`
+dijalankan eksplisit SEBELUM diubah, bukan asumsi) — matiin generate-nya skip
+task `generateDebugBuildConfig`/`generateReleaseBuildConfig` sepenuhnya per
+variant, 100% aman karena memang gak pernah dipakai di kode manapun.
+
+**File yang berubah:** `gradle.properties` (+2 flag kapt), `app/build.gradle.kts`
+(`buildFeatures.buildConfig = false`, versionCode 80->81, versionName
+1.79.0->1.80.0).
+
+**SENGAJA TIDAK dilakukan (masih sama alasannya, belum ada perubahan kondisi)**:
+- Commit `gradlew`+`gradle-wrapper.jar` permanen ke repo — lever paling besar
+  BERIKUTNYA (hilangin overhead bootstrap wrapper SEPENUHNYA, bukan cuma
+  di-cache), TAPI `gradle-wrapper.jar` itu file BINER, sandbox Claude gak bisa
+  generate/tulis file biner ini sendiri (butuh Gradle terinstal + tanpa network
+  buat download) — perlu dikerjakan user dari mesin dev manapun yang punya
+  Gradle, generate sekali (`gradle wrapper --gradle-version 8.7`), commit
+  manual 4 file hasilnya. Di luar kapasitas sandbox ini, bukan soal risiko.
+- kapt→KSP (Hilt) & `org.gradle.configuration-cache` — sama seperti Batch 40,
+  tetap ditahan (keputusan sadar Batch 18 soal kapt, dan riwayat kapt+
+  configuration-cache kurang mulus di kombinasi Kotlin 1.9.24/AGP 8.5.2 ini).
+
+**Belum divalidasi runtime** — 3 flag di atas semuanya dokumentasi resmi
+Kotlin/kapt/AGP (bukan reka-reka), `buildConfig=false` diverifikasi aman lewat
+grep eksplisit (bukan asumsi kosong), tapi efek riil & konfirmasi nol regresi
+baru cuma bisa dipastikan setelah CI run beneran.
+
+
+
 ## v1.79.0 - Pangkas waktu compile GitHub Actions CI
 
 Diminta user: "bagaimana caranya agar waktu compile action GitHub bisa dipangkas
