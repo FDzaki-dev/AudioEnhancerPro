@@ -154,21 +154,14 @@ jobs:
           retention-days: 14
           if-no-files-found: warn
 
-      # Rename APK hasil build supaya nama file-nya sendiri sudah mengandung versi,
-      # jadi jelas dari nama file saja tanpa perlu buka properties.
-      # Batch 42: nama file APK sekarang ikut `github.run_number` — sebelumnya
-      # nama file cuma pakai versionName, jadi kalau versionName sama dipush lagi
-      # (misal: fix kecil tanpa bump versi), URL asset di Release IDENTIK ke run
-      # sebelumnya -> browser/proxy/CDN GitHub sering serve APK LAMA dari cache
-      # walau isi file sudah beda (beda dari Actions Artifact yang selalu fresh
-      # karena scoped per-run). run_number unik tiap run -> URL asset selalu baru
-      # -> tidak ada lagi APK basi ke-cache.
+      # Batch 42: nama file APK sekarang ikut sertakan run ID unik (lihat rasional
+      # lengkap di step "Publish GitHub Release" di bawah) — bukan cuma versi lagi.
       - name: Rename APK with dynamic version
         if: steps.secret_check.outputs.has_secret == 'true'
         id: rename
         run: |
           SRC=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-          DEST="app/build/outputs/apk/release/AudioEnhancerPro-v${{ steps.version.outputs.name }}-b${{ github.run_number }}-release.apk"
+          DEST="app/build/outputs/apk/release/AudioEnhancerPro-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release.apk"
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
@@ -186,37 +179,39 @@ jobs:
             echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
           fi
 
-      # Batch 11: publish sebagai GitHub Release beneran — APK signed muncul
-      # langsung di sidebar beranda repo ("Releases").
-      # Batch 42: tag_name (dan nama file APK di step "Rename" atas) sekarang
-      # SELALU unik per run (`-b<run_number>`) — SEBELUMNYA tag dipakai ulang
-      # kalau versionName sama persis dipush lagi, jadi release+asset lama
-      # di-overwrite di tag/URL yang SAMA. Reused-tag/URL itulah penyebab utama
-      # keluhan "APK basi/ke-duplikat" user: begitu asset di-overwrite tapi
-      # URL-nya identik ke run sebelumnya, GitHub CDN/browser sering masih
-      # nyajiin versi cache lama alih-alih file baru (beda karakter dari Actions
-      # Artifact yang otomatis dapat URL unik per run, makanya user lihat hasil
-      # Artifact selalu benar/fresh sementara Release kadang basi). Tiap push
-      # sekarang selalu bikin tag+release+URL asset BARU -> tidak ada lagi
-      # collision cache. Trade-off sadar: kalau versionName sama dipush
-      # berkali-kali, Releases list akan numpuk 1 entry per run (bukan 1 per
-      # versi) — dianggap worth-it demi APK yang didownload SELALU yang
-      # terbaru, sesuai prioritas eksplisit user.
+      # Batch 42 (diminta user, "tambahkan unique key ... mencegah duplikasi"):
+      # `tag_name` SEKARANG selalu unik per run (`github.run_id` — dijamin GLOBAL
+      # unik oleh GitHub, TIDAK PERNAH reset/reuse, beda dari `run_number` yang bisa
+      # ambigu kalau ada "re-run" manual). SEBELUMNYA (Batch 11) tag sengaja
+      # `v<versi>` polos & DIPAKAI ULANG kalau versionName sama dipush lagi (asset
+      # di-overwrite) — keputusan itu SEKARANG DI-OVERRIDE SADAR sesuai permintaan
+      # eksplisit user: setiap run bikin Release+tag BARU, TIDAK PERNAH nimpa/
+      # tabrakan release run lain apapun skenarionya (push berulang tanpa bump versi,
+      # retry, re-run job gagal, dst) — akar masalah "duplikasi" manapun yang
+      # dilaporkan user (tag collision race, asset ketiban) LANGSUNG hilang karena
+      # tiap run render live di key repository yang beda total, bukan lagi soal
+      # timing siapa nulis duluan.
+      # **Trade-off yang didisclose**: histori tab Releases sekarang numpuk 1 entry
+      # PER RUN CI yang sukses (bukan 1 per versi lagi) — kalau user push 3x tanpa
+      # ubah versionName, muncul 3 Release terpisah (v1.80.0-run111, -run222, -run333),
+      # bukan 1 Release yang di-update. Judul Release tetap tampilkan nomor versi
+      # DAN nomor run (`Run #<run_number>`, lebih pendek/gampang dibaca dari `run_id`
+      # panjang) biar tetap jelas dari mana asalnya.
       - name: Publish GitHub Release
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.name }}-b${{ github.run_number }}
-          name: AudioEnhancerPro v${{ steps.version.outputs.name }} (build ${{ github.run_number }})
+          tag_name: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
+          name: AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})
           files: ${{ steps.rename.outputs.path }}
           body_path: release_notes.md
-          make_latest: true
 
       # Tetap disimpan juga sebagai Actions Artifact (retensi lebih pendek) buat
-      # akses cepat dari histori run tanpa harus buka tab Releases.
+      # akses cepat dari histori run tanpa harus buka tab Releases. Nama artifact
+      # ikut disertai run_id (Batch 42) — konsisten sama key unik di atas.
       - name: Upload signed release APK (artifact tambahan)
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AudioEnhancerPro-v${{ steps.version.outputs.name }}-release
+          name: AudioEnhancerPro-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
           path: ${{ steps.rename.outputs.path }}

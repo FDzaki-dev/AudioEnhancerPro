@@ -10,46 +10,28 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.82.0
-- 🔧 **Batch 44 (v1.82.0, BELUM diverifikasi build+visual beneran)**: "Skeuomorphism
-  2.0 (Hyper-Realism UI)" — diminta user eksplisit "otonom & gak pakai baseline
-  theme lain". SEMUA token/efek baru DEDICATED `Skeuo*`, nol reuse dari
-  `Glass*`/`Radical*`. Ringkasan: (1) bevel/specular brush naik ke 6-stop +
-  streak anisotropic, (2) rivet/screw accent 4 pojok di `SkeuPowerButton`
-  (fungsi baru `skeuRivets()`, pola sama `skeuGlow`), (3) glow "LED" 2-lapis
-  pas power button pressed, (4) knurl ring texture di slider knob, (5)
-  `cardElevation` Skeuomorphism 8dp->10dp. `SkeuTokens` (data class shared 3
-  varian) dapat 5 field baru TAPI semua ADA DEFAULT VALUE = perilaku lama
-  persis — jadi 2 varian glass (`AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens`)
-  **TIDAK diedit sama sekali**, nol resiko regresi ke variant yang sudah
-  kerja. Label toggle di Settings direbrand "Skeuomorphism 2.0 (Hyper-Realism)"
-  (`strings.xml` id+en, parity 98/98 tetap) — persistence key TIDAK berubah.
-  Detail lengkap: `CHANGELOG.md` v1.82.0. **Next**: minta user build + lihat
-  visual beneran di device (kotlinc gak ada di sandbox, brace/paren cuma
-  dicek manual balance-nya, bukan compile beneran).
-- 🔑 **Batch 42 (v1.81.0, BELUM diverifikasi push beneran)**: fix keluhan user
-  "GitHub Release sering ke-duplikat/pakai cache lama yang basi dibanding
-  Artifact langsung". Root cause: `tag_name` + nama file APK di
-  `.github/workflows/build.yml` cuma pakai `versionName` — kalau versionName
-  sama dipush lagi, tag & URL asset di-overwrite di lokasi IDENTIK -> rawan
-  ke-serve dari cache CDN/browser lama. Fix: 2 step (`Rename APK` +
-  `Publish GitHub Release`) sekarang tambah suffix `-b${{ github.run_number }}`
-  (unik per run) ke nama file APK & `tag_name`, plus `make_latest: true`
-  eksplisit di step publish. Trade-off sadar: Releases list numpuk 1 entry per
-  run kalau versionName sama dipush berkali-kali (bukan overwrite 1/versi lagi)
-  — dianggap worth-it, itu memang intent user. Detail lengkap: `CHANGELOG.md`
-  v1.81.0. **Next**: minta user push + verifikasi di tab Releases beneran
-  dapat asset baru (bukan cache lama) — terutama kalau nanti test reproduce
-  dengan push kedua versionName sama.
-- ✅ **Batch 43 (v1.81.0, verification-only — TIDAK ada perubahan kode/config)**:
-  user konfirmasi hasil run CI beneran — waktu compile turun dari baseline
-  **7-8 menit → ±4 menit (~45-50% lebih cepat)**. Ini efek GABUNGAN Batch 40
-  (job digabung + `cache: 'gradle'` + parallel/caching flag) + Batch 41 (kapt
-  worker-api/incremental + `buildConfig=false`) — baseline 7-8 menit itu
-  SEBELUM Batch 40 (2-job terpisah, no cache sama sekali), jadi speedup ini
-  bukan efek 1 batch doang. Status Batch 41 & 40 di bawah diupdate dari
-  "belum divalidasi runtime" → **TERVERIFIKASI**.
-- ⚡ **Batch 41 (v1.80.0, riwayat — ✅ TERVERIFIKASI Batch 43)**: lanjutan pangkas
+- **Versi**: v1.80.1
+- 🔑 **Batch 42 (v1.80.1, BELUM diverifikasi run CI beneran)**: diminta user
+  eksplisit "tambahkan unique key pada setiap output github release, untuk
+  mencegah duplikasi terjadi lagi". `.github/workflows/build.yml`, 4 titik pakai
+  `github.run_id` (global unik, gak pernah reset/reuse): `tag_name`
+  (`v<versi>-run<run_id>`), judul Release (+`Run #<run_number>` di akhir), nama
+  file APK, nama Actions Artifact. **OVERRIDE SADAR keputusan Batch 11** (tag
+  dulu sengaja `v<versi>` polos & di-reuse/timpa kalau versi sama dipush lagi) —
+  sekarang tiap run bikin Release+tag+asset BARU, gak pernah tabrakan apapun
+  skenarionya (push berulang tanpa bump versi, retry, re-run job gagal, dst).
+  **Trade-off WAJIB diingat**: tab Releases sekarang numpuk 1 entry PER RUN CI
+  sukses (bukan 1 per versi lagi) — push 3x versi sama = 3 Release terpisah,
+  bukan 1 yang di-update. Ini konsekuensi LANGSUNG dari "gak pernah duplikasi",
+  BUKAN bug. **PENTING buat sesi depan**: kalau user nanya "kenapa Releases
+  numpuk banyak", ini SUDAH DIKETAHUI & disengaja — jangan buru-buru \"fix\"
+  balik ke tag polos tanpa user minta eksplisit (itu balik ke resiko yang baru
+  di-fix batch ini). Detail lengkap: `CHANGELOG.md` v1.80.1.
+  - **Belum divalidasi runtime** — YAML syntax-check valid, `run_id`/`run_number`
+    context variable bawaan GitHub Actions (bukan reka-reka), tapi hasil akhir
+    (Release baru ke-generate benar, gak ada tabrakan) baru terkonfirmasi
+    setelah CI run beneran.
+- ⚡ **Batch 41 (v1.80.0, riwayat)**: lanjutan pangkas
   waktu compile CI (diminta user lagi, "lanjutkan percepat compiler"), 3 perubahan
   low-risk TANPA ubah dependency/versi (jadi aman tanpa compiler buat verifikasi):
   1. `gradle.properties`: `kapt.use.worker.api=true` — kapt (Hilt) jalan lewat
@@ -73,9 +55,11 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     & paham resikonya (versi KSP harus persis cocok Kotlin, gak bisa divalidasi
     di sandbox ini). (c) `org.gradle.configuration-cache` — tetap ditahan, sama
     alasan kapt+configuration-cache riwayatnya kurang mulus dikombinasi.
-  - **✅ TERVERIFIKASI Batch 43** — kombinasi Batch 40+41 mengkonfirmasi compile
-    time turun 7-8 menit → ±4 menit di run CI beneran. Nol regresi dilaporkan.
-- ⚡ **Batch 40 (v1.79.0, riwayat — ✅ TERVERIFIKASI Batch 43)**: pangkas waktu
+  - **Belum divalidasi runtime** — 3 perubahan di atas semuanya flag/config resmi
+    terdokumentasi (bukan reka-reka), `buildConfig=false` diverifikasi aman lewat
+    grep eksplisit (bukan asumsi), tapi efek RIIL & tidak-adanya regresi baru
+    kekonfirmasi setelah CI run beneran.
+- ⚡ **Batch 40 (v1.79.0, riwayat)**: pangkas waktu
   compile CI, diminta user eksplisit. 3 perubahan (lihat detail lengkap +
   rasional/trade-off tiap poin di `CHANGELOG.md` v1.79.0, jangan diulang tanpa
   baca dulu):
@@ -97,9 +81,9 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     tanpa user minta eksplisit), commit `gradlew` permanen ke repo (hilangin
     bootstrap overhead sepenuhnya tapi ubah arsitektur delivery ZIP/Termux, di
     luar scope kali ini — opsi lanjutan kalau user mau).
-  - **✅ TERVERIFIKASI Batch 43** — compile time turun 7-8 menit → ±4 menit di
-    run CI beneran (efek gabungan dengan Batch 41), cache hit run kedua dst
-    berfungsi sesuai ekspektasi.
+  - **Belum divalidasi runtime** — YAML syntax-check valid, tapi efek
+    pemangkasan waktu SEBENARNYA baru kekonfirmasi setelah CI run beneran
+    (terutama cache hit di run KEDUA dst).
 - 🔩 **Batch 39 (v1.78.0, BELUM diverifikasi CI/runtime)**: 2 perbaikan varian
   Skeuomorphism (Batch 38) diminta user eksplisit setelah ditanya "apakah otonom
   penuh, gak numpang baseline default":

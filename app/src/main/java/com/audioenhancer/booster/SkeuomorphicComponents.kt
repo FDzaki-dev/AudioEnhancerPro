@@ -1,18 +1,5 @@
 package com.audioenhancer.booster
 
-// Batch 44: "Skeuomorphism 2.0 (Hyper-Realism UI)" — upgrade komponen fisik varian
-// ke-3 (Theme.kt punya blok komentar detail lengkap, baca itu dulu). Perubahan di
-// file ini: (1) `skeuRivets()` fungsi baru (drawBehind+drawCircle, pola sama persis
-// `skeuGlow`) — 4 titik rivet/screw di pojok, HANYA dipasang di `SkeuPowerButton`
-// (bukan `SkeuCard` generik, biar icon-box 40dp kecil gak sesak). (2) `SkeuPowerButton`
-// elevation/glow-spread sekarang baca `tokens.buttonRestElevation`/`buttonGlowSpread`
-// (bukan hardcode `6.dp`/`14.dp` lagi) — default token = angka lama persis, jadi 2
-// varian glass ZERO visual change, Skeuomorphism dapat nilai lebih besar (11dp/20dp,
-// extrusion+glow lebih dalam). (3) Pressed+hyperRealism dapat glow "LED" 2-lapis (inti
-// terang kecil + halo lembar existing) — cuma render kalau `tokens.hyperRealism` true.
-// (4) `SkeuSliderThumb` dapat tekstur knurl (cincin `drawCircle(style=Stroke)`) kalau
-// hyperRealism. Nama fungsi/komponen TIDAK diubah — cukup isi render yang ditambah.
-//
 // Batch 37: rewrite total UI/UX -> iOS Glassmorphism dominan + Midnight-Blue jadi hint
 // yang kentara (lihat blok komentar panjang di Theme.kt). Perubahan struktural (bukan
 // cuma warna) di file ini: (1) SkeuCard/SkeuTintedCard/SkeuPowerButton sekarang punya
@@ -82,11 +69,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -131,29 +116,6 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
         radius = glowRadius,
         center = center
     )
-}
-
-/** Batch 44 (Skeuomorphism 2.0 Hyper-Realism) — rivet/screw accent: 4 titik kecil
- *  di pojok komponen, teknik PERSIS sama dengan `skeuGlow` di atas (`drawBehind` +
- *  `drawCircle`), cuma 4x posisi pojok bukan 1x di tengah. SENGAJA cuma dipasang
- *  di komponen "physical utility" beneran (power button/slider knob, lihat
- *  komentar filosofi lama di atas file ini: "Realisme tactile HANYA di komponen
- *  fisik... kartu struktural glass murni, restrained") — BUKAN di `SkeuCard`
- *  generik, karena `SkeuCard` juga dipakai buat icon-box 40dp kecil
- *  (`FeatureControl`) yang bakal kelihatan penuh sesak kalau ditambah 4 rivet.
- *  Dipanggil selektif lewat `.then(if (tokens.hyperRealism) Modifier.skeuRivets(...)
- *  else Modifier)` — 0 dampak ke 2 varian glass, code path gak pernah dieksekusi
- *  buat mereka. */
-internal fun Modifier.skeuRivets(brush: Brush, inset: Dp = 8.dp, radius: Dp = 1.8.dp): Modifier = this.drawBehind {
-    val insetPx = inset.toPx()
-    val radiusPx = radius.toPx()
-    val positions = listOf(
-        Offset(insetPx, insetPx),
-        Offset(size.width - insetPx, insetPx),
-        Offset(insetPx, size.height - insetPx),
-        Offset(size.width - insetPx, size.height - insetPx)
-    )
-    positions.forEach { pos -> drawCircle(brush = brush, radius = radiusPx, center = pos) }
 }
 
 /** Kartu struktural — guide §2.5 mewajibkan material frosted-glass + midnight blue
@@ -250,32 +212,17 @@ internal fun SkeuPowerButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedNow by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(if (isPressedNow) 0.97f else 1f, label = "powerBtnScale")
-    // Batch 44: baca `tokens.buttonRestElevation` (default 6.dp, PERSIS angka lama)
-    // bukan hardcode langsung — Skeuomorphism override ke 11.dp (extrusion lebih
-    // dalam), 2 varian glass tetap 6.dp, nol perubahan visual buat mereka.
-    val elevation by animateDpAsState(if (pressed || isPressedNow) 0.dp else tokens.buttonRestElevation, label = "powerBtnElevation")
+    val elevation by animateDpAsState(if (pressed || isPressedNow) 0.dp else 6.dp, label = "powerBtnElevation")
 
     Box(
         modifier = Modifier
             .size(64.dp)
             .scale(scale)
-            // Batch 44: spread juga token-driven (`buttonGlowSpread`, default 14.dp
-            // = angka lama), Skeuomorphism 20.dp (halo lebih lebar/dalam).
-            .then(if (pressed) Modifier.skeuGlow(tokens.primaryGlow, spread = tokens.buttonGlowSpread) else Modifier)
-            // Batch 44: lapis glow KEDUA lebih kecil/terang — kesan "LED core" fisik
-            // menyala (bukan cuma halo lembut tunggal), HANYA Skeuomorphism+pressed.
-            .then(
-                if (pressed && tokens.hyperRealism) {
-                    Modifier.skeuGlow(lerp(tokens.primaryGlow, Color.White, 0.4f).copy(alpha = 0.55f), spread = 4.dp)
-                } else Modifier
-            )
+            .then(if (pressed) Modifier.skeuGlow(tokens.primaryGlow, spread = 14.dp) else Modifier)
             .shadow(elevation = elevation, shape = shape, clip = false)
             .clip(shape)
             .background(tokens.bevelBrush)
             .background(tokens.specularBrush)
-            // Batch 44: rivet/screw accent 4 pojok — HANYA Skeuomorphism (lihat
-            // `skeuRivets` di atas kenapa gak dipasang di `SkeuCard` generik).
-            .then(if (tokens.hyperRealism) Modifier.skeuRivets(tokens.rivetBrush) else Modifier)
             .border(1.5.dp, tokens.bevelBorderBrush, shape)
             .then(
                 if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
@@ -349,24 +296,6 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
             .shadow(elevation = if (enabled) 4.dp else 0.dp, shape = shape, clip = false)
             .clip(shape)
             .background(dialBrush)
-            // Batch 44 (Hyper-Realism 2.0): tekstur knurl — 3 cincin `drawCircle`
-            // outline (style Stroke, API standar Compose sejak 1.0) konsentris,
-            // meniru permukaan dial logam machined asli. HANYA Skeuomorphism
-            // (tokens.hyperRealism) — 2 varian glass dapat `knurlColor` default
-            // Color.Transparent (efeknya nol dampak biarpun blok ini dijalankan),
-            // tapi tetap di-guard eksplisit biar niatnya jelas & gak nge-draw
-            // stroke transparan sia-sia di 2 varian lain.
-            .then(
-                if (tokens.hyperRealism) {
-                    Modifier.drawBehind {
-                        val strokeWidth = 0.6.dp.toPx()
-                        listOf(size.minDimension * 0.30f, size.minDimension * 0.22f, size.minDimension * 0.14f)
-                            .forEach { r ->
-                                drawCircle(color = tokens.knurlColor, radius = r, center = center, style = Stroke(width = strokeWidth))
-                            }
-                    }
-                } else Modifier
-            )
             .border(2.dp, accentColor.copy(alpha = ringAlpha), shape)
     )
 }

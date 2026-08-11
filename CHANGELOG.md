@@ -1,112 +1,51 @@
 # Changelog
 
-## v1.82.0 - Skeuomorphism 2.0 (Hyper-Realism UI) (Batch 44)
+## v1.80.1 - Batch 42: unique key per GitHub Release (cegah duplikasi)
 
-Diminta user eksplisit: "lanjut upgrade skeuomorphism -> Skeuomorphism 2.0
-(Hyper-Realism UI). otonom & gak pakai baseline theme lain!!". SEMUA token/efek
-baru DEDICATED buat Skeuomorphism (prefix `Skeuo*`), NOL reuse dari token
-`Glass*`/`Radical*` — sama prinsip yang sudah dipegang sejak Batch 39.
+Diminta user eksplisit: "tambahkan unique key pada setiap output github release,
+untuk mencegah duplikasi terjadi lagi". `.github/workflows/build.yml` — 4 titik
+diubah, semua sekarang pakai `github.run_id` (dijamin GLOBAL UNIK oleh GitHub,
+gak pernah reset/reuse — beda dari `run_number` yang bisa ambigu kalau ada
+"re-run" manual job gagal):
 
-**Theme.kt:**
-1. `SkeuoBevelBrush` 4-stop -> 6-stop + streak anisotropic tengah (brushed-metal
-   difoto kena cahaya, bukan gradasi tunggal halus).
-2. `SkeuoBevelBorderBrush`/`SkeuoSpecularBrush` — kontras dinaikkan, specular
-   dapat 1 stop tambahan (streak sempit, bukan sheen lebar).
-3. Token baru DEDICATED: `SkeuoRivetBrush` (radial gradient, simulasi kepala
-   screw metal), `SkeuoKnurlColor` (warna groove cincin dial).
-4. `SkeuTokens` (data class shared 3 varian) +5 field BARU **dengan default
-   value = perilaku lama persis** (`hyperRealism=false`,
-   `buttonRestElevation=6.dp`, `buttonGlowSpread=14.dp`, sama persis angka
-   hardcode lama; `rivetBrush`/`knurlColor` default transparent) — DEVIASI
-   SADAR dari konvensi "wajib diisi eksplisit di semua instance": dipilih
-   justru supaya `AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens` (2 varian
-   glass) **TIDAK PERLU diedit sama sekali**, nol resiko regresi.
-5. `SkeuomorphismSkeuTokens`: `cardElevation` 8dp->10dp, `hyperRealism=true`,
-   `buttonRestElevation=11dp`, `buttonGlowSpread=20dp`, `rivetBrush`/
-   `knurlColor` diisi token baru poin 3.
+1. **`tag_name`**: `v<versi>` polos -> `v<versi>-run<run_id>`.
+2. **`name` (judul Release)**: tambah `(Run #<run_number>)` di akhir — run_number
+   dipakai di JUDUL (lebih pendek/manusiawi buat dibaca), run_id dipakai di TAG
+   (butuh jaminan unik mutlak, bukan cuma gampang dibaca).
+3. **Nama file APK** (step "Rename APK"): `AudioEnhancerPro-v<versi>-release.apk`
+   -> `AudioEnhancerPro-v<versi>-run<run_id>-release.apk`.
+4. **Nama Actions Artifact** (step "Upload signed release APK"): ikut pola sama.
 
-**SkeuomorphicComponents.kt:**
-1. `skeuRivets()` fungsi baru — 4 titik rivet di pojok (`drawBehind`+
-   `drawCircle`, pola PERSIS `skeuGlow` yang sudah ada). SENGAJA cuma
-   dipasang di `SkeuPowerButton` (bukan `SkeuCard` generik) — `SkeuCard` juga
-   dipakai buat icon-box 40dp kecil (`FeatureControl`), 4 rivet bakal
-   kelihatan sesak di situ.
-2. `SkeuPowerButton`: elevation/glow-spread sekarang baca token (bukan
-   hardcode `6.dp`/`14.dp`) + rivet 4 pojok + glow "LED" 2-lapis (inti
-   terang kecil + halo existing) saat pressed — SEMUA gated `hyperRealism`,
-   2 varian glass nol perubahan visual (default token = angka lama).
-3. `SkeuSliderThumb`: 3 cincin knurl (`drawCircle(style=Stroke)`, API
-   standar Compose sejak 1.0) — gated `hyperRealism`.
+**Root cause yang di-address**: Batch 11 SENGAJA bikin `tag_name` cuma `v<versi>`
+polos, DIPAKAI ULANG (reuse, bukan create baru) kalau versionName yang sama
+dipush lagi — asset APK lama di-overwrite. Desain ini secara sadar OVERWRITE by
+design, tapi berpotensi race/collision kalau ada skenario tertentu (push
+berulang cepat tanpa bump versi, retry, re-run job gagal, dst) — sumber
+"duplikasi" yang dilaporkan user. **Batch 42 OVERRIDE keputusan Batch 11 secara
+sadar** sesuai instruksi eksplisit: setiap run sekarang bikin tag+Release+asset
+BARU dengan key yang GLOBAL UNIK, gak pernah menimpa/tabrakan dengan run
+manapun, apapun skenarionya.
 
-**strings.xml (id+en):** `theme_style_skeuo_title`/`_desc` di-update jadi
-"Skeuomorphism 2.0 (Hyper-Realism)" + deskripsi sebut rivet/knurl. Parity
-tetap 98/98. Persistence key (`PrefsHelper.APP_THEME_SKEUOMORPHISM`) TIDAK
-disentuh — data user lama valid.
+**Trade-off yang didisclose (WAJIB dibaca sebelum tanya "kenapa Releases numpuk")**:
+tab Releases sekarang bakal punya 1 entry PER RUN CI yang sukses publish, BUKAN
+1 per versionName lagi. Push 3x tanpa ubah versionName = 3 Release terpisah
+muncul (`v1.80.1-run111`, `-run222`, `-run333`), bukan 1 Release yang keupdate.
+Ini KONSEKUENSI LANGSUNG dari "gak pernah duplikasi/tabrakan" — kalau mau balik
+ke perilaku "1 Release per versi, timpa kalau sama" nanti, itu instruksi
+terpisah (tinggal hapus `-run${{ github.run_id }}` dari `tag_name`, TAPI itu
+BALIK ke resiko yang baru saja di-fix di batch ini — jangan diubah balik tanpa
+alasan baru dari user).
 
-**File yang berubah:** `Theme.kt`, `SkeuomorphicComponents.kt`,
-`values/strings.xml`, `values-en/strings.xml`, `BoosterScreen.kt` (komentar
-saja), `app/build.gradle.kts` (versionCode 82->83, versionName 1.81.0->1.82.0).
+**File yang berubah**: `.github/workflows/build.yml` (4 titik nama unik),
+`app/build.gradle.kts` (versionCode 81->82, versionName 1.80.0->1.80.1).
 
-**Teknik SENGAJA dipilih yang SUDAH terbukti jalan di file ini** (Brush multi-
-stop, `drawBehind`+`drawCircle`, `Stroke`, `shadow()` ambientColor/spotColor
-TIDAK disentuh) — BUKAN `Modifier.blur()`/`RenderEffect` atau API belum
-pernah dipakai lain yang gak bisa dipastikan sintaksnya tanpa compiler.
+**Belum divalidasi runtime** — YAML disyntax-check (`yaml.safe_load`, valid).
+`github.run_id`/`github.run_number` keduanya context variable BAWAAN GitHub
+Actions (bukan reka-reka, dijamin selalu tersedia tiap run), tapi hasil AKHIR
+(tag/Release/asset baru beneran ke-generate dengan nama sesuai + gak ada
+tabrakan lagi) baru terkonfirmasi setelah CI run beneran & user cek tab
+Releases.
 
-**Belum divalidasi runtime** — brace/paren balance sudah dicek manual (41/41,
-284/284 di SkeuomorphicComponents.kt; 8/8, 298/298 di Theme.kt), tapi
-kompilasi Kotlin beneran (kotlinc gak tersedia di sandbox, offline) & hasil
-visual asli baru kekonfirmasi setelah build + lihat langsung di device.
-
-
-## v1.81.0 - Unique key GitHub Release, anti stale-cache duplikat (Batch 42)
-
-Diminta user eksplisit: "tambahkan unique key pada Github release. karena
-output nya sering ke duplikat/menggunakan cache lama yang basi dibanding hasil
-dari artifact GitHub nya langsung". Root cause: `tag_name`/nama file APK di
-step Release cuma pakai `versionName` — kalau versionName SAMA dipush lagi
-(fix kecil tanpa bump versi, atau re-run manual), tag+URL asset di-overwrite
-di lokasi yang IDENTIK ke run sebelumnya. GitHub CDN/browser sering masih
-nyajiin file lama dari cache karena dari sisi URL "tidak ada yang berubah" —
-beda karakter dari Actions Artifact yang otomatis dapat URL unik per run
-(makanya Artifact selalu fresh, Release kadang basi).
-
-**Fix (`.github/workflows/build.yml`, 2 step):**
-1. **Rename APK** — nama file sekarang `AudioEnhancerPro-v<versi>-b<run_number>-release.apk`
-   (tambah suffix `-b<run_number>`, sebelumnya cuma `-v<versi>-release.apk`).
-2. **Publish GitHub Release** — `tag_name` jadi `v<versi>-b<run_number>` (sebelumnya
-   `v<versi>` doang) + `name` release ikut nampilin nomor build + tambah
-   `make_latest: true` eksplisit (badge "Latest" dijamin nempel di run
-   TERBARU, gak gantung ke urutan tanggal tag lama vs baru).
-
-**Trade-off sadar**: kalau versionName sama dipush berkali-kali, Releases list
-sekarang numpuk 1 entry per run (bukan overwrite 1 entry per versi seperti
-sebelumnya). Dianggap worth-it — prioritas eksplisit user adalah APK yang
-didownload dari Release SELALU yang terbaru, bukan riwayat Release yang rapi
-1-per-versi.
-
-**File yang berubah:** `.github/workflows/build.yml` (2 step: rename + publish
-release), `app/build.gradle.kts` (versionCode 81->82, versionName
-1.80.0->1.81.0 — bump rutin, workflow-only change tapi tetap ikut konvensi
-project: tiap batch = versi baru).
-
-**SENGAJA TIDAK diubah**: Actions Artifact upload (step terakhir) — sudah
-otomatis unik per run dari sononya (itu justru pembanding "hasil yang benar"
-di keluhan user), gak butuh perubahan.
-
-**Belum divalidasi runtime** — YAML syntax terlihat valid, tapi efek riil
-(apakah CDN caching beneran hilang, apakah `make_latest: true` kerja sesuai
-harapan lintas banyak tag) baru kekonfirmasi setelah push beneran + push
-kedua dengan versionName sama buat coba reproduce skenario lama.
-
----
-**Addendum (Batch 43, verification-only, TIDAK bump versionCode/versionName —
-gak ada perubahan kode/config apapun):** user konfirmasi hasil run CI beneran
-— waktu compile turun dari baseline **7-8 menit ke ±4 menit (~45-50% lebih
-cepat)**. Ini efek gabungan optimisasi CI Batch 40 (job digabung + gradle
-cache + parallel/caching) + Batch 41 (kapt worker-api/incremental +
-buildConfig=false) — baseline 7-8 menit itu SEBELUM Batch 40. Status kedua
-batch tersebut di `PROJECT_STATE.md` diupdate jadi TERVERIFIKASI. Nol regresi
-dilaporkan user.
 
 
 ## v1.80.0 - Lanjutan pangkas waktu compile CI (Batch 41)

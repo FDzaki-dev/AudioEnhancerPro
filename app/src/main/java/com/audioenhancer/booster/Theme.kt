@@ -22,46 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 44 — "Skeuomorphism 2.0 (Hyper-Realism UI)": upgrade varian ke-3
-// (Batch 38/39), diminta user eksplisit "otonom & gak pakai baseline theme
-// lain" — SEMUA token baru di bawah ini DEDICATED buat Skeuomorphism doang
-// (prefix `Skeuo*`, NOL reuse dari `Glass*`/`Radical*`), sama persis prinsip
-// yang sudah dipegang sejak Batch 39 (cardRadius/iconBoxRadius otonom).
-// 2 varian glass (Midnight/Aurora) di bawah SAMA SEKALI TIDAK disentuh —
-// field baru di `SkeuTokens` SEMUA punya default value yang identik ke
-// PERILAKU LAMA (bukan matikan fitur, tapi angka/warna yang PERSIS sama
-// dengan hardcode sebelumnya), jadi 2 blok instance existing (`AmoledGlassSkeuTokens`/
-// `RadicalSkeuoSkeuTokens`) TIDAK PERLU diedit sama sekali — nol resiko
-// regresi ke variant yang sudah kerja. Ini deviasi SADAR dari konvensi lama
-// "field baru wajib diisi eksplisit di semua instance" (catatan `SkeuTokens`
-// di bawah) — dipilih justru demi keamanan yang LEBIH TINGGI (mustahil salah
-// isi/kelupaan di 2 instance lama kalau gak disentuh sama sekali).
-//
-// Apa yang baru (hyper-realism cues, semua teknik native Compose yang SUDAH
-// dipakai di file ini sebelumnya — bukan API baru yang belum tervalidasi):
-// 1. Bevel/specular brush Skeuomorphism naik dari 4-stop ke gradasi lebih
-//    kaya + 1 streak highlight anisotropic (khas brushed-metal difoto kena
-//    cahaya), bukan cuma blend rata.
-// 2. Rivet/screw accent — 4 titik radial-gradient kecil di pojok kartu &
-//    tombol power (`SkeuoRivetBrush`, teknik `drawBehind`+`drawCircle` PERSIS
-//    sama seperti `skeuGlow` yang sudah ada, cuma radius kecil + posisi
-//    pojok, bukan API baru).
-// 3. Knurled dial — slider knob dapat tekstur groove melingkar (`SkeuoKnurlColor`,
-//    `drawCircle(style = Stroke(...))`, API `Stroke` standar Compose sejak 1.0).
-// 4. Power button & kartu Skeuomorphism dapat elevation/glow-spread SENDIRI
-//    (`buttonRestElevation`/`buttonGlowSpread`, default token = angka
-//    hardcode LAMA persis `6.dp`/`14.dp` biar 2 varian glass identik ke
-//    sebelumnya) — Skeuomorphism dibikin lebih dalam/menonjol (bevel-shadow
-//    lebih ekstrem, khas hyper-realism), TANPA numpang angka shared.
-// SEMUA teknik di atas cuma komposisi Brush/drawBehind/drawCircle/shadow()
-// yang SUDAH ada contoh kerja di file ini — dipilih SENGAJA supaya "aman
-// tanpa compiler buat verifikasi" (sandbox ini gak punya Gradle/Android
-// runtime), bukan Modifier.blur()/RenderEffect atau API belum-pernah-dipakai
-// lain yang gak bisa dipastikan sintaksnya tanpa compile beneran.
-// Detail lengkap: `CHANGELOG.md` v1.82.0.
-// ============================================================================
-
-// ============================================================================
 // BATCH 38 — tambahan (BUKAN rewrite ulang Batch 37): varian tema ke-3
 // "Skeuomorphism" diminta user eksplisit ("theme custom Skeuomorphism dark mode
 // yang asli, gak kurang gak lebih") — toggle baru di Settings, SEJAJAR toggle Aurora
@@ -299,66 +259,26 @@ val SkeuoAccentDeep = Color(0xFF6E737D)
  *  dasar), BUKAN sheen kaca lembut seperti 2 varian glass. Batch 39: stop
  *  puncak/dasar dicampur sedikit `SkeuoAccent`/`SkeuoAccentDeep` (bukan cuma
  *  putih/hitam polos) — biar karakter metalik titanium-silver kerasa di SELURUH
- *  panel, bukan cuma di 1 chip accent kecil.
- *  Batch 44: 4-stop -> 6-stop + 1 streak anisotropic tambahan di tengah (bukan
- *  cuma puncak/dasar rata) — meniru brushed-metal difoto kena cahaya (permukaan
- *  logam disikat SELALU punya lebih dari 1 pita terang/gelap, bukan gradasi
- *  tunggal halus). Tetap linear top-left->bottom-right, konsisten arah cahaya
- *  tunggal project ini sejak Batch 32. */
+ *  panel, bukan cuma di 1 chip accent kecil. */
 val SkeuoBevelBrush: Brush = Brush.linearGradient(
     listOf(
-        lerp(SkeuoPanelRaised, Color.White, 0.16f),
-        lerp(SkeuoPanelRaised, SkeuoAccent, 0.12f),
+        lerp(SkeuoPanelRaised, SkeuoAccent, 0.10f),
         SkeuoPanelRaised,
-        lerp(SkeuoPanel, SkeuoAccent, 0.05f),
         SkeuoPanel,
-        lerp(SkeuoPanelRecessed, SkeuoAccentDeep, 0.10f)
+        lerp(SkeuoPanelRecessed, SkeuoAccentDeep, 0.08f)
     )
 )
-/** Batch 44: kontras highlight/shadow dinaikkan (alpha highlight 0.12->0.20,
- *  shadow ganti dari `SkeuoEdgeShadow` alpha 0.78 -> solid black alpha 0.85) —
- *  border extrusion lebih "dalam"/hyper-realistic, khas hardware fisik kena
- *  cahaya keras, bukan gradasi lembut lagi. */
 val SkeuoBevelBorderBrush: Brush = Brush.linearGradient(
-    listOf(Color.White.copy(alpha = 0.20f), Color.Transparent, Color.Black.copy(alpha = 0.85f))
+    listOf(SkeuoEdgeHighlight, Color.Transparent, SkeuoEdgeShadow)
 )
 
 /** Highlight glossy lebih tajam/terkonsentrasi (bukan sheen airy iOS) — meniru
- *  reflection keras di permukaan tombol/dial fisik berlapis kaca/plastik glossy.
- *  Batch 44: tambah 1 stop (3->4) biar sheen-nya kerasa sebagai STREAK sempit
- *  (bukan gradasi lebar) — ciri khas reflection keras di logam glossy. */
+ *  reflection keras di permukaan tombol/dial fisik berlapis kaca/plastik glossy. */
 val SkeuoSpecularBrush: Brush = Brush.linearGradient(
-    listOf(
-        Color.White.copy(alpha = 0.32f),
-        Color.White.copy(alpha = 0.10f),
-        Color.White.copy(alpha = 0.02f),
-        Color.Transparent
-    )
+    listOf(Color.White.copy(alpha = 0.24f), Color.White.copy(alpha = 0.03f), Color.Transparent)
 )
 
 val SkeuoPrimaryGlow = SkeuoAccent.copy(alpha = 0.30f)
-
-/** Batch 44 — rivet/screw accent DEDICATED (dipakai `Modifier.skeuRivets` di
- *  `SkeuomorphicComponents.kt`, cuma render kalau `SkeuTokens.hyperRealism` true,
- *  jadi 0 dampak ke 2 varian glass). Radial gradient kecil: highlight terang di
- *  pusat (simulasi kena cahaya) -> titanium deep -> nyaris hilang ke panel gelap
- *  di tepi, meniru kepala screw metal kecil yang menonjol di panel fisik asli —
- *  detail hardware klasik hyper-realism skeuomorphism (bukan cuma tekstur, tapi
- *  elemen fungsional-terlihat: "ini dibaut ke panel"). */
-val SkeuoRivetBrush: Brush = Brush.radialGradient(
-    listOf(
-        lerp(SkeuoAccent, Color.White, 0.45f),
-        SkeuoAccentDeep,
-        SkeuoPanelRecessed
-    )
-)
-
-/** Batch 44 — warna groove/knurl DEDICATED buat tekstur cincin melingkar di
- *  slider knob (`SkeuSliderThumb`, `drawCircle(style = Stroke(...))`), meniru
- *  permukaan dial logam machined/knurled asli (bukan bola polos). Alpha rendah
- *  (0.5) biar tetap SUBTLE — detail tekstur, bukan elemen dominan yang
- *  mengorbankan `sliderKnobHighlight` yang sudah ada. */
-val SkeuoKnurlColor = SkeuoAccentDeep.copy(alpha = 0.5f)
 
 /** Knob slider — nyaris putih, meniru bead kaca/plastik glossy fisik (ring accent
  *  titanium-silver dibawa lewat border 2dp di komponennya, bukan warna isi). */
@@ -387,14 +307,7 @@ val SkeuoScreenBackgroundBrush: Brush = Brush.verticalGradient(
  *  hardcode ke const global `SkeuCardRadius`/`SkeuIconBoxRadius` (dipakai SEMUA
  *  varian tanpa beda), sekarang per-varian supaya Skeuomorphism (radius lebih
  *  tegas/kecil, khas hardware fisik) beneran otonom — gak numpang radius iOS-glass
- *  Batch 37 punya 2 varian glass.
- *  Batch 44: 5 field baru buat "Skeuomorphism 2.0 Hyper-Realism" — DEVIASI SADAR
- *  dari konvensi "wajib diisi eksplisit di semua instance" di atas: field baru ini
- *  PUNYA DEFAULT VALUE yang identik ke perilaku hardcode LAMA (`buttonRestElevation`
- *  = `6.dp`, `buttonGlowSpread` = `14.dp`, persis angka yang sebelumnya hardcode di
- *  `SkeuPowerButton`), jadi `AmoledGlassSkeuTokens`/`RadicalSkeuoSkeuTokens` di
- *  bawah TIDAK PERLU diedit sama sekali — nol resiko regresi ke 2 varian glass yang
- *  sudah kerja (gak mungkin kelupaan isi field di instance yang gak disentuh). */
+ *  Batch 37 punya 2 varian glass. */
 data class SkeuTokens(
     val mutedText: Color,
     val bevelBrush: Brush,
@@ -408,13 +321,7 @@ data class SkeuTokens(
     val sliderKnobHighlight: Color,
     val specularBrush: Brush,
     val cardRadius: Dp,
-    val iconBoxRadius: Dp,
-    // Batch 44 (Hyper-Realism 2.0) — default = perilaku lama persis, lihat catatan di atas.
-    val hyperRealism: Boolean = false,
-    val buttonRestElevation: Dp = 6.dp,
-    val buttonGlowSpread: Dp = 14.dp,
-    val rivetBrush: Brush = SolidColor(Color.Transparent),
-    val knurlColor: Color = Color.Transparent
+    val iconBoxRadius: Dp
 )
 
 /** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
@@ -453,15 +360,10 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     iconBoxRadius = SkeuIconBoxRadius
 )
 
-/** Varian 3: "Skeuomorphism 2.0 (Hyper-Realism UI)" — bahasa desain fisik/tekstural
- *  asli (bevel-shadow ekstrusi kuat + aksen metalik titanium-silver, Batch 39),
- *  BUKAN glass sama sekali. Radius sendiri (`SkeuoCardRadius`/`SkeuoIconBoxRadius`,
- *  14dp/10dp) — BUKAN numpang const iOS-glass punya 2 varian di atas.
- *  Batch 44: `cardElevation` 8dp->10dp (extrusion lebih dalam) + 4 field baru
- *  DEDICATED (`hyperRealism=true`, `buttonRestElevation`/`buttonGlowSpread` naik
- *  dari default shared 6dp/14dp ke 11dp/20dp, `rivetBrush`/`knurlColor` token baru
- *  Batch 44 di atas) — SEMUA cuma dipakai kalau `hyperRealism` true, jadi otonom
- *  penuh dari 2 varian glass yang defaultnya tetap tidak berubah. */
+/** Varian 3: "Skeuomorphism" — bahasa desain fisik/tekstural asli (bevel-shadow
+ *  ekstrusi kuat + aksen metalik titanium-silver, Batch 39), BUKAN glass sama
+ *  sekali. Radius sendiri (`SkeuoCardRadius`/`SkeuoIconBoxRadius`, 14dp/10dp) —
+ *  BUKAN numpang const iOS-glass punya 2 varian di atas. */
 val SkeuomorphismSkeuTokens = SkeuTokens(
     mutedText = SkeuoTextMuted,
     bevelBrush = SkeuoBevelBrush,
@@ -471,16 +373,11 @@ val SkeuomorphismSkeuTokens = SkeuTokens(
     elevatedSurface = SkeuoPanelRaised,
     cardBrush = SkeuoBevelBrush,
     cardBorderBrush = SkeuoBevelBorderBrush,
-    cardElevation = 10.dp,
+    cardElevation = 8.dp,
     sliderKnobHighlight = SkeuoKnobHighlight,
     specularBrush = SkeuoSpecularBrush,
     cardRadius = SkeuoCardRadius,
-    iconBoxRadius = SkeuoIconBoxRadius,
-    hyperRealism = true,
-    buttonRestElevation = 11.dp,
-    buttonGlowSpread = 20.dp,
-    rivetBrush = SkeuoRivetBrush,
-    knurlColor = SkeuoKnurlColor
+    iconBoxRadius = SkeuoIconBoxRadius
 )
 
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
