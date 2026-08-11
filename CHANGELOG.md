@@ -1,5 +1,46 @@
 # Changelog
 
+## v1.81.0 - Unique key GitHub Release, anti stale-cache duplikat (Batch 42)
+
+Diminta user eksplisit: "tambahkan unique key pada Github release. karena
+output nya sering ke duplikat/menggunakan cache lama yang basi dibanding hasil
+dari artifact GitHub nya langsung". Root cause: `tag_name`/nama file APK di
+step Release cuma pakai `versionName` — kalau versionName SAMA dipush lagi
+(fix kecil tanpa bump versi, atau re-run manual), tag+URL asset di-overwrite
+di lokasi yang IDENTIK ke run sebelumnya. GitHub CDN/browser sering masih
+nyajiin file lama dari cache karena dari sisi URL "tidak ada yang berubah" —
+beda karakter dari Actions Artifact yang otomatis dapat URL unik per run
+(makanya Artifact selalu fresh, Release kadang basi).
+
+**Fix (`.github/workflows/build.yml`, 2 step):**
+1. **Rename APK** — nama file sekarang `AudioEnhancerPro-v<versi>-b<run_number>-release.apk`
+   (tambah suffix `-b<run_number>`, sebelumnya cuma `-v<versi>-release.apk`).
+2. **Publish GitHub Release** — `tag_name` jadi `v<versi>-b<run_number>` (sebelumnya
+   `v<versi>` doang) + `name` release ikut nampilin nomor build + tambah
+   `make_latest: true` eksplisit (badge "Latest" dijamin nempel di run
+   TERBARU, gak gantung ke urutan tanggal tag lama vs baru).
+
+**Trade-off sadar**: kalau versionName sama dipush berkali-kali, Releases list
+sekarang numpuk 1 entry per run (bukan overwrite 1 entry per versi seperti
+sebelumnya). Dianggap worth-it — prioritas eksplisit user adalah APK yang
+didownload dari Release SELALU yang terbaru, bukan riwayat Release yang rapi
+1-per-versi.
+
+**File yang berubah:** `.github/workflows/build.yml` (2 step: rename + publish
+release), `app/build.gradle.kts` (versionCode 81->82, versionName
+1.80.0->1.81.0 — bump rutin, workflow-only change tapi tetap ikut konvensi
+project: tiap batch = versi baru).
+
+**SENGAJA TIDAK diubah**: Actions Artifact upload (step terakhir) — sudah
+otomatis unik per run dari sononya (itu justru pembanding "hasil yang benar"
+di keluhan user), gak butuh perubahan.
+
+**Belum divalidasi runtime** — YAML syntax terlihat valid, tapi efek riil
+(apakah CDN caching beneran hilang, apakah `make_latest: true` kerja sesuai
+harapan lintas banyak tag) baru kekonfirmasi setelah push beneran + push
+kedua dengan versionName sama buat coba reproduce skenario lama.
+
+
 ## v1.80.0 - Lanjutan pangkas waktu compile CI (Batch 41)
 
 Diminta user lagi: "lanjutkan percepat compiler". 3 perubahan low-risk, semuanya

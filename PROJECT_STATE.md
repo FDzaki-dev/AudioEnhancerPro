@@ -10,8 +10,22 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.80.0
-- ⚡ **Batch 41 (v1.80.0, BELUM diverifikasi run CI beneran)**: lanjutan pangkas
+- **Versi**: v1.81.0
+- 🔑 **Batch 42 (v1.81.0, BELUM diverifikasi push beneran)**: fix keluhan user
+  "GitHub Release sering ke-duplikat/pakai cache lama yang basi dibanding
+  Artifact langsung". Root cause: `tag_name` + nama file APK di
+  `.github/workflows/build.yml` cuma pakai `versionName` — kalau versionName
+  sama dipush lagi, tag & URL asset di-overwrite di lokasi IDENTIK -> rawan
+  ke-serve dari cache CDN/browser lama. Fix: 2 step (`Rename APK` +
+  `Publish GitHub Release`) sekarang tambah suffix `-b${{ github.run_number }}`
+  (unik per run) ke nama file APK & `tag_name`, plus `make_latest: true`
+  eksplisit di step publish. Trade-off sadar: Releases list numpuk 1 entry per
+  run kalau versionName sama dipush berkali-kali (bukan overwrite 1/versi lagi)
+  — dianggap worth-it, itu memang intent user. Detail lengkap: `CHANGELOG.md`
+  v1.81.0. **Next**: minta user push + verifikasi di tab Releases beneran
+  dapat asset baru (bukan cache lama) — terutama kalau nanti test reproduce
+  dengan push kedua versionName sama.
+- ⚡ **Batch 41 (v1.80.0, riwayat)**: lanjutan pangkas
   waktu compile CI (diminta user lagi, "lanjutkan percepat compiler"), 3 perubahan
   low-risk TANPA ubah dependency/versi (jadi aman tanpa compiler buat verifikasi):
   1. `gradle.properties`: `kapt.use.worker.api=true` — kapt (Hilt) jalan lewat
