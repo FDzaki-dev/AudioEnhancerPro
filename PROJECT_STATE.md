@@ -11,7 +11,21 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Status saat ini
 - **Versi**: v1.81.1
-- 🐛 **Batch 44 (v1.81.1, BELUM diverifikasi runtime/build)**: bugfix dilaporkan
+- 🛠️ **MODE: MAINTENANCE (dimulai setelah Batch 44)** — diminta user eksplisit
+  "kita akan memasuki babak maintenance mode!!". Fitur inti dianggap SELESAI
+  (audio engine, reliability/watchdog/autostart, preset, widget+QS tile, crash
+  logger, CI/CD release, 4 tema). **Implikasi buat sesi depan**:
+  1. JANGAN proaktif nawarin fitur baru besar (custom EQ curve editor,
+     export/import preset, in-app update checker, dst — daftar lengkap ada di
+     riwayat chat, BUKAN ditolak selamanya, cuma gak diinisiasi sendiri lagi).
+  2. Prioritas kerja: bugfix, laporan crash, regresi, permintaan kecil/kosmetik
+     spesifik dari user, dan maintenance CI/dependency kalau ada yang perlu.
+  3. TODO list (2 item di bawah) TETAP didepri­oritaskan — status gak berubah
+     cuma karena masuk maintenance mode.
+  4. Kalau user minta fitur besar BARU secara eksplisit, itu tetap boleh
+     dikerjakan — "maintenance mode" ngatur INISIATIF Claude, bukan larangan
+     mutlak buat user.
+- 🐛 **Batch 44 (v1.81.1, riwayat)**: bugfix dilaporkan
   user "widget aktif, QS Tile nonaktif". Root cause: `AudioEnhancerService` cuma
   manggil `BoosterWidgetProvider.refreshAll()` di 3 titik state-change, QS Tile
   gak pernah diberi tahu (cuma self-refresh pas shade dibuka/`onClick` sendiri) —
