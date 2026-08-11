@@ -10,8 +10,20 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.81.0
-- 🎨 **Batch 43 (v1.81.0, BELUM diverifikasi runtime/build)**: tema ke-4 "Studio
+- **Versi**: v1.81.1
+- 🐛 **Batch 44 (v1.81.1, BELUM diverifikasi runtime/build)**: bugfix dilaporkan
+  user "widget aktif, QS Tile nonaktif". Root cause: `AudioEnhancerService` cuma
+  manggil `BoosterWidgetProvider.refreshAll()` di 3 titik state-change, QS Tile
+  gak pernah diberi tahu (cuma self-refresh pas shade dibuka/`onClick` sendiri) —
+  jadi basi kalau toggle dari path lain (widget/app/BootReceiver/Shortcut). Fix:
+  `QuickToggleTileService.requestTileUpdate()` (pakai `TileService.
+  requestListeningState()` API bawaan Android) dipanggil di 3 titik sama persis
+  dengan widget refresh. 2 file: `QuickToggleTileService.kt`,
+  `AudioEnhancerService.kt`. Detail lengkap: `CHANGELOG.md` v1.81.1.
+  - **Belum divalidasi runtime** — brace/paren balance 0 selisih, 3 call site
+    terkonfirmasi grep. Perlu tes device: toggle dari widget -> buka shade ->
+    tile harus langsung sinkron.
+- 🎨 **Batch 43 (v1.81.0, riwayat)**: tema ke-4 "Studio
   Equalizer" (neumorphism), diminta user dengan 4 warna HEX eksak: Base `#1E222A`,
   Dark Shadow `#14171D`, Light Shadow `#282D37`, Aksen Glow (Aktif) `#39FF14`.
   Toggle ke-4 sejajar 3 existing (Aurora Glass/Skeuomorphism) di Settings, 1

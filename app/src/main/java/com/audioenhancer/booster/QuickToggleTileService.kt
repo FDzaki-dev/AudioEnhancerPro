@@ -19,6 +19,25 @@ import android.service.quicksettings.TileService
  */
 class QuickToggleTileService : TileService() {
 
+    companion object {
+        /** Batch 44 (bugfix): dipanggil dari AudioEnhancerService di titik SAMA
+         *  persis dengan `BoosterWidgetProvider.refreshAll()` — SEBELUMNYA tile ini
+         *  cuma refresh diri sendiri di `onStartListening()` (pas shade DIBUKA) &
+         *  `onClick()` optimistic sendiri, jadi kalau state berubah dari path LAIN
+         *  (widget/MainActivity/BootReceiver/Shortcut) sementara shade TIDAK lagi
+         *  kebuka, tile nampilin state BASI sampai user tutup-buka shade ulang —
+         *  itu akar bug "widget aktif tapi QS tile nonaktif". `requestListeningState`
+         *  bikin sistem manggil `onStartListening()` SEKARANG (bukan nunggu shade
+         *  dibuka), sinkron ke `AudioEnhancerService.isRunning` yang terbaru. Aman
+         *  dipanggil walau tile belum pernah ditambahkan user ke shade (no-op). */
+        fun requestTileUpdate(context: android.content.Context) {
+            requestListeningState(
+                context,
+                android.content.ComponentName(context, QuickToggleTileService::class.java)
+            )
+        }
+    }
+
     override fun onStartListening() {
         super.onStartListening()
         refreshTile()

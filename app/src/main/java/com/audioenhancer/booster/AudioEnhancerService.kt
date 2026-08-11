@@ -84,6 +84,9 @@ class AudioEnhancerService : Service() {
             // ServiceWatchdogWorker gak menghidupkan paksa lagi tiap 15 menit.
             PrefsHelper.setUserWantsRunning(this, false)
             BoosterWidgetProvider.refreshAll(this)
+            // Batch 44 (bugfix): QS Tile SEBELUMNYA gak ikut diberi tahu di sini —
+            // lihat catatan lengkap di `QuickToggleTileService.requestTileUpdate()`.
+            QuickToggleTileService.requestTileUpdate(this)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -100,6 +103,9 @@ class AudioEnhancerService : Service() {
         // mutusin boleh/gaknya restart otomatis kalau nemu service mati.
         PrefsHelper.setUserWantsRunning(this, true)
         BoosterWidgetProvider.refreshAll(this)
+        // Batch 44 (bugfix): sama seperti cabang ACTION_STOP di atas — QS Tile ikut
+        // disinkronkan di sini juga (jalur "start").
+        QuickToggleTileService.requestTileUpdate(this)
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
     }
@@ -123,6 +129,9 @@ class AudioEnhancerService : Service() {
         releaseEffects()
         isRunning = false
         BoosterWidgetProvider.refreshAll(this)
+        // Batch 44 (bugfix): jalur "service di-destroy" (mis. dibunuh OS) juga ikut
+        // sinkronkan QS Tile — cabang ke-3 & terakhir yang sebelumnya kelewat.
+        QuickToggleTileService.requestTileUpdate(this)
         super.onDestroy()
     }
 

@@ -1,5 +1,45 @@
 # Changelog
 
+## v1.81.1 - Batch 44 (bugfix): QS Tile basi ("widget aktif, QS Tile nonaktif")
+
+Dilaporkan user: widget home-screen nunjukin Aktif, tapi tile Quick Settings
+malah nunjukin Nonaktif — inkonsistensi state antar 2 entry point yang sama-sama
+baca `AudioEnhancerService.isRunning`.
+
+**Root cause**: `AudioEnhancerService` manggil `BoosterWidgetProvider.refreshAll()`
+di 3 titik state-change (`onStartCommand` start, `onStartCommand` ACTION_STOP,
+`onDestroy`) — TAPI gak ada panggilan setara buat QS Tile di titik manapun.
+`QuickToggleTileService` cuma refresh diri sendiri di `onStartListening()` (pas
+notification shade DIBUKA user) & di `onClick()`-nya sendiri (optimistic update).
+Akibatnya: toggle dari path LAIN (widget, tombol power di app, BootReceiver, App
+Shortcut) mengubah `isRunning` + widget ikut update BENAR, tapi tile Quick
+Settings TETAP nampilin state lama sampai user nutup-buka shade ulang (baru
+`onStartListening()` ke-trigger lagi).
+
+**Fix**: `QuickToggleTileService` dapat companion `requestTileUpdate(context)` —
+panggil `TileService.requestListeningState()` (API bawaan Android, dijamin ada
+sejak API 24 = sama dengan `minSdk` project ini, gak perlu version-check), yang
+bikin sistem manggil `onStartListening()` SEKARANG JUGA (bukan nunggu shade
+dibuka), sinkron ke `isRunning` terbaru. Dipanggil di SEMUA 3 titik yang sama
+persis dengan `BoosterWidgetProvider.refreshAll()` — pola arsitektur "1 hook
+nutup semua listener" yang sudah didesain widget-nya (`BoosterWidgetProvider.kt`
+komentar "Status di-refresh dari SATU titik") sekarang BENERAN nutup semua
+listener, termasuk QS Tile yang sebelumnya kelewat.
+
+**File yang berubah (2)**: `QuickToggleTileService.kt` (+companion
+`requestTileUpdate`), `AudioEnhancerService.kt` (+1 baris panggilan di 3 titik
+state-change yang sudah ada).
+
+**Belum divalidasi runtime** — brace/paren balance 0 selisih di 2 file, 3 call
+site + 1 definisi terkonfirmasi lewat grep. `TileService.requestListeningState`
+API resmi Android (bukan reka-reka), aman dipanggil walau tile belum pernah
+ditambahkan user ke shade (no-op didokumentasikan resmi Android). Efek riil
+(tile beneran sinkron instan tanpa perlu buka-tutup shade) baru terkonfirmasi
+setelah build + tes langsung di device: toggle dari widget/app, lalu buka shade
+— tile harus langsung sinkron TANPA perlu tutup-buka shade dua kali.
+
+
+
 ## v1.81.0 - Batch 43: tema ke-4 "Studio Equalizer" (neumorphism)
 
 Diminta user eksplisit dengan 4 warna HEX persis (bukan interpretasi bebas):
