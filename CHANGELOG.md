@@ -40,6 +40,16 @@ di keluhan user), gak butuh perubahan.
 harapan lintas banyak tag) baru kekonfirmasi setelah push beneran + push
 kedua dengan versionName sama buat coba reproduce skenario lama.
 
+---
+**Addendum (Batch 43, verification-only, TIDAK bump versionCode/versionName —
+gak ada perubahan kode/config apapun):** user konfirmasi hasil run CI beneran
+— waktu compile turun dari baseline **7-8 menit ke ±4 menit (~45-50% lebih
+cepat)**. Ini efek gabungan optimisasi CI Batch 40 (job digabung + gradle
+cache + parallel/caching) + Batch 41 (kapt worker-api/incremental +
+buildConfig=false) — baseline 7-8 menit itu SEBELUM Batch 40. Status kedua
+batch tersebut di `PROJECT_STATE.md` diupdate jadi TERVERIFIKASI. Nol regresi
+dilaporkan user.
+
 
 ## v1.80.0 - Lanjutan pangkas waktu compile CI (Batch 41)
 

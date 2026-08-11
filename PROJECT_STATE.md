@@ -25,7 +25,15 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   v1.81.0. **Next**: minta user push + verifikasi di tab Releases beneran
   dapat asset baru (bukan cache lama) — terutama kalau nanti test reproduce
   dengan push kedua versionName sama.
-- ⚡ **Batch 41 (v1.80.0, riwayat)**: lanjutan pangkas
+- ✅ **Batch 43 (v1.81.0, verification-only — TIDAK ada perubahan kode/config)**:
+  user konfirmasi hasil run CI beneran — waktu compile turun dari baseline
+  **7-8 menit → ±4 menit (~45-50% lebih cepat)**. Ini efek GABUNGAN Batch 40
+  (job digabung + `cache: 'gradle'` + parallel/caching flag) + Batch 41 (kapt
+  worker-api/incremental + `buildConfig=false`) — baseline 7-8 menit itu
+  SEBELUM Batch 40 (2-job terpisah, no cache sama sekali), jadi speedup ini
+  bukan efek 1 batch doang. Status Batch 41 & 40 di bawah diupdate dari
+  "belum divalidasi runtime" → **TERVERIFIKASI**.
+- ⚡ **Batch 41 (v1.80.0, riwayat — ✅ TERVERIFIKASI Batch 43)**: lanjutan pangkas
   waktu compile CI (diminta user lagi, "lanjutkan percepat compiler"), 3 perubahan
   low-risk TANPA ubah dependency/versi (jadi aman tanpa compiler buat verifikasi):
   1. `gradle.properties`: `kapt.use.worker.api=true` — kapt (Hilt) jalan lewat
@@ -49,11 +57,9 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     & paham resikonya (versi KSP harus persis cocok Kotlin, gak bisa divalidasi
     di sandbox ini). (c) `org.gradle.configuration-cache` — tetap ditahan, sama
     alasan kapt+configuration-cache riwayatnya kurang mulus dikombinasi.
-  - **Belum divalidasi runtime** — 3 perubahan di atas semuanya flag/config resmi
-    terdokumentasi (bukan reka-reka), `buildConfig=false` diverifikasi aman lewat
-    grep eksplisit (bukan asumsi), tapi efek RIIL & tidak-adanya regresi baru
-    kekonfirmasi setelah CI run beneran.
-- ⚡ **Batch 40 (v1.79.0, riwayat)**: pangkas waktu
+  - **✅ TERVERIFIKASI Batch 43** — kombinasi Batch 40+41 mengkonfirmasi compile
+    time turun 7-8 menit → ±4 menit di run CI beneran. Nol regresi dilaporkan.
+- ⚡ **Batch 40 (v1.79.0, riwayat — ✅ TERVERIFIKASI Batch 43)**: pangkas waktu
   compile CI, diminta user eksplisit. 3 perubahan (lihat detail lengkap +
   rasional/trade-off tiap poin di `CHANGELOG.md` v1.79.0, jangan diulang tanpa
   baca dulu):
@@ -75,9 +81,9 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
     tanpa user minta eksplisit), commit `gradlew` permanen ke repo (hilangin
     bootstrap overhead sepenuhnya tapi ubah arsitektur delivery ZIP/Termux, di
     luar scope kali ini — opsi lanjutan kalau user mau).
-  - **Belum divalidasi runtime** — YAML syntax-check valid, tapi efek
-    pemangkasan waktu SEBENARNYA baru kekonfirmasi setelah CI run beneran
-    (terutama cache hit di run KEDUA dst).
+  - **✅ TERVERIFIKASI Batch 43** — compile time turun 7-8 menit → ±4 menit di
+    run CI beneran (efek gabungan dengan Batch 41), cache hit run kedua dst
+    berfungsi sesuai ekspektasi.
 - 🔩 **Batch 39 (v1.78.0, BELUM diverifikasi CI/runtime)**: 2 perbaikan varian
   Skeuomorphism (Batch 38) diminta user eksplisit setelah ditanya "apakah otonom
   penuh, gak numpang baseline default":
