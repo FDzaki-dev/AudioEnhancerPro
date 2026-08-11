@@ -63,6 +63,8 @@
     <string name="theme_style_desc">Aktifkan Aurora Glass — kaca lebih vivid, sheen &amp; cahaya midnight-blue lebih terasa. Nonaktif = Midnight Glass (bawaan, lebih tenang).</string>
     <string name="theme_style_skeuo_title">Skeuomorphism</string>
     <string name="theme_style_skeuo_desc">Aktifkan tampilan Skeuomorphism — panel fisik bevel-shadow dengan aksen titanium-silver metalik, bukan kaca. Nonaktif = Midnight Glass (bawaan).</string>
+    <string name="theme_style_studioeq_title">Studio Equalizer</string>
+    <string name="theme_style_studioeq_desc">Aktifkan Studio Equalizer — neumorphism papan mixer studio, abu-abu gelap dengan aksen lampu indikator hijau neon. Nonaktif = Midnight Glass (bawaan).</string>
 
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>

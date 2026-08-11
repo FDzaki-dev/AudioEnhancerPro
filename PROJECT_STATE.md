@@ -10,8 +10,24 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.80.1
-- 🔑 **Batch 42 (v1.80.1, BELUM diverifikasi run CI beneran)**: diminta user
+- **Versi**: v1.81.0
+- 🎨 **Batch 43 (v1.81.0, BELUM diverifikasi runtime/build)**: tema ke-4 "Studio
+  Equalizer" (neumorphism), diminta user dengan 4 warna HEX eksak: Base `#1E222A`,
+  Dark Shadow `#14171D`, Light Shadow `#282D37`, Aksen Glow (Aktif) `#39FF14`.
+  Toggle ke-4 sejajar 3 existing (Aurora Glass/Skeuomorphism) di Settings, 1
+  pilihan aktif dari 4. **Kunci beda dari Skeuomorphism**: shadow SEHUE base
+  (bukan Color.White/Black) — neumorphism asli, bukan bevel tegas. Hijau neon
+  DIJAGA cuma nyala di `primaryGlow`/state aktif (colorScheme.primary), panel
+  tetap netral abu-abu studio. 6 file: `Theme.kt` (token+colorScheme+shapes
+  lengkap, `AppThemeStyle.STUDIO_EQ`), `PrefsHelper.kt` (`APP_THEME_STUDIO_EQ`),
+  `MainActivity.kt` (mapping+screenBrush), `BoosterScreen.kt` (toggle+import
+  `Icons.Filled.Equalizer`), `strings.xml` ID+EN. Detail lengkap & rasional tiap
+  token: `CHANGELOG.md` v1.81.0.
+  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih, parity
+    string 100/100, xmllint valid, sweep `AppThemeStyle.` exhaustive semua
+    cabang `when`). Efek visual riil (kontras neon-green, dll) baru terkonfirmasi
+    setelah build + cek device.
+- 🔑 **Batch 42 (v1.80.1, riwayat)**: diminta user
   eksplisit "tambahkan unique key pada setiap output github release, untuk
   mencegah duplikasi terjadi lagi". `.github/workflows/build.yml`, 4 titik pakai
   `github.run_id` (global unik, gak pernah reset/reuse): `tag_name`

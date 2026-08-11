@@ -30,10 +30,14 @@ object PrefsHelper {
      *  di `MainActivity.kt`.
      *  Batch 38: tambah varian ke-3 `APP_THEME_SKEUOMORPHISM` — Skeuomorphism dark-mode
      *  ASLI (bevel/shadow/tekstur fisik realistis), independen dari 2 varian glass di
-     *  atas. Const lama TIDAK diganti (persistence key user existing tetap valid). */
+     *  atas. Const lama TIDAK diganti (persistence key user existing tetap valid).
+     *  Batch 43: tambah varian ke-4 `APP_THEME_STUDIO_EQ` — "Studio Equalizer",
+     *  neumorphism soft-UI (palet abu-abu studio gelap + aksen neon-lime), independen
+     *  dari 3 varian di atas. Const lama tetap TIDAK diganti. */
     const val APP_THEME_AMOLED_GLASS = "amoled_glass"
     const val APP_THEME_RADICAL_SKEUO = "radical_skeuo"
     const val APP_THEME_SKEUOMORPHISM = "skeuomorphism"
+    const val APP_THEME_STUDIO_EQ = "studio_eq"
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

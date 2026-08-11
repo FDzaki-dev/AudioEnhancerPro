@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.GraphicEq
@@ -832,6 +833,42 @@ fun BoosterScreen(
                     )
                 }
                 SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_SKEUOMORPHISM, onCheckedChange = null)
+            }
+        }
+
+        // Batch 43: switch "Studio Equalizer" — varian ke-4, sejajar 2 di atas
+        // (bukan sub-opsi). Neumorphism soft-UI, palet abu-abu studio gelap + aksen
+        // neon-lime khusus state aktif, diminta user dengan 4 warna HEX eksak
+        // ("Background/Base #1E222A, Dark Shadow #14171D, Light Shadow #282D37,
+        // Aksen Glow (Aktif) #39FF14").
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_STUDIO_EQ,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_STUDIO_EQ else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Equalizer, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_studioeq_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_studioeq_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_STUDIO_EQ, onCheckedChange = null)
             }
         }
 

@@ -300,9 +300,83 @@ val SkeuoScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(Color(0xFF232327), SkeuoPanel, SkeuoBackground)
 )
 
-/** Token yang beda antar 3 varian desain, dibaca lewat `LocalSkeuTokens.current`
- *  (SkeuomorphicComponents.kt) — 1 kode komponen, 3 varian, TANPA duplikasi. Field
- *  baru WAJIB diisi di SEMUA instance di bawah kalau ditambah lagi.
+// ============================================================================
+// Batch 43: Varian 4 "Studio Equalizer" — NEUMORPHISM (soft-UI), BUKAN
+// skeuomorphism bevel-hitam/putih (blok di atas) atau glass (AmoledGlass/Radical).
+// Beda kunci neumorphism vs skeuomorphism: shadow pasangan (terang+gelap) yang
+// dipakai buat kesan timbul/cekung TETAP SEHUE sama base panel (bukan pure
+// black/white alpha) — makanya seluruh token di bawah nurunin dari 4 warna
+// EKSAK yang diminta user (bukan hasil rekaan), TIDAK ada Color.White/Color.Black
+// dipakai buat shadow (beda dari SkeuoEdgeHighlight/SkeuoEdgeShadow di atas).
+// Palet asli diminta user, tema "papan mixer studio rekaman profesional":
+//  - Background/Base   #1E222A (abu-abu studio gelap)
+//  - Dark Shadow       #14171D (bayangan sudut BAWAH)
+//  - Light Shadow      #282D37 (bayangan sudut ATAS)
+//  - Aksen Glow (Aktif) #39FF14 (hijau lime elektrik, lampu indikator)
+// ============================================================================
+
+val StudioEqBackground = Color(0xFF1E222A)
+val StudioEqDarkShadow = Color(0xFF14171D)
+val StudioEqLightShadow = Color(0xFF282D37)
+
+/** Hijau lime elektrik — dipakai KHUSUS buat elemen "menyala/aktif" (ring glow
+ *  power button ditekan, primaryGlow, indikator level) — meniru lampu LED VU-meter
+ *  papan mixer studio, BUKAN warna permukaan panel (panel tetap netral abu-abu
+ *  studio gelap, hijau cuma nyala pas ada state aktif — sesuai deskripsi user
+ *  "hijau neon ... kesan frekuensi audio presisi & aman"). */
+val StudioEqAccent = Color(0xFF39FF14)
+
+val StudioEqTextPrimary = Color(0xFFF0F2F5)
+val StudioEqTextSecondary = Color(0xFFC2C7D1)
+val StudioEqTextMuted = Color(0xFF9AA1AC)
+
+/** Fill panel/kartu — gradient 3-stop TERANG(atas)->base->GELAP(bawah), persis
+ *  arah yang dideskripsikan user ("Dark Shadow: bayangan sudut bawah" / "Light
+ *  Shadow: bayangan sudut atas") — bukan bevel tegas ala skeuomorphism, transisi
+ *  jauh lebih halus/subtle (khas neumorphism soft-UI, low-contrast by design). */
+val StudioEqCardBrush: Brush = Brush.linearGradient(
+    listOf(StudioEqLightShadow, StudioEqBackground, StudioEqDarkShadow)
+)
+
+/** Dipakai buat elemen "raised" lain (SkeuPowerButton) — arah sama dengan
+ *  StudioEqCardBrush, satu bahasa visual konsisten di seluruh varian ini. */
+val StudioEqBevelBrush: Brush = StudioEqCardBrush
+
+/** Border SEHUE shadow (bukan Color.White/Black seperti SkeuoEdgeHighlight/
+ *  Shadow) — inti pembeda neumorphism vs skeuomorphism di atas. */
+val StudioEqBevelBorderBrush: Brush = Brush.linearGradient(
+    listOf(StudioEqLightShadow.copy(alpha = 0.55f), Color.Transparent, StudioEqDarkShadow.copy(alpha = 0.65f))
+)
+
+/** Sheen atas SANGAT halus — neumorphism matte, bukan glossy kaca/plastik
+ *  (beda dari GlassSpecularBrush/SkeuoSpecularBrush yang jauh lebih terang). */
+val StudioEqSpecularBrush: Brush = Brush.linearGradient(
+    listOf(StudioEqLightShadow.copy(alpha = 0.16f), Color.Transparent, Color.Transparent)
+)
+
+val StudioEqPrimaryGlow = StudioEqAccent.copy(alpha = 0.30f)
+
+/** Knob slider tetap netral terang (bukan hijau) — hijau accent DIJAGA cuma
+ *  buncul di state aktif/glow (primaryGlow, ring power button), sesuai deskripsi
+ *  user "lampu indikator", bukan warna komponen pasif. */
+val StudioEqKnobHighlight: Color = lerp(StudioEqLightShadow, Color.White, 0.45f)
+
+/** Radius sendiri — soft-UI neumorphism klasik pakai rounded generous (gak
+ *  se-tegas Skeuomorphism 14dp/10dp, gak se-bubbly iOS-glass 26dp/16dp). */
+val StudioEqCardRadius = 20.dp
+val StudioEqIconBoxRadius = 14.dp
+
+/** Background layar — gradient netral gelap konsisten sama base panel (bukan
+ *  biru midnight ala glass, bukan gunmetal netral ala skeuo) — nuansa "studio
+ *  rack gelap" sendiri. */
+val StudioEqScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(StudioEqLightShadow, StudioEqBackground, StudioEqDarkShadow)
+)
+
+/** Token yang beda antar 4 varian desain (Batch 43: +1, sebelumnya 3), dibaca
+ *  lewat `LocalSkeuTokens.current` (SkeuomorphicComponents.kt) — 1 kode komponen,
+ *  4 varian, TANPA duplikasi. Field baru WAJIB diisi di SEMUA instance di bawah
+ *  kalau ditambah lagi.
  *  Batch 39: `cardRadius`/`iconBoxRadius` ditambah — sebelumnya radius kartu/icon-box
  *  hardcode ke const global `SkeuCardRadius`/`SkeuIconBoxRadius` (dipakai SEMUA
  *  varian tanpa beda), sekarang per-varian supaya Skeuomorphism (radius lebih
@@ -380,11 +454,30 @@ val SkeuomorphismSkeuTokens = SkeuTokens(
     iconBoxRadius = SkeuoIconBoxRadius
 )
 
+/** Varian 4: "Studio Equalizer" — neumorphism soft-UI (Batch 43), palet abu-abu
+ *  studio gelap + shadow pasangan sehue + aksen neon-lime khusus state aktif.
+ *  Lihat blok komentar panjang di atas buat detail palet & rasional tiap token. */
+val StudioEqSkeuTokens = SkeuTokens(
+    mutedText = StudioEqTextMuted,
+    bevelBrush = StudioEqBevelBrush,
+    bevelBorderBrush = StudioEqBevelBorderBrush,
+    primaryGlow = StudioEqPrimaryGlow,
+    baseSurface = StudioEqBackground,
+    elevatedSurface = StudioEqLightShadow,
+    cardBrush = StudioEqCardBrush,
+    cardBorderBrush = StudioEqBevelBorderBrush,
+    cardElevation = 6.dp,
+    sliderKnobHighlight = StudioEqKnobHighlight,
+    specularBrush = StudioEqSpecularBrush,
+    cardRadius = StudioEqCardRadius,
+    iconBoxRadius = StudioEqIconBoxRadius
+)
+
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
  *  constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, nama TIDAK diubah
  *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
- *  `AMOLED_GLASS` ("Midnight Glass"). */
-enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM }
+ *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4). */
+enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
 val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
@@ -422,6 +515,31 @@ private val RadicalDarkColors = darkColorScheme(
     errorContainer = Color(0xFF4A1616),
     onErrorContainer = Color(0xFFFFD8D8),
     outline = RadicalEdgeHighlight
+)
+
+/** Batch 43: colorScheme M3 buat "Studio Equalizer" — `primary` = hijau neon lime
+ *  asli user (`StudioEqAccent`), `onPrimary` gelap kehijauan (kontras cukup di atas
+ *  hijau terang), `primaryContainer` olive-dark desaturated (bukan hijau terang
+ *  penuh — container tetap "quiet", nyala penuh cuma dipegang `primaryGlow`/ring
+ *  aktif di SkeuTokens, konsisten sama deskripsi user "lampu indikator"). */
+private val StudioEqDarkColors = darkColorScheme(
+    primary = StudioEqAccent,
+    onPrimary = Color(0xFF0A1408),
+    primaryContainer = Color(0xFF223A18),
+    onPrimaryContainer = Color(0xFFDFFFDA),
+    secondary = StudioEqTextSecondary,
+    onSecondary = Color(0xFF0A1408),
+    background = StudioEqBackground,
+    onBackground = StudioEqTextPrimary,
+    surface = StudioEqBackground,
+    onSurface = StudioEqTextPrimary,
+    surfaceVariant = StudioEqLightShadow,
+    onSurfaceVariant = StudioEqTextSecondary,
+    error = Color(0xFFFF6B6B),
+    onError = Color.White,
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = StudioEqLightShadow
 )
 
 private val DarkColors = darkColorScheme(
@@ -527,6 +645,18 @@ private val SkeuomorphismShapes = Shapes(
     extraLarge = RoundedCornerShape(20.dp)
 )
 
+/** Batch 43: shape khusus Studio Equalizer — rounded generous konsisten sama
+ *  `StudioEqCardRadius`/`StudioEqIconBoxRadius` (20dp/14dp) di atas, biar komponen
+ *  Material3 default yang belum pakai shape manual JUGA otonom (gak numpang
+ *  radius varian lain — sama alasan `SkeuomorphismShapes` Batch 39). */
+private val StudioEqShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(20.dp),
+    extraLarge = RoundedCornerShape(28.dp)
+)
+
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
  *  SkeuomorphicComponents.kt) tapi NILAINYA SELALU `true`, tidak ada resolusi/override
  *  light. */
@@ -545,16 +675,23 @@ fun AudioEnhancerTheme(
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
         themeStyle == AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismDarkColors
+        themeStyle == AppThemeStyle.STUDIO_EQ -> StudioEqDarkColors
         else -> DarkColors
     }
     val skeuTokens = when (themeStyle) {
         AppThemeStyle.RADICAL_SKEUO -> RadicalSkeuoSkeuTokens
         AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismSkeuTokens
+        AppThemeStyle.STUDIO_EQ -> StudioEqSkeuTokens
         else -> AmoledGlassSkeuTokens
     }
     // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
-    // semua) — Skeuomorphism pakai `SkeuomorphismShapes` (sudut lebih tegas).
-    val shapes = if (themeStyle == AppThemeStyle.SKEUOMORPHISM) SkeuomorphismShapes else AppShapes
+    // semua) — Skeuomorphism pakai `SkeuomorphismShapes` (sudut lebih tegas). Batch
+    // 43: +Studio Equalizer pakai `StudioEqShapes` (rounded generous neumorphism).
+    val shapes = when (themeStyle) {
+        AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismShapes
+        AppThemeStyle.STUDIO_EQ -> StudioEqShapes
+        else -> AppShapes
+    }
     CompositionLocalProvider(
         LocalIsDarkTheme provides true,
         LocalAppThemeStyle provides themeStyle,

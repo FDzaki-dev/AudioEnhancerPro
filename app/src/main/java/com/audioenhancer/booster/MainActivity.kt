@@ -119,9 +119,11 @@ class MainActivity : ComponentActivity() {
             // Batch 38: tambah varian ke-3 SKEUOMORPHISM (`when`, bukan lagi if/else
             // 2-cabang) — String persistence sudah didesain sejak Batch 36 buat
             // nampung >2 varian, jadi cukup nambah 1 cabang di sini.
+            // Batch 43: +varian ke-4 STUDIO_EQ, cabang ke-3.
             val appThemeStyle = when (appThemeStyleKey) {
                 PrefsHelper.APP_THEME_RADICAL_SKEUO -> AppThemeStyle.RADICAL_SKEUO
                 PrefsHelper.APP_THEME_SKEUOMORPHISM -> AppThemeStyle.SKEUOMORPHISM
+                PrefsHelper.APP_THEME_STUDIO_EQ -> AppThemeStyle.STUDIO_EQ
                 else -> AppThemeStyle.AMOLED_GLASS
             }
             // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
@@ -141,9 +143,12 @@ class MainActivity : ComponentActivity() {
                 // butuh backdrop vivid buat efek translucency), pakai gradient netral
                 // gunmetal sendiri (`SkeuoScreenBackgroundBrush`) — konsisten sama
                 // bahasa desain bevel/material fisiknya, bukan biru.
+                // Batch 43: +cabang STUDIO_EQ -> StudioEqScreenBackgroundBrush (gradient
+                // netral gelap studio, bukan biru midnight/gunmetal 3 varian lain).
                 val screenBrush = when (appThemeStyle) {
                     AppThemeStyle.RADICAL_SKEUO -> AuroraScreenBackgroundBrush
                     AppThemeStyle.SKEUOMORPHISM -> SkeuoScreenBackgroundBrush
+                    AppThemeStyle.STUDIO_EQ -> StudioEqScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }
                 Surface(

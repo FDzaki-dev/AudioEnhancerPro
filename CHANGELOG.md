@@ -1,5 +1,55 @@
 # Changelog
 
+## v1.81.0 - Batch 43: tema ke-4 "Studio Equalizer" (neumorphism)
+
+Diminta user eksplisit dengan 4 warna HEX persis (bukan interpretasi bebas):
+palet "papan mixer studio rekaman profesional", neumorphism (soft-UI) — BEDA
+dari Skeuomorphism (Batch 38-39, bevel hitam/putih tegas) & 2 varian glass
+(Midnight/Aurora). Toggle ke-4, sejajar 3 toggle existing di Settings (SATU
+pilihan aktif dari 4, bukan sub-opsi).
+
+**Palet asli (persis dari user):**
+- Background/Base `#1E222A` — abu-abu studio gelap
+- Dark Shadow `#14171D` — bayangan sudut bawah
+- Light Shadow `#282D37` — bayangan sudut atas
+- Aksen Glow (Aktif) `#39FF14` — hijau lime elektrik, lampu indikator
+
+**Rasional desain kunci** (didisclose biar jelas bukan tebak-tebakan):
+1. **Neumorphism ≠ Skeuomorphism**: shadow pasangan (`StudioEqLightShadow`/
+   `StudioEqDarkShadow`) SEHUE sama base panel, bukan `Color.White`/`Color.Black`
+   alpha kayak `SkeuoEdgeHighlight`/`SkeuoEdgeShadow` — beda filosofis inti antara
+   2 bahasa desain ini, bukan sekadar beda warna.
+2. **Arah gradient card/bevel ikut deskripsi user PERSIS**: "Dark Shadow: bayangan
+   sudut BAWAH" / "Light Shadow: bayangan sudut ATAS" -> `StudioEqCardBrush` 3-stop
+   Light(atas)->Base->Dark(bawah), bukan arah sembarang.
+3. **Hijau `#39FF14` DIJAGA cuma nyala di state aktif** ("lampu indikator" per
+   deskripsi user) — dipakai di `primaryGlow` (ring power button aktif, dsb) &
+   `colorScheme.primary` (Material default), TAPI panel/kartu tetap netral abu-abu
+   studio (`baseSurface`/`cardBrush` TIDAK ada hijau) — hijau bukan warna permukaan.
+4. **Radius sendiri** `StudioEqCardRadius`/`IconBoxRadius` = 20dp/14dp — beda dari
+   3 varian lain (26/16 glass, 14/10 skeuo), + `StudioEqShapes` buat komponen
+   Material3 default (konsisten pola Batch 39 `SkeuomorphismShapes`).
+
+**File yang berubah (6, semua bagian 1 fitur atomik — Settings switch baru butuh
+sentuh seluruh chain state: token warna -> persistence -> mapping -> UI toggle ->
+string, gak bisa dipecah lebih kecil tanpa app crash/inconsistent)**:
+`Theme.kt` (blok token+colorScheme+shapes "Studio Equalizer" lengkap, +1 cabang
+`AppThemeStyle` enum, +3 titik `when` di `AudioEnhancerTheme`), `PrefsHelper.kt`
+(+`APP_THEME_STUDIO_EQ`), `MainActivity.kt` (+cabang mapping enum & screenBrush),
+`BoosterScreen.kt` (+toggle ke-4 "Studio Equalizer", +import `Icons.Filled.Equalizer`
+— sudah ada di dependency `material-icons-extended`, dipakai icon extended lain
+kayak `GraphicEq`/`SurroundSound`/`Palette`), `strings.xml`+`strings.xml` (values-en)
+(+`theme_style_studioeq_title`/`_desc`, ID & EN).
+
+**Belum divalidasi runtime** — statis only: brace/paren balance 0 selisih di 4
+file Kotlin yang disentuh, parity string ID/EN 100/100, `xmllint` valid 2 file,
+sweep `AppThemeStyle.` di seluruh project — semua reference kevalidasi exhaustive
+(gak ada cabang `when` yang lupa nambah STUDIO_EQ). Efek visual RIIL (kontras,
+keterbacaan neon-green di atas dark-grey, dll) baru terkonfirmasi setelah build
+jalan & dicek langsung di device.
+
+
+
 ## v1.80.1 - Batch 42: unique key per GitHub Release (cegah duplikasi)
 
 Diminta user eksplisit: "tambahkan unique key pada setiap output github release,
