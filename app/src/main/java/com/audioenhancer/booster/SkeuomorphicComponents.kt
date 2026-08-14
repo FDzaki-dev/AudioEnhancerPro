@@ -71,6 +71,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -99,22 +100,65 @@ internal object NoRippleIndication : Indication {
         NoRippleIndicationInstance
 }
 
-/** Batch 32: guide §9 "Glow Rules" — halo lembut TERBATAS buat state aktif/selected
- *  (power button ON, preset chip aktif, switch ON), native pakai `Brush.radialGradient`
- *  (BUKAN `BlurMaskFilter`/Paint hack — sudah kejadian di Batch 14, shadow layer custom
- *  gak reliable lintas API level tanpa compiler buat verifikasi ulang). Ditaruh SEBELUM
- *  `.shadow()`/`.clip()` di modifier chain manapun dipakai, supaya halo-nya boleh
- *  \"bleed\" keluar batas shape (gak ikut ke-clip) — itu kenapa harus tetap sengaja
- *  dipasang urutannya, JANGAN dipindah ke akhir chain kalau dipakai ulang di komponen
- *  lain. Dipakai SELEKTIF sesuai guide (\"Do not use glow for every card/border/text\"),
- *  bukan didekorasi ke semua komponen — token `SkeuPrimaryGlow` (Theme.kt) sekarang
- *  BENERAN dipakai (sebelumnya didefinisikan tapi 0 pemanggil). */
+/** Batch 47: falloff di-ubah dari 2-stop hard cutoff (`[color, Transparent]`) ke
+ *  4-stop halus — user lapor efeknya "kebaca bocor" bukan "menyala ambient". Hard
+ *  cutoff bikin tepi glow terasa seperti warna solid yang terpotong tiba-tiba;
+ *  4-stop mensimulasikan falloff cahaya beneran (cepat redup di 35%, landai
+ *  sampai transparan di 100%) — masih pakai `Brush.radialGradient` native (BUKAN
+ *  `BlurMaskFilter`, preseden Batch 14/32), cuma stop-nya lebih banyak. Berlaku
+ *  GLOBAL ke semua pemakai (`SkeuPowerButton`, `SkeuSwitch`, preset chip
+ *  `BoosterScreen.kt`), semua varian — bukan cuma Neumorphism. */
 internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = this.drawBehind {
     val glowRadius = ((size.minDimension / 2f) + spread.toPx()).coerceAtLeast(1f)
     drawCircle(
-        brush = Brush.radialGradient(colors = listOf(color, Color.Transparent), center = center, radius = glowRadius),
+        brush = Brush.radialGradient(
+            0.00f to color.copy(alpha = color.alpha * 0.90f),
+            0.35f to color.copy(alpha = color.alpha * 0.55f),
+            0.70f to color.copy(alpha = color.alpha * 0.18f),
+            1.00f to Color.Transparent,
+            center = center,
+            radius = glowRadius
+        ),
         radius = glowRadius,
         center = center
+    )
+}
+
+/** Batch 47: 2 layer `Modifier.shadow()` NATIVE terarah (terang offset kiri-atas,
+ *  gelap offset kanan-bawah, warna via `ambientColor`/`spotColor` — parameter
+ *  resmi Compose UI, BUKAN custom Paint/BlurMaskFilter, preseden Batch 14/32
+ *  larang hack blur custom) — dipasang SEBELUM konten kartu (di belakang), supaya
+ *  kartu kebaca "timbul dari 2 arah cahaya" (soft-UI neumorphism genuine), bukan
+ *  cuma 1 shadow hitam datar. Di-skip TOTAL (0 draw call, 0 perubahan visual)
+ *  kalau `tokens.shadowLightTint == Color.Transparent` — jadi 3 varian selain
+ *  Neumorphism (`shadowLightTint` mereka memang `Color.Transparent`, lihat
+ *  Theme.kt) otomatis TIDAK kepengaruh sama sekali oleh fungsi ini. */
+@Composable
+private fun BoxScope.SkeuDualDirectionalShadow(tokens: SkeuTokens, shape: Shape, elevation: Dp) {
+    if (tokens.shadowLightTint == Color.Transparent) return
+    Box(
+        Modifier
+            .matchParentSize()
+            .offset(x = (-3).dp, y = (-3).dp)
+            .shadow(
+                elevation = elevation,
+                shape = shape,
+                clip = false,
+                ambientColor = tokens.shadowLightTint,
+                spotColor = tokens.shadowLightTint
+            )
+    )
+    Box(
+        Modifier
+            .matchParentSize()
+            .offset(x = 3.dp, y = 3.dp)
+            .shadow(
+                elevation = elevation,
+                shape = shape,
+                clip = false,
+                ambientColor = tokens.shadowDarkTint,
+                spotColor = tokens.shadowDarkTint
+            )
     )
 }
 
@@ -139,19 +183,25 @@ internal fun SkeuCard(
     // Literal Skeuomorphism jadi raised-bevel surface (guide §5 "Raised object").
     // 1 kode komponen, 3 tema, TANPA duplikasi/percabangan when() di sini.
     val tokens = LocalSkeuTokens.current
-    Column(
-        modifier = modifier
-            .shadow(elevation = tokens.cardElevation, shape = shape, clip = false)
-            .clip(shape)
-            .background(tokens.cardBrush)
-            // Batch 37: layer sheen kaca KEDUA di atas base glass — pojok kiri-atas
-            // konsentrasi terang lalu transparan penuh (readability aman, gak nutup
-            // teks). Ini yang bikin kartu kebaca sebagai KACA, bukan cuma kartu
-            // gelap solid berwarna biru.
-            .background(tokens.specularBrush)
-            .border(1.dp, tokens.cardBorderBrush, shape),
-        content = content
-    )
+    // Batch 47: outer Box TANPA `modifier` (`modifier` caller tetap di Column persis
+    // posisi lama — supaya sizing/layout existing callers TIDAK berubah sama sekali),
+    // cuma wadah buat 2 layer dual-shadow opsional di belakang konten.
+    Box {
+        SkeuDualDirectionalShadow(tokens, shape, tokens.cardElevation)
+        Column(
+            modifier = modifier
+                .shadow(elevation = tokens.cardElevation, shape = shape, clip = false)
+                .clip(shape)
+                .background(tokens.cardBrush)
+                // Batch 37: layer sheen kaca KEDUA di atas base glass — pojok kiri-atas
+                // konsentrasi terang lalu transparan penuh (readability aman, gak nutup
+                // teks). Ini yang bikin kartu kebaca sebagai KACA, bukan cuma kartu
+                // gelap solid berwarna biru.
+                .background(tokens.specularBrush)
+                .border(1.dp, tokens.cardBorderBrush, shape),
+            content = content
+        )
+    }
 }
 
 /** Varian tinted buat banner info/warning — glass base yang sama dengan SkeuCard,
@@ -168,15 +218,18 @@ internal fun SkeuTintedCard(
     // global `SkeuCardRadius` lagi (sama alasannya dengan SkeuCard di atas).
     val shape = RoundedCornerShape(tokens.cardRadius)
     val blended = lerp(tokens.baseSurface, tint, 0.22f)
-    Column(
-        modifier = modifier
-            .shadow(elevation = tokens.cardElevation + 1.dp, shape = shape, clip = false)
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(blended, tokens.elevatedSurface)))
-            .background(tokens.specularBrush)
-            .border(1.dp, tint.copy(alpha = 0.4f), shape),
-        content = content
-    )
+    Box {
+        SkeuDualDirectionalShadow(tokens, shape, tokens.cardElevation + 1.dp)
+        Column(
+            modifier = modifier
+                .shadow(elevation = tokens.cardElevation + 1.dp, shape = shape, clip = false)
+                .clip(shape)
+                .background(Brush.linearGradient(listOf(blended, tokens.elevatedSurface)))
+                .background(tokens.specularBrush)
+                .border(1.dp, tint.copy(alpha = 0.4f), shape),
+            content = content
+        )
+    }
 }
 
 @Composable

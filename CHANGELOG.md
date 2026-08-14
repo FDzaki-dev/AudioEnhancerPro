@@ -1,5 +1,76 @@
 # Changelog
 
+## v1.84.0 - Batch 47: fix "kurang depth & tactile" + ambient glow "bocor" (dual-directional shadow Neumorphism)
+
+Diminta user via screenshot + feedback langsung: "hasilnya masih kurang
+memuaskan untuk sekelas Neumorphism style. Kurang depth & tactile+ambient
+lighting nya berasa 'bocor'". 2 file: `Theme.kt` (+2 field `SkeuTokens`),
+`SkeuomorphicComponents.kt` (render logic).
+
+**Root cause (ditemukan via review kode, bukan tebakan)**:
+1. `SkeuCard`/`SkeuTintedCard` cuma pakai 1 `Modifier.shadow()` native (warna
+   default hitam) — kontras shadow gelap SANGAT rendah di atas panel yang memang
+   sudah gelap (`NeumoPanel`/`NeumoBackground`), jadi hampir gak kelihatan.
+   Neumorphism genuine butuh SEPASANG shadow (terang dari arah cahaya + gelap
+   dari arah bayangan), bukan cuma 1 shadow gelap tunggal.
+2. `skeuGlow` (dipakai power button/switch/preset chip) pakai radial 2-stop hard
+   cutoff (`[color, Transparent]`) — tepi glow terpotong tiba-tiba, kebaca
+   sebagai warna "bocor" bukan cahaya "menyala ambient" yang landai.
+
+**Fix 1 — dual-directional shadow (`SkeuTokens` +2 field, `Theme.kt`)**:
+`shadowLightTint`/`shadowDarkTint`, dipakai render 2 layer
+`Modifier.shadow(ambientColor=, spotColor=)` NATIVE (parameter resmi Compose
+UI — BUKAN custom Paint/BlurMaskFilter, preseden Batch 14/32 tetap dihormati:
+"shadow layer custom gak reliable lintas API level tanpa compiler buat
+verifikasi ulang") — 1 layer offset (-3dp,-3dp) tint platinum terang, 1 layer
+offset (+3dp,+3dp) tint gelap, dipasang di belakang konten kartu
+(`SkeuDualDirectionalShadow`, `SkeuomorphicComponents.kt`). **KHUSUS
+Neumorphism** (`NeumoPlatinum.copy(alpha=0.55f)` / `NeumoPanelRecessed.copy(
+alpha=0.95f)`) — 3 varian lain (Midnight Glass, Aurora Glass, Studio Equalizer)
+diisi eksplisit `Color.Transparent` di `Theme.kt` (WAJIB diisi semua instance
+per konvensi komentar `SkeuTokens` sendiri) sehingga layer di-skip TOTAL, 0
+draw call tambahan, 0 perubahan visual — Midnight/Aurora Glass sengaja tetap
+"visually quiet" (guide §8 lama) dan Studio Eq tetap "low-contrast/subtle by
+design" (Batch 43), TIDAK ikut kena efek ini.
+
+**Fix 2 — falloff `skeuGlow` 4-stop (global, semua varian)**: dari 2-stop hard
+cutoff ke 4-stop landai (90%→55%→18%→0% alpha di 0/35/70/100% radius) — masih
+`Brush.radialGradient` native, cuma stop lebih banyak, mensimulasikan falloff
+cahaya beneran. Berlaku ke SEMUA pemakai `skeuGlow` (power button, switch,
+preset chip di `BoosterScreen.kt`, unchanged call sites) — bukan Neumorphism
+doang, karena "hard-cutoff kebaca bocor" adalah masalah teknik render, bukan
+masalah palet 1 varian.
+
+**Bug ditemukan & diperbaiki SEBELUM dikirim** (self-review, bukan laporan
+user): draf pertama `Brush.radialGradient(colorStops = arrayOf(...), ...)` —
+INI COMPILE ERROR. `colorStops` dideklarasikan `vararg colorStops: Pair<Float,
+Color>` di API Compose asli, parameter vararg TIDAK BISA di-assign pakai
+named-argument + `arrayOf(...)` langsung (butuh spread `*arrayOf(...)` atau
+pairs langsung positional). Diperbaiki: pairs dikirim positional langsung
+(`0.00f to color..., 0.35f to color..., ..., center = center, radius =
+glowRadius`), tanpa `arrayOf`/spread. Dicek ulang: tidak ada pola
+`= arrayOf(...)` lain yang salah pakai di project.
+
+**Layout regression dihindari**: `SkeuCard`/`SkeuTintedCard` sebelumnya
+`Column(modifier = modifier, ...)` langsung — sekarang dibungkus `Box { ... }`
+buat wadah 2 layer shadow tambahan. `modifier` (caller punya, misal
+`fillMaxWidth()`) SENGAJA tetap dipasang di `Column` PERSIS posisi lama (bukan
+dipindah ke outer `Box`), `Box` sendiri TANPA modifier apa pun — supaya
+sizing/layout existing 20+ call-site `SkeuCard`/`SkeuTintedCard` di
+`BoosterScreen.kt` TIDAK berubah sama sekali (`Box` cuma wrapper visual buat
+2 shadow layer `matchParentSize()`, ukurannya ngikut `Column` seperti biasa).
+
+**Belum divalidasi runtime** — statis only lagi (brace/paren `Theme.kt` &
+`SkeuomorphicComponents.kt` 0 selisih setelah fix compile-error di atas, semua
+4 varian `SkeuTokens` eksplisit isi 2 field baru — dicek grep 8/8 assignment).
+Efek visual riil (kedalaman dual-shadow, glow gak "bocor" lagi) baru
+terkonfirmasi setelah build ulang APK + install + screenshot baru dari user —
+**screenshot yang dikirim user kemungkinan besar dari build SEBELUM Batch 46/47
+di-compile** (kalau baru rebuild abis Batch 46 kemarin, warna power button di
+situ mestinya udah ruby #E0115F, bukan cuma pink generik — perlu rebuild+install
+ulang lewat skrip Termux Update Harian buat lihat hasil Batch 46 DAN 47
+sekaligus).
+
 ## v1.83.0 - Batch 46: upgrade varian 3 Skeuomorphism -> Neumorphism ultra realistic+immersive, aksen Platinum+Ruby
 
 Diminta user eksplisit: "Lanjutkan polish UI yang pending. Dan upgrade

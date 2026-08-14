@@ -41,6 +41,21 @@ import androidx.compose.ui.unit.sp
 // diubah (Protected Asset persistence key — data user lama harus tetap valid):
 // enum `AppThemeStyle.SKEUOMORPHISM` & `PrefsHelper.APP_THEME_SKEUOMORPHISM`.
 // Detail lengkap: `CHANGELOG.md` v1.83.0.
+//
+// BATCH 47 — user kirim screenshot + feedback: "kurang depth & tactile, ambient
+// lighting-nya berasa bocor". Root cause: (1) `SkeuCard` cuma pakai 1 native
+// `Modifier.shadow()` (default hitam, kontras rendah di atas panel gelap) + brush
+// linear-gradient tunggal — gak ada shadow TERANG buat sisi "kena cahaya", padahal
+// itu inti soft-UI neumorphism; (2) `skeuGlow` (SkeuomorphicComponents.kt) pakai
+// radial 2-stop hard cutoff (`[color, Transparent]`) — falloff-nya kasar, kebaca
+// sebagai "bocor" bukan "menyala ambient". Fix: `SkeuTokens` +2 field
+// `shadowLightTint`/`shadowDarkTint` (NATIVE `Modifier.shadow(ambientColor=,
+// spotColor=)`, BUKAN custom Paint/BlurMaskFilter — preseden Batch 14/32 larang
+// hack blur custom krn gak reliable lintas API level), dipakai render 2 layer
+// shadow terarah (terang kiri-atas + gelap kanan-bawah) KHUSUS Neumorphism (3
+// varian lain tetap `Color.Transparent` = 0 perubahan). `skeuGlow` di-multi-stop
+// (4-stop, falloff halus) — berlaku global ke SEMUA pemakainya (power button,
+// switch, preset chip, semua varian), bukan cuma Neumorphism.
 // ============================================================================
 
 // ============================================================================
@@ -414,7 +429,16 @@ val StudioEqScreenBackgroundBrush: Brush = Brush.verticalGradient(
  *  hardcode ke const global `SkeuCardRadius`/`SkeuIconBoxRadius` (dipakai SEMUA
  *  varian tanpa beda), sekarang per-varian supaya Skeuomorphism (radius lebih
  *  tegas/kecil, khas hardware fisik) beneran otonom — gak numpang radius iOS-glass
- *  Batch 37 punya 2 varian glass. */
+ *  Batch 37 punya 2 varian glass.
+ *  Batch 47: `shadowLightTint`/`shadowDarkTint` ditambah — dipakai `SkeuCard`/
+ *  `SkeuTintedCard` (SkeuomorphicComponents.kt) buat render 2 layer
+ *  `Modifier.shadow(ambientColor=, spotColor=)` NATIVE terarah (terang
+ *  offset kiri-atas + gelap offset kanan-bawah) di ATAS shadow tunggal lama —
+ *  BUKAN custom BlurMaskFilter/Paint (preseden Batch 14/32 larang, gak reliable
+ *  lintas API level). Default `Color.Transparent` di 3 varian lain = layer ini
+ *  DI-SKIP total (0 perubahan visual/perf dari sebelum Batch 47) — cuma varian 3
+ *  Neumorphism yang diisi warna asli, sesuai keluhan user soal "kurang depth &
+ *  tactile" (screenshot Batch 46). */
 data class SkeuTokens(
     val mutedText: Color,
     val bevelBrush: Brush,
@@ -428,7 +452,9 @@ data class SkeuTokens(
     val sliderKnobHighlight: Color,
     val specularBrush: Brush,
     val cardRadius: Dp,
-    val iconBoxRadius: Dp
+    val iconBoxRadius: Dp,
+    val shadowLightTint: Color,
+    val shadowDarkTint: Color
 )
 
 /** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
@@ -445,7 +471,11 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     sliderKnobHighlight = Color.White.copy(alpha = 0.92f),
     specularBrush = GlassSpecularBrush,
     cardRadius = SkeuCardRadius,
-    iconBoxRadius = SkeuIconBoxRadius
+    iconBoxRadius = SkeuIconBoxRadius,
+    // Batch 47: TETAP Transparent — kartu glass sengaja "visually quiet" (guide
+    // §8 lama, Batch 32), dual-shadow terarah CUMA buat Neumorphism.
+    shadowLightTint = Color.Transparent,
+    shadowDarkTint = Color.Transparent
 )
 
 /** Varian 2: "Aurora Glass" — iOS glassmorphism lebih vivid/saturated, sheen &
@@ -464,7 +494,9 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     sliderKnobHighlight = RadicalKnobHighlight,
     specularBrush = RadicalGlassSpecularBrush,
     cardRadius = SkeuCardRadius,
-    iconBoxRadius = SkeuIconBoxRadius
+    iconBoxRadius = SkeuIconBoxRadius,
+    shadowLightTint = Color.Transparent,
+    shadowDarkTint = Color.Transparent
 )
 
 /** Varian 3: "Neumorphism" ultra realistic+immersive (Batch 46, ganti dari
@@ -472,7 +504,9 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
  *  panel, aksen Platinum (metalik luas) + Ruby (glow/primary). `cardElevation`
  *  10dp — TERTINGGI dari 4 varian (immersive = pop paling dramatis). Radius
  *  sendiri (`NeumoCardRadius`/`NeumoIconBoxRadius`, 22dp/15dp) — otonom, bukan
- *  numpang const varian lain. */
+ *  numpang const varian lain. Batch 47: `shadowLightTint`/`shadowDarkTint` diisi
+ *  ASLI (satu-satunya varian yang diisi) — respon langsung ke keluhan user
+ *  "kurang depth & tactile, ambient lighting bocor" di screenshot Batch 46. */
 val NeumorphismSkeuTokens = SkeuTokens(
     mutedText = NeumoTextMuted,
     bevelBrush = NeumoBevelBrush,
@@ -486,7 +520,9 @@ val NeumorphismSkeuTokens = SkeuTokens(
     sliderKnobHighlight = NeumoKnobHighlight,
     specularBrush = NeumoSpecularBrush,
     cardRadius = NeumoCardRadius,
-    iconBoxRadius = NeumoIconBoxRadius
+    iconBoxRadius = NeumoIconBoxRadius,
+    shadowLightTint = NeumoPlatinum.copy(alpha = 0.55f),
+    shadowDarkTint = NeumoPanelRecessed.copy(alpha = 0.95f)
 )
 
 /** Varian 4: "Studio Equalizer" — neumorphism soft-UI (Batch 43), palet abu-abu
@@ -505,7 +541,11 @@ val StudioEqSkeuTokens = SkeuTokens(
     sliderKnobHighlight = StudioEqKnobHighlight,
     specularBrush = StudioEqSpecularBrush,
     cardRadius = StudioEqCardRadius,
-    iconBoxRadius = StudioEqIconBoxRadius
+    iconBoxRadius = StudioEqIconBoxRadius,
+    // Batch 47: TETAP Transparent — Studio Eq "low-contrast/subtle by design"
+    // (lihat komentar Batch 43), bukan target "ultra realistic" kayak varian 3.
+    shadowLightTint = Color.Transparent,
+    shadowDarkTint = Color.Transparent
 )
 
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String

@@ -10,8 +10,25 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.83.0
-- 🎨 **Batch 46 (v1.83.0, terbaru)**: diminta user eksplisit "lanjutkan polish UI
+- **Versi**: v1.84.0
+- 🎨🐛 **Batch 47 (v1.84.0, terbaru)**: user kirim screenshot + "kurang depth &
+  tactile, ambient lighting bocor". Root cause: `SkeuCard` cuma 1 shadow native
+  hitam (kontras rendah di panel gelap) + `skeuGlow` radial 2-stop hard-cutoff
+  (kebaca "bocor"). Fix: `SkeuTokens` +2 field `shadowLightTint`/
+  `shadowDarkTint` -> 2 layer `Modifier.shadow(ambientColor=, spotColor=)`
+  NATIVE terarah (terang kiri-atas + gelap kanan-bawah) KHUSUS Neumorphism (3
+  varian lain eksplisit `Color.Transparent` = 0 perubahan, tetap "visually
+  quiet"/"low-contrast by design" sesuai filosofi masing-masing). `skeuGlow`
+  4-stop falloff (global, semua varian) ganti dari 2-stop hard cutoff. 2 file:
+  `Theme.kt`, `SkeuomorphicComponents.kt`. **Bug compile ditemukan & diperbaiki
+  sebelum kirim**: draf awal `Brush.radialGradient(colorStops = arrayOf(...))`
+  invalid (vararg param gak bisa named+arrayOf tanpa spread) — diperbaiki jadi
+  pairs positional langsung. Layout: `SkeuCard`/`SkeuTintedCard` dibungkus
+  `Box{}` buat wadah shadow layer, `modifier` caller TETAP di `Column` posisi
+  lama (0 regresi sizing 20+ call-site). **Kemungkinan besar**: screenshot user
+  dari build SEBELUM Batch 46/47 di-compile — perlu rebuild+install APK baru
+  lewat Termux buat lihat hasil sebenarnya. Detail: `CHANGELOG.md` v1.84.0.
+- 🎨 **Batch 46 (v1.83.0, riwayat)**: diminta user eksplisit "lanjutkan polish UI
   yang pending" + "upgrade Skeuomorphism -> Neumorphism ultra realistic+immersive,
   aksen Platinum+Ruby". Varian tema ke-3 (sebelumnya "Skeuomorphism" bevel-hard,
   Batch 38-39) sekarang genuine **Neumorphism** — shadow pasangan SEHUE base
