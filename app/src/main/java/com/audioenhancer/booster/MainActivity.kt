@@ -139,15 +139,16 @@ class MainActivity : ComponentActivity() {
             AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
                 // Batch 37: root background sekarang gradient (bukan flat solid) —
                 // glassmorphism butuh backdrop bervariasi supaya kartu kaca di atasnya
-                // kebaca sebagai kaca. Batch 38: varian Skeuomorphism BUKAN glass (gak
-                // butuh backdrop vivid buat efek translucency), pakai gradient netral
-                // gunmetal sendiri (`SkeuoScreenBackgroundBrush`) — konsisten sama
-                // bahasa desain bevel/material fisiknya, bukan biru.
-                // Batch 43: +cabang STUDIO_EQ -> StudioEqScreenBackgroundBrush (gradient
-                // netral gelap studio, bukan biru midnight/gunmetal 3 varian lain).
+                // kebaca sebagai kaca. Batch 38: varian ke-3 BUKAN glass (gak butuh
+                // backdrop vivid buat efek translucency), pakai gradient netral sendiri
+                // (`NeumoScreenBackgroundBrush`, Batch 46: rename dari
+                // `SkeuoScreenBackgroundBrush` — varian ke-3 sekarang Neumorphism, bukan
+                // Skeuomorphism lagi) — konsisten sama bahasa desain soft-UI-nya, bukan
+                // biru. Batch 43: +cabang STUDIO_EQ -> StudioEqScreenBackgroundBrush
+                // (gradient netral gelap studio, bukan biru midnight/gunmetal varian lain).
                 val screenBrush = when (appThemeStyle) {
                     AppThemeStyle.RADICAL_SKEUO -> AuroraScreenBackgroundBrush
-                    AppThemeStyle.SKEUOMORPHISM -> SkeuoScreenBackgroundBrush
+                    AppThemeStyle.SKEUOMORPHISM -> NeumoScreenBackgroundBrush
                     AppThemeStyle.STUDIO_EQ -> StudioEqScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }

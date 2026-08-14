@@ -1,5 +1,94 @@
 # Changelog
 
+## v1.83.0 - Batch 46: upgrade varian 3 Skeuomorphism -> Neumorphism ultra realistic+immersive, aksen Platinum+Ruby
+
+Diminta user eksplisit: "Lanjutkan polish UI yang pending. Dan upgrade
+Skeuomorphism -> Neumorphism ultra realistic+immersive, dengan sentuhan accent
+Platinum+Ruby". 5 file: `Theme.kt`, `MainActivity.kt` (edit parsial, komentar+1
+referensi brush), `values/strings.xml`+`values-en/strings.xml` (2 string
+masing-masing), `docs/preview/current.html` (footer note).
+
+**Filosofi berubah total (bukan cuma ganti palet)**: varian ke-3 sebelumnya
+"Skeuomorphism" (Batch 38-39) — shadow pasangan `Color.White`/`Color.Black`
+mentah (bevel hard-edge, ekstrusi fisik tegas). Sekarang genuine **Neumorphism**
+— shadow pasangan SEHUE base panel (pola arsitektur sama seperti "Studio
+Equalizer" Batch 43, tapi palet & intensitas beda total). "Ultra
+realistic+immersive" diterjemahkan jadi 3 hal konkret vs Studio Equalizer:
+1. `cardElevation` 10dp — **tertinggi dari 4 varian** (Studio Eq 6dp, Skeuo lama
+   8dp, Aurora 6dp, Midnight Glass 3dp) — pop paling dramatis.
+2. Bevel brush 5-stop (Studio Eq 3-stop, Skeuo lama 4-stop) — transisi
+   terang->gelap lebih halus/dalam, kesan "timbul" lebih realistis.
+3. Sheen specular alpha 0.30f (Studio Eq 0.16f) — glossy metalik lebih kuat,
+   tapi tetap platinum-tinted (bukan `Color.White` polos era Skeuomorphism) biar
+   tetap sehue/neumorphism genuine, bukan balik ke glossy-kaca ala varian glass.
+
+**Palet Platinum+Ruby** (ganti dari titanium-silver Batch 39):
+- `NeumoPlatinum #E4E3E0` / `NeumoPlatinumDeep #9C9CA1` — metalik netral-dingin,
+  dipakai LUAS (bevel highlight, border, knob, sheen) di SELURUH panel — bukan
+  cuma 1 chip accent kecil, sama prinsip "karakter metalik kerasa di seluruh
+  panel" seperti titanium-silver Batch 39.
+- `NeumoRuby #E0115F` / `NeumoRubyDeep #9E0C43` — jewel-tone merah jenuh, KHUSUS
+  primary/state-aktif (`colorScheme.primary`, `primaryGlow` alpha 0.38f —
+  tertinggi dari 4 varian, "immersive" = state aktif menyala lebih dramatis).
+  Platinum sengaja netral (bukan aksen utama lagi) supaya Ruby "menyala"
+  kontras di atasnya — meniru kombinasi perhiasan/jam tangan mewah
+  platinum-bermata-ruby.
+
+**Rename total mengikuti preseden Batch 34** ("pivot filosofi = rename semua
+token, bukan reuse nama lama meski sebagian hex mirip"): semua token warna/brush
+`SkeuoXxx` -> `NeumoXxx` (`SkeuoBackground`->`NeumoBackground`, dst, termasuk
+`SkeuoAccent`/`SkeuoAccentDeep` yang sekarang dipecah konsep jadi
+`NeumoPlatinum`+`NeumoRuby` terpisah, bukan 1 warna serba-guna lagi), val
+turunannya `SkeuomorphismSkeuTokens`/`SkeuomorphismDarkColors`/
+`SkeuomorphismShapes` -> `NeumorphismSkeuTokens`/`NeumorphismDarkColors`/
+`NeumorphismShapes`. Radius `SkeuoCardRadius`/`SkeuoIconBoxRadius` (14dp/10dp,
+sudut tegas skeuomorphism) -> `NeumoCardRadius`/`NeumoIconBoxRadius` (22dp/15dp,
+rounded generous soft-UI) — beda dari Studio Eq (20dp/14dp) & iOS-glass
+(26dp/16dp) biar tetap otonom per varian. `SkeuomorphismShapes` (Material3
+default Button/AlertDialog/dll) ikut disesuaikan ke radius baru (10-26dp).
+
+**TIDAK diubah (Protected Asset persistence key — data user lama harus tetap
+valid, preseden sama seperti Batch 37 mempertahankan `RADICAL_SKEUO`)**: enum
+`AppThemeStyle.SKEUOMORPHISM` & `PrefsHelper.APP_THEME_SKEUOMORPHISM`
+("skeuomorphism"). Nama toggle di kode/persistence TETAP, cuma label
+user-facing (`theme_style_skeuo_title`/`_desc`, ID+EN) & isi visual yang
+berubah — user yang sudah pilih varian ini sebelumnya otomatis lanjut ke
+tampilan Neumorphism baru tanpa perlu toggle ulang.
+
+**Bug ditemukan & diperbaiki SEBELUM sempat dikirim** (self-review, bukan
+laporan user): draf awal `NeumoEdgeHighlight` sempat referensi `NeumoPlatinum`
+SEBELUM deklarasinya sendiri di file (forward-reference) — di Kotlin, top-level
+`val` di-init berurutan sesuai posisi file, referensi ke `val` yang belum
+ke-init bisa null-crash saat class-load. Diperbaiki dengan reorder: `NeumoPlatinum`/
+`NeumoRuby` dideklarasikan SEBELUM `NeumoEdgeHighlight`/`NeumoEdgeShadow` yang
+memakainya. Dicek ulang: seluruh urutan deklarasi di blok token baru sudah
+tidak ada forward-reference lagi.
+
+**File lain YANG TIDAK PERLU disentuh** (dicek eksplisit via grep sebelum
+edit — cuma Theme.kt & MainActivity.kt yang refer ke token `Skeuo*` lama):
+`SkeuomorphicComponents.kt` (100% generic lewat `LocalSkeuTokens.current`,
+otomatis kompatibel tanpa diubah — arsitektur Batch 36 terbukti lagi),
+`BoosterScreen.kt` (toggle switch baca `PrefsHelper.APP_THEME_SKEUOMORPHISM`
+yang TIDAK berubah, bukan warna hardcode), `README.md` (tidak pernah menyebut
+nama varian tema sama sekali).
+
+**"Lanjutkan polish UI yang pending"**: diinterpretasikan sebagai kelanjutan
+item design-system yang memang berstatus pending (upgrade varian ke-3 ini).
+Backlog audit Medium/Low lama (recomposition review, micro-animation tambahan,
+loading/empty/error state, dst — dicatat berulang sejak Batch 16, belum pernah
+disentuh) **TETAP belum dikerjakan** — di luar scope batch ini, TIDAK
+dikerjakan proaktif sesuai mode maintenance (lihat PROJECT_STATE.md).
+
+**Belum divalidasi runtime** — statis only (brace/paren balance Theme.kt &
+MainActivity.kt 0 selisih setelah fix forward-reference, parity string ID/EN
+100/100, XML valid, grep sweep referensi `Skeuo*` lama di luar Theme.kt = nihil,
+sweep token baru di seluruh project = cuma 2 file kode yang kepakai, sesuai
+ekspektasi arsitektur `LocalSkeuTokens` generik). Efek visual riil (kontras
+platinum-ruby, kedalaman shadow 5-stop, dll) baru terkonfirmasi setelah build +
+cek device — `docs/preview/current.html` TIDAK dapat mockup visual terpisah
+buat varian ini (di luar scope, cuma footer note disinkron, sama seperti Batch
+38/43 dulu).
+
 ## v1.82.0 - Batch 45: fix race condition `isRunning` + kunci prioritas CPU service (peak performance)
 
 Diminta user eksplisit: "indikasi race condition" + "kunci aplikasi dipuncak

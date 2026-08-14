@@ -61,8 +61,8 @@
     <!-- Batch 36: theme style switch -->
     <string name="theme_style_title">Aurora Glass Style</string>
     <string name="theme_style_desc">Turn on Aurora Glass — more vivid glass, stronger sheen and midnight-blue glow. Off = Midnight Glass (default, calmer).</string>
-    <string name="theme_style_skeuo_title">Skeuomorphism</string>
-    <string name="theme_style_skeuo_desc">Turn on Skeuomorphism — physical bevel-shadow panels with a metallic titanium-silver accent, not glass. Off = Midnight Glass (default).</string>
+    <string name="theme_style_skeuo_title">Neumorphism</string>
+    <string name="theme_style_skeuo_desc">Turn on ultra-realistic Neumorphism — soft-UI panels with matched dual shadows plus a Platinum metallic accent and Ruby glow, immersive without a glass look. Off = Midnight Glass (default).</string>
     <string name="theme_style_studioeq_title">Studio Equalizer</string>
     <string name="theme_style_studioeq_desc">Turn on Studio Equalizer — a studio mixer-board neumorphism look, dark grey panels with a neon-green indicator-light accent. Off = Midnight Glass (default).</string>
 

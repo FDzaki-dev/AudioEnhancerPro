@@ -10,8 +10,40 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.82.0
-- 🐛⚡ **Batch 45 (v1.82.0, terbaru)**: diminta user "indikasi race condition" +
+- **Versi**: v1.83.0
+- 🎨 **Batch 46 (v1.83.0, terbaru)**: diminta user eksplisit "lanjutkan polish UI
+  yang pending" + "upgrade Skeuomorphism -> Neumorphism ultra realistic+immersive,
+  aksen Platinum+Ruby". Varian tema ke-3 (sebelumnya "Skeuomorphism" bevel-hard,
+  Batch 38-39) sekarang genuine **Neumorphism** — shadow pasangan SEHUE base
+  panel (arsitektur sama seperti "Studio Equalizer" Batch 43, palet+intensitas
+  beda total). "Ultra realistic+immersive" = `cardElevation` 10dp (tertinggi dari
+  4 varian), bevel 5-stop, sheen specular alpha 0.30f (2x lebih kuat dari Studio
+  Eq). Palet: `NeumoPlatinum #E4E3E0` (metalik netral, dipakai LUAS di bevel/
+  border/knob) + `NeumoRuby #E0115F` (jewel-tone, KHUSUS primary/glow state-aktif,
+  alpha 0.38f — tertinggi dari 4 varian). Semua token `SkeuoXxx` di-RENAME total
+  ke `NeumoXxx` (preseden Batch 34: pivot filosofi = rename, bukan reuse nama).
+  Radius `NeumoCardRadius`/`IconBoxRadius` 22dp/15dp (rounded soft-UI, dari
+  14dp/10dp sudut tegas lama). 5 file: `Theme.kt`, `MainActivity.kt` (parsial,
+  1 referensi brush + komentar), `values/strings.xml`+`values-en/strings.xml`
+  (2 string masing-masing, title "Neumorphism"), `docs/preview/current.html`
+  (footer note). **TIDAK diubah (Protected Asset persistence key)**: enum
+  `AppThemeStyle.SKEUOMORPHISM` & `PrefsHelper.APP_THEME_SKEUOMORPHISM` — user
+  yang sudah pilih varian ini lanjut otomatis ke Neumorphism baru tanpa toggle
+  ulang. Backlog audit Medium/Low lama (recomposition review, micro-animation,
+  loading/empty/error state, dst — pending sejak Batch 16) **TETAP belum
+  disentuh**, di luar scope batch ini. Detail lengkap: `CHANGELOG.md` v1.83.0.
+  - **Bug ditemukan & diperbaiki SEBELUM dikirim** (self-review): draf awal
+    `NeumoEdgeHighlight` sempat forward-reference `NeumoPlatinum` sebelum
+    deklarasinya sendiri (top-level `val` Kotlin di-init berurutan sesuai posisi
+    file — bisa null-crash saat class-load kalau kebalik). Sudah di-reorder &
+    dicek ulang, tidak ada forward-reference lain di blok token baru.
+  - **Belum divalidasi runtime** — statis only (brace/paren Theme.kt &
+    MainActivity.kt 0 selisih, parity string ID/EN 100/100, XML valid, grep
+    sweep `Skeuo*` lama di luar Theme.kt = nihil). Efek visual riil (kontras
+    platinum-ruby, kedalaman shadow) baru terkonfirmasi setelah build + cek
+    device — `docs/preview/current.html` TIDAK dapat mockup visual terpisah
+    buat varian ini (cuma footer note disinkron, sama seperti Batch 38/43).
+- 🐛⚡ **Batch 45 (v1.82.0, riwayat)**: diminta user "indikasi race condition" +
   "kunci aplikasi dipuncak performa nya". 1 file (`AudioEnhancerService.kt`), 2
   perubahan: (1) `isRunning` (companion var) ternyata RACE CONDITION nyata —
   ditulis di main thread (`onStartCommand`/`onDestroy`) tapi dibaca juga dari
@@ -1041,10 +1073,17 @@ eksplisit user.
   varian** tersedia via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle`
   dari Batch 36 dipertahankan & diperluas Batch 38): default "Midnight Glass"
   (restrained), "Aurora Glass" (lebih vivid/saturated, DUA-DUANYA genuine glass),
-  dan "Skeuomorphism" (Batch 38, radius/shape 100% otonom + aksen titanium-silver
-  sejak Batch 39 — BUKAN glass — panel gunmetal netral + bevel
-  extrusion fisik + aksen titanium-silver metalik, bahasa desain sengaja berbeda total dari
-  2 varian glass). 1 pilihan tunggal dari 3 (bukan kombinasi). Warna aksen per-fitur
+  dan varian ke-3 — **UPDATE Batch 46**: sekarang "Neumorphism" ultra
+  realistic+immersive (BUKAN lagi "Skeuomorphism" bevel-hard Batch 38-39) — soft-UI
+  genuine, shadow sehue base panel, aksen Platinum (metalik luas) + Ruby
+  (glow/primary), radius/shape tetap 100% otonom (sekarang 22dp/15dp rounded,
+  bukan 14dp/10dp sudut tegas), bahasa desain sengaja berbeda total dari 2 varian
+  glass. Nama toggle/persistence key di kode TETAP "Skeuomorphism"/
+  `APP_THEME_SKEUOMORPHISM` (Protected Asset, lihat Batch 46 di atas), cuma label
+  user-facing & isi visual yang berubah. (Ada juga varian ke-4 "Studio Equalizer",
+  Batch 43, neumorphism juga tapi palet studio abu-abu+lime — lihat entry Batch 43
+  di bawah, paragraf ini belum di-update lengkap ke "4 varian" sejak Batch 43).
+  1 pilihan tunggal (bukan kombinasi). Warna aksen per-fitur
   (Bass/Virtualizer/Loudness/Equalizer) TETAP dipertahankan (bukan sumber keluhan,
   independen dari 3 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.
   **Riwayat sebelum Batch 37** (biar gak nyoba ulang): "Skeuomorphism-lite (Tactile

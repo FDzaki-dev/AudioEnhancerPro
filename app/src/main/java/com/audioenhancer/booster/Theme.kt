@@ -22,14 +22,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // ============================================================================
-// BATCH 38 — tambahan (BUKAN rewrite ulang Batch 37): varian tema ke-3
-// "Skeuomorphism" diminta user eksplisit ("theme custom Skeuomorphism dark mode
-// yang asli, gak kurang gak lebih") — toggle baru di Settings, SEJAJAR toggle Aurora
-// Glass (bukan sub-opsinya), TIDAK mengubah/menghapus 2 varian glass Batch 37.
-// Bahasa desain beda total dari glass: panel gunmetal/charcoal netral (bukan biru),
-// bevel raised/recessed extrusion kuat, aksen metalik hangat (tembaga #C98A4C, bukan
-// biru dingin). Lihat blok token `SkeuoXxx` & `SkeuomorphismSkeuTokens`/
-// `SkeuomorphismDarkColors` di bawah. Detail: `CHANGELOG.md` v1.77.0.
+// BATCH 38 — tambahan (BUKAN rewrite ulang Batch 37): varian tema ke-3, awalnya
+// "Skeuomorphism" ("theme custom Skeuomorphism dark mode yang asli") — toggle baru
+// di Settings, SEJAJAR toggle Aurora Glass (bukan sub-opsinya), TIDAK mengubah/
+// menghapus 2 varian glass Batch 37.
+//
+// BATCH 46 — UPGRADE FILOSOFI (diminta user eksplisit "Skeuomorphism -> Neumorphism
+// ultra realistic+immersive, aksen Platinum+Ruby"): bahasa desain varian ke-3
+// diganti dari skeuomorphism (bevel hard-edge, shadow Color.White/Black mentah)
+// menjadi NEUMORPHISM genuine (soft-UI, shadow pasangan SEHUE base panel — pola
+// yang sama seperti "Studio Equalizer" Batch 43, tapi palet & karakter beda total:
+// platinum metalik netral-dingin + glow ruby jewel-tone, elevation/shadow LEBIH
+// DALAM & sheen LEBIH KUAT dari Studio Equalizer untuk kesan "ultra realistic +
+// immersive"). Semua token warna/brush di-RENAME `SkeuoXxx` -> `NeumoXxx` (ikut
+// preseden Batch 34: pivot filosofi = rename total, bukan reuse nama lama) —
+// `SkeuomorphismSkeuTokens`/`SkeuomorphismDarkColors`/`SkeuomorphismShapes` jadi
+// `NeumorphismSkeuTokens`/`NeumorphismDarkColors`/`NeumorphismShapes`. TIDAK
+// diubah (Protected Asset persistence key — data user lama harus tetap valid):
+// enum `AppThemeStyle.SKEUOMORPHISM` & `PrefsHelper.APP_THEME_SKEUOMORPHISM`.
+// Detail lengkap: `CHANGELOG.md` v1.83.0.
 // ============================================================================
 
 // ============================================================================
@@ -219,95 +230,115 @@ val RadicalPrimaryGlow = RadicalAccent.copy(alpha = 0.34f)
 val RadicalKnobHighlight: Color = lerp(RadicalSurfaceRaised, Color.White, 0.32f)
 
 // ============================================================================
-// Varian ke-3 ("Skeuomorphism", Batch 38, warna direvisi Batch 39) — diminta user
-// eksplisit di luar 2 varian glass di atas: "theme custom Skeuomorphism dark mode
-// yang asli". Bahasa desain BEDA TOTAL, bukan sub-varian glass: panel gunmetal/
-// charcoal netral (BUKAN biru-tint), bevel raised/recessed tegas dengan shadow
-// lebih dalam (ekstrusi fisik nyata, bukan sheen kaca lembut), aksen metalik
-// titanium+silver (Batch 39 — sebelumnya tembaga/perunggu di Batch 38, diganti atas
-// permintaan user; kontras sengaja dari accent biru dingin 2 varian lain TETAP
-// dipertahankan lewat saturasi netral-cool, bukan lewat hue hangat lagi). Dipilih
-// via toggle "Skeuomorphism" di Settings (sejajar toggle Aurora Glass,
-// BoosterScreen.kt), TIDAK mengubah/menghapus 2 varian existing.
+// Varian ke-3 — awalnya "Skeuomorphism" (Batch 38-39), di-UPGRADE Batch 46 jadi
+// "Neumorphism" ultra realistic+immersive, aksen Platinum+Ruby (diminta user
+// eksplisit). Beda kunci vs Skeuomorphism lama: shadow pasangan (terang+gelap)
+// SEKARANG SEHUE base panel (bukan Color.White/Black mentah — itu pembeda inti
+// neumorphism vs skeuomorphism, lihat juga blok komentar Studio Equalizer di
+// bawah). "Ultra realistic+immersive" = elevation/shadow LEBIH DALAM (10dp,
+// tertinggi dari 4 varian) + bevel 5-stop (bukan 4) + sheen specular LEBIH KUAT
+// dari Studio Equalizer, supaya kesan "timbul"-nya lebih dramatis/immersive.
+// Platinum = aksen metalik netral-dingin (bevel highlight, border, knob — dipakai
+// LUAS di seluruh panel), Ruby = warna jewel-tone jenuh KHUSUS primary/state-aktif
+// (glow, ring, primary color) — kombinasi platinum-netral + ruby-vivid meniru
+// perhiasan/jam tangan mewah platinum bermata ruby. Dipilih via toggle
+// "Skeuomorphism" di Settings (nama toggle & persistence key TIDAK diubah, lihat
+// header Batch 46 di atas), TIDAK mengubah/menghapus 3 varian existing lain.
 // ============================================================================
 
-val SkeuoBackground = Color(0xFF19191C)
-val SkeuoPanel = Color(0xFF232326)
-val SkeuoPanelRaised = Color(0xFF2E2E33)
-val SkeuoPanelRecessed = Color(0xFF131315)
+val NeumoBackground = Color(0xFF1B1B1F)
+val NeumoPanel = Color(0xFF242429)
+val NeumoPanelRaised = Color(0xFF2E2E36)
+val NeumoPanelRecessed = Color(0xFF101012)
 
-val SkeuoEdgeHighlight = Color.White.copy(alpha = 0.12f)
-val SkeuoEdgeShadow = Color.Black.copy(alpha = 0.78f)
+val NeumoTextPrimary = Color(0xFFF3F2F0)
+val NeumoTextSecondary = Color(0xFFC0C0C6)
+val NeumoTextMuted = Color(0xFF87878F)
 
-val SkeuoTextPrimary = Color(0xFFF1F1EF)
-val SkeuoTextSecondary = Color(0xFFBBBBC0)
-val SkeuoTextMuted = Color(0xFF8B8B90)
+/** Aksen Platinum — metalik netral-dingin (hex dunia-nyata platinum ~#E5E4E2),
+ *  dipakai LUAS buat bevel highlight/border/knob di SELURUH panel (bukan cuma 1
+ *  chip), meniru brushed-platinum asli. Ruby (di bawah) yang bawa saturasi/hue —
+ *  Platinum sengaja netral supaya ruby "menyala" kontras di atasnya. */
+val NeumoPlatinum = Color(0xFFE4E3E0)
 
-/** Aksen titanium+silver metalik (Batch 39, ganti dari tembaga/perunggu Batch 38) —
- *  cool neutral-grey dengan sedikit undertone biru-baja, meniru permukaan titanium
- *  brushed asli (BUKAN pure grey netral/abu-abu polos — ada hint kebiruan tipis
- *  yang khas logam titanium teroksidasi). Tetap kontras dari `MidnightBlueAccent`/
- *  `RadicalAccent` (biru SATURATED) karena ini desaturated/metalik, bukan pure hue. */
-val SkeuoAccent = Color(0xFFAEB4BF)
+/** Nada platinum lebih gelap — variasi 2-stop metalik (refleksi brushed-metal
+ *  selalu punya gradasi terang-gelap, bukan flat 1 warna). */
+val NeumoPlatinumDeep = Color(0xFF9C9CA1)
 
-/** Nada titanium lebih gelap — dipakai buat variasi highlight/shadow metalik di
- *  komponen yang butuh 2 stop metalik (bukan cuma 1 warna flat), meniru refleksi
- *  brushed-metal yang selalu punya gradasi terang-gelap di permukaannya. */
-val SkeuoAccentDeep = Color(0xFF6E737D)
+/** Aksen Ruby — jewel-tone merah jenuh, KHUSUS primary/state-aktif (glow, ring,
+ *  chip terpilih, primary color) — BUKAN warna permukaan panel pasif (beda dari
+ *  Platinum yang menyebar luas). Kontras sengaja tinggi dari netral Platinum &
+ *  dari accent biru 2 varian glass / lime Studio Equalizer. */
+val NeumoRuby = Color(0xFFE0115F)
+val NeumoRubyDeep = Color(0xFF9E0C43)
 
-/** Panel fisik raised — extrusion kuat (highlight tipis di puncak, shadow dalam di
- *  dasar), BUKAN sheen kaca lembut seperti 2 varian glass. Batch 39: stop
- *  puncak/dasar dicampur sedikit `SkeuoAccent`/`SkeuoAccentDeep` (bukan cuma
- *  putih/hitam polos) — biar karakter metalik titanium-silver kerasa di SELURUH
- *  panel, bukan cuma di 1 chip accent kecil. */
-val SkeuoBevelBrush: Brush = Brush.linearGradient(
+/** Edge highlight/shadow border SEHUE (platinum-tinted & panel-recessed-tinted,
+ *  BUKAN Color.White/Black mentah seperti era Skeuomorphism lama) — syarat wajib
+ *  neumorphism genuine di project ini. Sengaja dideklarasikan SETELAH
+ *  `NeumoPlatinum`/`NeumoPanelRecessed` di atas (Kotlin top-level `val` di-init
+ *  berurutan sesuai posisi file — referensi ke `val` yang belum di-init akan
+ *  null/crash saat class-load, BUKAN cuma soal gaya baca kode). */
+val NeumoEdgeHighlight = NeumoPlatinum.copy(alpha = 0.26f)
+val NeumoEdgeShadow = NeumoPanelRecessed.copy(alpha = 0.84f)
+
+/** Bevel raised/recessed — 5-stop (lebih banyak dari 4-stop era Skeuomorphism)
+ *  buat transisi lebih halus/dalam ("ultra realistic"), tetap SEHUE base panel di
+ *  ujung-ujungnya, dicampur sedikit Platinum/PlatinumDeep di titik puncak/dasar —
+ *  biar karakter metalik platinum kerasa di SELURUH panel. */
+val NeumoBevelBrush: Brush = Brush.linearGradient(
     listOf(
-        lerp(SkeuoPanelRaised, SkeuoAccent, 0.10f),
-        SkeuoPanelRaised,
-        SkeuoPanel,
-        lerp(SkeuoPanelRecessed, SkeuoAccentDeep, 0.08f)
+        lerp(NeumoPanelRaised, NeumoPlatinum, 0.18f),
+        lerp(NeumoPanelRaised, NeumoPlatinum, 0.05f),
+        NeumoPanel,
+        lerp(NeumoPanelRecessed, NeumoPlatinumDeep, 0.10f),
+        NeumoPanelRecessed
     )
 )
-val SkeuoBevelBorderBrush: Brush = Brush.linearGradient(
-    listOf(SkeuoEdgeHighlight, Color.Transparent, SkeuoEdgeShadow)
+val NeumoBevelBorderBrush: Brush = Brush.linearGradient(
+    listOf(NeumoEdgeHighlight, Color.Transparent, NeumoEdgeShadow)
 )
 
-/** Highlight glossy lebih tajam/terkonsentrasi (bukan sheen airy iOS) — meniru
- *  reflection keras di permukaan tombol/dial fisik berlapis kaca/plastik glossy. */
-val SkeuoSpecularBrush: Brush = Brush.linearGradient(
-    listOf(Color.White.copy(alpha = 0.24f), Color.White.copy(alpha = 0.03f), Color.Transparent)
+/** Sheen specular — LEBIH KUAT dari Studio Equalizer (alpha 0.16f) supaya kesan
+ *  "immersive"-nya lebih terasa, tapi tetap platinum-tinted (bukan Color.White
+ *  polos era Skeuomorphism) — glossy metalik, bukan sheen kaca. */
+val NeumoSpecularBrush: Brush = Brush.linearGradient(
+    listOf(NeumoPlatinum.copy(alpha = 0.30f), NeumoPlatinum.copy(alpha = 0.06f), Color.Transparent)
 )
 
-val SkeuoPrimaryGlow = SkeuoAccent.copy(alpha = 0.30f)
+/** Glow ruby lebih pekat (0.38f) dari 3 varian lain (0.30f) — "immersive" berarti
+ *  state aktif menyala lebih dramatis. */
+val NeumoPrimaryGlow = NeumoRuby.copy(alpha = 0.38f)
 
-/** Knob slider — nyaris putih, meniru bead kaca/plastik glossy fisik (ring accent
- *  titanium-silver dibawa lewat border 2dp di komponennya, bukan warna isi). */
-val SkeuoKnobHighlight: Color = lerp(SkeuoPanelRaised, Color.White, 0.34f)
+/** Knob slider — bead platinum terang (ring accent ruby dibawa lewat border 2dp
+ *  di komponennya, bukan warna isi knob). */
+val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, NeumoPlatinum, 0.55f)
 
-/** Radius kartu/icon-box KHUSUS varian ini (Batch 39) — lebih kecil/tegas dari
- *  `SkeuCardRadius`/`SkeuIconBoxRadius` (26dp/16dp, radius iOS-glass Batch 37) —
- *  skeuomorphism klasik pakai sudut lebih tegas/hardware-like, bukan bubbly-rounded
- *  ala iOS. Dibaca lewat `SkeuTokens.cardRadius`/`iconBoxRadius`, BUKAN const
- *  global lagi — supaya benar-benar otonom per-varian (lihat catatan Batch 39 di
- *  `SkeuTokens` di bawah). */
-val SkeuoCardRadius = 14.dp
-val SkeuoIconBoxRadius = 10.dp
+/** Radius kartu/icon-box KHUSUS varian ini — generous/soft-UI (neumorphism genuine
+ *  butuh sudut lebih membulat dari skeuomorphism 14dp/10dp lama), tapi beda dari
+ *  Studio Equalizer (20dp/14dp) & iOS-glass (26dp/16dp) biar tetap otonom. */
+val NeumoCardRadius = 22.dp
+val NeumoIconBoxRadius = 15.dp
 
-/** Background layar — vertical gradient gunmetal netral, BUKAN biru. Skeuomorphism
- *  gak butuh backdrop vivid (beda dari glass yang butuh variasi buat translucency
- *  kebaca) — cukup shading halus konsisten sama arah cahaya panel fisik. */
-val SkeuoScreenBackgroundBrush: Brush = Brush.verticalGradient(
-    listOf(Color(0xFF232327), SkeuoPanel, SkeuoBackground)
+/** Background layar — vertical gradient netral sehue panel, TETAP tidak vivid
+ *  (ruby sengaja disimpan cuma buat state aktif, bukan ambient backdrop — biar
+ *  kontrasnya "menyala" pas dipakai, bukan tenggelam jadi hint tipis kayak Midnight
+ *  Blue di varian glass). */
+val NeumoScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(NeumoPanelRaised, NeumoPanel, NeumoBackground)
 )
 
 // ============================================================================
-// Batch 43: Varian 4 "Studio Equalizer" — NEUMORPHISM (soft-UI), BUKAN
-// skeuomorphism bevel-hitam/putih (blok di atas) atau glass (AmoledGlass/Radical).
-// Beda kunci neumorphism vs skeuomorphism: shadow pasangan (terang+gelap) yang
-// dipakai buat kesan timbul/cekung TETAP SEHUE sama base panel (bukan pure
-// black/white alpha) — makanya seluruh token di bawah nurunin dari 4 warna
-// EKSAK yang diminta user (bukan hasil rekaan), TIDAK ada Color.White/Color.Black
-// dipakai buat shadow (beda dari SkeuoEdgeHighlight/SkeuoEdgeShadow di atas).
+// Batch 43: Varian 4 "Studio Equalizer" — NEUMORPHISM (soft-UI), sama filosofi
+// dengan varian 3 "Neumorphism" (Batch 46, blok di atas) tapi palet & karakter
+// beda total: netral abu-abu studio + glow lime, low-contrast/subtle by design
+// (BUKAN "ultra realistic+immersive" — bevel/elevation Studio Eq sengaja lebih
+// halus dari varian 3). Beda kunci neumorphism vs glass (AmoledGlass/Radical)
+// atau skeuomorphism hard-edge (era lama varian 3, sebelum Batch 46): shadow
+// pasangan (terang+gelap) yang dipakai buat kesan timbul/cekung TETAP SEHUE sama
+// base panel (bukan pure black/white alpha) — makanya seluruh token di bawah
+// nurunin dari 4 warna EKSAK yang diminta user (bukan hasil rekaan), TIDAK ada
+// Color.White/Color.Black dipakai buat shadow (beda dari NeumoEdgeHighlight/
+// NeumoEdgeShadow di atas — beda PALET, sama-sama sehue).
 // Palet asli diminta user, tema "papan mixer studio rekaman profesional":
 //  - Background/Base   #1E222A (abu-abu studio gelap)
 //  - Dark Shadow       #14171D (bayangan sudut BAWAH)
@@ -342,14 +373,16 @@ val StudioEqCardBrush: Brush = Brush.linearGradient(
  *  StudioEqCardBrush, satu bahasa visual konsisten di seluruh varian ini. */
 val StudioEqBevelBrush: Brush = StudioEqCardBrush
 
-/** Border SEHUE shadow (bukan Color.White/Black seperti SkeuoEdgeHighlight/
- *  Shadow) — inti pembeda neumorphism vs skeuomorphism di atas. */
+/** Border SEHUE shadow (bukan Color.White/Black) — palet beda dari
+ *  `NeumoEdgeHighlight`/`NeumoEdgeShadow` (varian 3) tapi sama-sama neumorphism
+ *  genuine, sama-sama BUKAN skeuomorphism hard-edge era lama. */
 val StudioEqBevelBorderBrush: Brush = Brush.linearGradient(
     listOf(StudioEqLightShadow.copy(alpha = 0.55f), Color.Transparent, StudioEqDarkShadow.copy(alpha = 0.65f))
 )
 
-/** Sheen atas SANGAT halus — neumorphism matte, bukan glossy kaca/plastik
- *  (beda dari GlassSpecularBrush/SkeuoSpecularBrush yang jauh lebih terang). */
+/** Sheen atas SANGAT halus — neumorphism matte-subtle (Studio Eq low-contrast by
+ *  design), bukan glossy kaca (GlassSpecularBrush) atau sheen platinum lebih kuat
+ *  (NeumoSpecularBrush, varian 3, Batch 46 "immersive"). */
 val StudioEqSpecularBrush: Brush = Brush.linearGradient(
     listOf(StudioEqLightShadow.copy(alpha = 0.16f), Color.Transparent, Color.Transparent)
 )
@@ -434,24 +467,26 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     iconBoxRadius = SkeuIconBoxRadius
 )
 
-/** Varian 3: "Skeuomorphism" — bahasa desain fisik/tekstural asli (bevel-shadow
- *  ekstrusi kuat + aksen metalik titanium-silver, Batch 39), BUKAN glass sama
- *  sekali. Radius sendiri (`SkeuoCardRadius`/`SkeuoIconBoxRadius`, 14dp/10dp) —
- *  BUKAN numpang const iOS-glass punya 2 varian di atas. */
-val SkeuomorphismSkeuTokens = SkeuTokens(
-    mutedText = SkeuoTextMuted,
-    bevelBrush = SkeuoBevelBrush,
-    bevelBorderBrush = SkeuoBevelBorderBrush,
-    primaryGlow = SkeuoPrimaryGlow,
-    baseSurface = SkeuoPanel,
-    elevatedSurface = SkeuoPanelRaised,
-    cardBrush = SkeuoBevelBrush,
-    cardBorderBrush = SkeuoBevelBorderBrush,
-    cardElevation = 8.dp,
-    sliderKnobHighlight = SkeuoKnobHighlight,
-    specularBrush = SkeuoSpecularBrush,
-    cardRadius = SkeuoCardRadius,
-    iconBoxRadius = SkeuoIconBoxRadius
+/** Varian 3: "Neumorphism" ultra realistic+immersive (Batch 46, ganti dari
+ *  Skeuomorphism bevel-hard Batch 38-39) — soft-UI genuine, shadow sehue base
+ *  panel, aksen Platinum (metalik luas) + Ruby (glow/primary). `cardElevation`
+ *  10dp — TERTINGGI dari 4 varian (immersive = pop paling dramatis). Radius
+ *  sendiri (`NeumoCardRadius`/`NeumoIconBoxRadius`, 22dp/15dp) — otonom, bukan
+ *  numpang const varian lain. */
+val NeumorphismSkeuTokens = SkeuTokens(
+    mutedText = NeumoTextMuted,
+    bevelBrush = NeumoBevelBrush,
+    bevelBorderBrush = NeumoBevelBorderBrush,
+    primaryGlow = NeumoPrimaryGlow,
+    baseSurface = NeumoPanel,
+    elevatedSurface = NeumoPanelRaised,
+    cardBrush = NeumoBevelBrush,
+    cardBorderBrush = NeumoBevelBorderBrush,
+    cardElevation = 10.dp,
+    sliderKnobHighlight = NeumoKnobHighlight,
+    specularBrush = NeumoSpecularBrush,
+    cardRadius = NeumoCardRadius,
+    iconBoxRadius = NeumoIconBoxRadius
 )
 
 /** Varian 4: "Studio Equalizer" — neumorphism soft-UI (Batch 43), palet abu-abu
@@ -562,28 +597,27 @@ private val DarkColors = darkColorScheme(
     outline = GlassBorder
 )
 
-private val SkeuomorphismDarkColors = darkColorScheme(
-    primary = SkeuoAccent,
-    // Batch 39: onPrimary/primaryContainer diganti dari warm-brown (era aksen
-    // tembaga) ke neutral-cool (era aksen titanium-silver) — teks di atas swatch
-    // primary sekarang near-black netral (bukan coklat gelap), container-nya
-    // steel-grey gelap (bukan coklat tua).
-    onPrimary = Color(0xFF15161A),
-    primaryContainer = Color(0xFF3A3D44),
-    onPrimaryContainer = Color(0xFFE7E9ED),
-    secondary = SkeuoTextSecondary,
+private val NeumorphismDarkColors = darkColorScheme(
+    // Batch 46: primary sekarang Ruby (era Skeuomorphism lama pakai Platinum/
+    // titanium-silver sebagai primary) — Ruby dicadangkan khusus state-aktif
+    // sesuai rasional Platinum(netral)+Ruby(vivid) di komentar token di atas.
+    primary = NeumoRuby,
+    onPrimary = Color.White,
+    primaryContainer = NeumoRubyDeep,
+    onPrimaryContainer = Color(0xFFFFE1EC),
+    secondary = NeumoTextSecondary,
     onSecondary = Color(0xFF15161A),
-    background = SkeuoBackground,
-    onBackground = SkeuoTextPrimary,
-    surface = SkeuoPanel,
-    onSurface = SkeuoTextPrimary,
-    surfaceVariant = SkeuoPanelRaised,
-    onSurfaceVariant = SkeuoTextSecondary,
+    background = NeumoBackground,
+    onBackground = NeumoTextPrimary,
+    surface = NeumoPanel,
+    onSurface = NeumoTextPrimary,
+    surfaceVariant = NeumoPanelRaised,
+    onSurfaceVariant = NeumoTextSecondary,
     error = Color(0xFFFF6B6B),
     onError = Color.White,
     errorContainer = Color(0xFF4A1616),
     onErrorContainer = Color(0xFFFFD8D8),
-    outline = SkeuoEdgeHighlight
+    outline = NeumoEdgeHighlight
 )
 
 private val AppTypography = Typography(
@@ -633,16 +667,17 @@ private val AppShapes = Shapes(
     extraLarge = RoundedCornerShape(34.dp)
 )
 
-/** Batch 39: shape khusus varian Skeuomorphism — sudut lebih tegas/kecil (konsisten
- *  sama `SkeuoCardRadius`/`SkeuoIconBoxRadius` di atas), supaya komponen Material3
- *  default (AlertDialog/Button/dll) yang belum pakai shape manual JUGA otonom, gak
- *  ikut radius iOS-glass punya 2 varian lain. */
-private val SkeuomorphismShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(8.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(16.dp),
-    extraLarge = RoundedCornerShape(20.dp)
+/** Batch 46: shape khusus varian Neumorphism (ganti dari Skeuomorphism sudut
+ *  tegas Batch 39) — generous/rounded soft-UI, konsisten sama
+ *  `NeumoCardRadius`/`NeumoIconBoxRadius` (22dp/15dp) di atas, supaya komponen
+ *  Material3 default (AlertDialog/Button/dll) yang belum pakai shape manual JUGA
+ *  otonom, gak ikut radius varian lain. */
+private val NeumorphismShapes = Shapes(
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(15.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(22.dp),
+    extraLarge = RoundedCornerShape(26.dp)
 )
 
 /** Batch 43: shape khusus Studio Equalizer — rounded generous konsisten sama
@@ -670,25 +705,26 @@ fun AudioEnhancerTheme(
 ) {
     val context = LocalContext.current
     // Material You (wallpaper) MENANG kalau opt-in aktif — independen dari pilihan
-    // Midnight/Aurora Glass/Skeuomorphism.
+    // Midnight/Aurora Glass/Neumorphism/Studio Equalizer.
     val colors = when {
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
-        themeStyle == AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismDarkColors
+        themeStyle == AppThemeStyle.SKEUOMORPHISM -> NeumorphismDarkColors
         themeStyle == AppThemeStyle.STUDIO_EQ -> StudioEqDarkColors
         else -> DarkColors
     }
     val skeuTokens = when (themeStyle) {
         AppThemeStyle.RADICAL_SKEUO -> RadicalSkeuoSkeuTokens
-        AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismSkeuTokens
+        AppThemeStyle.SKEUOMORPHISM -> NeumorphismSkeuTokens
         AppThemeStyle.STUDIO_EQ -> StudioEqSkeuTokens
         else -> AmoledGlassSkeuTokens
     }
     // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
-    // semua) — Skeuomorphism pakai `SkeuomorphismShapes` (sudut lebih tegas). Batch
-    // 43: +Studio Equalizer pakai `StudioEqShapes` (rounded generous neumorphism).
+    // semua). Batch 46: varian ke-3 pakai `NeumorphismShapes` (rounded soft-UI,
+    // ganti dari `SkeuomorphismShapes` sudut tegas). Batch 43: +Studio Equalizer
+    // pakai `StudioEqShapes` (rounded generous neumorphism).
     val shapes = when (themeStyle) {
-        AppThemeStyle.SKEUOMORPHISM -> SkeuomorphismShapes
+        AppThemeStyle.SKEUOMORPHISM -> NeumorphismShapes
         AppThemeStyle.STUDIO_EQ -> StudioEqShapes
         else -> AppShapes
     }
