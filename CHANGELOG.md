@@ -1,5 +1,48 @@
 # Changelog
 
+## v1.85.0 - Batch 48: rapikan body GitHub Release (terlalu panjang/berantakan)
+
+Diminta user eksplisit: "rapikan present repository yang berantakan/penuh
+dengan teks yang kepanjangan (utamanya bagian GitHub release)". 1 file:
+`.github/workflows/build.yml`, step "Extract changelog entry for this
+version".
+
+**Root cause**: sejak Batch 26, body Release ambil MENTAH-MENTAH seluruh
+entry CHANGELOG.md versi itu (heading s.d. sebelum heading versi berikutnya).
+Entry CHANGELOG.md ditulis buat SESI CLAUDE BERIKUTNYA (root cause detail,
+bug yang ketemu & diperbaiki sebelum kirim, trade-off, dll — makin ke
+belakang makin panjang, beberapa entry >80 baris) — bukan buat pembaca umum
+di tab Releases GitHub. Hasilnya tab Releases jadi terasa "berantakan" persis
+seperti dikeluhkan user.
+
+**Fix**: extraction sekarang berhenti di baris pertama yang diawali `**`
+(dari observasi konsisten 40+ entry terakhir: SELALU paragraf pembuka ringkas
+dulu — "Diminta user..." + daftar file disentuh — BARU disusul subsection
+detail berformat `**Judul**:`). Ditambah hard cap 15 baris apa pun formatnya
+sebagai jaring pengaman (kalau ada entry masa depan yang gak ikut pola ini,
+body Release tetap TIDAK BISA membengkak lagi). Fallback kalau hasil kosong
+(entry yang baris pertamanya sendiri diawali `**`): ambil 8 baris pertama
+mentah. Detail teknis lengkap TIDAK hilang — cuma dipindah jadi 1 baris link
+ke CHANGELOG.md di penutup body Release.
+
+**Diuji langsung** (bukan cuma baca kode) — logic awk yang sama persis
+disimulasikan di sandbox terhadap 3 entry CHANGELOG.md TERAKHIR yang nyata
+(v1.84.0/v1.83.0/v1.82.0, bukan data contoh/karangan): hasil turun dari
+50-100+ baris/entry jadi 7-10 baris. YAML hasil edit juga divalidasi parse
+dengan `python3 -c "import yaml; yaml.safe_load(...)"` — 14 step kebaca
+normal, tidak ada kerusakan struktur. Ini validasi PALING KUAT yang pernah
+dilakukan untuk perubahan `build.yml` sejauh ini (biasanya cuma statis/baca
+kode, kali ini logic-nya benar-benar dijalankan terhadap data asli) — TAPI
+tetap belum CI run sungguhan (`softprops/action-gh-release@v2` rendering body
+Markdown-nya belum dilihat langsung di tab Releases GitHub).
+
+**Yang SENGAJA tidak disentuh** (di luar scope keluhan user, bukan lupa):
+judul Release (`AudioEnhancerPro v<versi> (Run #<run>)`) & tag_name sudah
+ringkas dari awal (Batch 42), tidak ada masalah di situ. README.md juga
+belum diaudit — kalau "berantakan" yang dimaksud user ternyata bukan cuma
+soal Release, laporkan bagian mana lagi.
+
+
 ## v1.84.0 - Batch 47: fix "kurang depth & tactile" + ambient glow "bocor" (dual-directional shadow Neumorphism)
 
 Diminta user via screenshot + feedback langsung: "hasilnya masih kurang

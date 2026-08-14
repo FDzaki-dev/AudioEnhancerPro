@@ -10,8 +10,25 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.84.0
-- 🎨🐛 **Batch 47 (v1.84.0, terbaru)**: user kirim screenshot + "kurang depth &
+- **Versi**: v1.85.0
+- 🧹 **Batch 48 (v1.85.0, terbaru)**: diminta user "rapikan present repository
+  yang berantakan/penuh dengan teks yang kepanjangan (utamanya bagian GitHub
+  release)". 1 file: `.github/workflows/build.yml`. Root cause: body Release
+  ambil MENTAH seluruh entry CHANGELOG.md (log teknis buat sesi Claude
+  berikutnya, makin ke belakang makin panjang, >80 baris beberapa entry) —
+  bukan buat pembaca umum. Fix: extraction berhenti di baris pertama
+  berawalan `**` (batas alami paragraf pembuka vs subsection detail, pola
+  konsisten 40+ entry terakhir) + hard cap 15 baris. Detail lengkap tetap ada
+  via link ke CHANGELOG.md di penutup body. **Diuji nyata** (bukan cuma baca
+  kode): logic awk disimulasikan di sandbox terhadap 3 entry CHANGELOG.md
+  ASLI (v1.84.0/1.83.0/1.82.0) — hasil 50-100+ baris turun jadi 7-10 baris.
+  YAML divalidasi parse (`python3 -c "import yaml; yaml.safe_load(...)"`) —
+  14 step normal. **Belum CI run sungguhan** — rendering Markdown body-nya di
+  tab Releases GitHub asli belum dilihat langsung. Detail: `CHANGELOG.md`
+  v1.85.0.
+  - README.md belum diaudit soal "berantakan" — kalau keluhan user ternyata
+    lebih luas dari GitHub Release doang, tanya/cek bagian lain.
+- 🎨🐛 **Batch 47 (v1.84.0)**: user kirim screenshot + "kurang depth &
   tactile, ambient lighting bocor". Root cause: `SkeuCard` cuma 1 shadow native
   hitam (kontras rendah di panel gelap) + `skeuGlow` radial 2-stop hard-cutoff
   (kebaca "bocor"). Fix: `SkeuTokens` +2 field `shadowLightTint`/

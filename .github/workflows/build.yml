@@ -165,17 +165,37 @@ jobs:
           mv "$SRC" "$DEST"
           echo "path=$DEST" >> "$GITHUB_OUTPUT"
 
-      # Batch 26: body Release diambil LANGSUNG dari entry CHANGELOG.md versi ini
-      # (heading "## v<versi> - <judul>" s.d. sebelum heading "## v" berikutnya).
-      # Fallback: kalau entry gak ketemu, body kosong string + fallback ke link
-      # compare commit standar GitHub.
+      # Batch 26: body Release diambil dari entry CHANGELOG.md versi ini.
+      # Batch 48: SEBELUMNYA seluruh entry (heading s.d. sebelum "## v" berikutnya)
+      # didorong mentah2 ke body Release — entry CHANGELOG.md ditulis buat SESI
+      # CLAUDE BERIKUTNYA (log teknis lengkap: root cause, bug yang ketemu &
+      # diperbaiki, trade-off, dll), bukan buat pembaca umum di tab Releases GitHub
+      # — hasilnya body Release jadi berhalaman-halaman, "berantakan" (keluhan
+      # user eksplisit). SEKARANG: cuma ambil paragraf PEMBUKA entry (dari
+      # pengamatan konsisten di 40+ entry terakhir: selalu "Diminta user..."/
+      # deskripsi ringkas + daftar file disentuh, BARU disusul subsection detail
+      # yang SELALU diawali baris "**...**") — berhenti di baris "**" PERTAMA,
+      # dengan hard cap 15 baris apa pun formatnya (jaring pengaman kalau suatu
+      # entry nanti gak ikut pola ini, body Release TETAP gak bisa membengkak).
+      # Detail teknis penuh TETAP ada, cuma pindah jadi link ke CHANGELOG.md,
+      # bukan hilang.
       - name: Extract changelog entry for this version
         if: steps.secret_check.outputs.has_secret == 'true'
         id: changelog
         run: |
           VERSION="${{ steps.version.outputs.name }}"
-          awk -v ver="## v${VERSION} " 'BEGIN{p=0} $0 ~ "^## v" && index($0, ver)==1 {p=1; next} p && /^## v/{p=0} p{print}' CHANGELOG.md > release_notes.md
-          if [ ! -s release_notes.md ]; then
+          awk -v ver="## v${VERSION} " 'BEGIN{p=0} $0 ~ "^## v" && index($0, ver)==1 {p=1; next} p && /^## v/{p=0} p{print}' CHANGELOG.md > full_changelog_entry.md
+          if [ -s full_changelog_entry.md ]; then
+            awk '/^\*\*/{exit} NR>15{exit} {print}' full_changelog_entry.md > release_notes.md
+            if [ ! -s release_notes.md ]; then
+              head -n 8 full_changelog_entry.md > release_notes.md
+            fi
+            {
+              echo ""
+              echo "---"
+              echo "_Ringkasan singkat. Rasional teknis lengkap: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)_"
+            } >> release_notes.md
+          else
             echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
           fi
 
