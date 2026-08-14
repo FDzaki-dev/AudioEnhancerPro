@@ -3,11 +3,15 @@ package com.audioenhancer.booster
 // Batch 16: God Activity split (audit High-priority item #1) — MainActivity.kt dipecah
 // jadi 3 file (lihat BoosterScreen.kt, SkeuomorphicComponents.kt).
 // Batch 17 (audit High #2): state+business logic seputar koneksi AudioEnhancerService
-// (dulu ada di class ini) DIPINDAH ke BoosterViewModel.kt (plain AndroidViewModel, TANPA
-// DI framework — Hilt/Koin PENDING, Atomic Change terpisah, lihat PROJECT_STATE.md
-// Batch 17). MainActivity.kt sekarang CUMA: lifecycle Activity, permission launcher,
-// handling shortcut Intent, dan glue ke ViewModel + BoosterScreen(). `ConnectionState`
-// enum juga PINDAH ke `BoosterViewModel.ConnectionState` (dulu nested di sini).
+// (dulu ada di class ini) DIPINDAH ke BoosterViewModel.kt (plain AndroidViewModel).
+// MainActivity.kt sekarang CUMA: lifecycle Activity, permission launcher, handling
+// shortcut Intent, dan glue ke ViewModel + BoosterScreen(). `ConnectionState` enum juga
+// PINDAH ke `BoosterViewModel.ConnectionState` (dulu nested di sini).
+// Batch 18 sempat pasang Hilt DI di sini (@AndroidEntryPoint) — DICABUT lagi di Batch 49
+// (lihat CHANGELOG.md v1.86.0, kapt/Hilt ternyata dead weight buat compile time, cuma
+// buat 1 titik inject sepele yang AndroidViewModel sudah handle sendiri tanpa DI
+// framework apapun). `by viewModels()` di bawah sekarang pakai default factory AndroidX
+// biasa (SavedStateViewModelFactory), TIDAK butuh anotasi Activity apapun lagi.
 // State yang TETAP di sini (SENGAJA tidak dipindah ke ViewModel): notification
 // permission (butuh ActivityResultLauncher, API Activity-only) & shortcut preset name
 // (butuh Intent dari Activity) — dua-duanya inheren terikat ke lifecycle/API Activity,
@@ -42,13 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import dagger.hilt.android.AndroidEntryPoint
 
-// Batch 18: @AndroidEntryPoint WAJIB ada di sini supaya `by viewModels()` di bawah bisa
-// resolve BoosterViewModel lewat Hilt (HiltViewModelFactory) — tanpa ini, `by viewModels()`
-// balik ke default factory biasa yang GAK TAHU cara construct @HiltViewModel (crash
-// runtime "Cannot create an instance of...").
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     private val viewModel: BoosterViewModel by viewModels()

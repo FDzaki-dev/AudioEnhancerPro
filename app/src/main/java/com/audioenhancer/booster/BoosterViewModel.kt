@@ -10,13 +10,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
-// koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel
-// dulu — SENGAJA TANPA DI framework (Hilt/Koin), itu Atomic Change terpisah (butuh ubah
-// build.gradle.kts+settings.gradle.kts, PENDING, lihat PROJECT_STATE.md Batch 17).
+// koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel,
+// TANPA DI framework — Hilt sempat dipasang di Batch 18, TAPI DICABUT lagi di Batch 49
+// (lihat CHANGELOG.md v1.86.0): satu-satunya titik inject yang pernah dipakai Hilt di
+// project ini adalah `Application` ke constructor class ini, dan itu sudah didapat
+// GRATIS oleh `by viewModels()` (activity-ktx) lewat `SavedStateViewModelFactory` bawaan
+// AndroidX — factory itu SUDAH TAHU cara construct subclass `AndroidViewModel` manapun
+// lewat constructor `(Application)` tanpa DI framework apapun (mekanisme resmi AndroidX
+// sejak awal library ViewModel, BUKAN fitur baru/reka-reka). Hilt+kapt di project sekecil
+// ini gak pernah benar-benar dibutuhkan — cuma nambah waktu compile (kapt annotation
+// processing) buat 1 baris `Application` yang toh sudah otomatis.
 //
 // Kenapa AndroidViewModel (bukan ViewModel polos): bindService/unbindService di sini
 // SENGAJA pakai `getApplication()` (application Context), bukan Activity Context — ini
@@ -31,12 +36,7 @@ import javax.inject.Inject
 // user (lihat PROJECT_STATE.md), jadi ViewModel ini efektifnya tetap 1:1 umur dengan
 // MainActivity di app ini. BELUM divalidasi runtime — kalau ada gejala aneh soal
 // binding/unbinding setelah update, laporkan, ini kandidat pertama yang dicurigai.
-// Batch 18: @HiltViewModel + @Inject constructor — Application di-provide OTOMATIS oleh
-// Hilt (binding bawaan ApplicationComponent, TANPA perlu bikin Module/Provides manual).
-// Kelas ini masih AndroidViewModel (bukan ViewModel polos) — @HiltViewModel mendukung
-// dua-duanya, gak perlu diganti.
-@HiltViewModel
-class BoosterViewModel @Inject constructor(application: Application) : AndroidViewModel(application) {
+class BoosterViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Status koneksi ke AudioEnhancerService — dipakai UI untuk loading/error state eksplisit. */
     enum class ConnectionState { CONNECTING, CONNECTED, ERROR }

@@ -1,13 +1,12 @@
 package com.audioenhancer.booster
 
 import android.app.Application
-import dagger.hilt.android.HiltAndroidApp
 
-// Batch 18: @HiltAndroidApp memicu Hilt generate Application-level dependency container
-// (root semua @Inject di app ini, termasuk BoosterViewModel). WAJIB ada di Application
-// class — tanpa ini, @AndroidEntryPoint di MainActivity & @HiltViewModel di
-// BoosterViewModel gagal resolve saat runtime (bukan error compile, tapi crash startup).
-@HiltAndroidApp
+// Batch 49: @HiltAndroidApp (Batch 18) DICABUT bareng seluruh Hilt/kapt — lihat
+// CHANGELOG.md v1.86.0. Application class ini sekarang plain lagi, tidak perlu
+// jadi root dependency container apapun (satu-satunya titik inject yang pernah
+// ada, Application ke BoosterViewModel, sudah didapat gratis dari AndroidViewModel
+// bawaan AndroidX — lihat BoosterViewModel.kt).
 class AudioEnhancerApp : Application() {
     override fun onCreate() {
         super.onCreate()

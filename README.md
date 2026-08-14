@@ -1,5 +1,8 @@
 # AudioEnhancerPro
 
+### [⬇️ Download APK Terbaru](https://github.com/FDzaki-dev/AudioEnhancerPro/releases/latest)
+_Langsung ke APK signed paling baru di tab Releases — link ini SELALU resolve ke rilis terbaru otomatis (URL `/releases/latest` bawaan GitHub, bukan link ke versi tertentu yang jadi basi), tanpa perlu scroll/cari manual._
+
 > 🧠 **Lanjut development di sesi Claude baru?** Paste link repo ini di awal chat:
 > `https://github.com/FDzaki-dev/AudioEnhancerPro` — lalu **suruh Claude baca
 > `PROJECT_STATE.md` dulu** (bukan cuma README ini). File itu didesain khusus

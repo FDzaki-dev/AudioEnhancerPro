@@ -10,8 +10,30 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.85.0
-- 🧹 **Batch 48 (v1.85.0, terbaru)**: diminta user "rapikan present repository
+- **Versi**: v1.86.0
+- ⚡📄 **Batch 49 (v1.86.0, terbaru)**: 2 bagian dalam 1 pesan user. (1) README:
+  link `[⬇️ Download APK Terbaru]` (URL `/releases/latest`, selalu ke rilis
+  TERBARU) dipindah jadi hal PERTAMA di bawah judul H1 — sebelumnya cuma
+  disebut prosa di section ke-6 dari 8, gak ada link eksplisit sama sekali.
+  Isi lain README tidak dipangkas (keluhan user soal reachability, bukan
+  minta konten dihapus). (2) Build speed: Hilt+kapt (Batch 18) DICABUT TOTAL
+  — grep ulang konfirmasi satu-satunya titik inject Hilt di project ini
+  (Application ke BoosterViewModel) sudah didapat GRATIS oleh
+  `AndroidViewModel`/`SavedStateViewModelFactory` bawaan AndroidX tanpa DI
+  framework apa pun, kapt annotation-processing cuma buang waktu compile
+  buat 1 baris yang toh otomatis. `org.gradle.configuration-cache`
+  DIPERTIMBANGKAN tapi SENGAJA DITUNDA ke batch berikutnya (draf awal sempat
+  nyalain bareng, dibatalkan sadar sebelum kirim — numpuk 2 resiko
+  un-compiled sekaligus turunin confidence di bawah 95%, dipisah biar tetap
+  1 variabel risiko per push). 6 file: `README.md`, 2 `build.gradle.kts`,
+  `gradle.properties`, `AudioEnhancerApp.kt`, `MainActivity.kt` (parsial),
+  `BoosterViewModel.kt` (Atomic Change).
+  **PERUBAHAN ARSITEKTUR TERBESAR sejak Batch 18 TANPA compiler verifikasi**
+  — statis only (grep 0 sisa Hilt/dagger aktif, brace/paren 16/16 file OK),
+  **BELUM compile sungguhan**. Kalau CI merah: error `Cannot create an
+  instance of BoosterViewModel` di Logcat = tanda spesifik constructor
+  AndroidViewModel gagal resolve. Detail: `CHANGELOG.md` v1.86.0.
+- 🧹 **Batch 48 (v1.85.0)**: diminta user "rapikan present repository
   yang berantakan/penuh dengan teks yang kepanjangan (utamanya bagian GitHub
   release)". 1 file: `.github/workflows/build.yml`. Root cause: body Release
   ambil MENTAH seluruh entry CHANGELOG.md (log teknis buat sesi Claude

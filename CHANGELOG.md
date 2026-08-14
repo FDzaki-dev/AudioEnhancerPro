@@ -1,5 +1,77 @@
 # Changelog
 
+## v1.86.0 - Batch 49: link download APK ke atas README + cabut Hilt/kapt (percepatan compile)
+
+Diminta user dalam 1 pesan, 2 bagian independen: "Readme juga masih
+kepanjangan (harus effort scroll sebelum sampai ke tab download apk)" +
+"Lakukan percepatan untuk compile aplikasi nya juga". 6 file total:
+`README.md`, `build.gradle.kts`, `app/build.gradle.kts`, `gradle.properties`,
+`AudioEnhancerApp.kt`, `MainActivity.kt` (edit parsial), `BoosterViewModel.kt`
+(Atomic Change, exception limit 10 file — ini 1 rombak arsitektur (cabut DI
+framework) yang tidak bisa dipecah lintas-batch tanpa app crash sementara di
+tengah-tengah).
+
+**Bagian 1 — README.md**: root cause murni "posisi" — link download APK
+sebelumnya TIDAK ADA sama sekali secara eksplisit (cuma disebut prosa
+"tab Releases (sidebar beranda repo)" di section "Versioning APK Release",
+section ke-6 dari 8, di bawah blockquote AI + Preview UI + Fitur + Batasan
+jujur + Build). Fix: 1 link bold `[⬇️ Download APK Terbaru]` LANGSUNG di
+bawah judul H1 — hal PERTAMA yang kebaca sebelum blockquote AI-session
+sekalipun. Pakai URL `/releases/latest` bawaan GitHub (bukan link ke versi
+tertentu) — otomatis resolve ke rilis TERBARU kapan pun diklik, tidak pernah
+basi meski versionName naik terus tiap batch. Sisa isi README (Fitur,
+Batasan jujur, Troubleshooting, dst) TIDAK dipangkas — keluhan user eksplisit
+soal REACHABILITY link download, bukan minta konten lain dihapus.
+
+**Bagian 2 — cabut Hilt/kapt (percepatan compile)**: root cause ditemukan
+via grep menyeluruh (`app/src/main/java`, `app/src/test`): SATU-SATUNYA titik
+inject yang pernah dipakai Hilt di seluruh project ini, sejak dipasang Batch
+18, adalah `Application` ke constructor `BoosterViewModel` — nol `@Module`,
+nol `@Binds`, nol `@Provides`, nol `hiltViewModel()` call di mana pun. Dan
+`Application` itu SUDAH didapat GRATIS tanpa DI framework apa pun:
+`by viewModels()` (activity-ktx) pakai `SavedStateViewModelFactory` bawaan
+AndroidX, yang SUDAH TAHU cara construct subclass `AndroidViewModel` manapun
+lewat constructor `(Application)` — mekanisme resmi sejak awal library
+ViewModel, bukan fitur baru. Hilt+kapt di project sekecil ini = kapt
+annotation-processing (kontributor waktu compile TERBESAR khas Android+Hilt)
+dijalankan penuh, cuma buat 1 baris yang toh sudah otomatis.
+
+Dicabut total: plugin `org.jetbrains.kotlin.kapt` + `com.google.dagger.hilt.android`
+(2 `build.gradle.kts`), dependency `hilt-android`+`hilt-android-compiler`, blok
+`kapt { correctErrorTypes = true }`, `@HiltAndroidApp`(`AudioEnhancerApp.kt`),
+`@AndroidEntryPoint`(`MainActivity.kt`), `@HiltViewModel`+`@Inject`
+(`BoosterViewModel.kt`, constructor jadi plain `class BoosterViewModel(application: Application)`).
+2 baris `kapt.use.worker.api`/`kapt.incremental.apt` (Batch 41) ikut dihapus
+dari `gradle.properties` (dead config, plugin-nya sudah tidak ada).
+
+**Sekaligus dipertimbangkan, TAPI SENGAJA DITUNDA ke batch berikutnya**:
+`org.gradle.configuration-cache=true` — alasan penahanan aslinya (Batch 40:
+"kapt riwayatnya kurang mulus dikombinasi configuration cache") memang sudah
+hilang bareng pencabutan kapt di atas. Draf pertama batch ini sempat nyalain
+keduanya SEKALIGUS — dibatalkan sadar sebelum dikirim: menumpuk 2 perubahan
+besar TANPA compiler buat verifikasi ganda resikonya dalam 1 push yang sama
+menurunkan confidence gabungan di bawah ambang aman (<95%, aturan sendiri di
+awal prompt). Dipisah: kapt removal (confidence tinggi, mekanisme AndroidX
+baku) divalidasi CI run dulu sendirian, configuration-cache jadi kandidat
+kuat batch build-speed BERIKUTNYA begitu ini CI CONFIRMED hijau — bukan
+dibatalkan, cuma diurutkan lebih hati-hati.
+
+**Diverifikasi statis (bukan cuma baca kode)**: grep ulang `Hilt|hilt|@Inject|
+dagger|javax.inject` di seluruh `app/src/main` + `app/src/test` setelah edit
+— 0 sisa kode aktif (cuma komentar dokumentasi historis). Brace/paren balance
+16/16 file Kotlin project 0 selisih. **BELUM tervalidasi compile sungguhan**
+(sandbox ini tidak ada Gradle/Android SDK) — ini perubahan arsitektur
+TERBESAR sejak Batch 18 tanpa compiler buat verifikasi. Confidence TETAP di
+bawah 100% meski scope sudah dipersempit ke 1 variabel risiko (bukan 2) —
+mekanisme AndroidX yang diandalkan (`SavedStateViewModelFactory` construct
+`AndroidViewModel` via constructor `(Application)`) sudah baku sejak awal
+library ViewModel, tapi tetap belum ada compiler di sandbox ini buat
+memastikan 0 typo/kesalahan sintaks di 5 file yang disentuh. Kalau CI merah
+setelah ini, error `Cannot create an instance of BoosterViewModel` di Logcat
+= tanda spesifik constructor `AndroidViewModel` gagal resolve — kandidat
+pertama yang dicurigai.
+
+
 ## v1.85.0 - Batch 48: rapikan body GitHub Release (terlalu panjang/berantakan)
 
 Diminta user eksplisit: "rapikan present repository yang berantakan/penuh
