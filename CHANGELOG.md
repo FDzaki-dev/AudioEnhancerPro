@@ -1,5 +1,62 @@
 # Changelog
 
+## v1.87.0 - Batch 50: configuration-cache (lanjutan percepatan compile) + roadmap.md
+
+Diminta user 2 hal dalam 1 pesan: "Lakukan percepatan pada compile aplikasi"
++ "tambahkan roadmap.md berisi panduan menuju 100% aplikasi
+sempurna/tamat". User dikonfirmasi via pertanyaan langsung: CI run v1.86.0
+(Batch 49, cabut Hilt/kapt) sudah HIJAU/SUKSES — syarat penahanan yang
+dicatat eksplisit di entry Batch 49 di bawah (jangan gabung 2 perubahan
+build-system besar tanpa compiler dalam 1 push yang sama) sudah terpenuhi,
+jadi `configuration-cache` sekarang aman dikerjakan sebagai variabel risiko
+TUNGGAL batch ini (kapt removal sudah divalidasi CI run terpisah sebelumnya).
+
+**Bagian 1 — `org.gradle.configuration-cache=true`** (`gradle.properties`):
+Gradle menyimpan hasil fase konfigurasi (evaluasi seluruh `build.gradle.kts`,
+resolusi plugin, task graph) ke cache, lalu SKIP fase itu sepenuhnya di run
+berikutnya selama input konfigurasi (file build script, gradle.properties,
+env var yang dibaca saat konfigurasi) tidak berubah. Cache-nya otomatis ikut
+ter-cache lintas-run CI lewat `cache: 'gradle'` (`actions/setup-java`, sudah
+ada sejak Batch 40) — tidak perlu perubahan CI tambahan apa pun, manfaatnya
+otomatis kepakai mulai run kedua setelah ini.
+- **Titik rawan yang dicek manual** (sandbox gak bisa compile-check
+  configuration-cache problems): `signingConfigs.release` baca
+  `System.getenv("KEYSTORE_PATH")` dkk — dikonfirmasi via baca ulang kode,
+  pemanggilan ini terjadi di level `android { signingConfigs { create(...) } }`
+  yaitu FASE KONFIGURASI (dievaluasi sekali saat build script diproses),
+  BUKAN di dalam task action/`doLast` (yang akan jadi problem configuration-
+  cache kalau baca env var saat EXECUTION). Berdasarkan pembacaan kode ini
+  harusnya aman, tapi ini murni analisis statis — belum ada compiler.
+- versionCode 89→90, versionName 1.86.0→1.87.0 (`app/build.gradle.kts`, edit
+  parsial, cuma 2 angka).
+- **Belum tervalidasi runtime** — flag resmi Gradle (stabil sejak Gradle 8.1+,
+  proyek ini pakai wrapper 8.7), tapi PERTAMA KALI dipakai di project ini.
+  Kalau CI merah: cari pesan eksplisit "configuration cache problems" di
+  `gradle-build-debug.log`/`gradle-build-release.log` (beda karakteristik
+  dari error compile Kotlin biasa) — kandidat pertama dicurigai: titik
+  `System.getenv()` di atas.
+
+**Bagian 2 — `roadmap.md` baru** (root project, bukan edit file existing):
+selama ini backlog "belum dikerjakan"/"pending"/"belum divalidasi runtime"
+tersebar di puluhan entry `PROJECT_STATE.md` dari Batch 1 sampai 49, gak ada
+1 tempat yang merangkum semua jadi checklist actionable dengan urutan
+prioritas & definisi "selesai" yang jelas. `roadmap.md` menyintesis SEMUA itu
+jadi 6 fase (Runtime Validation Debt, Build & CI Maturity, Audit Polish,
+Kompatibilitas Device, Feature Backlog, Dokumentasi/Housekeeping) + tabel
+progress ringkas + definisi eksplisit "100%/tamat" (4 syarat: fungsional,
+runtime-verified, CI hijau stabil, TODO Medium/High kosong). Fase 1 (Runtime
+Validation Debt) ditandai prioritas TERTINGGI — mayoritas kode project ini
+"kelihatan benar secara statis" tapi belum "terkonfirmasi benar di device
+asli", itu jadi gap terbesar menuju 100% yang sesungguhnya, BUKAN kurangnya
+fitur. Tidak ada isi teknis baru di sini — murni reorganisasi info yang
+sudah ada supaya actionable, 0 klaim baru yang belum tercatat sebelumnya di
+`PROJECT_STATE.md`/`CHANGELOG.md`.
+- `FILE_MANIFEST.txt` ikut diupdate (1 baris baru, `roadmap.md`).
+- **PENTING buat sesi depan**: `roadmap.md` sekarang jadi acuan AKTIF progress
+  — update checklist-nya (bukan cuma `PROJECT_STATE.md`) tiap kali 1 item
+  pindah status dikerjakan/divalidasi.
+
+
 ## v1.86.0 - Batch 49: link download APK ke atas README + cabut Hilt/kapt (percepatan compile)
 
 Diminta user dalam 1 pesan, 2 bagian independen: "Readme juga masih

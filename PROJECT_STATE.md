@@ -10,8 +10,35 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.86.0
-- ⚡📄 **Batch 49 (v1.86.0, terbaru)**: 2 bagian dalam 1 pesan user. (1) README:
+- **Versi**: v1.87.0
+- ⚡🗺️ **Batch 50 (v1.87.0, terbaru)**: diminta user \"percepatan compile\" +
+  \"tambahkan roadmap.md panduan menuju 100%\". User KONFIRMASI CI v1.86.0
+  (Batch 49) HIJAU/SUKSES sebelum batch ini dikerjakan (syarat penahanan yang
+  dicatat Batch 49 sudah terpenuhi). 2 bagian:
+  1. **Build speed**: `org.gradle.configuration-cache=true` dinyalakan
+     (`gradle.properties`) — kandidat yang SENGAJA DITUNDA Batch 49, sekarang
+     jadi 1 variabel risiko tunggal (kapt removal sudah tervalidasi CI run
+     terpisah). Gradle skip fase konfigurasi penuh di run kedua+ selama
+     input gak berubah. **Kalau CI merah**: cari pesan eksplisit
+     "configuration cache problems" di log (beda dari error compile Kotlin
+     biasa) — kandidat pertama: `signingConfigs` baca `System.getenv()` (yang
+     sudah dicek terjadi di fase KONFIGURASI, bukan task EXECUTION — harusnya
+     aman, tapi belum tervalidasi compiler).
+  2. **`roadmap.md` baru** (root project) — sintesis SEMUA backlog yang
+     sebelumnya tersebar di bagian TODO/status batch-batch lama file ini,
+     jadi 1 checklist 6-fase actionable dengan definisi "100%/tamat" eksplisit.
+     **PENTING buat sesi depan**: mulai sekarang, `roadmap.md` yang jadi
+     acuan AKTIF soal prioritas & progress ke depan (bukan lagi bagian TODO
+     di bawah file ini, itu sekarang murni riwayat) — update checklist di
+     `roadmap.md` tiap kali 1 item pindah status, JANGAN biarkan 2 sumber
+     kebenaran beda isi.
+  2 file berubah: `gradle.properties`, `app/build.gradle.kts` (versionCode/
+  versionName saja). File baru: `roadmap.md`. Housekeeping: `FILE_MANIFEST.txt`.
+  **Belum tervalidasi runtime** — flag resmi Gradle terdokumentasi, tapi baru
+  pertama kali dipakai project ini, WAJIB dicek run CI berikutnya sebelum
+  nambah risiko build-system lain lagi.
+- ⚡📄 **Batch 49 (v1.86.0, riwayat)**: ✅ CI CONFIRMED HIJAU (user, sebelum Batch
+  50 dimulai). 2 bagian dalam 1 pesan user. (1) README:
   link `[⬇️ Download APK Terbaru]` (URL `/releases/latest`, selalu ke rilis
   TERBARU) dipindah jadi hal PERTAMA di bawah judul H1 — sebelumnya cuma
   disebut prosa di section ke-6 dari 8, gak ada link eksplisit sama sekali.

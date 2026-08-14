@@ -57,4 +57,5 @@ app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 build.gradle.kts
 docs/preview/current.html
 gradle.properties
+roadmap.md
 settings.gradle.kts
