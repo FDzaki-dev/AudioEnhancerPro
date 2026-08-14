@@ -1,5 +1,54 @@
 # Changelog
 
+## v1.82.0 - Batch 45: fix race condition `isRunning` + kunci prioritas CPU service (peak performance)
+
+Diminta user eksplisit: "indikasi race condition" + "kunci aplikasi dipuncak
+performa nya". 1 file: `AudioEnhancerService.kt`, 2 perubahan independen.
+
+**1) Race condition nyata (bukan indikasi/dugaan — dikonfirmasi dari analisis cross-thread)**:
+`AudioEnhancerService.isRunning` (companion `var`, sumber kebenaran dipakai
+Widget/QS Tile/Watchdog) ditulis di `onStartCommand`/`onDestroy` — dijamin main
+thread oleh Service lifecycle Android. TAPI dibaca juga dari
+`ServiceWatchdogWorker.doWork()`, yang jalan sebagai `CoroutineWorker` di
+background dispatcher WorkManager (BUKAN main thread), tiap 15 menit. Tanpa
+`@Volatile`, Java Memory Model tidak menjamin thread watchdog melihat nilai
+TERBARU (celah klasik: CPU/compiler boleh cache nilai lama per-thread tanpa
+`happens-before` eksplisit). Dampak nyata kalau kena: watchdog baca `isRunning`
+basi -> (a) nganggep service masih hidup padahal sudah mati -> GAGAL restart
+(tujuan utama watchdog batal total, silent failure, gak ada crash/log apapun),
+atau (b) nganggep mati padahal hidup -> restart double sia-sia. Widget
+(`BroadcastReceiver.onReceive`) & QS Tile (`TileService` callback) TIDAK kena
+masalah yang sama — keduanya dijamin selalu main thread oleh framework, cuma
+watchdog yang beda thread. **Fix**: `@Volatile` di field ini — baca/tulis wajib
+langsung ke main memory, bukan cache lokal per-thread/per-core.
+
+**2) "Kunci performa puncak"**: `onCreate()` sekarang panggil
+`Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)` (dibungkus
+try-catch, no-op diam-diam kalau OEM tertentu restrict RT-priority). Rasional:
+status "foreground service" (sudah ada sejak awal) cuma menaikkan
+importance/`oom_adj` (supaya gak gampang dibunuh OS saat low-memory) — itu
+TIDAK sama dengan menaikkan prioritas penjadwalan CPU (nice-value) thread-nya.
+Tanpa ini, panggilan `attachEffects()`/`enableEffects()`/`set*Strength()` (IPC
+ke audio HAL) tetap bisa antre CPU di belakang proses lain kalau sistem lagi
+sibuk. Dikunci ke `THREAD_PRIORITY_URGENT_AUDIO` (level sama yang dipakai
+native audio thread sistem Android) supaya konsisten dapat slot CPU prioritas
+tertinggi, bukan naik-turun ikut beban sistem.
+
+**Belum divalidasi runtime** — brace/paren balance 0 selisih (semua 16 file
+Kotlin project, bukan cuma file yang disentuh). `@Volatile` & `Process.
+setThreadPriority` API resmi JVM/Android (bukan reka-reka), tapi efek RIIL
+(watchdog gak lagi salah baca state stale, latency IPC audio effect
+konsisten) baru terkonfirmasi kalau ada laporan lapangan sebelumnya yang
+cocok gejala (mis. "kadang widget nyala tapi notifikasi ilang & gak balik
+sendiri walau ditunggu >15 menit") — kalau user pernah alami itu, ini
+kandidat root cause-nya. **PENTING buat sesi depan**: field/state APAPUN yang
+ditulis di 1 thread tapi dibaca di thread lain (terutama kombinasi manapun
+dengan `CoroutineWorker`/WorkManager, yang TIDAK jalan di main thread) WAJIB
+`@Volatile` atau mekanisme sinkronisasi lain — jangan asumsikan "cuma boolean
+sederhana jadi aman", itu justru pola race condition paling umum & paling
+gampang lolos review manual karena kelihatan tidak berbahaya.
+
+
 ## v1.81.1 - Batch 44 (bugfix): QS Tile basi ("widget aktif, QS Tile nonaktif")
 
 Dilaporkan user: widget home-screen nunjukin Aktif, tapi tile Quick Settings

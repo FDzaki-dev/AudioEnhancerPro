@@ -27,6 +27,20 @@ class AudioEnhancerService : Service() {
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
+        // Batch 45: RACE CONDITION nyata ketemu. Field ini ditulis di main thread
+        // (onStartCommand/onDestroy Service, dijamin main thread oleh framework),
+        // TAPI dibaca dari THREAD LAIN juga: ServiceWatchdogWorker.doWork() jalan
+        // sebagai CoroutineWorker WorkManager (background dispatcher, BUKAN main
+        // thread) tiap 15 menit. Tanpa @Volatile, JMM TIDAK menjamin thread watchdog
+        // lihat nilai TERBARU field ini (bisa baca versi stale dari cache CPU/register
+        // core lain) — potensi 2 kegagalan diam-diam: watchdog nganggep service masih
+        // hidup padahal udah mati (gagal restart, tujuan utama watchdog gagal total)
+        // ATAU nganggep mati padahal hidup (restart double sia-sia). Widget/QS Tile
+        // TIDAK kena isu sama karena BroadcastReceiver.onReceive/TileService callback
+        // dijamin selalu main thread oleh framework Android — cuma watchdog yang beda
+        // thread. @Volatile bikin baca-tulis field ini selalu langsung ke main memory
+        // (happens-before), BUKAN cache lokal per-thread.
+        @Volatile
         var isRunning = false
             private set
 
@@ -67,6 +81,20 @@ class AudioEnhancerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // Batch 45: "kunci" service ini di prioritas penjadwalan CPU tertinggi yang
+        // disediakan Android buat kerja audio (sama seperti yang dipakai native audio
+        // thread sistem), BUKAN cuma andalkan status "foreground service" (itu cuma
+        // menaikkan importance/oom_adj buat gak gampang dibunuh, TIDAK otomatis
+        // menaikkan nice-value penjadwalan CPU thread). Tanpa ini, panggilan
+        // attachEffects()/enableEffects()/set*Strength() (IPC ke audio HAL) tetap
+        // bisa antre di belakang proses lain kalau CPU lagi sibuk — dikunci di sini
+        // supaya konsisten dapat slot CPU prioritas puncak, bukan naik-turun ikut
+        // beban sistem. Dibungkus try-catch: SecurityException teoretis mungkin di
+        // sebagian OEM yang restrict RT-priority, gagal diam-diam ke prioritas default
+        // (bukan crash) kalau device tidak mengizinkan.
+        try {
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
+        } catch (_: Exception) { }
         createNotificationChannel()
         attachEffects()
     }

@@ -10,7 +10,25 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.81.1
+- **Versi**: v1.82.0
+- 🐛⚡ **Batch 45 (v1.82.0, terbaru)**: diminta user "indikasi race condition" +
+  "kunci aplikasi dipuncak performa nya". 1 file (`AudioEnhancerService.kt`), 2
+  perubahan: (1) `isRunning` (companion var) ternyata RACE CONDITION nyata —
+  ditulis di main thread (`onStartCommand`/`onDestroy`) tapi dibaca juga dari
+  `ServiceWatchdogWorker.doWork()` yang jalan di background dispatcher
+  WorkManager (thread beda) — tanpa `@Volatile` watchdog bisa baca nilai stale,
+  gagal restart diam-diam. Fix: `@Volatile`. (2) `onCreate()` sekarang
+  `Process.setThreadPriority(THREAD_PRIORITY_URGENT_AUDIO)` (try-catch, no-op
+  aman) — "mengunci" service di prioritas CPU tertinggi kelas audio, karena
+  status foreground service SEBELUMNYA cuma menaikkan importance/oom_adj (anti
+  dibunuh), BUKAN prioritas penjadwalan CPU thread. Detail lengkap + rasional:
+  `CHANGELOG.md` v1.82.0.
+  - **Belum divalidasi runtime** — brace/paren balance 0 selisih (16/16 file
+    Kotlin). Kandidat root cause kalau user PERNAH alami gejala "widget/QS Tile
+    kadang gak sinkron balik sendiri walau ditunggu lama" — kalau ya, laporkan,
+    ini kemungkinan penyebabnya. Kalau belum pernah ada gejala itu, fix ini
+    tetap valid sebagai pencegahan (race condition laten, belum tentu pernah
+    ketrigger kombinasi timing yang pas).
 - 🛠️ **MODE: MAINTENANCE (dimulai setelah Batch 44)** — diminta user eksplisit
   "kita akan memasuki babak maintenance mode!!". Fitur inti dianggap SELESAI
   (audio engine, reliability/watchdog/autostart, preset, widget+QS tile, crash
