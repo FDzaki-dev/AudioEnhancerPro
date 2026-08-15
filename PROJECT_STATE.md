@@ -10,8 +10,16 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.90.2
-- 🔧 **Batch 55 (v1.90.2, terbaru)**: user tanya kenapa artifact
+- **Versi**: v1.91.0
+- 🎨 **Batch 56 (v1.91.0, terbaru)**: user konfirmasi dual-shadow Batch 53-55
+  render benar di device ("lumayan") lalu minta depth/kontras dinaikkan lagi.
+  Tuning murni (0 perubahan teknik): alpha tint `NeumoEdgeHighlight`/
+  `NeumoEdgeShadow` naik (0.55/0.92→0.72/0.97), `cardElevation` 10dp→13dp,
+  multiplier spread global 1.15f→1.6f (`SkeuomorphicComponents.kt`), depth/
+  steps per-elemen (power button/slider track/switch) naik proporsional.
+  Detail: `CHANGELOG.md` v1.91.0. File: `Theme.kt` + `SkeuomorphicComponents.kt`
+  + version bump. 3 varian tema lain tetap tidak kepengaruh.
+- 🔧 **Batch 55 (v1.90.2, riwayat)**: user tanya kenapa artifact
   `log_fail-debug` DAN `log_fail-release` sama-sama muncul padahal cuma
   debug yang gagal (Batch 54's compile error). Jawaban: `if: failure()`
   polos di step upload log release dievaluasi level JOB bukan step spesifik

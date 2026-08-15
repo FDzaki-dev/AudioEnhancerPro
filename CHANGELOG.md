@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.91.0 - Batch 56 (diminta user, "push lebih dalam lagi"): depth & kontras dual-shadow dinaikkan
+
+User konfirmasi Batch 53/54/55 render benar di device ("lumayan") lalu minta
+depth/kontras dinaikkan lebih jauh. Tuning murni (0 perubahan teknik/struktur
+dari Batch 53) di 2 file:
+
+**`Theme.kt`**:
+- `NeumoEdgeHighlight`: alpha 0.55→0.72, warna dibikin lebih terang/biru
+  (`#3E5273`→`#4A6690`).
+- `NeumoEdgeShadow`: alpha 0.92→0.97 (nyaris opaque).
+- `NeumorphismSkeuTokens.cardElevation`: 10dp→13dp (basis spread kartu naik,
+  `SkeuTintedCard` ikut naik otomatis lewat `cardElevation + 1.dp`).
+
+**`SkeuomorphicComponents.kt`**:
+- Multiplier spread (`maxSpread = depth.toPx() * X`): 1.15f→1.6f — bleed
+  shadow lebih jauh dari tepi bentuk di SEMUA elemen (dampak global, 1 titik
+  ubah).
+- `ShadowSteps` (default kartu): 5→6 — falloff sedikit lebih halus/panjang.
+- `SkeuPowerButton`: depth 7dp→10dp, steps 4→5.
+- `SkeuSliderTrack` (inset): depth 3dp→4.5dp, steps 3→4.
+- `SkeuSwitch` (inset): depth 2.5dp→3.5dp, steps 3→4.
+
+3 varian tema lain TIDAK kepengaruh (gate `shadowLightTint == Transparent`
+dipertahankan, semua token di atas cuma dibaca kalau gate itu lolos).
+
+**File diubah**: `Theme.kt`, `SkeuomorphicComponents.kt`, `app/build.gradle.kts`
+(versionCode 95→96, versionName 1.90.2→1.91.0 — MINOR karena ini penajaman
+visual nyata, bukan cuma patch CI). Belum divalidasi runtime (sandbox tanpa
+device) — murni tuning angka di atas fondasi teknik yang SUDAH terbukti
+compile & render benar (Batch 53-55), jadi resiko regresi rendah.
+
 ## v1.90.2 - Batch 55 (ditanya user): kenapa artifact log_fail-debug DAN -release muncul bareng, padahal cuma debug yang gagal
 
 User tanya kenapa 2 artifact (`log_fail_v1.90.0-debug-run105`,

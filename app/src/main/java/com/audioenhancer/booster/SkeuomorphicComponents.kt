@@ -158,7 +158,7 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
  *  DALAM bentuk = kebaca cekung, bukan bocor keluar kayak raised. `steps`
  *  dikecilkan (3) buat elemen kecil (track/switch) — hemat draw call, beda
  *  kebutuhan detail dari kartu besar (5). */
-private const val ShadowSteps = 5
+private const val ShadowSteps = 6
 
 @Composable
 private fun BoxScope.SkeuDualDirectionalShadow(
@@ -191,7 +191,10 @@ private fun BoxScope.SkeuDualDirectionalShadow(
                     is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
                     is Outline.Generic -> outline.path
                 }
-                val maxSpread = depth.toPx() * 1.15f
+                // Batch 56 (diminta user, "push lebih dalam lagi"): multiplier
+                // 1.15f -> 1.6f — bleed shadow lebih jauh dari tepi bentuk,
+                // depth/kontras lebih kerasa tanpa ubah struktur teknik.
+                val maxSpread = depth.toPx() * 1.6f
                 for (step in steps downTo 1) {
                     val t = step / steps.toFloat()
                     val spread = maxSpread * t
@@ -336,7 +339,7 @@ internal fun SkeuPowerButton(
         // Transparent, `SkeuDualDirectionalShadow` no-op). Raised default, INVERT
         // (cekung) saat `pressed`/ditekan — cue "ditekan masuk" sekarang beneran
         // dari shadow terbalik, bukan cuma elevation->0dp+ring seperti sebelumnya.
-        SkeuDualDirectionalShadow(tokens, shape, depth = 7.dp, invert = pressed || isPressedNow, steps = 4)
+        SkeuDualDirectionalShadow(tokens, shape, depth = 10.dp, invert = pressed || isPressedNow, steps = 5)
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -392,7 +395,7 @@ private fun SkeuSliderTrack(
             .clip(shape)
             .background(bgColor)
     ) {
-        SkeuDualDirectionalShadow(tokens, shape, depth = 3.dp, invert = true, steps = 3)
+        SkeuDualDirectionalShadow(tokens, shape, depth = 4.5.dp, invert = true, steps = 4)
         Box(
             modifier = Modifier
                 .fillMaxWidth(fraction)
@@ -582,7 +585,7 @@ internal fun SkeuSwitch(
         // Batch 52: inset shadow cekung KHUSUS Neumorphism (0 efek 3 varian
         // lain) — groove tempat thumb "duduk", cue "tertekan" (pelengkap raised
         // thumb di bawah).
-        SkeuDualDirectionalShadow(tokens, trackShape, depth = 2.5.dp, invert = true, steps = 3)
+        SkeuDualDirectionalShadow(tokens, trackShape, depth = 3.5.dp, invert = true, steps = 4)
         Box(
             modifier = Modifier
                 .offset(x = thumbOffset)

@@ -300,13 +300,14 @@ val NeumoBrassDeep = Color(0xFFA9862C)
 
 /** Tint dual-shadow terarah (`SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt)
  *  — SEHUE navy (bukan brass — brass dijaga cuma buat state-aktif, bukan
- *  ambient shadow di SEMUA kartu, itu yang bakal bikin brass overuse). Alpha
- *  dinaikkan dari era Batch 46 (0.55/0.95 vs dulu implicit lebih tipis lewat
- *  Platinum 0.26) + tint terang dibuat lebih biru-terang (bukan cuma versi
- *  pudar dari panel) — supaya pasangan terang/gelap kebaca JELAS sebagai 2
- *  sumber cahaya berlawanan, bukan 1 shadow abu-abu datar. */
-val NeumoEdgeHighlight = Color(0xFF3E5273).copy(alpha = 0.55f)
-val NeumoEdgeShadow = NeumoPanelRecessed.copy(alpha = 0.92f)
+ *  ambient shadow di SEMUA kartu, itu yang bakal bikin brass overuse). Batch
+ *  56 (diminta user, "push lebih dalam lagi" setelah konfirmasi Batch 53/54
+ *  render benar di device): alpha dinaikkan LAGI (0.55/0.92 -> 0.72/0.97) +
+ *  tint terang dibikin lebih terang/biru (bukan cuma pudar dari panel) —
+ *  kontras pasangan terang/gelap makin tegas, 2 sumber cahaya makin jelas
+ *  kebaca beda arah (bukan 1 shadow abu-abu datar lagi). */
+val NeumoEdgeHighlight = Color(0xFF4A6690).copy(alpha = 0.72f)
+val NeumoEdgeShadow = NeumoPanelRecessed.copy(alpha = 0.97f)
 
 /** FLAT — inti fix "eksplisit" Batch 52. Neumorphism genuine: permukaan 1
  *  warna solid, kedalaman 100% dari `SkeuDualDirectionalShadow` (native
@@ -508,12 +509,12 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
 
 /** Varian 3: "Neumorphism" — Batch 52: palet Deep Navy & Classic Brass, kartu
  *  FLAT + dual-shadow kontras tinggi (lihat blok komentar token di atas untuk
- *  rationale lengkap fix "eksplisit"). `cardElevation` tetap 10dp (tertinggi
- *  dari 4 varian — depth dari shadow, bukan dari gradient permukaan lagi).
- *  `shadowLightTint`/`shadowDarkTint` sekarang `NeumoEdgeHighlight`/
- *  `NeumoEdgeShadow` (bukan hardcode `NeumoPlatinum`/`NeumoPanelRecessed`
- *  inline lagi) — 1 sumber kebenaran token warna, dipakai juga oleh
- *  `NeumoBevelBorderBrush`/border. */
+ *  rationale lengkap fix "eksplisit"). `cardElevation` 13dp (Batch 56: naik
+ *  dari 10dp — "push lebih dalam lagi", tertinggi dari 4 varian — depth dari
+ *  shadow, bukan dari gradient permukaan lagi). `shadowLightTint`/
+ *  `shadowDarkTint` sekarang `NeumoEdgeHighlight`/`NeumoEdgeShadow` (bukan
+ *  hardcode `NeumoPlatinum`/`NeumoPanelRecessed` inline lagi) — 1 sumber
+ *  kebenaran token warna, dipakai juga oleh `NeumoBevelBorderBrush`/border. */
 val NeumorphismSkeuTokens = SkeuTokens(
     mutedText = NeumoTextMuted,
     bevelBrush = NeumoBevelBrush,
@@ -523,7 +524,7 @@ val NeumorphismSkeuTokens = SkeuTokens(
     elevatedSurface = NeumoPanelRaised,
     cardBrush = NeumoBevelBrush,
     cardBorderBrush = NeumoBevelBorderBrush,
-    cardElevation = 10.dp,
+    cardElevation = 13.dp,
     sliderKnobHighlight = NeumoKnobHighlight,
     specularBrush = NeumoSpecularBrush,
     cardRadius = NeumoCardRadius,
