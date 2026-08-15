@@ -1,5 +1,52 @@
 # Changelog
 
+## v1.90.2 - Batch 55 (ditanya user): kenapa artifact log_fail-debug DAN -release muncul bareng, padahal cuma debug yang gagal
+
+User tanya kenapa 2 artifact (`log_fail_v1.90.0-debug-run105`,
+`log_fail_v1.90.0-release-run105`) sama-sama muncul di run yang gagal —
+padahal root cause (Batch 54) cuma 1 compile error yang harusnya cuma
+gagalin `assembleDebug`. **Jawaban (bukan bug tersembunyi, murni soal
+kondisi `if:` step upload)**: `if: failure()` polos dievaluasi di level JOB
+(true begitu ADA step manapun yang gagal), bukan step spesifik. Alurnya:
+"Build debug APK" gagal → job jadi failing → "Build signed release APK" ikut
+ke-SKIP (bukan gagal, standar: step tanpa `if: always()` otomatis dilewati
+kalau step sebelumnya gagal) → TAPI "Upload failure log (release build)"
+(`if: failure()` polos) tetap jalan karena job-nya failing, walau
+`gradle-build-release.log` gak pernah dibuat sama sekali (release build gak
+pernah dieksekusi) → artifact release ke-upload isi cuma
+`gradle-wrapper-bootstrap.log` + report cache, MENYESATKAN (kelihatan kayak
+release ikut gagal, padahal cuma efek ikutan status job).
+
+**Fix (`.github/workflows/build.yml`, 1 file, edit parsial 2 titik)**:
+1. Step "Build signed release APK" dikasih `id: build_release` (sebelumnya
+   gak punya id).
+2. Kondisi "Upload failure log (release build)" diperketat jadi
+   `if: failure() && steps.build_release.outcome == 'failure'` — `outcome`
+   step yang SKIP nilainya `'skipped'` (bukan `'failure'`), jadi sekarang
+   cuma ke-trigger kalau step release itu SENDIRI beneran dieksekusi & gagal.
+   `failure()` di depan TETAP wajib ada (tanpa itu GitHub Actions nambahin
+   `&& success()` implisit ke `if:` yang gak eksplisit pakai
+   failure()/always(), bikin step ini malah gak jalan pas release BENERAN
+   gagal — kasus utama fitur ini dibuat).
+
+Step "Upload failure log (debug build)" (`if: failure()` polos, TANPA syarat
+tambahan) SENGAJA TIDAK diubah — debug build adalah step PERTAMA yang bisa
+gagal di job ini (gak ada step build lain sebelumnya yang bisa bikin dia
+ke-skip), jadi `if: failure()` polos di situ SUDAH benar 1:1 dengan "debug
+beneran gagal", gak ada skenario false-positive yang sama seperti release.
+
+**Verifikasi**: YAML divalidasi parse (`python3 -c "import yaml; ..."`) —
+14 steps kebaca normal, `id: build_release` & `if:` baru kebaca persis
+sesuai yang ditulis. **Belum CI run sungguhan** (skenario "release beneran
+gagal setelah fix ini" & "debug gagal, release ke-skip, upload release TIDAK
+lagi ikut ke-trigger" baru terkonfirmasi run CI berikutnya).
+
+**File diubah**: `.github/workflows/build.yml` (PROTECTED asset, edit
+PARSIAL 2 titik sesuai izin — bukan rewrite total), `app/build.gradle.kts`
+(versionCode 94→95, versionName 1.90.1→1.90.2, PATCH — CI-only, 0 perubahan
+kode app/perilaku runtime, konsisten pola Batch 42 yang juga workflow-only
+tapi tetap bump versi).
+
 ## v1.90.1 - Batch 54 (fix urgent, dilaporkan user via CI log): compile error "Unresolved reference: drawOutline"
 
 User upload screenshot GitHub Actions "build-and-release" FAILED (exit code

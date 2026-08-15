@@ -131,7 +131,11 @@ jobs:
       # Batch 40: daemon Gradle/Kotlin dari step "Build debug APK" di atas masih
       # panas (1 job = 1 VM = 1 daemon yang bisa dipakai ulang), jadi step ini
       # start lebih cepat dibanding dulu (job terpisah = daemon dingin dari nol).
+      # Batch 55: `id: build_release` ditambah — dipakai step upload log di bawah
+      # buat bedain "step ini beneran gagal" vs "step ini di-skip karena debug
+      # gagal duluan" (lihat rasional lengkap di step upload).
       - name: Build signed release APK
+        id: build_release
         if: steps.secret_check.outputs.has_secret == 'true'
         env:
           KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
@@ -142,8 +146,26 @@ jobs:
           set -o pipefail
           ./gradlew assembleRelease --stacktrace 2>&1 | tee gradle-build-release.log
 
+      # Batch 55 (dilaporkan user, run105): SEBELUMNYA `if: failure()` polos —
+      # dievaluasi di level JOB, bukan step ini spesifik. Kalau "Build debug APK"
+      # gagal duluan, step "Build signed release APK" di atas ke-SKIP (bukan
+      # gagal, lihat komentar "Check keystore secret availability"), TAPI job
+      # tetap berstatus failing -> `if: failure()` polos di sini tetap `true` ->
+      # step ini TETAP jalan walau gradle-build-release.log gak pernah dibuat
+      # (release build gak pernah jalan sama sekali) -> artifact
+      # 'log_fail_v*-release-*' ke-upload isi cuma bootstrap log + report cache,
+      # MENYESATKAN (kelihatan kayak release build ikut gagal, padahal cuma
+      # kena efek job failing dari debug). Fix: tambah syarat
+      # `steps.build_release.outcome == 'failure'` — `outcome` step yang
+      # di-SKIP nilainya `'skipped'` (bukan `'failure'`), jadi kondisi ini
+      # cuma `true` kalau step "Build signed release APK" BENERAN dieksekusi
+      # DAN beneran gagal. `failure()` di depan TETAP wajib dipertahankan
+      # (tanpa itu, GitHub Actions otomatis nambahin `&& success()` implisit ke
+      # `if:` manapun yang gak eksplisit pakai failure()/always() — bakal
+      # bikin step ini malah gak jalan sama sekali pas release BENERAN gagal,
+      # kasus yang justru paling penting buat fitur log_fail ini).
       - name: Upload failure log (release build)
-        if: failure()
+        if: failure() && steps.build_release.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}

@@ -10,8 +10,22 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.90.1
-- 🔴🔧 **Batch 54 (v1.90.1, terbaru, FIX URGENT)**: Batch 53 GAGAL build CI
+- **Versi**: v1.90.2
+- 🔧 **Batch 55 (v1.90.2, terbaru)**: user tanya kenapa artifact
+  `log_fail-debug` DAN `log_fail-release` sama-sama muncul padahal cuma
+  debug yang gagal (Batch 54's compile error). Jawaban: `if: failure()`
+  polos di step upload log release dievaluasi level JOB bukan step spesifik
+  — step release ke-SKIP (bukan gagal) tapi upload log-nya tetap
+  ke-trigger karena job overall failing, upload artifact isi cuma bootstrap
+  log (menyesatkan). Fix: `.github/workflows/build.yml` — step release
+  dikasih `id: build_release`, kondisi upload log release diperketat jadi
+  `if: failure() && steps.build_release.outcome == 'failure'` (outcome step
+  skip = `'skipped'`, bukan `'failure'`). Upload log DEBUG TIDAK diubah
+  (sudah benar dari awal, gak ada step build lain sebelumnya yang bisa
+  bikin dia ke-skip). Detail: `CHANGELOG.md` v1.90.2. Divalidasi YAML parse
+  (14 steps, id & if baru kebaca benar) — **belum CI run sungguhan**.
+  `app/build.gradle.kts` versionCode 94→95 (CI-only, 0 kode app berubah).
+- 🔴🔧 **Batch 54 (v1.90.1, riwayat)**: Batch 53 GAGAL build CI
   (user upload screenshot GitHub Actions FAILED + 2 log run105 debug/release)
   — root cause `drawOutline` (dipakai `SkeuDualDirectionalShadow`,
   SkeuomorphicComponents.kt) TERNYATA gak eksis di Compose UI graphics sama
