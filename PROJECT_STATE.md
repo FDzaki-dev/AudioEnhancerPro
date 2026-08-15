@@ -10,8 +10,32 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.89.0
-- 🎨 **Batch 52 (v1.89.0, terbaru)**: user lapor tema Neumorphism (Batch 46,
+- **Versi**: v1.90.0
+- 🎨 **Batch 53 (v1.90.0, terbaru)**: user lapor kesan "extruded & pressed"
+  tema Neumorphism (Batch 52, palet sudah benar) MASIH kurang menonjol dari
+  2 screenshot device asli. Root cause TERULANG dari yang sudah
+  didokumentasikan sejak Batch 14: `Modifier.shadow()` native (termasuk
+  `ambientColor`/`spotColor` era Batch 47) dibatasi alpha keras oleh sistem +
+  warna custom cuma jalan API 28+ (senyap diabaikan di bawahnya). Fix:
+  `SkeuDualDirectionalShadow` (SkeuomorphicComponents.kt) DIROMBAK ke teknik
+  gambar-ulang-siluet manual (`drawOutline`+`translate`, DrawScope polos,
+  BUKAN Paint/BlurMaskFilter — preseden Batch 14/32 tetap dihormati) — 100%
+  konsisten semua API level `minSdk 24`, 0 gating. Parameter baru
+  `invert: Boolean` buat cue "pressed"/cekung (arah shadow dibalik + di-clip
+  ke dalam bentuk), dipasang BARU di `SkeuSliderTrack` (groove track),
+  `SkeuSwitch` (groove thumb), DAN `SkeuPowerButton` (tombol Aktif/Nonaktif —
+  ternyata SEBELUMNYA gak pernah pakai dual-shadow sama sekali, gap
+  tersembunyi). Detail lengkap + bug alpha-falloff yang ketemu & diperbaiki
+  sebelum dikirim: `CHANGELOG.md` v1.90.0. HANYA `SkeuomorphicComponents.kt`
+  (1 file kode) + version bump `app/build.gradle.kts` yang diubah — `Theme.kt`
+  & `MainActivity.kt` (PROTECTED) TIDAK disentuh. 3 varian tema lain TIDAK
+  kepengaruh (gate `shadowLightTint == Transparent` dipertahankan).
+  - **Belum divalidasi runtime** (sandbox gak ada kotlinc/device). Teknik
+    `drawOutline`/`translate` PERTAMA KALI dipakai di project ini — kandidat
+    pertama dicurigai kalau user lapor compile error/render kosong setelah
+    rebuild (khususnya soal import `drawOutline`, lihat catatan di
+    `CHANGELOG.md`).
+- 🎨 **Batch 52 (v1.89.0, riwayat)**: user lapor tema Neumorphism (Batch 46,
   Platinum+Ruby) "gak eksplisit ala kadarnya", kasih spek komposisi warna
   eksak "Deep Navy & Classic Brass" (Tailwind Slate family + 1 aksen brass
   `#D4AF37`). Root cause teknis kenapa versi lama gak kebaca genuine

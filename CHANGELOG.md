@@ -1,5 +1,84 @@
 # Changelog
 
+## v1.90.0 - Batch 53: fix "extruded & pressed kurang menonjol" — dual-shadow direkonstruksi total (bukan native Modifier.shadow lagi)
+
+User lapor (2 screenshot device asli, bukan preview) kesan "extruded &
+pressed" tema Neumorphism (Batch 52, palet Deep Navy & Brass sudah benar)
+masih kurang kerasa. **Root cause** — didokumentasikan project ini sejak
+Batch 14 tapi TERULANG lagi di Batch 47/52: `Modifier.shadow()` native
+Android (termasuk parameter `ambientColor`/`spotColor` yang dipakai Batch 47)
+DIBATASI alpha keras oleh sistem (di-tuning buat shadow Material Design
+tipis, bukan neumorphism tebal) — DAN warna custom shadow itu CUMA jalan di
+API 28+, di bawahnya SENYAP diabaikan (balik ke shadow hitam default tanpa
+warning apapun). Batch 47 sempat "fix" pakai `ambientColor`/`spotColor`
+tapi ternyata masih kena limitasi sistem yang sama, cuma versi lebih halus.
+
+**Fix (`SkeuomorphicComponents.kt`, 1 file)** — `SkeuDualDirectionalShadow`
+DIROMBAK TOTAL: bukan lagi 2x `Modifier.shadow()` native, sekarang gambar
+ULANG siluet bentuk kartu (`shape.createOutline`) 3-5x berturut-turut pakai
+`DrawScope.drawOutline` + `translate` POLOS (operasi Canvas paling dasar,
+BUKAN `Paint.setShadowLayer`/`BlurMaskFilter`/`RenderEffect` — preseden
+Batch 14/32 soal custom Paint-shadow-hack TETAP dihormati, 0 native
+Canvas/Paint interop di sini, cuma fill shape solid berulang), makin jauh
+dari posisi asli (arah diagonal, terang=kiri-atas/gelap=kanan-bawah) & makin
+transparan tiap step (alpha linear turun ke 0) — mensimulasikan falloff blur
+TANPA `BlurMaskFilter` (custom Paint, dilarang) atau `Modifier.blur()`
+(Compose native tapi API-gated 31+, sama masalahnya dengan `ambientColor`).
+Hasilnya render IDENTIK di semua API level dari `minSdk 24` — 0
+fallback/gating diperlukan sama sekali, beda total dari 2 pendekatan
+sebelumnya yang keduanya diam-diam dibatasi sistem.
+
+**Cue "pressed" (baru, sebelumnya cuma "extruded" yang dikerjain)** —
+parameter baru `invert: Boolean` pada `SkeuDualDirectionalShadow`: kalau
+`true`, arah terang/gelap DIBALIK (gelap kiri-atas, terang kanan-bawah,
+fisika cekungan — dinding dekat sumber cahaya kena bayangan, dinding jauh
+kena pantulan) + dikombinasi `.clip(shape)` di caller supaya bleed terpotong
+KE DALAM bentuk (kebaca cekung, bukan bocor keluar kayak raised). Dipasang
+di 3 tempat baru:
+- `SkeuSliderTrack` — bagian track yang BELUM terisi sekarang punya inset
+  shadow cekung (groove tempat thumb bergerak), bagian TERISI tetap flat
+  solid di atasnya.
+- `SkeuSwitch` — groove track (tempat thumb "duduk") dapat inset shadow,
+  pelengkap thumb raised yang sudah ada.
+- `SkeuPowerButton` (tombol bundar "Aktif/Nonaktif", elemen tactile paling
+  menonjol di 2 screenshot user) — SEBELUMNYA cuma pakai `Modifier.shadow()`
+  generik 1 layer (bukan dual-shadow SAMA SEKALI, gap yang gak kesadar
+  sebelumnya walau ini elemen paling sering dilihat user). Sekarang dapat
+  dual-shadow penuh: raised saat OFF (bleed keluar lingkaran, `.clip`
+  kondisional OFF), invert/cekung saat `pressed` (state ON, `.clip(shape)`
+  diaktifkan biar shadow kepotong ke dalam) — cue "ditekan masuk" sekarang
+  beneran dari shadow terbalik, bukan cuma `elevation->0dp`+ring accent
+  seperti sebelumnya.
+
+**Bug ditemukan & diperbaiki SEBELUM dikirim** (self-review): draf pertama
+formula alpha falloff (`1f - falloff * 0.55f` dengan `falloff = (1-t)²`)
+TERBALIK — step TERJAUH (harusnya paling transparan) malah dapat alpha
+PENUH, step TERDEKAT (harusnya paling pekat) malah DIREDUPKAN. Diperbaiki ke
+`alphaMultiplier = 1f - t` langsung (linear, farthest=0/nearest≈0.67-0.8) —
+diverifikasi ulang manual step-by-step sebelum lanjut.
+
+3 varian tema lain (Midnight Glass, Aurora Glass, Studio Equalizer) TIDAK
+kepengaruh — `SkeuDualDirectionalShadow` tetap early-return 0 draw call
+kalau `tokens.shadowLightTint == Color.Transparent` (arsitektur gate sama
+seperti Batch 47, dipertahankan). `Theme.kt`/`MainActivity.kt` TIDAK
+disentuh.
+
+**File diubah**: `SkeuomorphicComponents.kt` (satu-satunya file kode),
+`app/build.gradle.kts` (versionCode 92→93, versionName 1.89.0→1.90.0).
+
+**Belum divalidasi runtime** (sandbox tanpa kotlinc/device, audit statis:
+brace/paren parity 287/287 & 43/43, grep semua 6 titik pemanggilan
+`SkeuDualDirectionalShadow` — 2 lama (`SkeuCard`/`SkeuTintedCard`, positional
+arg, aman dari rename param `elevation`→`depth`) + 4 baru, semua named-arg
+konsisten dengan signature baru). Teknik `drawOutline`/`translate` dipakai
+PERTAMA KALI di project ini (sebelumnya cuma `drawCircle`/`drawBehind` polos
+di `skeuGlow`) — kandidat pertama dicurigai kalau user lapor crash/render
+kosong setelah rebuild, terutama soal import (`drawOutline` diverifikasi
+dari memori sebagai top-level extension function di package
+`androidx.compose.ui.graphics.drawscope`, BUKAN member `DrawScope` — kalau
+ternyata salah, error compile "unresolved reference: drawOutline" akan
+muncul jelas, gampang di-fix hapus 1 baris import).
+
 ## v1.89.0 - Batch 52: Neumorphism dirombak total — flat surface + Deep Navy & Classic Brass
 
 User lapor tema "Neumorphism" (Batch 46, Platinum+Ruby) gak keliatan

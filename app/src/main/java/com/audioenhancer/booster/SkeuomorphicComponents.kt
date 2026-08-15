@@ -73,6 +73,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -124,41 +126,69 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
     )
 }
 
-/** Batch 47: 2 layer `Modifier.shadow()` NATIVE terarah (terang offset kiri-atas,
- *  gelap offset kanan-bawah, warna via `ambientColor`/`spotColor` — parameter
- *  resmi Compose UI, BUKAN custom Paint/BlurMaskFilter, preseden Batch 14/32
- *  larang hack blur custom) — dipasang SEBELUM konten kartu (di belakang), supaya
- *  kartu kebaca "timbul dari 2 arah cahaya" (soft-UI neumorphism genuine), bukan
- *  cuma 1 shadow hitam datar. Di-skip TOTAL (0 draw call, 0 perubahan visual)
- *  kalau `tokens.shadowLightTint == Color.Transparent` — jadi 3 varian selain
- *  Neumorphism (`shadowLightTint` mereka memang `Color.Transparent`, lihat
- *  Theme.kt) otomatis TIDAK kepengaruh sama sekali oleh fungsi ini. */
+/** Batch 52: DIROMBAK dari native `Modifier.shadow(ambientColor=,spotColor=)`
+ *  (Batch 47) ke shape-outline concentric-fade manual — `DrawScope.drawOutline`
+ *  + `translate` POLOS (operasi Canvas paling dasar, BUKAN `Paint.setShadowLayer`/
+ *  `BlurMaskFilter`/`RenderEffect` — preseden Batch 14/32 soal custom
+ *  Paint-shadow-hack TETAP dihormati, 0 native Canvas/Paint interop di sini).
+ *  Alasan ganti: user lapor 2x (Batch 47 DAN sekarang, screenshot device asli)
+ *  kesan "extruded & pressed" masih kurang kerasa. Root cause didokumentasikan
+ *  project ini sejak Batch 14: shadow native Android (`Modifier.shadow`,
+ *  termasuk `ambientColor`/`spotColor`) DIBATASI alpha keras oleh sistem
+ *  (tuned buat Material Design default, bukan neumorphism tebal) + warna
+ *  custom cuma jalan di API 28+ (di bawah itu SENYAP diabaikan, balik ke
+ *  shadow hitam default tipis tanpa warning). Fix: gambar ULANG siluet
+ *  bentuk kartu (`shape.createOutline`) berkali-kali (`ShadowSteps`), makin
+ *  jauh & makin transparan tiap step ke arah diagonal — mensimulasikan
+ *  falloff blur TANPA `BlurMaskFilter`/`Modifier.blur()` (yang API-gated 31+)
+ *  — hasil IDENTIK di semua API level dari `minSdk 24`, 0 fallback/gating.
+ *  `invert=true` (dipakai `SkeuSliderTrack`/`SkeuSwitch`, elemen "tertekan")
+ *  balik arah gelap/terang (gelap kiri-atas/terang kanan-bawah, kebalikan
+ *  raised) — dikombinasi `.clip(shape)` yang SUDAH ada di caller, bleed
+ *  otomatis terpotong ke DALAM bentuk = kebaca cekung, bukan bocor keluar
+ *  kayak raised. `steps` dikecilkan (3) buat elemen kecil (track/switch) —
+ *  hemat draw call, beda kebutuhan detail dari kartu besar (5). */
+private const val ShadowSteps = 5
+
 @Composable
-private fun BoxScope.SkeuDualDirectionalShadow(tokens: SkeuTokens, shape: Shape, elevation: Dp) {
+private fun BoxScope.SkeuDualDirectionalShadow(
+    tokens: SkeuTokens,
+    shape: Shape,
+    depth: Dp,
+    invert: Boolean = false,
+    steps: Int = ShadowSteps
+) {
     if (tokens.shadowLightTint == Color.Transparent) return
+    val topLeftTint = if (invert) tokens.shadowDarkTint else tokens.shadowLightTint
+    val bottomRightTint = if (invert) tokens.shadowLightTint else tokens.shadowDarkTint
     Box(
         Modifier
             .matchParentSize()
-            .offset(x = (-3).dp, y = (-3).dp)
-            .shadow(
-                elevation = elevation,
-                shape = shape,
-                clip = false,
-                ambientColor = tokens.shadowLightTint,
-                spotColor = tokens.shadowLightTint
-            )
-    )
-    Box(
-        Modifier
-            .matchParentSize()
-            .offset(x = 3.dp, y = 3.dp)
-            .shadow(
-                elevation = elevation,
-                shape = shape,
-                clip = false,
-                ambientColor = tokens.shadowDarkTint,
-                spotColor = tokens.shadowDarkTint
-            )
+            .drawBehind {
+                val outline = shape.createOutline(size, layoutDirection, this)
+                val maxSpread = depth.toPx() * 1.15f
+                for (step in steps downTo 1) {
+                    val t = step / steps.toFloat()
+                    val spread = maxSpread * t
+                    // Alpha makin KECIL makin jauh dari bentuk asli (t besar =
+                    // spread besar = paling jauh = paling transparan; t kecil =
+                    // dekat bentuk = paling pekat) — falloff landai simulasi
+                    // blur, BUKAN hard-edge cutoff (pola sama `skeuGlow`).
+                    val alphaMultiplier = 1f - t
+                    translate(left = spread, top = spread) {
+                        drawOutline(
+                            outline = outline,
+                            color = bottomRightTint.copy(alpha = bottomRightTint.alpha * alphaMultiplier)
+                        )
+                    }
+                    translate(left = -spread, top = -spread) {
+                        drawOutline(
+                            outline = outline,
+                            color = topLeftTint.copy(alpha = topLeftTint.alpha * alphaMultiplier)
+                        )
+                    }
+                }
+            }
     )
 }
 
@@ -271,30 +301,49 @@ internal fun SkeuPowerButton(
         modifier = Modifier
             .size(64.dp)
             .scale(scale)
-            .then(if (pressed) Modifier.skeuGlow(tokens.primaryGlow, spread = 14.dp) else Modifier)
-            .shadow(elevation = elevation, shape = shape, clip = false)
-            .clip(shape)
-            .background(tokens.bevelBrush)
-            .background(tokens.specularBrush)
-            .border(1.5.dp, tokens.bevelBorderBrush, shape)
-            .then(
-                if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClickLabel = desc,
-                role = Role.Button,
-                onClick = onClick
-            )
-            .semantics { this.contentDescription = desc },
-        contentAlignment = Alignment.Center,
-        content = content
-    )
+            // Batch 52: clip HANYA saat invert/pressed — shadow raised (default)
+            // butuh bleed KELUAR lingkaran (kesan extruded, sama seperti
+            // SkeuCard), shadow invert/pressed justru harus KEPOTONG di dalam
+            // lingkaran biar kebaca cekung (bukan cuma halo warna kebalik).
+            .then(if (pressed || isPressedNow) Modifier.clip(shape) else Modifier)
+    ) {
+        // Batch 52: dual-shadow KHUSUS Neumorphism (0 efek 3 varian lain — tokens
+        // Transparent, `SkeuDualDirectionalShadow` no-op). Raised default, INVERT
+        // (cekung) saat `pressed`/ditekan — cue "ditekan masuk" sekarang beneran
+        // dari shadow terbalik, bukan cuma elevation->0dp+ring seperti sebelumnya.
+        SkeuDualDirectionalShadow(tokens, shape, depth = 7.dp, invert = pressed || isPressedNow, steps = 4)
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .then(if (pressed) Modifier.skeuGlow(tokens.primaryGlow, spread = 14.dp) else Modifier)
+                .shadow(elevation = elevation, shape = shape, clip = false)
+                .clip(shape)
+                .background(tokens.bevelBrush)
+                .background(tokens.specularBrush)
+                .border(1.5.dp, tokens.bevelBorderBrush, shape)
+                .then(
+                    if (ringColor != null) Modifier.border(2.dp, ringColor, shape) else Modifier
+                )
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClickLabel = desc,
+                    role = Role.Button,
+                    onClick = onClick
+                )
+                .semantics { this.contentDescription = desc },
+            contentAlignment = Alignment.Center,
+            content = content
+        )
+    }
 }
 
-/** Track slider tetap flat/minimal (guide poin 3 — bukan target realisme tactile,
- *  cuma knob-nya). */
+/** Track slider flat/minimal buat 3 varian (guide poin 3), TAPI Batch 52: track
+ *  yang belum terisi (`bgColor`) sekarang dapat inset shadow cekung KHUSUS
+ *  Neumorphism (`SkeuDualDirectionalShadow(invert=true)`, 0 efek 3 varian lain)
+ *  — cue "tertekan" (guide neumorphism "well/groove" tempat thumb bergerak),
+ *  bagian terisi (`trackColor`) TETAP flat solid di atasnya (area itu kebaca
+ *  "terisi", bukan cekung). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SkeuSliderTrack(
@@ -303,6 +352,7 @@ private fun SkeuSliderTrack(
     inactiveColor: Color,
     enabled: Boolean
 ) {
+    val tokens = LocalSkeuTokens.current
     val range = sliderState.valueRange.endInclusive - sliderState.valueRange.start
     val fraction = if (range != 0f) {
         ((sliderState.value - sliderState.valueRange.start) / range).coerceIn(0f, 1f)
@@ -317,6 +367,7 @@ private fun SkeuSliderTrack(
             .clip(shape)
             .background(bgColor)
     ) {
+        SkeuDualDirectionalShadow(tokens, shape, depth = 3.dp, invert = true, steps = 3)
         Box(
             modifier = Modifier
                 .fillMaxWidth(fraction)
@@ -503,6 +554,10 @@ internal fun SkeuSwitch(
             .padding(3.dp),
         contentAlignment = Alignment.CenterStart
     ) {
+        // Batch 52: inset shadow cekung KHUSUS Neumorphism (0 efek 3 varian
+        // lain) — groove tempat thumb "duduk", cue "tertekan" (pelengkap raised
+        // thumb di bawah).
+        SkeuDualDirectionalShadow(tokens, trackShape, depth = 2.5.dp, invert = true, steps = 3)
         Box(
             modifier = Modifier
                 .offset(x = thumbOffset)
