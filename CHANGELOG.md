@@ -1,5 +1,58 @@
 # Changelog
 
+## v1.88.0 - Batch 51: Snackbar sukses simpan/hapus preset + hapus log crash
+
+Diminta user "sempurnakan fungsionalitas aplikasi 100%" — permintaan umum,
+bukan bugfix spesifik. Pendekatan: (1) full static re-audit semua 16 file
+Kotlin + resource (brace/paren balance, parity string, XML validity) — NIHIL
+bug baru ditemukan, app sudah melalui 50 batch audit sebelumnya, fungsional
+inti (audio engine, reliability/watchdog, preset, widget/QS Tile/shortcut,
+crash logger, CI/CD, 4 tema) tetap SELESAI tanpa regresi. (2) Baca `roadmap.md`
+(acuan aktif prioritas, lihat Batch 50) — Fase 1 (Runtime Validation Debt)
+BUKAN sesuatu yang bisa dikerjakan dari sandbox (butuh device fisik), jadi
+prioritas realistis yang bisa dikerjakan sekarang: 1 item kecil dari Fase 3
+("loading/success/error state feedback... saat ini minim").
+
+**Gap konkret yang ditemukan**: dialog simpan preset, hapus preset, dan hapus
+log crash — ketiganya sudah correct secara fungsi (data benar-benar
+tersimpan/terhapus), TAPI 0 konfirmasi visual ke user kalau aksi itu BENERAN
+berhasil. Satu-satunya sinyal sebelumnya cuma haptic buzz + dialog tertutup —
+kalau HP di-silent-mode/haptic OFF di sistem, user gak dapat sinyal APA PUN
+selain dialognya hilang (ambigu: berhasil, atau batal?).
+
+**Fix**: `SnackbarHostState` + `rememberCoroutineScope()` baru di
+`BoosterScreen()`, `SnackbarHost` dipasang di lapisan `Box` terluar
+(`Alignment.BottomCenter`) — layout `Column` konten utama (TopCenter, existing)
+TIDAK dipindah, cuma dibungkus 1 layer `Box` tambahan supaya SnackbarHost bisa
+jadi sibling-nya (bebas overlap konten, gak ikut ke-scroll). 3 titik baru
+manggil `showSnackbar(...)`: confirm-button simpan preset (`"Preset \"X\"
+disimpan"`), confirm-button hapus preset (`"Preset \"X\" dihapus"`), dan
+`CrashBanner` (param baru `onCrashLogsDeleted: () -> Unit = {}`, dipanggil
+BoosterScreen lewat `context.getString(...)` — BUKAN `stringResource()` karena
+callback ini jalan di dalam `onClick` biasa, bukan lambda `@Composable`).
+3 string baru (ID+EN, parity 103/103): `preset_saved_message`,
+`preset_deleted_message` (both format `%1$s`), `crash_logs_deleted_message`.
+
+**Kenapa scope dibatasi ke 3 titik ini saja** (bukan semua item Fase 3
+sekaligus): Batch Limit standing rule (maks 1 modul/batch tanpa alasan Atomic
+Change) + gap lain di Fase 3 (recomposition review, hierarki visual, white
+space, micro-animation, empty state lanjutan, tooltip fitur) sifatnya
+kosmetik/subjektif dan lebih beresiko tanpa compiler kalau digabung sekaligus
+dalam 1 push — dipisah biar tiap batch tetap 1 variabel risiko utama, pola
+yang sudah terbukti aman sejak Batch 49-50. Sisanya TETAP di `roadmap.md` Fase
+3, belum dicentang.
+
+2 file kode berubah: `BoosterScreen.kt` (+snackbar plumbing, 3 call-site),
+`app/build.gradle.kts` (versionCode 90→91, versionName 1.87.0→1.88.0, edit
+parsial). 2 file resource: `values/strings.xml` + `values-en/strings.xml`
+(+3 string masing-masing).
+- **Belum divalidasi runtime** — statis only (brace/paren 0 selisih SEMUA 18
+  file Kotlin project termasuk test, bukan cuma yang disentuh; parity string
+  103/103; XML valid). `SnackbarHost`+`SnackbarHostState` API Compose Material3
+  standar & stabil lama, tapi PERTAMA KALI dipakai di project ini — kandidat
+  pertama dicurigai kalau ada laporan Snackbar gak muncul/ke-clip/salah posisi
+  (mis. ketiban keyboard software saat dialog simpan preset masih terbuka).
+
 ## v1.87.0 - Batch 50: configuration-cache (lanjutan percepatan compile) + roadmap.md
 
 Diminta user 2 hal dalam 1 pesan: "Lakukan percepatan pada compile aplikasi"

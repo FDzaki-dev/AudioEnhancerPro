@@ -91,8 +91,13 @@ disentuh karena project masuk fase fitur lalu maintenance mode duluan:
 - [ ] White space / spacing audit lintas layar
 - [ ] Micro-animation tambahan (selain yang sudah ada: scale power button,
       animateColorAsState tema)
-- [ ] Loading / success / error state feedback (saat ini minim — cek tiap
-      operasi async: bind service, simpan preset, dst)
+- [ ] Loading / success / error state feedback — **sebagian selesai Batch 51
+      (v1.88.0)**: Snackbar sukses simpan/hapus preset + hapus log crash.
+      Connection loading/error (bind service) SUDAH ADA lebih dulu (Batch 17,
+      `BoosterViewModel.ConnectionState`). Sisa gap: preset custom yang
+      GAGAL tersimpan (mis. storage penuh — kasus ekstrem, belum ditangani
+      eksplisit), operasi lain yang masih silent (ganti tema, toggle Material
+      You — dampak kecil, cuma flag lokal instan, prioritas rendah).
 - [ ] Empty state UI (selain `presets_empty_hint` yang sudah ada, Batch 30)
 - [ ] Penjelasan fitur lanjutan buat user awam (tooltip/info icon di
       Bass/Virtualizer/Loudness — Low priority, opsional)
@@ -144,7 +149,7 @@ user minta eksplisit:
 |---|---|
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
-| 3. Audit Polish (Medium/Low) | 🔴 Belum mulai sejak Batch 16 |
+| 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |

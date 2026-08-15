@@ -10,8 +10,32 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.87.0
-- ⚡🗺️ **Batch 50 (v1.87.0, terbaru)**: diminta user \"percepatan compile\" +
+- **Versi**: v1.88.0
+- ✅🍞 **Batch 51 (v1.88.0, terbaru)**: diminta user \"sempurnakan fungsionalitas
+  aplikasi 100%\" (permintaan umum). Full static re-audit 16 file Kotlin +
+  resource dulu (brace/paren, parity string, XML) — NIHIL bug baru, fitur inti
+  tetap SELESAI. `roadmap.md` dibaca sebagai acuan aktif: Fase 1 (Runtime
+  Validation Debt) TIDAK BISA dikerjakan dari sandbox (butuh device fisik,
+  BUKAN sesuatu yang Claude bisa "kerjakan" — cuma bisa nunggu user install &
+  cek 1-per-1), jadi progress realistis yang diambil batch ini: 1 item Fase 3
+  ("loading/success/error state feedback... saat ini minim"). Detail teknis
+  lengkap: `CHANGELOG.md` v1.88.0. Ringkas: `SnackbarHost` baru di
+  `BoosterScreen()` (pertama kali dipakai project ini), 3 titik feedback sukses
+  baru (simpan preset, hapus preset, hapus log crash) — sebelumnya cuma haptic
+  + dialog tertutup diam-diam, 0 konfirmasi visual eksplisit. 2 file kode
+  (`BoosterScreen.kt`, `app/build.gradle.kts` versionCode/versionName saja),
+  2 file resource (parity 103/103).
+  - **PENTING buat sesi depan**: kalau user tanya lagi "sempurnakan 100%"/
+    "selesaikan aplikasi", JANGAN coba kerjakan Fase 1 `roadmap.md` (mustahil
+    dari sandbox tanpa device) — arahkan ke item Fase 3 berikutnya (satu per
+    batch, sama pola batch ini) atau minta user mulai centang Fase 1 kalau ada
+    APK baru yang sudah di-install & dicoba.
+  - **Belum divalidasi runtime** — `SnackbarHost`/`SnackbarHostState` API
+    Compose Material3 standar tapi baru pertama kali dipakai di project ini,
+    kandidat pertama dicurigai kalau ada laporan Snackbar gak muncul/posisi
+    aneh (terutama saat dialog simpan preset masih terbuka + keyboard software
+    naik).
+- ⚡🗺️ **Batch 50 (v1.87.0, riwayat)**: diminta user \"percepatan compile\" +
   \"tambahkan roadmap.md panduan menuju 100%\". User KONFIRMASI CI v1.86.0
   (Batch 49) HIJAU/SUKSES sebelum batch ini dikerjakan (syarat penahanan yang
   dicatat Batch 49 sudah terpenuhi). 2 bagian:

@@ -115,6 +115,7 @@
     <string name="crash_dialog_title">Latest Crash Details</string>
     <string name="crash_dismiss_button">Close</string>
     <string name="crash_delete_button">Delete Log</string>
+    <string name="crash_logs_deleted_message">All crash logs deleted</string>
 
     <!-- Custom presets -->
     <string name="preset_save_chip">Save</string>
@@ -124,10 +125,12 @@
     <string name="preset_save_cancel">Cancel</string>
     <string name="preset_save_name_collision_error">This name is already used by another preset, pick another one</string>
     <string name="preset_save_char_count">%1$d/%2$d characters</string>
+    <string name="preset_saved_message">Preset \"%1$s\" saved</string>
     <string name="preset_delete_dialog_title">Delete Preset?</string>
     <string name="preset_delete_dialog_body">Preset \"%1$s\" will be permanently deleted.</string>
     <string name="preset_delete_confirm">Delete</string>
     <string name="preset_delete_cancel">Cancel</string>
+    <string name="preset_deleted_message">Preset \"%1$s\" deleted</string>
     <string name="cd_delete_preset">Delete preset %1$s</string>
 
     <!-- Foreground service notification -->

@@ -115,6 +115,7 @@
     <string name="crash_dialog_title">Detail Crash Terakhir</string>
     <string name="crash_dismiss_button">Tutup</string>
     <string name="crash_delete_button">Hapus Log</string>
+    <string name="crash_logs_deleted_message">Semua log crash sudah dihapus</string>
 
     <!-- Preset custom -->
     <string name="preset_save_chip">Simpan</string>
@@ -124,10 +125,12 @@
     <string name="preset_save_cancel">Batal</string>
     <string name="preset_save_name_collision_error">Nama ini sudah dipakai preset lain, pilih nama lain</string>
     <string name="preset_save_char_count">%1$d/%2$d karakter</string>
+    <string name="preset_saved_message">Preset \"%1$s\" disimpan</string>
     <string name="preset_delete_dialog_title">Hapus Preset?</string>
     <string name="preset_delete_dialog_body">Preset \"%1$s\" akan dihapus permanen.</string>
     <string name="preset_delete_confirm">Hapus</string>
     <string name="preset_delete_cancel">Batal</string>
+    <string name="preset_deleted_message">Preset \"%1$s\" dihapus</string>
     <string name="cd_delete_preset">Hapus preset %1$s</string>
 
     <!-- Notifikasi foreground service -->

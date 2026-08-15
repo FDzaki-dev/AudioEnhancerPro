@@ -53,6 +53,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 @Composable
 private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
@@ -175,7 +176,7 @@ private const val PRESET_NAME_MAX_LENGTH = 24
  *  satu-satunya jejak crash adalah notifikasi "aktif" yang tiba-tiba hilang tanpa
  *  penjelasan. Cuma muncul sekali per insiden (ditandai "sudah dilihat" saat ditutup). */
 @Composable
-private fun CrashBanner() {
+private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
     val context = LocalContext.current
     var crashEntry by remember {
         mutableStateOf(if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null)
@@ -224,6 +225,7 @@ private fun CrashBanner() {
             confirmButton = {
                 TextButton(onClick = {
                     CrashLogger.deleteAllLogs(context)
+                    onCrashLogsDeleted()
                     dismiss()
                 }) { Text(stringResource(R.string.crash_delete_button)) }
             },
@@ -297,6 +299,14 @@ fun BoosterScreen(
     var showSavePresetDialog by remember { mutableStateOf(false) }
     var presetNameInput by remember { mutableStateOf("") }
     var presetPendingDelete by remember { mutableStateOf<String?>(null) }
+    // Feedback sukses eksplisit (simpan/hapus preset, hapus log crash) — sebelumnya cuma
+    // haptic + dialog tertutup diam-diam, tidak ada konfirmasi visual sama sekali kalau
+    // aksi itu benar-benar berhasil (Fase 3 roadmap: "loading/success/error state feedback").
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    fun showSnackbar(message: String) {
+        coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+    }
 
     fun applyCustomPreset(preset: PrefsHelper.CustomPreset) {
         // Preset custom sengaja TIDAK ikut me-reset equalizer manual — beda dari preset
@@ -342,7 +352,8 @@ fun BoosterScreen(
     // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
     // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
     // tetap sama seperti sebelumnya (full width).
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -396,7 +407,7 @@ fun BoosterScreen(
         }
 
         ServiceStatusBadge(onRestartService = onRestartService)
-        CrashBanner()
+        CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
 
         when (connectionState) {
             BoosterViewModel.ConnectionState.CONNECTING -> {
@@ -627,6 +638,7 @@ fun BoosterScreen(
                             onActivePresetChange(newPreset.name)
                             showSavePresetDialog = false
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(context.getString(R.string.preset_saved_message, newPreset.name))
                         }
                     ) { Text(stringResource(R.string.preset_save_confirm)) }
                 },
@@ -651,6 +663,7 @@ fun BoosterScreen(
                         if (activePreset == nameToDelete) { activePreset = null; onActivePresetChange(null) }
                         presetPendingDelete = null
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showSnackbar(context.getString(R.string.preset_deleted_message, nameToDelete))
                     }) { Text(stringResource(R.string.preset_delete_confirm)) }
                 },
                 dismissButton = {
@@ -901,6 +914,11 @@ fun BoosterScreen(
             Text(stringResource(R.string.see_full_explanation))
         }
         }
+        }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+        )
     }
 }
 /** Bagian equalizer manual per-pita-frekuensi — collapsible, disembunyikan by default supaya
