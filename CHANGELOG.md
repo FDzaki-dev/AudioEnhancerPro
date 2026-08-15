@@ -1,5 +1,73 @@
 # Changelog
 
+## v1.89.0 - Batch 52: Neumorphism dirombak total — flat surface + Deep Navy & Classic Brass
+
+User lapor tema "Neumorphism" (Batch 46, Platinum+Ruby) gak keliatan
+"eksplisit" — kesannya cuma kartu gelap generik, bukan soft-UI genuine.
+Root cause teknis (`Theme.kt`, satu-satunya file kode diubah):
+1. `NeumoBevelBrush` gradient 5-stop bikin permukaan kartu ITU SENDIRI sudah
+   "berlapis" — bertentangan sama definisi neumorphism (permukaan HARUS
+   flat 1 warna, kedalaman murni dari sepasang shadow terarah DI LUAR
+   bentuk, bukan gradient DI DALAM bentuk — gradient-internal itu ciri
+   skeuomorphism/glass).
+2. `NeumoSpecularBrush` (sheen glossy) = ciri glassmorphism, bukan
+   neumorphism (matte total).
+3. Kontras `shadowLightTint`/`shadowDarkTint` (dipakai
+   `SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt) terlalu tipis buat
+   kebaca jelas di layar kecil.
+
+**Fix**: kartu (`NeumoBevelBrush`) & background layar
+(`NeumoScreenBackgroundBrush`) jadi `SolidColor` FLAT (bukan gradient lagi),
+sheen (`NeumoSpecularBrush`) diset `Color.Transparent` (0 efek visual —
+`SkeuCard`/`SkeuTintedCard` di SkeuomorphicComponents.kt TIDAK disentuh,
+tetap manggil `.background(specularBrush)` apa adanya), kontras dual-shadow
+(`NeumoEdgeHighlight`/`NeumoEdgeShadow`) dinaikkan signifikan (tint terang
+biru-navy `#3E5273` alpha 0.55 vs gelap `#060B14` alpha 0.92 — 2 sumber
+cahaya berlawanan yang jelas kebaca, bukan 1 shadow abu-abu datar).
+
+**Palet direset total** ke "Deep Navy & Classic Brass" (spek eksak dari
+user, keluarga Tailwind Slate + 1 aksen), GANTI TOTAL dari Platinum+Ruby:
+- `NeumoBackground #0F172A` (appBg, slate-900) — background & screen brush.
+- `NeumoPanel #1E293B` (appCard, slate-800) — fill kartu flat.
+- `NeumoBorder #334155` (appBorder, slate-700) — border 1px + surface
+  "raised"/`elevatedSurface` (dipakai dobel, sesuai komposisi user).
+- `NeumoPanelRecessed #060B14` — sumur/pressed-well, base shadow gelap.
+- `NeumoTextPrimary #F8FAFC` / `NeumoTextSecondary #94A3B8` (txtPrimary/
+  txtSecondary eksak dari komposisi) / `NeumoTextMuted #64748B`.
+- `NeumoBrass #D4AF37` / `NeumoBrassDeep #A9862C` — SATU-SATUNYA aksen
+  berwarna, ganti Platinum(netral-luas)+Ruby(vivid) lama. Brass HANYA
+  dipakai primary/onPrimaryContainer/glow/ring state-aktif — TIDAK disebar
+  ke bevel/border/permukaan pasif (spec user: aksen brass maks ~10% area,
+  jangan dipakai teks paragraf). `NeumorphismDarkColors.onPrimary` diganti
+  dari `Color.White` jadi `NeumoBackground` (teks gelap di atas brass —
+  syarat kontras WCAG eksplisit di komposisi user, brass terlalu terang buat
+  teks putih).
+
+Nama variabel `Neumo*` DIPERTAHANKAN (bukan diganti `Navy*`/`Brass*`) —
+`NeumorphismSkeuTokens`/`NeumorphismDarkColors` (Theme.kt) & terutama
+`NeumoScreenBackgroundBrush` (dipakai `MainActivity.kt`, PROTECTED asset)
+TIDAK perlu disentuh sama sekali. Toggle "Skeuomorphism" di Settings &
+persistence key TIDAK diubah (sama seperti Batch 46). Radius kartu/icon-box
+(`NeumoCardRadius`/`NeumoIconBoxRadius`, 22dp/15dp) TIDAK diubah — bukan
+bagian keluhan user. 3 varian tema lain (Midnight Glass, Aurora Glass,
+Studio Equalizer) TIDAK disentuh sama sekali.
+
+**File diubah (3 file kode + 1 dokumen version bump, 1 modul/tema)**:
+`Theme.kt` (token warna Neumorphism, ~lines 247-353 & instance
+`NeumorphismSkeuTokens`/`NeumorphismDarkColors`), `app/build.gradle.kts`
+(versionCode 91→92, versionName 1.88.0→1.89.0). `SkeuomorphicComponents.kt`
+& `MainActivity.kt` TIDAK disentuh (0 breaking reference, diverifikasi via
+grep — semua pemakai token lama sudah ganti nama var yang sama, tidak ada
+referensi ke var yang dihapus seperti `NeumoPlatinum`/`NeumoRuby`).
+
+**Belum divalidasi runtime** (batasan sandbox — tidak ada kotlinc/device di
+sini, cuma audit statis: brace/paren parity, grep referensi silang semua
+file). Yang perlu dicek user pas APK baru di-install: (1) kartu Neumorphism
+kebaca timbul/tenggelam jelas (dual-shadow native `Modifier.shadow` kadang
+rendering-nya beda-beda tipis antar device/GPU — ini limitasi platform,
+bukan bug kode kalau kontrasnya masih kurang di device tertentu), (2) toggle
+brass (primary) — teks/icon di atasnya kebaca kontras jelas.
+
 ## v1.88.0 - Batch 51: Snackbar sukses simpan/hapus preset + hapus log crash
 
 Diminta user "sempurnakan fungsionalitas aplikasi 100%" — permintaan umum,

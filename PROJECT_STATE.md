@@ -10,8 +10,36 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.88.0
-- ✅🍞 **Batch 51 (v1.88.0, terbaru)**: diminta user \"sempurnakan fungsionalitas
+- **Versi**: v1.89.0
+- 🎨 **Batch 52 (v1.89.0, terbaru)**: user lapor tema Neumorphism (Batch 46,
+  Platinum+Ruby) "gak eksplisit ala kadarnya", kasih spek komposisi warna
+  eksak "Deep Navy & Classic Brass" (Tailwind Slate family + 1 aksen brass
+  `#D4AF37`). Root cause teknis kenapa versi lama gak kebaca genuine
+  neumorphism: kartu (`NeumoBevelBrush`) pakai gradient 5-stop DI DALAM
+  permukaannya sendiri (ciri skeuomorphism/glass, BUKAN neumorphism — genuine
+  neumorphism = permukaan flat 1 warna, kedalaman 100% dari sepasang shadow
+  terarah DI LUAR bentuk) + ada sheen glossy (`NeumoSpecularBrush`, ciri
+  glass) + kontras dual-shadow (`shadowLightTint`/`shadowDarkTint`) terlalu
+  tipis. Fix: `NeumoBevelBrush`/`NeumoScreenBackgroundBrush` jadi
+  `SolidColor` flat, sheen di-`Transparent`-kan (component
+  `SkeuCard`/`SkeuTintedCard` di SkeuomorphicComponents.kt TIDAK disentuh),
+  kontras `NeumoEdgeHighlight`/`NeumoEdgeShadow` dinaikkan signifikan. Palet
+  direset total (`NeumoBackground #0F172A`, `NeumoPanel #1E293B`,
+  `NeumoBorder #334155`, `NeumoBrass #D4AF37` — brass HANYA di
+  primary/glow/ring state-aktif, gak disebar ke bevel/border kayak Platinum
+  dulu). Detail lengkap: `CHANGELOG.md` v1.89.0. HANYA `Theme.kt` (token
+  warna + `NeumorphismSkeuTokens`/`NeumorphismDarkColors`) + version bump
+  `app/build.gradle.kts` yang diubah — `SkeuomorphicComponents.kt` &
+  `MainActivity.kt` (PROTECTED) TIDAK disentuh, nama semua var `Neumo*`
+  dipertahankan supaya referensi lintas-file tetap valid (diverifikasi grep).
+  3 varian tema lain TIDAK disentuh.
+  - **Belum divalidasi runtime** (sandbox gak ada kotlinc/device, cuma audit
+    statis brace/paren + grep referensi silang). Kalau user lapor dual-shadow
+    masih kurang "nendang" di device tertentu setelah APK baru — itu limitasi
+    rendering `Modifier.shadow` ambientColor/spotColor yang emang beda-beda
+    tipis antar GPU/API level, bukan otomatis bug kode; baru investigasi kode
+    kalau kartu keliatan sama sekali datar TANPA shadow apapun.
+- ✅🍞 **Batch 51 (v1.88.0, riwayat)**: diminta user \"sempurnakan fungsionalitas
   aplikasi 100%\" (permintaan umum). Full static re-audit 16 file Kotlin +
   resource dulu (brace/paren, parity string, XML) — NIHIL bug baru, fitur inti
   tetap SELESAI. `roadmap.md` dibaca sebagai acuan aktif: Fase 1 (Runtime
