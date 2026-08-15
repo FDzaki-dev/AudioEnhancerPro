@@ -1,5 +1,68 @@
 # Changelog
 
+## v1.90.1 - Batch 54 (fix urgent, dilaporkan user via CI log): compile error "Unresolved reference: drawOutline"
+
+User upload screenshot GitHub Actions "build-and-release" FAILED (exit code
+1) + 2 file log CI (`log_fail_v1.90.0-debug-run105.zip`,
+`log_fail_v1.90.0-release-run105.zip`). **Root cause ketemu PERSIS** dari
+`gradle-build-debug.log` — 3 baris compiler error:
+```
+e: .../SkeuomorphicComponents.kt:76:47 Unresolved reference: drawOutline
+e: .../SkeuomorphicComponents.kt:179:25 Unresolved reference: drawOutline
+e: .../SkeuomorphicComponents.kt:185:25 Unresolved reference: drawOutline
+```
+Ini PERSIS kandidat yang sudah diwanti-wanti di `CHANGELOG.md`/
+`PROJECT_STATE.md` Batch 53 sendiri ("kandidat pertama dicurigai kalau user
+lapor compile error... soal import `drawOutline`") — dugaan itu BENAR:
+`drawOutline` TERNYATA gak ada di Compose UI graphics package manapun
+(bukan cuma salah path import — compiler bilang "Unresolved reference" di
+baris import itu sendiri, artinya simbolnya sendiri gak eksis, ini
+kesalahan ingat API dari memori, BUKAN typo/library version issue). Log
+release (`gradle-build-release.log`) TIDAK ada di ZIP (cuma
+`gradle-wrapper-bootstrap.log`) — release job kemungkinan gak sempat sampai
+tahap compile Kotlin (gagal lebih awal / dependent ke debug), TAPI root
+cause SAMA PERSIS (1 source file yang sama), fix ini otomatis selesaikan
+keduanya.
+
+**Fix (`SkeuomorphicComponents.kt`, 1 file, 1 fungsi
+`SkeuDualDirectionalShadow`)**: `drawOutline` diganti `drawPath` (primitive
+DrawScope yang BENERAN ada — dipakai luas untuk custom Canvas drawing di
+Compose, jauh lebih fundamental/stabil daripada `drawOutline` yang
+ternyata gak eksis). `Outline` (hasil `shape.createOutline(...)`, TETAP
+dipakai — bagian ini valid, cuma cara MENGGAMBARnya yang salah) dikonversi
+ke `Path` SEKALI di luar loop (bukan per-step, sedikit lebih hemat) via
+`when` exhaustive atas 3 subtype sealed class `Outline`: `Rectangle`
+(`Path().apply { addRect(outline.rect) }`), `Rounded`
+(`Path().apply { addRoundRect(outline.roundRect) }`, ini yang kepake buat
+`RoundedCornerShape` — kartu/track/switch), `Generic`
+(`outline.path` langsung, ini yang kepake buat `CircleShape` — power button/
+thumb slider/thumb switch). Import `androidx.compose.ui.graphics.drawscope.
+drawOutline` (salah/gak eksis) dihapus, ganti `androidx.compose.ui.graphics.
+Outline` + `androidx.compose.ui.graphics.Path` (dipakai bikin instance path
+manual). Import `translate` (Batch 53) TIDAK diubah — compiler TIDAK
+komplain soal itu (cuma `drawOutline` yang error), jadi terbukti valid.
+
+**Cara verifikasi kali ini** (lebih kuat dari batch sebelumnya, TAPI tetap
+BUKAN compile sungguhan): sebelumnya (Batch 53) `drawOutline` dipilih murni
+dari INGATAN tanpa bukti konkret — SEKARANG diganti `drawPath` juga masih
+dari ingatan, TAPI kali ini didukung 2 alasan tambahan: (1) `drawPath`
+adalah primitive Canvas paling dasar/umum dipakai di HAMPIR SEMUA tutorial
+custom-draw Compose (jauh lebih sering dipakai & stabil lintas versi
+dibanding `drawOutline` yang ternyata gak pernah ada), (2) pola konversi
+`Outline` sealed-class ke `Path` via exhaustive `when` adalah idiom baku
+yang sering muncul di kode Compose lain buat kasus serupa (\"gambar ulang
+outline shape\"). **Confidence lebih tinggi dari sebelumnya, tapi TETAP
+belum 100%** — kalau CI masih gagal di titik yang SAMA, laporkan lagi
+supaya didekati beda (opsi fallback paling aman: `drawRoundRect`/`drawOval`
+langsung tanpa lewat `Outline` sama sekali, deteksi shape via
+`shape is RoundedCornerShape` vs `CircleShape` — lebih verbose tapi 0
+ketergantungan ke API `Outline`/`Path.addRoundRect` yang belum kebukti).
+
+**File diubah**: `SkeuomorphicComponents.kt` (fix), `app/build.gradle.kts`
+(versionCode 93→94, versionName 1.90.0→1.90.1 — PATCH, bukan minor, karena
+ini fix compile-error dari rilis sebelumnya yang gagal build total, bukan
+fitur/perubahan visual baru). `Theme.kt`/`MainActivity.kt` TIDAK disentuh.
+
 ## v1.90.0 - Batch 53: fix "extruded & pressed kurang menonjol" — dual-shadow direkonstruksi total (bukan native Modifier.shadow lagi)
 
 User lapor (2 screenshot device asli, bukan preview) kesan "extruded &

@@ -10,8 +10,23 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.90.0
-- 🎨 **Batch 53 (v1.90.0, terbaru)**: user lapor kesan "extruded & pressed"
+- **Versi**: v1.90.1
+- 🔴🔧 **Batch 54 (v1.90.1, terbaru, FIX URGENT)**: Batch 53 GAGAL build CI
+  (user upload screenshot GitHub Actions FAILED + 2 log run105 debug/release)
+  — root cause `drawOutline` (dipakai `SkeuDualDirectionalShadow`,
+  SkeuomorphicComponents.kt) TERNYATA gak eksis di Compose UI graphics sama
+  sekali (compiler: "Unresolved reference", 3 titik). Ini PERSIS risiko yang
+  sudah ditulis eksplisit di catatan Batch 53 sendiri ("kandidat pertama
+  dicurigai... soal import drawOutline") — kejadian beneran. Fix: ganti
+  `drawPath` (primitive DrawScope yang valid) + konversi `Outline` ke `Path`
+  manual (`when` exhaustive: `Rectangle`/`Rounded`/`Generic`). Detail
+  lengkap + level-confidence verifikasi (BUKAN compile sungguhan, masih audit
+  ingatan API + pola umum): `CHANGELOG.md` v1.90.1. **KALAU CI GAGAL LAGI DI
+  TITIK SAMA, jangan diulang lagi — coba fallback disebut di CHANGELOG:
+  `drawRoundRect`/`drawOval` langsung tanpa lewat `Outline` sama sekali.**
+  File: `SkeuomorphicComponents.kt` (fix) + `app/build.gradle.kts` (patch
+  versionCode 93→94, versionName 1.90.0→1.90.1).
+- 🎨 **Batch 53 (v1.90.0, riwayat, GAGAL BUILD — lihat Batch 54)**: user lapor kesan "extruded & pressed"
   tema Neumorphism (Batch 52, palet sudah benar) MASIH kurang menonjol dari
   2 screenshot device asli. Root cause TERULANG dari yang sudah
   didokumentasikan sejak Batch 14: `Modifier.shadow()` native (termasuk

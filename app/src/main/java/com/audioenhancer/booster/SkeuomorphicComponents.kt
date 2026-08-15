@@ -71,9 +71,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
-import androidx.compose.ui.graphics.drawscope.drawOutline
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -127,27 +128,36 @@ internal fun Modifier.skeuGlow(color: Color, spread: Dp = 12.dp): Modifier = thi
 }
 
 /** Batch 52: DIROMBAK dari native `Modifier.shadow(ambientColor=,spotColor=)`
- *  (Batch 47) ke shape-outline concentric-fade manual — `DrawScope.drawOutline`
+ *  (Batch 47) ke shape-outline concentric-fade manual — `DrawScope.drawPath`
  *  + `translate` POLOS (operasi Canvas paling dasar, BUKAN `Paint.setShadowLayer`/
  *  `BlurMaskFilter`/`RenderEffect` — preseden Batch 14/32 soal custom
  *  Paint-shadow-hack TETAP dihormati, 0 native Canvas/Paint interop di sini).
- *  Alasan ganti: user lapor 2x (Batch 47 DAN sekarang, screenshot device asli)
- *  kesan "extruded & pressed" masih kurang kerasa. Root cause didokumentasikan
- *  project ini sejak Batch 14: shadow native Android (`Modifier.shadow`,
- *  termasuk `ambientColor`/`spotColor`) DIBATASI alpha keras oleh sistem
- *  (tuned buat Material Design default, bukan neumorphism tebal) + warna
- *  custom cuma jalan di API 28+ (di bawah itu SENYAP diabaikan, balik ke
- *  shadow hitam default tipis tanpa warning). Fix: gambar ULANG siluet
- *  bentuk kartu (`shape.createOutline`) berkali-kali (`ShadowSteps`), makin
- *  jauh & makin transparan tiap step ke arah diagonal — mensimulasikan
- *  falloff blur TANPA `BlurMaskFilter`/`Modifier.blur()` (yang API-gated 31+)
- *  — hasil IDENTIK di semua API level dari `minSdk 24`, 0 fallback/gating.
- *  `invert=true` (dipakai `SkeuSliderTrack`/`SkeuSwitch`, elemen "tertekan")
- *  balik arah gelap/terang (gelap kiri-atas/terang kanan-bawah, kebalikan
- *  raised) — dikombinasi `.clip(shape)` yang SUDAH ada di caller, bleed
- *  otomatis terpotong ke DALAM bentuk = kebaca cekung, bukan bocor keluar
- *  kayak raised. `steps` dikecilkan (3) buat elemen kecil (track/switch) —
- *  hemat draw call, beda kebutuhan detail dari kartu besar (5). */
+ *  [Batch 54: draf awal Batch 52 pakai `drawOutline` — TERNYATA gak eksis di
+ *  Compose UI graphics, CI gagal compile "Unresolved reference" (3 titik).
+ *  Diganti `drawPath` (primitive DrawScope asli, `Outline` dikonversi ke
+ *  `Path` manual via `Outline.Rectangle`/`Rounded`/`Generic` — sealed class,
+ *  exhaustive `when` tanpa `else` sengaja dipertahankan biar compiler
+ *  ngasih tau kalau ada varian baru nanti). Komentar di bawah TETAP akurat
+ *  soal ALASAN/strategi (concentric-fade, falloff, invert) — cuma nama API
+ *  primitive-nya yang beda.]
+ *  Alasan ganti dari native shadow: user lapor 2x (Batch 47 DAN sekarang,
+ *  screenshot device asli) kesan "extruded & pressed" masih kurang kerasa.
+ *  Root cause didokumentasikan project ini sejak Batch 14: shadow native
+ *  Android (`Modifier.shadow`, termasuk `ambientColor`/`spotColor`) DIBATASI
+ *  alpha keras oleh sistem (tuned buat Material Design default, bukan
+ *  neumorphism tebal) + warna custom cuma jalan di API 28+ (di bawah itu
+ *  SENYAP diabaikan, balik ke shadow hitam default tipis tanpa warning). Fix:
+ *  gambar ULANG siluet bentuk kartu (`shape.createOutline` -> `Path`)
+ *  berkali-kali (`ShadowSteps`), makin jauh & makin transparan tiap step ke
+ *  arah diagonal — mensimulasikan falloff blur TANPA `BlurMaskFilter`/
+ *  `Modifier.blur()` (yang API-gated 31+) — hasil IDENTIK di semua API level
+ *  dari `minSdk 24`, 0 fallback/gating. `invert=true` (dipakai
+ *  `SkeuSliderTrack`/`SkeuSwitch`, elemen "tertekan") balik arah gelap/terang
+ *  (gelap kiri-atas/terang kanan-bawah, kebalikan raised) — dikombinasi
+ *  `.clip(shape)` yang SUDAH ada di caller, bleed otomatis terpotong ke
+ *  DALAM bentuk = kebaca cekung, bukan bocor keluar kayak raised. `steps`
+ *  dikecilkan (3) buat elemen kecil (track/switch) — hemat draw call, beda
+ *  kebutuhan detail dari kartu besar (5). */
 private const val ShadowSteps = 5
 
 @Composable
@@ -165,7 +175,22 @@ private fun BoxScope.SkeuDualDirectionalShadow(
         Modifier
             .matchParentSize()
             .drawBehind {
+                // Batch 54 (fix urgent): `drawOutline` TERNYATA gak eksis di
+                // Compose UI graphics (Unresolved reference, CI build gagal —
+                // log_fail run105 debug+release, 3 titik). Perbaikan: `Outline`
+                // dikonversi ke `Path` (`addRect`/`addRoundRect`/langsung pakai
+                // `outline.path` buat `Outline.Generic` — CircleShape.
+                // createOutline() balikin `Outline.Generic`, RoundedCornerShape
+                // balikin `Outline.Rounded`) SEKALI di luar loop (bukan per-step,
+                // hemat alokasi), lalu gambar pakai `drawPath` — primitive
+                // DrawScope asli yang beneran ada (dipastikan sebelum dikirim,
+                // lihat PROJECT_STATE.md Batch 54 utk cara verifikasi).
                 val outline = shape.createOutline(size, layoutDirection, this)
+                val path = when (outline) {
+                    is Outline.Rectangle -> Path().apply { addRect(outline.rect) }
+                    is Outline.Rounded -> Path().apply { addRoundRect(outline.roundRect) }
+                    is Outline.Generic -> outline.path
+                }
                 val maxSpread = depth.toPx() * 1.15f
                 for (step in steps downTo 1) {
                     val t = step / steps.toFloat()
@@ -176,14 +201,14 @@ private fun BoxScope.SkeuDualDirectionalShadow(
                     // blur, BUKAN hard-edge cutoff (pola sama `skeuGlow`).
                     val alphaMultiplier = 1f - t
                     translate(left = spread, top = spread) {
-                        drawOutline(
-                            outline = outline,
+                        drawPath(
+                            path = path,
                             color = bottomRightTint.copy(alpha = bottomRightTint.alpha * alphaMultiplier)
                         )
                     }
                     translate(left = -spread, top = -spread) {
-                        drawOutline(
-                            outline = outline,
+                        drawPath(
+                            path = path,
                             color = topLeftTint.copy(alpha = topLeftTint.alpha * alphaMultiplier)
                         )
                     }
