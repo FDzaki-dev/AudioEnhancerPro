@@ -1,5 +1,86 @@
 # Changelog
 
+## v1.95.0 - Batch 60 (audit eksternal): capability detection Gap #7 (Bass/Virtualizer rounding) — LoudnessEnhancer diverifikasi tidak punya API query
+
+Lanjutan audit eksternal, roadmap.md Fase 0 item #2 ("Capability detection +
+fallback"). **Sebelum nulis kode apa pun**, dicek dulu dokumentasi resmi
+Android SDK buat `BassBoost.setStrength`/`Virtualizer.setStrength`/
+`LoudnessEnhancer.setTargetGain` — TIDAK ADA compiler/SDK di sandbox, jadi
+verifikasi lewat web search ke `developer.android.com` + cermin resminya
+sebelum asumsi apa pun soal API ini.
+
+**Temuan (mengoreksi asumsi awal audit Gap #7)**:
+- `BassBoost`/`Virtualizer` strength range `[0, 1000]` (per mille) adalah
+  **kontrak API platform tetap**, sama persis di semua device/API level
+  (dari API 9) — BUKAN device-specific range yang perlu di-query kayak
+  `Equalizer.bandLevelRange` (yang memang sudah benar baca dari device sejak
+  awal). Jadi klaim "hard-coded assumption yang salah" untuk 2 effect ini
+  TIDAK akurat — kode `valueRange = 0f..1000f` di `BoosterScreen.kt`
+  sebenarnya SUDAH benar sejak awal.
+- Normalisasi capability yang BENERAN relevan buat Bass/Virtualizer cuma 2:
+  (1) `strengthSupported` — SUDAH dicek sejak sebelum Batch 57
+  (`isBassStrengthSupported()`/`isVirtualizerStrengthSupported()`, dipakai
+  disable slider di `BoosterScreen`), (2) **rounding** — dokumentasi resmi:
+  "it is allowed to round the given strength to the nearest supported value"
+  — device BOLEH membulatkan diam-diam tanpa exception. Bagian ini yang
+  SEBELUMNYA gak pernah dibaca balik (`getRoundedStrength()` gak pernah
+  dipanggil sama sekali di project ini).
+- `LoudnessEnhancer.setTargetGain` **tidak punya API query range sama
+  sekali** (beda dari 3 effect lain yang punya `strengthSupported`/
+  `bandLevelRange`/`numberOfBands`) — device yang menolak suatu nilai
+  gainmB lempar `IllegalArgumentException`, yang SUDAH tertangkap generic
+  `catch (e: Exception)` di `setLoudnessGain()` sejak Batch 57 (state
+  `FAILED` + `Log.e`). Kesimpulan: jalur ini SUDAH gap-closed lewat cara
+  lain (exception handling), bukan lewat capability query yang memang tidak
+  tersedia dari API.
+
+**`AudioEnhancerService.kt`** (satu-satunya file yang diubah batch ini):
+- `setBassStrength()`/`setVirtualizerStrength()`: setelah `setStrength()`
+  berhasil, kalau `strengthSupported == true`, baca balik `roundedStrength`
+  — kalau beda dari nilai yang diminta, `Log.w` diagnostik (device
+  membulatkan). TIDAK mengubah nilai yang di-`PrefsHelper.set*()` (tetap
+  simpan nilai yang DIMINTA user, konsisten sama keputusan Batch 57 Gap
+  #14 — persistence beda dari actual-applied-value).
+- 2 fungsi publik baru: `getBassRoundedStrength()`/
+  `getVirtualizerRoundedStrength()` — expose `roundedStrength` effect
+  (fallback ke 0 kalau exception/null, pola sama seperti getter Equalizer
+  yang sudah ada). **Belum dikonsumsi ViewModel/UI batch ini** (Log.w
+  diagnostik dulu cukup — dampak rounding biasanya cuma 1-2 unit per mille
+  dari 1000, nyaris tak terlihat di slider; disurface ke UI kalau ada
+  laporan device nyata yang roundingnya signifikan).
+- Komentar panjang baru di atas `setBassStrength()` mendokumentasikan
+  seluruh temuan di atas, supaya sesi depan gak mengulang riset yang sama
+  atau salah kira ini masih gap terbuka.
+- `LoudnessEnhancer`/`setLoudnessGain()`/`setEqualizerBand()`: **0 baris
+  logic berubah** — cuma komentar baru menjelaskan kenapa tidak disentuh.
+
+`app/build.gradle.kts`: versionCode 99→100, versionName 1.94.0→1.95.0.
+
+**roadmap.md**: item Fase 0 #1 ditandai `[x]` SELESAI (Batch 59 nutup sisa
+terakhirnya). Item #2 ditandai `[~]` SEBAGIAN — bagian "capability
+detection" untuk Bass/Virtualizer/Loudness selesai/diverifikasi tidak
+applicable, bagian "fallback engine" (kalau effect `null`) SENGAJA belum
+disentuh (overlap besar dengan item #6 rebuild `DynamicsProcessing`, effort
+& device-testing besar, di luar kapasitas sandbox tanpa arahan eksplisit
+user).
+
+**Belum divalidasi runtime** — statis only (brace/paren `AudioEnhancerService.
+kt`: 102/102 `{}`, 275/275 `()`). Karena isi API (`roundedStrength`) BELUM
+pernah dipakai project ini, ini kandidat pertama yang dicurigai kalau ada
+crash "Unresolved reference: roundedStrength" pas compile CI — TAPI properti
+ini ADA di `android.media.audiofx.BassBoost`/`Virtualizer` sejak API level 9
+(dikonfirmasi 3 sumber independen: developer.android.com, Microsoft Learn
+.NET binding, AOSP source), risiko lebih rendah dari insiden `drawOutline`
+(Batch 53/54) yang memang gak pernah ada di Compose UI sama sekali.
+
+**PENTING buat sesi depan**: item #2 roadmap SEBAGIAN, bukan penuh — kalau
+user minta "lanjut" lagi tanpa arahan baru, next kandidat alami item #3
+(Output routing awareness — speaker↔Bluetooth, wired headset, USB DAC,
+re-attach pipeline saat output berubah) ATAU item #4 (Control ownership
+lanjutan — re-acquire/recovery otomatis saat `CONTROL_LOST`, bukan cuma
+deteksi pasif). JANGAN loncat ke item #6 (rebuild session-0) tanpa user minta
+eksplisit & paham trade-off.
+
 ## v1.94.0 - Batch 59 (lanjutan audit eksternal): EffectState ke EqualizerSection
 
 Lanjutan Batch 58 (v1.93.0) — item "sisa" yang sudah dicatat eksplisit di

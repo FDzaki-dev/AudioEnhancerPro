@@ -352,21 +352,68 @@ class AudioEnhancerService : Service() {
     // biar gap #12 "isRunning != actual processing" makin sempit — persistence vs
     // reconciliation state penuh (4 sisi: UI/persisted/actual effect/output route) masih
     // gap terbuka, di luar scope batch ini (lihat audit Gap #15).
-    fun setBassStrength(strength: Short) { // 0..1000
-        try { bassBoost?.setStrength(strength) } catch (e: Exception) {
+    //
+    // Batch 60 (audit Gap #7 "range kontrol hard-coded, belum dinormalisasi dari
+    // capability aktual device"): DICEK ULANG via dokumentasi resmi Android SDK
+    // (BassBoost/Virtualizer.setStrength) SEBELUM nulis kode apa pun — [0, 1000]
+    // (per mille) BUKAN asumsi hard-coded yang salah, itu KONTRAK API PLATFORM tetap
+    // yang sama di semua device (bukan device-specific range yang perlu di-query kayak
+    // Equalizer.bandLevelRange). Normalisasi capability YANG BENERAN ada & relevan buat
+    // 2 effect ini cuma 2: (1) `strengthSupported` — SUDAH di-cek sejak sebelum Batch 57
+    // (`isBassStrengthSupported()`/`isVirtualizerStrengthSupported()` di bawah, dipakai
+    // `BoosterScreen` buat disable slider), (2) *rounding* — device BOLEH membulatkan
+    // strength yang diminta ke nilai terdekat yang didukung tanpa lapor balik via
+    // exception (dokumentasi resmi: "it is allowed to round the given strength to the
+    // nearest supported value"), jadi nilai yang BENERAN aktif di effect bisa beda dari
+    // yang di-set — ini yang SEBELUMNYA gak pernah dibaca balik sama sekali. Fungsi
+    // `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (grup fungsi di bawah)
+    // + Log.w diagnostik di `setBassStrength()`/`setVirtualizerStrength()` menutup gap
+    // ini. SENGAJA belum disurface ke ViewModel/UI batch ini (pola sama seperti Batch 57:
+    // Service-layer dulu, UI kalau perlu batch berikutnya) — beda dari EffectState
+    // (Batch 57→58) karena dampak rounding biasanya cuma beda 1-2 unit per mille (nyaris
+    // tak terlihat di slider 0..1000), jadi Log.w diagnostik dulu cukup buat batch ini;
+    // baru disurface ke UI kalau ada laporan device nyata yang roundingnya signifikan.
+    //
+    // LoudnessEnhancer target gain SENGAJA TIDAK disentuh batch ini: dicek juga di
+    // dokumentasi resmi, effect ini TIDAK punya API query range sama sekali (beda dari
+    // BassBoost/Virtualizer/Equalizer yang punya `strengthSupported`/`bandLevelRange`) —
+    // gak ada cara "capability detection" yang bisa diimplementasikan dari sisi app.
+    // Device yang menolak suatu gainmB akan lempar `IllegalArgumentException`, yang
+    // SUDAH tertangkap generic `catch (e: Exception)` di `setLoudnessGain()` (state
+    // FAILED + Log.e, sejak Batch 57) — jalur ini SUDAH gap-closed, tidak butuh
+    // perubahan baru. Master limiter/gain-staging yang lebih menyeluruh tetap item
+    // terpisah (roadmap.md Fase 0 #5), bukan scope "capability detection" ini.
+    fun setBassStrength(strength: Short) { // 0..1000, per mille — lihat komentar di atas
+        try {
+            bassBoost?.setStrength(strength)
+            if (bassBoost?.strengthSupported == true) {
+                val rounded = bassBoost?.roundedStrength ?: strength
+                if (rounded != strength) {
+                    android.util.Log.w(TAG, "BassBoost strength diminta=$strength dibulatkan device ke=$rounded")
+                }
+            }
+        } catch (e: Exception) {
             bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set BassBoost strength", e)
         }
         PrefsHelper.setBass(this, strength.toInt())
     }
 
-    fun setVirtualizerStrength(strength: Short) { // 0..1000
-        try { virtualizer?.setStrength(strength) } catch (e: Exception) {
+    fun setVirtualizerStrength(strength: Short) { // 0..1000, per mille — lihat komentar di atas
+        try {
+            virtualizer?.setStrength(strength)
+            if (virtualizer?.strengthSupported == true) {
+                val rounded = virtualizer?.roundedStrength ?: strength
+                if (rounded != strength) {
+                    android.util.Log.w(TAG, "Virtualizer strength diminta=$strength dibulatkan device ke=$rounded")
+                }
+            }
+        } catch (e: Exception) {
             virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Virtualizer strength", e)
         }
         PrefsHelper.setVirtualizer(this, strength.toInt())
     }
 
-    fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000
+    fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000 — tidak ada API range query (lihat komentar di atas)
         try { loudnessEnhancer?.setTargetGain(gainMb.toInt()) } catch (e: Exception) {
             loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set LoudnessEnhancer gain", e)
         }
@@ -387,6 +434,16 @@ class AudioEnhancerService : Service() {
 
     fun isVirtualizerStrengthSupported(): Boolean =
         try { virtualizer?.strengthSupported ?: false } catch (_: Exception) { false }
+
+    // Batch 60: nilai strength AKTUAL yang device pakai setelah pembulatan (lihat
+    // komentar panjang di atas `setBassStrength()`) — beda dari nilai yang di-set kalau
+    // device tidak mendukung akurasi per mille penuh. Belum dikonsumsi ViewModel/UI
+    // (diagnostik/Log.w dulu cukup untuk batch ini).
+    fun getBassRoundedStrength(): Short =
+        try { bassBoost?.roundedStrength ?: 0 } catch (_: Exception) { 0 }
+
+    fun getVirtualizerRoundedStrength(): Short =
+        try { virtualizer?.roundedStrength ?: 0 } catch (_: Exception) { 0 }
 
     // ---- Equalizer per-band: dipakai UI untuk membangun slider per pita frekuensi ----
     fun isEqualizerSupported(): Boolean = equalizer != null

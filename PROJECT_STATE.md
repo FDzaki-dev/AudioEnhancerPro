@@ -10,8 +10,34 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.94.0
-- 🔧🩺 **Batch 59 (v1.94.0, terbaru)**: lanjutan Batch 58, mengerjakan item
+- **Versi**: v1.95.0
+- 🔧🩺 **Batch 60 (v1.95.0, terbaru)**: lanjutan audit eksternal, roadmap.md
+  Fase 0 item #2 ("Capability detection + fallback"). **Riset dulu via web
+  search ke dokumentasi resmi Android SDK sebelum nulis kode** (gak ada
+  compiler di sandbox) — TEMUAN PENTING: range Bass/Virtualizer `[0, 1000]`
+  TERNYATA kontrak API platform TETAP (bukan device-specific), jadi klaim
+  awal audit Gap #7 "hard-coded assumption yang salah" untuk 2 effect ini
+  TIDAK akurat — kode `BoosterScreen.kt` yang lama sebenarnya sudah benar.
+  Yang BENERAN gap: *rounding* (device boleh membulatkan strength diam-diam,
+  gak pernah dibaca balik) — ditambah `getBassRoundedStrength()`/
+  `getVirtualizerRoundedStrength()` + `Log.w` diagnostik di
+  `AudioEnhancerService.kt` (Service-layer only, belum ke UI). LoudnessEnhancer
+  DIVERIFIKASI tidak punya API query range sama sekali — jalur exception-nya
+  sudah gap-closed sejak Batch 57 lewat cara lain, 0 baris logic diubah buat
+  effect ini. Detail lengkap: `CHANGELOG.md` v1.95.0. `roadmap.md` Fase 0
+  item #1 ditandai `[x]` SELESAI, item #2 `[~]` SEBAGIAN (fallback engine
+  kalau effect null sengaja belum disentuh, overlap ke item #6).
+  - **Belum divalidasi runtime** — statis only (brace/paren 102/102 &
+    275/275 di `AudioEnhancerService.kt`). Properti `roundedStrength` BELUM
+    pernah dipakai project ini sebelumnya — dikonfirmasi ADA di API level 9
+    lewat 3 sumber independen (developer.android.com, Microsoft Learn, AOSP
+    source) sebelum dipakai, tapi tetap kandidat pertama dicurigai kalau CI
+    compile error "Unresolved reference: roundedStrength".
+  - **PENTING buat sesi depan**: kalau user "lanjut" lagi tanpa arahan baru,
+    next kandidat roadmap.md Fase 0 item #3 (Output routing awareness) atau
+    #4 (Control ownership lanjutan/re-acquire otomatis). JANGAN loncat ke
+    item #6 (rebuild session-0) tanpa user minta eksplisit.
+- 🔧🩺 **Batch 59 (v1.94.0, riwayat)**: lanjutan Batch 58, mengerjakan item
   "sisa" yang eksplisit dicatat di sana: `equalizerEffectState` (sudah
   diterima `BoosterScreen` sejak Batch 58) sekarang DISURFACE ke
   `EqualizerSection` — subtitle header ("Atur tiap pita frekuensi...") ganti
@@ -1563,7 +1589,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`) — TIDAK ADA lagi state yang "nyangkut" di layer Service saja.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`) — TIDAK ADA lagi state yang "nyangkut" di layer Service saja. Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` baru (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap (kontrak API tetap), dan kenapa LoudnessEnhancer sengaja tidak disentuh (gak ada API query range).
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).

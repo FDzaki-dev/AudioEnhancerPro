@@ -44,18 +44,36 @@ duluan) — **kerjakan SATU per satu, jangan sekaligus** (instruksi eksplisit
 user). Detail gap lengkap: lihat file audit asli yang di-upload user /
 `CHANGELOG.md` v1.92.0.
 
-- [~] **1. Actual effect-state verification + non-silent errors** (Batch 57
-      v1.92.0 + Batch 58 v1.93.0, HAMPIR SELESAI) — `EffectState` enum +
-      listener di Service (Batch 57), di-poll `BoosterViewModel` & disurface
-      ke `helpText` Bass/Virtualizer/Loudness di `BoosterScreen` (Batch 58).
-      **Sisa dari item ini**: `equalizerEffectState` sudah diterima
-      `BoosterScreen` tapi belum ditampilkan di `EqualizerSection` (struktur
-      multi-band beda dari `FeatureControl` tunggal, butuh desain kecil
-      terpisah).
-- [ ] **2. Capability detection + fallback** — range kontrol (bass/
-      virtualizer/loudness) masih hard-coded asumsi (`0..1000`, `0..3000mB`),
-      belum dinormalisasi dari capability aktual device. Belum ada fallback
-      engine kalau legacy effect gagal/tidak tersedia.
+- [x] **1. Actual effect-state verification + non-silent errors** (Batch 57
+      v1.92.0 + Batch 58 v1.93.0 + Batch 59 v1.94.0, SELESAI) — `EffectState`
+      enum + listener di Service (Batch 57), di-poll `BoosterViewModel` &
+      disurface ke `helpText` Bass/Virtualizer/Loudness (Batch 58) DAN
+      subtitle `EqualizerSection` (Batch 59). Seluruh 4 effect sudah
+      tersurface Service→ViewModel→UI, tidak ada sisa.
+- [~] **2. Capability detection + fallback** (Batch 60 v1.95.0, SEBAGIAN —
+      lihat catatan) — dicek ulang lewat dokumentasi resmi Android SDK
+      SEBELUM nulis kode: range Bass/Virtualizer `[0, 1000]` (per mille)
+      TERNYATA kontrak API platform TETAP (sama di semua device), BUKAN
+      device-specific range yang perlu di-query kayak `Equalizer.
+      bandLevelRange` — jadi bukan "hard-coded assumption yang salah" seperti
+      dugaan awal audit. Normalisasi capability yang beneran relevan buat 2
+      effect ini: `strengthSupported` (sudah ada sejak sebelum Batch 57) +
+      *rounding* (device boleh membulatkan strength ke nilai terdekat yang
+      didukung tanpa lapor exception) — bagian rounding ini yang SEBELUMNYA
+      gak pernah dibaca balik, sekarang ada `getBassRoundedStrength()`/
+      `getVirtualizerRoundedStrength()` + `Log.w` diagnostik di
+      `AudioEnhancerService.kt` (Service-layer only, belum disurface ke
+      ViewModel/UI — pola sama seperti Batch 57→58). LoudnessEnhancer TIDAK
+      disentuh: dicek juga, effect ini TIDAK punya API query range sama
+      sekali (beda dari 3 effect lain), jadi "capability detection"-nya
+      secara teknis tidak bisa diimplementasikan dari sisi app — jalur
+      exception-nya sendiri (`IllegalArgumentException`) sudah tertangkap
+      generic catch sejak Batch 57 (gap-closed lewat jalur lain, bukan lewat
+      capability query). **Belum ada fallback engine** kalau effect null
+      (bagian "fallback" dari item ini) — itu overlap besar dengan item #6
+      (rebuild ke `DynamicsProcessing`), SENGAJA tidak diinisiasi di sini,
+      effort/risiko besar & butuh device-testing intensif di luar kapasitas
+      sandbox. Detail lengkap: `CHANGELOG.md` v1.95.0.
 - [ ] **3. Output routing awareness** — belum ada handling lifecycle output
       device (speaker↔Bluetooth, wired headset, USB DAC), belum ada re-attach
       pipeline effect saat output route berubah selagi service aktif.
