@@ -77,21 +77,20 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
 - [ ] **3. Output routing awareness** — belum ada handling lifecycle output
       device (speaker↔Bluetooth, wired headset, USB DAC), belum ada re-attach
       pipeline effect saat output route berubah selagi service aktif.
-- [ ] **4. Control ownership/lifecycle lanjutan** (Batch 61 v1.96.0,
-      SEBAGIAN) — `AudioEnhancerService.kt`: `attachEffects()` dipecah jadi 4
-      fungsi per-effect (`attachBass()`/`attachVirtualizer()`/
-      `attachEqualizer()`/`attachLoudness()`, 0 logic berubah, cuma refactor
-      struktur) + fungsi publik baru `retryControlAcquisition()` — release +
-      recreate PER-EFFECT yang `CONTROL_LOST`/`FAILED` saja (effect sehat
-      tidak disentuh), lalu `restoreSavedSettings()` supaya slider value user
-      tidak hilang. **TIDAK ADA jaminan berhasil** (arbitration priority
-      Android di luar kendali app — didokumentasikan panjang di komentar
-      fungsi). **BELUM ada pemanggil otomatis** (bukan dari watchdog, bukan
-      dari UI) — baru fungsi Service-layer yang BISA dipanggil, belum
-      disurface. Next kandidat alami: surface ke `BoosterViewModel` + tombol
-      UI eksplisit "Coba Ambil Alih Kontrol Lagi" (pola sama seperti Batch
-      57→58), ATAU biarkan manual dulu sampai ada observasi device nyata
-      soal seberapa sering `CONTROL_LOST` kejadian.
+- [x] **4. Control ownership/lifecycle lanjutan** (Batch 61 v1.96.0 + Batch 62
+      v1.97.0, SELESAI dari sisi app — sisa risiko cuma runtime-validation,
+      bukan gap desain) — `AudioEnhancerService.kt` (Batch 61): `attachEffects()`
+      dipecah jadi 4 fungsi per-effect + `retryControlAcquisition()` (release+
+      recreate per-effect yang `CONTROL_LOST`/`FAILED`). Batch 62: fungsi itu
+      DISURFACE penuh ke UI — `BoosterViewModel.retryControlAcquisition()`
+      (wrapper tipis, sinkron, sama-proses lewat `LocalBinder`) dipanggil dari
+      `ControlRecoveryBanner` (`BoosterScreen.kt`, komponen baru, pola identik
+      `ServiceStatusBadge`/`CrashBanner`) — banner ini HANYA muncul kalau ada
+      effect `CONTROL_LOST`/`FAILED`, hilang otomatis lewat polling `EffectState`
+      1 detik yang sudah ada (Batch 58), TIDAK ada mekanisme polling baru.
+      **TIDAK ADA jaminan berhasil** tetap berlaku (arbitration priority Android
+      di luar kendali app) — snackbar sengaja bilang "dicoba", bukan "berhasil".
+      Detail lengkap: `CHANGELOG.md` v1.97.0.
 - [ ] **5. Gain staging + dynamics pipeline** — belum ada master limiter/
       compressor terkontrol; pipeline konseptual saat ini `BassBoost →
       Virtualizer → EQ → LoudnessEnhancer` tanpa tahapan gain staging yang
@@ -140,6 +139,12 @@ kosong, app TIDAK BISA disebut 100% walau fitur-nya kelihatan lengkap.
       manager, cek retensi FIFO maks 50 file jalan.
 - [ ] **Bind service via Application Context** (Batch 17) — pastikan gak
       ada context-leak/crash aneh setelah rotasi atau app di-background lama.
+- [ ] **`ControlRecoveryBanner` + `retryControlAcquisition()` (Batch 62)** —
+      belum ada cara sengaja memicu `CONTROL_LOST`/`FAILED` di device asli buat
+      lihat banner ini beneran muncul/hilang. Kalau kejadian natural (app audio
+      lain rebut kontrol session 0), cek: banner muncul dalam ≤1 detik, tombol
+      "Coba Ambil Alih Lagi" gak crash, snackbar muncul, banner hilang sendiri
+      begitu `EffectState` balik `ENABLED`/`AVAILABLE`.
 
 **Cara kerja disarankan**: JANGAN coba validasi semua sekaligus. Tiap kali
 user install APK baru, cocokkan ke daftar ini — centang yang sudah dicoba +

@@ -52,6 +52,9 @@
          effect fails to apply or its control gets taken over by system/another app. -->
     <string name="feature_help_failed">Failed to apply — try tapping "Turn On Again" or restart your phone.</string>
     <string name="feature_help_control_lost">Control temporarily taken over by another app/the system.</string>
+    <string name="control_recovery_message">Some features lost audio control.</string>
+    <string name="control_recovery_button">Try Retaking Control</string>
+    <string name="control_recovery_snackbar">Control recovery attempted — not guaranteed to succeed, depends on whichever app currently holds it.</string>
 
     <!-- Manual equalizer -->
     <string name="eq_title">Manual Equalizer</string>

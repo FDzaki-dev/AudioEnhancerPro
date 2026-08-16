@@ -237,6 +237,59 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
         )
     }
 }
+/** Batch 62 (roadmap Fase 0 #4 lanjutan): banner peringatan + tombol retry, tampil HANYA
+ *  kalau ADA effect (bass/virtualizer/equalizer/loudness) berstatus CONTROL_LOST/FAILED.
+ *  Surface `BoosterViewModel.retryControlAcquisition()` (baru, wrapper tipis ke
+ *  `AudioEnhancerService.retryControlAcquisition()` Batch 61) — fungsi Service itu SUDAH
+ *  ADA sejak Batch 61 tapi BELUM PERNAH punya pemanggil (bukan watchdog, bukan UI), murni
+ *  menggantung. Pola identik ServiceStatusBadge/CrashBanner di atas (SkeuTintedCard tint
+ *  warning + tombol, TIDAK ada mekanisme polling baru — banner ini otomatis hilang begitu
+ *  effect terkait balik ENABLED/AVAILABLE lewat polling 1 detik BoosterViewModel yang sudah
+ *  ada sejak Batch 58). TIDAK ADA jaminan tombol ini berhasil (arbitration priority Android
+ *  di luar kendali app, sudah didokumentasikan panjang di `retryControlAcquisition()` Service)
+ *  — makanya pesan snackbar SENGAJA bilang "dicoba", bukan "berhasil". */
+@Composable
+private fun ControlRecoveryBanner(
+    states: List<AudioEnhancerService.EffectState>,
+    onRetryControl: () -> Boolean,
+    onRetryAttempted: () -> Unit
+) {
+    val needsRecovery = states.any {
+        it == AudioEnhancerService.EffectState.CONTROL_LOST || it == AudioEnhancerService.EffectState.FAILED
+    }
+    if (!needsRecovery) return
+    val haptics = LocalHapticFeedback.current
+
+    SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Filled.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                stringResource(R.string.control_recovery_message),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                TextButton(onClick = {
+                    onRetryControl()
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onRetryAttempted()
+                }) {
+                    Text(stringResource(R.string.control_recovery_button))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -280,6 +333,10 @@ fun BoosterScreen(
     connectionState: BoosterViewModel.ConnectionState = BoosterViewModel.ConnectionState.CONNECTED,
     onRetryConnection: () -> Unit = {},
     onRestartService: () -> Unit = {},
+    // Batch 62: wrapper ke BoosterViewModel.retryControlAcquisition() — default `{ false }`
+    // biar preview/pemanggil lama yang belum kasih parameter ini tetap backward-compatible
+    // (pola sama seperti default EffectState.ENABLED di atas, Batch 58).
+    onRetryControl: () -> Boolean = { false },
     requestedCustomPresetName: String? = null,
     onRequestedPresetConsumed: () -> Unit = {}
 ) {
@@ -415,6 +472,11 @@ fun BoosterScreen(
 
         ServiceStatusBadge(onRestartService = onRestartService)
         CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
+        ControlRecoveryBanner(
+            states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState),
+            onRetryControl = onRetryControl,
+            onRetryAttempted = { showSnackbar(context.getString(R.string.control_recovery_snackbar)) }
+        )
 
         when (connectionState) {
             BoosterViewModel.ConnectionState.CONNECTING -> {

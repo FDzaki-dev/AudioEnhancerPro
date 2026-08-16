@@ -10,8 +10,43 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.96.0
-- 🔧🩺 **Batch 61 (v1.96.0, terbaru)**: lanjutan audit eksternal, roadmap.md
+- **Versi**: v1.97.0
+- 🔧🩺 **Batch 62 (v1.97.0, terbaru)**: lanjutan Batch 61, nutup roadmap.md Fase
+  0 item #4 ("Control ownership/lifecycle lanjutan") — sekarang `[x]` SELESAI.
+  `AudioEnhancerService.retryControlAcquisition()` (Batch 61, sebelumnya fungsi
+  Service menggantung TANPA pemanggil sama sekali) DISURFACE penuh ke UI:
+  `BoosterViewModel.retryControlAcquisition()` (wrapper tipis, sinkron — service
+  ini `bindService` SAMA PROSES lewat `LocalBinder`, jadi aman dipanggil
+  langsung dari Compose click handler tanpa coroutine) dipanggil dari komponen
+  baru `ControlRecoveryBanner` (`BoosterScreen.kt`, pola identik
+  `ServiceStatusBadge`/`CrashBanner`: `SkeuTintedCard` tint error + `TextButton`).
+  Banner HANYA tampil kalau ADA effect (bass/virtualizer/equalizer/loudness)
+  berstatus `CONTROL_LOST`/`FAILED` — deteksi pakai `EffectState` yang SUDAH
+  di-poll `BoosterViewModel` tiap 1 detik sejak Batch 58 (TIDAK ada mekanisme
+  polling baru ditambahkan), jadi banner otomatis hilang begitu effect terkait
+  balik `ENABLED`/`AVAILABLE`. Tap tombol → panggil retry + snackbar feedback
+  ("dicoba", BUKAN "berhasil" — tetap TIDAK ADA jaminan sukses, arbitration
+  priority Android di luar kendali app, sama seperti didokumentasikan di
+  komentar `retryControlAcquisition()` Service Batch 61). 3 string baru
+  (`control_recovery_message`/`_button`/`_snackbar`, ID+EN, parity 108/108).
+  Detail lengkap: `CHANGELOG.md` v1.97.0.
+  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
+    208/208 & 637/637, `BoosterViewModel.kt` 31/31 & 118/118, `MainActivity.kt`
+    47/47 & 116/116; parity string 108/108; 1 call site `ControlRecoveryBanner(`
+    dicek cocok parameter). Belum ada cara sengaja memicu `CONTROL_LOST` di
+    sandbox buat lihat banner beneran muncul — kandidat pertama dicurigai kalau
+    laporan user: banner gak pernah muncul walau ada effect gagal, atau crash
+    saat tombol ditekan.
+  - **PENTING buat sesi depan**: roadmap.md Fase 0 tersisa item #3 (Output
+    routing awareness, belum disentuh sama sekali), #5 (Gain staging/dynamics),
+    #6 (rebuild session-0 — JANGAN diinisiasi tanpa user minta eksplisit &
+    paham trade-off), #7 (Preset lengkap termasuk EQ), #8 (Automated
+    audio-engine test), #9 (UI/error-state refinement lanjutan). Kalau user
+    "lanjut" tanpa arahan baru, kandidat paling alami berikutnya: item #7
+    (Preset custom simpan EQ, audit Gap #16) — scope-nya jelas & kecil
+    (`PrefsHelper.CustomPreset` + `BoosterScreen.kt` save/apply logic), beda
+    dari item #3/#5/#6 yang butuh riset/device-testing lebih berat.
+- 🔧🩺 **Batch 61 (v1.96.0, riwayat)**: lanjutan audit eksternal, roadmap.md
   Fase 0 item #4 ("Control ownership/lifecycle lanjutan"). Batch 57 baru
   DETEKSI `CONTROL_LOST`, belum ada cara REBUT KEMBALI kontrol — batch ini
   nutup itu, Service-layer dulu. `attachEffects()` dipecah jadi 4 fungsi
@@ -1613,9 +1648,9 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 
 ## Struktur proyek singkat
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED) — BELUM ada pemanggil (watchdog/UI), masih fungsi menggantung sengaja.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).

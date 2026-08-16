@@ -216,6 +216,8 @@ class MainActivity : ComponentActivity() {
                             connectionState = viewModel.connectionState,
                             onRetryConnection = { viewModel.attemptBindService() },
                             onRestartService = { viewModel.startBoosterService() },
+                            // Batch 62: tombol "Coba Ambil Alih Kontrol Lagi" (ControlRecoveryBanner).
+                            onRetryControl = { viewModel.retryControlAcquisition() },
                             requestedCustomPresetName = shortcutCustomPresetName,
                             onRequestedPresetConsumed = { shortcutCustomPresetName = null }
                         )

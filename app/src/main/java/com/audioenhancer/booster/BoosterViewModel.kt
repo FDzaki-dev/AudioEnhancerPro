@@ -182,6 +182,21 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         if (bound) service?.setEqualizerBand(band.toShort(), level) else pendingEqualizerBands[band] = level
     }
 
+    /** Batch 62 (roadmap Fase 0 #4 lanjutan): surface `AudioEnhancerService.
+     *  retryControlAcquisition()` (Batch 61, sebelumnya cuma fungsi Service menggantung
+     *  tanpa pemanggil sama sekali) ke tombol UI di `ControlRecoveryBanner` (BoosterScreen).
+     *  Panggilan langsung/synchronous (BUKAN suspend) — service ini `bindService` SAMA
+     *  PROSES lewat `LocalBinder`, bukan IPC lintas proses, jadi aman dipanggil dari
+     *  Compose click handler persis seperti setBass/setVirtualizer di atas. Return value
+     *  diteruskan apa adanya: `true` cuma berarti "ada effect yang di-retry", BUKAN jaminan
+     *  effect itu benar-benar berhasil dapat kontrol lagi (arbitration priority Android di
+     *  luar kendali app) — hasil sebenarnya baru kelihatan dari polling `EffectState` 1 detik
+     *  yang sudah ada di init{} atas, bukan dari return value ini. Kalau belum `bound`, return
+     *  `false` (tidak ada apa-apa buat di-retry, tombol ini sengaja cuma muncul saat CONNECTED). */
+    fun retryControlAcquisition(): Boolean {
+        return if (bound) service?.retryControlAcquisition() ?: false else false
+    }
+
     override fun onCleared() {
         if (bound) {
             getApplication<Application>().unbindService(connection)

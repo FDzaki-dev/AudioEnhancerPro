@@ -1,5 +1,64 @@
 # Changelog
 
+## v1.97.0 - Batch 62 (audit eksternal): Gap #4 control-ownership recovery, surface ke UI
+
+Lanjutan Batch 61. roadmap.md Fase 0 item #4 ("Control ownership/lifecycle
+lanjutan") sekarang `[x]` SELESAI dari sisi app — `retryControlAcquisition()`
+(Batch 61, Service-layer only, TANPA pemanggil sama sekali sejak dibuat) kini
+punya jalur lengkap Service → ViewModel → UI, pola identik Batch 57→58.
+
+**`BoosterViewModel.kt`**:
+- Fungsi publik baru `retryControlAcquisition(): Boolean` — wrapper tipis:
+  `if (bound) service?.retryControlAcquisition() ?: false else false`.
+  Panggilan SINKRON (bukan `suspend`) karena `bindService` di app ini SAMA
+  PROSES lewat `LocalBinder` (bukan IPC lintas proses), jadi aman dipanggil
+  langsung dari Compose click handler — pola sama persis `setBass()`/
+  `setVirtualizer()` yang sudah ada. Return value diteruskan apa adanya dari
+  Service: `true` cuma berarti "ada effect yang di-retry", BUKAN jaminan
+  effect itu benar-benar dapat kontrol lagi (hasil sebenarnya baru kelihatan
+  dari polling `EffectState` 1 detik yang sudah ada di `init{}`, Batch 58).
+
+**`BoosterScreen.kt`**:
+- Komponen `private` baru `ControlRecoveryBanner(states, onRetryControl,
+  onRetryAttempted)` — pola VISUAL identik `ServiceStatusBadge`/`CrashBanner`
+  (`SkeuTintedCard` tint `MaterialTheme.colorScheme.error` + `Icon(Warning)` +
+  `Text` + `TextButton`, ripple dimatikan lewat `NoRippleIndication` konsisten
+  komponen interaktif lain). Early-return (`if (!needsRecovery) return`) kalau
+  TIDAK ADA effect di antara bass/virtualizer/equalizer/loudness yang
+  `CONTROL_LOST`/`FAILED` — deteksi baca `EffectState` yang SUDAH di-poll
+  `BoosterViewModel` tiap 1 detik sejak Batch 58, **TIDAK ADA mekanisme
+  polling baru ditambahkan di sini**, jadi banner otomatis muncul/hilang
+  sinkron dengan polling yang sudah ada.
+- `BoosterScreen()` dapat parameter baru `onRetryControl: () -> Boolean =
+  { false }` (default backward-compatible, pola sama seperti default
+  `EffectState.ENABLED` Batch 58) dan memanggil `ControlRecoveryBanner` tepat
+  setelah `CrashBanner` (posisi: bawah badge status service, di atas
+  power/slider). `onRetryAttempted` dihubungkan ke `showSnackbar()` yang
+  sudah ada (reuse, 0 mekanisme snackbar baru).
+
+**`MainActivity.kt`**:
+- 1 baris baru: `onRetryControl = { viewModel.retryControlAcquisition() }`
+  di call-site `BoosterScreen(...)`, persis sebelum `requestedCustomPresetName`.
+
+**`strings.xml` (values/ + values-en/)**:
+- 3 string baru per-locale (parity 108/108, sebelumnya 105/105):
+  `control_recovery_message` ("Sebagian fitur kehilangan kontrol audio." /
+  "Some features lost audio control."), `control_recovery_button` ("Coba
+  Ambil Alih Lagi" / "Try Retaking Control"), `control_recovery_snackbar`
+  (pesan SENGAJA bilang "dicoba"/"attempted", BUKAN "berhasil"/"succeeded" —
+  konsisten dengan disclaimer "TIDAK ADA jaminan" yang sudah didokumentasikan
+  panjang di komentar `retryControlAcquisition()` Service sejak Batch 61).
+
+**Verifikasi statis** (TIDAK ada compiler di sandbox — lihat PROJECT_STATE.md
+"Batasan sandbox"): brace/paren balance `BoosterScreen.kt` 208/208 & 637/637,
+`BoosterViewModel.kt` 31/31 & 118/118, `MainActivity.kt` 47/47 & 116/116;
+parity string ID/EN 108/108; 1 call site `ControlRecoveryBanner(` dicek cocok
+3 parameter definisi. **Belum divalidasi runtime** — belum ada cara sengaja
+memicu `CONTROL_LOST` di sandbox untuk konfirmasi banner beneran muncul/
+hilang/tidak crash saat tombol ditekan.
+
+---
+
 ## v1.96.0 - Batch 61 (audit eksternal): Gap #4 control-ownership recovery (Service-layer)
 
 Lanjutan audit eksternal, roadmap.md Fase 0 item #4 ("Control

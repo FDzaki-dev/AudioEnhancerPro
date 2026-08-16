@@ -52,6 +52,9 @@
          diterapkan atau kontrolnya direbut sistem/app lain. -->
     <string name="feature_help_failed">Gagal diterapkan — coba tekan "Nyalakan Lagi" atau restart HP.</string>
     <string name="feature_help_control_lost">Kontrol direbut aplikasi/sistem lain sementara.</string>
+    <string name="control_recovery_message">Sebagian fitur kehilangan kontrol audio.</string>
+    <string name="control_recovery_button">Coba Ambil Alih Lagi</string>
+    <string name="control_recovery_snackbar">Percobaan pengambilan kontrol dikirim — tidak dijamin berhasil, tergantung aplikasi lain yang sedang memegangnya.</string>
 
     <!-- Equalizer manual -->
     <string name="eq_title">Equalizer Manual</string>
