@@ -758,6 +758,15 @@ fun BoosterScreen(
                 centerFreqsHz = equalizerCenterFreqsHz,
                 initialLevels = if (eqResetCounter == 0) equalizerInitialLevels else List(equalizerBandCount) { 0 },
                 resetKey = eqResetCounter,
+                // Batch 59: surface equalizerEffectState (Batch 57/58) ke sini — sisa
+                // item yang dicatat eksplisit di PROJECT_STATE.md Batch 58 ("belum
+                // disurface ke EqualizerSection, struktur multi-band beda dari
+                // FeatureControl tunggal"). Dipakai buat subtitle warning, BUKAN
+                // redesign kartu (pola sama seperti helpText Bass/Virtualizer/Loudness
+                // di atas, tapi effect state di sini cuma 1 nilai buat SEMUA band
+                // sekaligus — bukan per-band — karena Equalizer(0,0) di service adalah
+                // 1 objek AudioEffect tunggal, bukan N objek per band).
+                effectState = equalizerEffectState,
                 onBandChange = { band, level ->
                     onEqualizerBand(band, level)
                     activePreset = null; onActivePresetChange(null)
@@ -955,6 +964,7 @@ private fun EqualizerSection(
     centerFreqsHz: List<Int>,
     initialLevels: List<Short>,
     resetKey: Int = 0,
+    effectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     onBandChange: (Int, Short) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -962,6 +972,15 @@ private fun EqualizerSection(
         mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })
     }
     val haptics = LocalHapticFeedback.current
+    // Batch 59: subtitle ganti pesan singkat saat CONTROL_LOST/FAILED — string
+    // DIPAKAI ULANG dari feature_help_control_lost/feature_help_failed (sudah ada
+    // sejak Batch 58 buat Bass/Virtualizer/Loudness), 0 string baru ditambah,
+    // parity ID/EN tetap 105/105.
+    val subtitleText = when (effectState) {
+        AudioEnhancerService.EffectState.CONTROL_LOST -> stringResource(R.string.feature_help_control_lost)
+        AudioEnhancerService.EffectState.FAILED -> stringResource(R.string.feature_help_failed)
+        else -> stringResource(R.string.eq_subtitle)
+    }
 
     SkeuCard {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -980,7 +999,7 @@ private fun EqualizerSection(
                     Column {
                         Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
                         Text(
-                            stringResource(R.string.eq_subtitle),
+                            subtitleText,
                             style = MaterialTheme.typography.bodySmall,
                             color = LocalSkeuTokens.current.mutedText
                         )

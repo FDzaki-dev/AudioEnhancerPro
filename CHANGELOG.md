@@ -1,5 +1,49 @@
 # Changelog
 
+## v1.94.0 - Batch 59 (lanjutan audit eksternal): EffectState ke EqualizerSection
+
+Lanjutan Batch 58 (v1.93.0) — item "sisa" yang sudah dicatat eksplisit di
+`PROJECT_STATE.md`: `equalizerEffectState` sudah diterima `BoosterScreen`
+sejak Batch 58 tapi belum disurface ke `EqualizerSection`. Batch ini
+nyelesaiin itu — TETAP 1 langkah kecil, belum pindah ke Fase 0 #2 (capability
+detection + fallback range, roadmap.md).
+
+**`BoosterScreen.kt`**:
+- Call site `EqualizerSection(...)` (dalam `BoosterScreen`): 1 argumen baru
+  `effectState = equalizerEffectState`.
+- `EqualizerSection()`: 1 parameter baru `effectState: AudioEnhancerService.
+  EffectState = EffectState.ENABLED` (default backward-compatible). Subtitle
+  header (sebelumnya selalu `stringResource(R.string.eq_subtitle)` statis)
+  sekarang `val subtitleText = when(effectState) { CONTROL_LOST -> ...
+  control_lost; FAILED -> ...failed; else -> eq_subtitle }` — DESAIN: 1
+  subtitle buat SEMUA band sekaligus (bukan per-band), karena
+  `Equalizer(0,0)` di `AudioEnhancerService` adalah 1 objek `AudioEffect`
+  tunggal yang menaungi semua band, bukan N objek terpisah per band. Ini
+  beda dari pola Bass/Virtualizer/Loudness (Batch 58) yang emang per-fitur
+  1:1 dengan 1 `AudioEffect`.
+- **0 string baru** — dipakai ulang `feature_help_control_lost`/
+  `feature_help_failed` (sudah ada sejak Batch 58). Parity ID/EN tetap
+  105/105, gak ada file `strings.xml` yang disentuh batch ini.
+
+`app/build.gradle.kts`: versionCode 98→99, versionName 1.93.0→1.94.0.
+
+**Belum divalidasi runtime** — statis only (brace/paren 0 selisih file
+`BoosterScreen.kt`: 198/198 `{}`, 600/600 `()`; 1 call site `EqualizerSection(`
+dicek, argumen baru match parameter baru). Kandidat pertama dicurigai kalau
+subtitle Equalizer gak pernah berubah dari "Atur tiap pita frekuensi..."
+walau `equalizerState` di Service seharusnya `CONTROL_LOST`/`FAILED` — cek
+alur `AudioEnhancerService.equalizerState` → `BoosterViewModel` polling
+(Batch 58, sudah ada, TIDAK disentuh batch ini) → parameter ini.
+
+**PENTING buat sesi depan**: dengan ini, seluruh "sisa" Batch 57/58 (surface
+`EffectState` Service→ViewModel→UI, 4 effect: bass/virtualizer/loudness/
+equalizer) SELESAI. Next kandidat alami: audit Gap #2 (langkah pertama Fase 0
+#2 roadmap.md — capability detection + fallback range, ganti asumsi hard-code
+`0..1000`/`0..3000` jadi baca dari device kalau API mengizinkan) ATAU gap
+lain di audit sesuai prioritas user. JANGAN loncat ke Gap #1 (rebuild session
+0 → modern pipeline) tanpa user minta eksplisit (effort/risiko besar, device-
+testing intensif, di luar kapasitas sandbox).
+
 ## v1.93.0 - Batch 58 (lanjutan audit eksternal): surface EffectState ke UI
 
 Lanjutan Batch 57 (v1.92.0) — user minta "lanjut" tanpa detail baru, jadi

@@ -10,8 +10,28 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.93.0
-- 🔧🩺 **Batch 58 (v1.93.0, terbaru)**: lanjutan Batch 57, user cuma bilang
+- **Versi**: v1.94.0
+- 🔧🩺 **Batch 59 (v1.94.0, terbaru)**: lanjutan Batch 58, mengerjakan item
+  "sisa" yang eksplisit dicatat di sana: `equalizerEffectState` (sudah
+  diterima `BoosterScreen` sejak Batch 58) sekarang DISURFACE ke
+  `EqualizerSection` — subtitle header ("Atur tiap pita frekuensi...") ganti
+  jadi pesan `CONTROL_LOST`/`FAILED` (string DIPAKAI ULANG dari Batch 58, 0
+  string baru, parity ID/EN tetap 105/105). DESAIN: 1 subtitle buat SEMUA
+  band (bukan per-band) karena `Equalizer(0,0)` di Service 1 objek
+  `AudioEffect` tunggal, bukan N objek per band — beda dari pola Bass/
+  Virtualizer/Loudness yang 1:1 per-fitur. Detail lengkap: `CHANGELOG.md`
+  v1.94.0. **Dengan ini, seluruh "sisa" Batch 57/58 (surface EffectState
+  Service→ViewModel→UI, 4 effect) SUDAH SELESAI** — next kandidat alami:
+  audit Gap #2/Fase 0 #2 (capability detection + fallback range, ganti
+  asumsi hard-code `0..1000`/`0..3000` jadi baca dari device), atau gap lain
+  di audit sesuai arahan user. JANGAN loncat ke Gap #1 (rebuild session 0 →
+  modern pipeline) tanpa user minta eksplisit.
+  - **Belum divalidasi runtime** — statis only (brace/paren 198/198 & 600/600
+    di `BoosterScreen.kt`, 1 call site `EqualizerSection(` dicek match
+    parameter baru, parity string 105/105 tidak berubah). Kandidat pertama
+    dicurigai kalau subtitle Equalizer gak pernah berubah walau
+    `equalizerState` di Service seharusnya `CONTROL_LOST`/`FAILED`.
+- 🔧🩺 **Batch 58 (v1.93.0, riwayat)**: lanjutan Batch 57, user cuma bilang
   "Lanjut" (tanpa detail baru) — dikerjakan item yang sudah eksplisit dicatat
   sebagai "sisa" di Batch 57: surface `AudioEnhancerService.EffectState` ke
   `BoosterViewModel` (poll 1 detik via `viewModelScope`, PERTAMA KALI dipakai
@@ -19,11 +39,7 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
   Loudness sekarang beda pesan saat `CONTROL_LOST`/`FAILED`, bukan cuma
   "didukung/tidak"). String baru `feature_help_failed`/
   `feature_help_control_lost` (ID+EN, parity 105/105). Detail lengkap:
-  `CHANGELOG.md` v1.93.0. **PENTING buat sesi depan**: `equalizerEffectState`
-  SUDAH diterima `BoosterScreen` tapi BELUM disurface ke `EqualizerSection`
-  (struktur multi-band beda dari `FeatureControl` tunggal) — kalau lanjut lagi
-  tanpa arahan baru, itu next kandidat kecil sebelum pindah ke Fase 0 #2
-  (capability detection + fallback range, roadmap.md).
+  `CHANGELOG.md` v1.93.0.
   - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih 3 file
     Kotlin, parity string 105/105, XML valid). Kandidat pertama dicurigai
     kalau helpText baru gak pernah berubah dari normal walau `EffectState`
@@ -1547,7 +1563,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read) — BELUM dikonsumsi ViewModel/UI, baru tersedia di layer ini.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`) — TIDAK ADA lagi state yang "nyangkut" di layer Service saja.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
