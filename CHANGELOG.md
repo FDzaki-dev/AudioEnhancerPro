@@ -1,5 +1,66 @@
 # Changelog
 
+## v1.92.0 - Batch 57 (audit eksternal): actual effect-state verification + non-silent error handling
+
+User upload dokumen audit eksternal ("AudioEnhancerPro — Audit Nyata, Gap
+Terbesar Menuju 100% Functional & Polished"). Audit ini menegaskan gap terbesar
+bukan di UI (sudah ~90-95%) tapi di **audio-engine robustness** (~60-70%): P0
+gap #3 "Tidak Ada Verifikasi Bahwa Effect Benar-Benar Aktif di Output" & #4
+"Tidak Ada Handling AudioEffect Control Ownership", plus P1 #12 "isRunning
+Bukan Sumber Kebenaran Audio Engine" & #13 "enableEffects() Terlalu Silent".
+Instruksi user eksplisit: kerjakan bertahap, jangan sekaligus semua gap.
+Batch ini scope-nya SENGAJA dibatasi ke lapisan engine (`AudioEnhancerService.kt`
+saja) — surfacing state baru ini ke ViewModel/UI (badge/warning per-fitur)
+DISENGAJA ditunda ke batch berikutnya, biar tetap "1 variabel risiko per push"
+(konsisten kebiasaan project ini, lihat riwayat Batch 32/34/36/49 dst).
+
+**`AudioEnhancerService.kt`** (satu-satunya file kode berubah):
+1. `enum class EffectState { UNAVAILABLE, AVAILABLE, ENABLED, FAILED,
+   CONTROL_LOST }` baru (nested di class ini) + 4 field `@Volatile var
+   bassState/virtualizerState/loudnessState/equalizerState` (private set) —
+   pola `@Volatile` sama persis alasannya dengan `isRunning` (Batch 45):
+   listener sistem di bawah TIDAK dijamin main thread.
+2. `attachEffects()`: tiap effect (BassBoost/Virtualizer/Equalizer/
+   LoudnessEnhancer) sekarang dipasangi `setControlStatusListener` +
+   `setEnableStatusListener` (API bawaan `android.media.audiofx.AudioEffect`,
+   diwarisi ke-4 subclass ini, PERTAMA KALI dipakai di project ini) —
+   `controlGranted=false` dari sistem ⇒ `CONTROL_LOST` (effect object masih
+   ada tapi OS sudah mencabut kontrolnya, kasus persis yang dikeluhkan audit
+   Gap #4). Constructor gagal TETAP `UNAVAILABLE` (semantik `isXxxSupported()`
+   TIDAK berubah, kompatibel mundur 100% dengan pemanggil existing).
+3. `enableEffects()`/`set*()` (4 fungsi kontrol dari UI): exception yang
+   sebelumnya `catch (_: Exception) {}` (silent total) sekarang di-`Log.e`
+   + menandai state effect terkait `FAILED` — kegagalan APPLY (bukan cuma
+   unsupported) sekarang terlihat lewat Logcat (Debug Priority project ini)
+   & field state, bukan hilang begitu saja (audit Gap #13).
+4. `disableEffects()`: exception di-`Log.e` juga, TAPI SENGAJA TIDAK mengubah
+   state ke `FAILED` — kegagalan disable saat user memang minta "Matikan"
+   bukan kegagalan engine yang perlu ditandai merah.
+5. `releaseEffects()`: reset ke-4 state ke `UNAVAILABLE` (Service betulan
+   di-destroy, object sudah `.release()`).
+6. PrefsHelper persistence di `set*()` **TIDAK diubah** — TETAP tersimpan
+   tanpa syarat meski apply ke effect gagal (audit Gap #14 dibahas eksplisit
+   di komentar kode: kalau save ikut digagalkan, restart berikutnya user malah
+   kehilangan preferensi slider yang sudah mereka atur — trade-off disengaja,
+   bukan kelewatan).
+
+**Belum dikerjakan dari audit ini (transparan, urutan sesuai "Fokus Next Step"
+di dokumen audit)**: rebuild arsitektur session-0 ke API modern (Gap #1, #2,
+#9-11 — risiko terbesar, effort terbesar, disengaja BUKAN batch pertama),
+surfacing `EffectState` baru ke `BoosterViewModel.kt`/`BoosterScreen.kt` (badge
+per-fitur "gagal diterapkan"/"kontrol hilang" — kandidat batch berikutnya,
+sekarang datanya sudah ada di Service tinggal dikonsumsi), gain
+staging/dynamics pipeline (Gap #5, #6), EQ ikut tersimpan di custom preset
+(Gap #16), automated audio-engine test (Gap #22-24).
+
+**File diubah**: `AudioEnhancerService.kt` (kode), `app/build.gradle.kts`
+(versionCode 96→97, versionName 1.91.0→1.92.0). **Belum divalidasi runtime**
+— statis only (brace/paren balance 0 selisih). `setControlStatusListener`/
+`setEnableStatusListener` API resmi `android.media.audiofx.AudioEffect`
+(terdokumentasi, bukan reka-reka) tapi PERTAMA KALI dipakai project ini —
+kandidat pertama dicurigai kalau ada laporan crash saat toggle/putar audio,
+atau badge (batch depan) tidak pernah lepas dari `ENABLED`.
+
 ## v1.91.0 - Batch 56 (diminta user, "push lebih dalam lagi"): depth & kontras dual-shadow dinaikkan
 
 User konfirmasi Batch 53/54/55 render benar di device ("lumayan") lalu minta

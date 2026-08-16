@@ -10,8 +10,34 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.91.0
-- 🎨 **Batch 56 (v1.91.0, terbaru)**: user konfirmasi dual-shadow Batch 53-55
+- **Versi**: v1.92.0
+- 🔧🩺 **Batch 57 (v1.92.0, terbaru)**: user upload audit eksternal
+  ("AudioEnhancerPro — Audit Nyata, Gap Terbesar Menuju 100% Functional")
+  yang menegaskan gap terbesar ada di **audio-engine robustness** (~60-70%),
+  bukan UI (~90-95%). Instruksi eksplisit: kerjakan bertahap, jangan sekaligus.
+  Batch ini (langkah pertama dari 10 di "Fokus Next Step" audit) SENGAJA
+  dibatasi ke lapisan `AudioEnhancerService.kt` saja: `EffectState` enum baru
+  (`UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST`) per-effect (bass/
+  virtualizer/loudness/equalizer), dipasangi `setControlStatusListener`+
+  `setEnableStatusListener` (API `AudioEffect` bawaan, PERTAMA KALI dipakai
+  project ini) buat deteksi `CONTROL_LOST` beneran (audit Gap #4), dan
+  exception di `enableEffects()`/`set*()` yang SEBELUMNYA silent total
+  sekarang `Log.e` + state `FAILED` (audit Gap #13). Detail lengkap:
+  `CHANGELOG.md` v1.92.0. **PENTING buat sesi depan**: state baru ini BELUM
+  disurface ke ViewModel/UI sama sekali (Service-only batch, by design) —
+  kalau user minta lanjut, langkah #2 alaminya: pass `bassState` dkk lewat
+  `BoosterViewModel` (pola sama seperti `bassSupported` existing) ke
+  `BoosterScreen.kt` sebagai badge/warning kecil per-`FeatureControl` (mis.
+  teks helpText tambahan saat `CONTROL_LOST`/`FAILED`, jangan redesign kartu).
+  JANGAN loncat ke rebuild arsitektur session-0 (audit Gap #1/#2, effort &
+  risiko jauh lebih besar, belum ada di roadmap sesi ini) tanpa user minta
+  eksplisit & paham trade-off-nya (device-testing intensif, di luar kapasitas
+  sandbox Claude sepenuhnya).
+  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih).
+    Kandidat pertama dicurigai kalau ada laporan crash pas toggle service/
+    equalizer, atau (batch depan, begitu disurface ke UI) badge macet di
+    ENABLED terus.
+- 🎨 **Batch 56 (v1.91.0, riwayat)**: user konfirmasi dual-shadow Batch 53-55
   render benar di device ("lumayan") lalu minta depth/kontras dinaikkan lagi.
   Tuning murni (0 perubahan teknik): alpha tint `NeumoEdgeHighlight`/
   `NeumoEdgeShadow` naik (0.55/0.92→0.72/0.97), `cardElevation` 10dp→13dp,
@@ -1504,7 +1530,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read) — BELUM dikonsumsi ViewModel/UI, baru tersedia di layer ini.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).

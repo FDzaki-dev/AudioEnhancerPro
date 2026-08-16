@@ -32,7 +32,58 @@ gak punya Gradle/Android SDK):
 
 ---
 
-## Fase 1 — Runtime Validation Debt (PRIORITAS TERTINGGI)
+## Fase 0 — Audio Engine Robustness (audit eksternal Batch 57, PRIORITAS BARU TERTINGGI)
+
+Ditambahkan Batch 57 (v1.92.0) setelah user upload audit eksternal yang
+menegaskan gap terbesar project ini BUKAN di UI (~90-95%, sudah matang),
+tapi di **audio-engine robustness (~60-70%)** — arsitektur `AudioEffect(...,
+0)` legacy, tidak ada verifikasi effect benar-benar aktif, tidak ada handling
+kehilangan kontrol, tidak ada output-route awareness. Urutan di bawah persis
+mengikuti "Fokus Next Step" dokumen audit (10 langkah, paling bernilai
+duluan) — **kerjakan SATU per satu, jangan sekaligus** (instruksi eksplisit
+user). Detail gap lengkap: lihat file audit asli yang di-upload user /
+`CHANGELOG.md` v1.92.0.
+
+- [~] **1. Actual effect-state verification + non-silent errors** (Batch 57,
+      v1.92.0, SEBAGIAN) — `EffectState` enum + `setControlStatusListener`/
+      `setEnableStatusListener` di `AudioEnhancerService.kt`, exception di
+      `enableEffects()`/`set*()` gak lagi silent. **Sisa dari item ini**:
+      surface `EffectState` ke `BoosterViewModel`/`BoosterScreen` (badge per-
+      fitur) — data-nya sudah ada di Service, tinggal dikonsumsi UI.
+- [ ] **2. Capability detection + fallback** — range kontrol (bass/
+      virtualizer/loudness) masih hard-coded asumsi (`0..1000`, `0..3000mB`),
+      belum dinormalisasi dari capability aktual device. Belum ada fallback
+      engine kalau legacy effect gagal/tidak tersedia.
+- [ ] **3. Output routing awareness** — belum ada handling lifecycle output
+      device (speaker↔Bluetooth, wired headset, USB DAC), belum ada re-attach
+      pipeline effect saat output route berubah selagi service aktif.
+- [ ] **4. Control ownership/lifecycle lanjutan** — Batch 57 baru deteksi
+      `CONTROL_LOST` via listener, belum ada strategi re-acquire/recovery
+      otomatis atau UI action eksplisit saat kontrol hilang.
+- [ ] **5. Gain staging + dynamics pipeline** — belum ada master limiter/
+      compressor terkontrol; pipeline konseptual saat ini `BassBoost →
+      Virtualizer → EQ → LoudnessEnhancer` tanpa tahapan gain staging yang
+      jelas (`Input → Pre-Gain → EQ → Dynamics → Loudness → Output`).
+- [ ] **6. Rebuild arsitektur session-0 ke API modern** — gap PALING besar &
+      PALING berisiko dari semua (audit Gap #1/#2). Legacy `AudioEffect(...,
+      0)` diasumsikan global session, deprecated & tidak portable lintas
+      device/ROM/HAL. Perlu strategi modern (`DynamicsProcessing`/post-
+      processing) sebagai fallback. **BUTUH testing device intensif lintas
+      OEM** — sandbox Claude TIDAK bisa validasi ini sendirian, effort besar,
+      JANGAN diinisiasi tanpa user paham & setuju trade-off/risikonya.
+- [ ] **7. Preset lengkap termasuk EQ** — custom preset saat ini cuma
+      simpan bass/virtualizer/loudness (audit Gap #16), band equalizer TIDAK
+      ikut, jadi bukan snapshot penuh konfigurasi audio.
+- [ ] **8. Automated audio-engine test** — `PrefsHelperTest`/
+      `FormatFreqLabelTest` yang ada belum menyentuh audio engine sama sekali
+      (effect creation failure, control loss, state reconciliation, dst).
+- [ ] **9. UI/error-state refinement** — bedakan Unsupported vs Temporarily
+      unavailable vs Control lost vs Effect failed vs Output changed secara
+      eksplisit di UI (bukan cuma 1 helpText generik "tidak didukung").
+- [ ] Item ke-10 audit ("polish visual minor") SUDAH tercakup Fase 3 di
+      bawah, tidak diduplikasi di sini.
+
+## Fase 1 — Runtime Validation Debt (PRIORITAS TERTINGGI sebelum Fase 0 ditambahkan)
 
 Ini backlog paling besar & paling berisiko: banyak perubahan besar (terutama
 tema/UI Batch 31-49 dan arsitektur Batch 16-18) dikirim dengan status
@@ -147,6 +198,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 1/9 item mulai (Batch 57, sebagian) |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

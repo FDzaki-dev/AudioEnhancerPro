@@ -23,7 +23,26 @@ import androidx.core.app.NotificationCompat
  */
 class AudioEnhancerService : Service() {
 
+    /**
+     * Batch 57: state nyata tiap AudioEffect — sebelumnya UI cuma tahu "object effect
+     * berhasil dibuat" (`bassBoost != null`) via `isBassSupported()`, TIDAK ada bukti
+     * effect itu ACTUALLY aktif/didengar di output, dan kalau OS mencabut kontrol effect
+     * ini (mis. aplikasi lain minta priority lebih tinggi ke session yang sama) UI tidak
+     * pernah tahu — badge tetap nampilin "Aktif" padahal engine diam. Lihat audit
+     * eksternal "Gap #3: Tidak Ada Verifikasi Bahwa Effect Benar-Benar Aktif di Output"
+     * & "Gap #4: Tidak Ada Handling AudioEffect Control Ownership".
+     * - UNAVAILABLE: effect gagal dibuat sama sekali (device/chipset tidak support).
+     * - AVAILABLE: effect ada & attached, TAPI sedang enabled=false (mis. abis "Matikan").
+     * - ENABLED: effect ada, enabled=true, DAN kontrol dipegang penuh — kondisi sehat.
+     * - FAILED: pemanggilan enable/attach melempar exception (bukan sekadar unsupported).
+     * - CONTROL_LOST: OS mencabut kontrol effect ini dari app (`OnControlStatusChangeListener`
+     *   melapor `controlGranted=false`) — effect object masih ada tapi TIDAK lagi
+     *   memproses audio kita, walau `enabled` masih kebaca `true` di sisi app.
+     */
+    enum class EffectState { UNAVAILABLE, AVAILABLE, ENABLED, FAILED, CONTROL_LOST }
+
     companion object {
+        private const val TAG = "AudioEnhancerService"
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
@@ -78,6 +97,16 @@ class AudioEnhancerService : Service() {
     private var virtualizer: Virtualizer? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
+
+    // @Volatile: listener control/enable-status Android TIDAK dijamin dipanggil di main
+    // thread (beda dari lifecycle callback Service/BroadcastReceiver yang selalu main
+    // thread) — sama alasan seperti `isRunning` di atas (Batch 45), field ini dibaca dari
+    // thread lain (mis. ViewModel/UI poll ke depan) jadi WAJIB visible langsung ke main
+    // memory, bukan cache lokal per-thread.
+    @Volatile var bassState: EffectState = EffectState.UNAVAILABLE; private set
+    @Volatile var virtualizerState: EffectState = EffectState.UNAVAILABLE; private set
+    @Volatile var loudnessState: EffectState = EffectState.UNAVAILABLE; private set
+    @Volatile var equalizerState: EffectState = EffectState.UNAVAILABLE; private set
 
     override fun onCreate() {
         super.onCreate()
@@ -163,23 +192,87 @@ class AudioEnhancerService : Service() {
         super.onDestroy()
     }
 
-    /** Menempel ke audio session 0 = mixer output global perangkat. */
+    /** Menempel ke audio session 0 = mixer output global perangkat.
+     *  Batch 57: tiap effect sekarang dipasangi `OnControlStatusChangeListener` +
+     *  `OnEnableStatusChangeListener` (API bawaan `android.media.audiofx.AudioEffect`,
+     *  diwarisi semua 4 subclass di sini) — SEBELUMNYA object berhasil dibuat langsung
+     *  dianggap "aktif" selamanya tanpa bukti lanjutan. Constructor gagal (chipset tidak
+     *  support) TETAP `UNAVAILABLE` seperti sebelumnya (null check `isXxxSupported()` di
+     *  bawah TIDAK berubah — kompatibel mundur). PERTAMA KALI dipakai di project ini —
+     *  belum divalidasi runtime, kandidat pertama dicurigai kalau ada laporan badge/state
+     *  baru ini tidak pernah berubah dari ENABLED atau crash saat callback terpanggil. */
     private fun attachEffects() {
         try {
-            bassBoost = BassBoost(0, 0).apply { enabled = true }
-        } catch (e: Exception) { bassBoost = null }
+            bassBoost = BassBoost(0, 0).apply {
+                enabled = true
+                setControlStatusListener { _, granted ->
+                    bassState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                }
+                setEnableStatusListener { _, isEnabled ->
+                    if (bassState != EffectState.CONTROL_LOST) {
+                        bassState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                    }
+                }
+            }
+            bassState = EffectState.ENABLED
+        } catch (e: Exception) {
+            bassBoost = null; bassState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "BassBoost tidak tersedia di device ini", e)
+        }
 
         try {
-            virtualizer = Virtualizer(0, 0).apply { enabled = true }
-        } catch (e: Exception) { virtualizer = null }
+            virtualizer = Virtualizer(0, 0).apply {
+                enabled = true
+                setControlStatusListener { _, granted ->
+                    virtualizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                }
+                setEnableStatusListener { _, isEnabled ->
+                    if (virtualizerState != EffectState.CONTROL_LOST) {
+                        virtualizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                    }
+                }
+            }
+            virtualizerState = EffectState.ENABLED
+        } catch (e: Exception) {
+            virtualizer = null; virtualizerState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "Virtualizer tidak tersedia di device ini", e)
+        }
 
         try {
-            equalizer = Equalizer(0, 0).apply { enabled = true }
-        } catch (e: Exception) { equalizer = null }
+            equalizer = Equalizer(0, 0).apply {
+                enabled = true
+                setControlStatusListener { _, granted ->
+                    equalizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                }
+                setEnableStatusListener { _, isEnabled ->
+                    if (equalizerState != EffectState.CONTROL_LOST) {
+                        equalizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                    }
+                }
+            }
+            equalizerState = EffectState.ENABLED
+        } catch (e: Exception) {
+            equalizer = null; equalizerState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "Equalizer tidak tersedia di device ini", e)
+        }
 
         try {
-            loudnessEnhancer = LoudnessEnhancer(0).apply { enabled = true }
-        } catch (e: Exception) { loudnessEnhancer = null }
+            loudnessEnhancer = LoudnessEnhancer(0).apply {
+                enabled = true
+                setControlStatusListener { _, granted ->
+                    loudnessState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                }
+                setEnableStatusListener { _, isEnabled ->
+                    if (loudnessState != EffectState.CONTROL_LOST) {
+                        loudnessState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                    }
+                }
+            }
+            loudnessState = EffectState.ENABLED
+        } catch (e: Exception) {
+            loudnessEnhancer = null; loudnessState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "LoudnessEnhancer tidak tersedia di device ini", e)
+        }
 
         // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
         // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
@@ -204,23 +297,46 @@ class AudioEnhancerService : Service() {
     private fun releaseEffects() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
+        // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
+        // dibiarkan ENABLED/CONTROL_LOST, pembaca state (ke depan: ViewModel/UI) bisa
+        // salah kira effect masih hidup padahal Service ini sendiri sudah di-destroy.
+        bassState = EffectState.UNAVAILABLE
+        virtualizerState = EffectState.UNAVAILABLE
+        loudnessState = EffectState.UNAVAILABLE
+        equalizerState = EffectState.UNAVAILABLE
     }
 
     /** Dipanggil dari notifikasi "Matikan" — reversible (beda dari releaseEffects yang
-     *  benar-benar melepas objek AudioEffect saat Service betulan di-destroy). */
+     *  benar-benar melepas objek AudioEffect saat Service betulan di-destroy).
+     *  Batch 57: exception di sini SENGAJA tetap dicatat cuma via Logcat (bukan diubah
+     *  jadi FAILED) — kegagalan disable saat user MEMANG minta "Matikan" bukan kegagalan
+     *  engine yang perlu ditandai merah ke UI, `OnEnableStatusChangeListener` di atas juga
+     *  akan reflect state sebenarnya kalau enabled beneran berhasil diubah sistem. */
     private fun disableEffects() {
-        try { bassBoost?.enabled = false } catch (_: Exception) {}
-        try { virtualizer?.enabled = false } catch (_: Exception) {}
-        try { equalizer?.enabled = false } catch (_: Exception) {}
-        try { loudnessEnhancer?.enabled = false } catch (_: Exception) {}
+        try { bassBoost?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable BassBoost", e) }
+        try { virtualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Virtualizer", e) }
+        try { equalizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Equalizer", e) }
+        try { loudnessEnhancer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable LoudnessEnhancer", e) }
     }
 
-    /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan". */
+    /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan".
+     *  Batch 57 (audit Gap #3/#13 "enableEffects() terlalu silent"): exception di sini
+     *  SEKARANG diekspos — Log.e (diagnostik) + state per-effect ditandai `FAILED` (beda
+     *  dari `CONTROL_LOST`, yang datang dari listener sistem, bukan dari exception lokal
+     *  saat pemanggilan `.enabled = true`). */
     private fun enableEffects() {
-        try { bassBoost?.enabled = true } catch (_: Exception) {}
-        try { virtualizer?.enabled = true } catch (_: Exception) {}
-        try { equalizer?.enabled = true } catch (_: Exception) {}
-        try { loudnessEnhancer?.enabled = true } catch (_: Exception) {}
+        try { bassBoost?.enabled = true } catch (e: Exception) {
+            bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable BassBoost", e)
+        }
+        try { virtualizer?.enabled = true } catch (e: Exception) {
+            virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Virtualizer", e)
+        }
+        try { equalizer?.enabled = true } catch (e: Exception) {
+            equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Equalizer", e)
+        }
+        try { loudnessEnhancer?.enabled = true } catch (e: Exception) {
+            loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable LoudnessEnhancer", e)
+        }
     }
 
     // ---- Kontrol dari UI ----
@@ -228,23 +344,39 @@ class AudioEnhancerService : Service() {
     fun isVirtualizerSupported(): Boolean = virtualizer != null
     fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
 
+    // Batch 57 (audit Gap #14 "setting tetap disimpan walau engine gagal"): PrefsHelper
+    // TETAP disimpan tanpa syarat di 4 fungsi ini SENGAJA — kalau save digagalkan pas
+    // apply gagal, restart berikutnya user malah kehilangan preferensi slider yang mereka
+    // set (worse UX). Yang berubah cuma: kegagalan `set*` ke effect sekarang di-Log.e
+    // (sebelumnya silent total), dan (bass/virtualizer/equalizer) menandai state FAILED
+    // biar gap #12 "isRunning != actual processing" makin sempit — persistence vs
+    // reconciliation state penuh (4 sisi: UI/persisted/actual effect/output route) masih
+    // gap terbuka, di luar scope batch ini (lihat audit Gap #15).
     fun setBassStrength(strength: Short) { // 0..1000
-        try { bassBoost?.setStrength(strength) } catch (_: Exception) {}
+        try { bassBoost?.setStrength(strength) } catch (e: Exception) {
+            bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set BassBoost strength", e)
+        }
         PrefsHelper.setBass(this, strength.toInt())
     }
 
     fun setVirtualizerStrength(strength: Short) { // 0..1000
-        try { virtualizer?.setStrength(strength) } catch (_: Exception) {}
+        try { virtualizer?.setStrength(strength) } catch (e: Exception) {
+            virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Virtualizer strength", e)
+        }
         PrefsHelper.setVirtualizer(this, strength.toInt())
     }
 
     fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000
-        try { loudnessEnhancer?.setTargetGain(gainMb.toInt()) } catch (_: Exception) {}
+        try { loudnessEnhancer?.setTargetGain(gainMb.toInt()) } catch (e: Exception) {
+            loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set LoudnessEnhancer gain", e)
+        }
         PrefsHelper.setLoudness(this, gainMb)
     }
 
     fun setEqualizerBand(band: Short, levelMb: Short) {
-        try { equalizer?.setBandLevel(band, levelMb) } catch (_: Exception) {}
+        try { equalizer?.setBandLevel(band, levelMb) } catch (e: Exception) {
+            equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Equalizer band $band", e)
+        }
         PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
     }
 
