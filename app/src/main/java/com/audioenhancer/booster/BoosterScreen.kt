@@ -357,6 +357,12 @@ fun BoosterScreen(
     // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
     // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
     var eqResetCounter by remember { mutableStateOf(0) }
+    // Batch 63 (roadmap Fase 0 #7, audit Gap #16): nilai EQ eksplisit yang HARUS
+    // ditampilkan EqualizerSection setelah preset diterapkan (built-in → flat/nol, custom
+    // baru → nilai tersimpan preset itu). `null` = jangan override, biarkan EqualizerSection
+    // pakai `equalizerInitialLevels` (dari device/persisted) seperti biasa — kasus ini cuma
+    // di initial mount SEBELUM preset apapun pernah diterapkan di sesi Compose ini.
+    var eqOverrideLevels by remember { mutableStateOf<List<Short>?>(null) }
 
     val context = LocalContext.current
     var customPresets by remember { mutableStateOf(PrefsHelper.getCustomPresets(context)) }
@@ -373,11 +379,22 @@ fun BoosterScreen(
     }
 
     fun applyCustomPreset(preset: PrefsHelper.CustomPreset) {
-        // Preset custom sengaja TIDAK ikut me-reset equalizer manual — beda dari preset
-        // bawaan, preset custom cuma menyimpan bass/virtualizer/loudness, bukan EQ.
         bass = preset.bass; onBass(preset.bass.toInt().toShort())
         virtualizer = preset.virtualizer; onVirtualizer(preset.virtualizer.toInt().toShort())
         loudness = preset.loudness; onLoudness(preset.loudness)
+        // Batch 63 (roadmap Fase 0 #7, audit Gap #16): preset custom SEKARANG bisa punya
+        // eqBands (disimpan sejak batch ini) — kalau ADA, terapkan ke tiap band + paksa
+        // EqualizerSection recompose lewat eqResetCounter (pola sama seperti applyPreset
+        // built-in di bawah). Kalau KOSONG (preset lama, disimpan SEBELUM batch ini, TIDAK
+        // punya data EQ sama sekali), EQ manual user SENGAJA TIDAK disentuh — perilaku asli
+        // sebelum batch ini, supaya preset lama tidak tiba-tiba terasa "menghapus" EQ yang
+        // sudah diatur user secara manual (preset itu memang tidak pernah tahu nilai EQ-nya).
+        if (preset.eqBands.isNotEmpty() && equalizerBandCount > 0) {
+            val levels = List(equalizerBandCount) { i -> preset.eqBands.getOrElse(i) { 0 }.toShort() }
+            levels.forEachIndexed { band, level -> onEqualizerBand(band, level) }
+            eqOverrideLevels = levels
+            eqResetCounter++
+        }
         activePreset = preset.name
         onActivePresetChange(preset.name)
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -391,6 +408,7 @@ fun BoosterScreen(
         onActivePresetChange(preset.label)
         if (equalizerBandCount > 0) {
             for (band in 0 until equalizerBandCount) onEqualizerBand(band, 0)
+            eqOverrideLevels = List(equalizerBandCount) { 0 }
             eqResetCounter++
         }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -699,7 +717,22 @@ fun BoosterScreen(
                     TextButton(
                         enabled = trimmedPresetName.isNotBlank() && !nameCollidesWithBuiltIn,
                         onClick = {
-                            val newPreset = PrefsHelper.CustomPreset(trimmedPresetName, bass, virtualizer, loudness)
+                            // Batch 63 (roadmap Fase 0 #7, audit Gap #16): snapshot EQ SAAT
+                            // SIMPAN — dibaca dari PrefsHelper (per-band, `eq_band_$band`),
+                            // BUKAN dari state internal EqualizerSection (private, tidak bisa
+                            // diakses dari sini). PrefsHelper adalah SUMBER KEBENARAN nilai EQ
+                            // saat ini karena tiap slider band digeser, Service.setEqualizerBand()
+                            // langsung menulis ke situ (lihat AudioEnhancerService.kt) — jadi
+                            // baca balik dari sana selalu dapat nilai TERKINI tanpa perlu
+                            // plumbing/hoisting state Compose baru sama sekali.
+                            val eqBands = if (equalizerBandCount > 0) {
+                                (0 until equalizerBandCount).map { band ->
+                                    PrefsHelper.getEqualizerBandLevel(context, band, 0)
+                                }
+                            } else emptyList()
+                            val newPreset = PrefsHelper.CustomPreset(
+                                trimmedPresetName, bass, virtualizer, loudness, eqBands
+                            )
                             PrefsHelper.addCustomPreset(context, newPreset)
                             customPresets = PrefsHelper.getCustomPresets(context)
                             ShortcutHelper.refreshCustomPresetShortcuts(context)
@@ -818,7 +851,7 @@ fun BoosterScreen(
                 levelMin = equalizerLevelMin,
                 levelMax = equalizerLevelMax,
                 centerFreqsHz = equalizerCenterFreqsHz,
-                initialLevels = if (eqResetCounter == 0) equalizerInitialLevels else List(equalizerBandCount) { 0 },
+                initialLevels = eqOverrideLevels ?: equalizerInitialLevels,
                 resetKey = eqResetCounter,
                 // Batch 59: surface equalizerEffectState (Batch 57/58) ke sini — sisa
                 // item yang dicatat eksplisit di PROJECT_STATE.md Batch 58 ("belum

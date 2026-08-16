@@ -102,9 +102,18 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
       processing) sebagai fallback. **BUTUH testing device intensif lintas
       OEM** — sandbox Claude TIDAK bisa validasi ini sendirian, effort besar,
       JANGAN diinisiasi tanpa user paham & setuju trade-off/risikonya.
-- [ ] **7. Preset lengkap termasuk EQ** — custom preset saat ini cuma
-      simpan bass/virtualizer/loudness (audit Gap #16), band equalizer TIDAK
-      ikut, jadi bukan snapshot penuh konfigurasi audio.
+- [x] **7. Preset lengkap termasuk EQ** (Batch 63 v1.98.0, SELESAI) —
+      `PrefsHelper.CustomPreset` dapat field baru `eqBands: List<Int>` (default
+      `emptyList()`, backward-compat penuh dengan preset lama). Simpan preset
+      sekarang snapshot EQ SAAT ITU (dibaca balik dari `PrefsHelper.
+      getEqualizerBandLevel()` per-band, sumber kebenaran yang sudah ada sejak
+      lama — 0 plumbing state Compose baru). Terapkan preset custom yang PUNYA
+      `eqBands` sekarang ikut menerapkan EQ; preset lama TANPA `eqBands`
+      (disimpan sebelum batch ini) sengaja TIDAK menyentuh EQ manual user
+      (perilaku asli dipertahankan, tidak ada data EQ buat preset itu). 2 test
+      unit baru (`PrefsHelperTest.kt`): round-trip JSON `eqBands`, dan preset
+      JSON lama tanpa field ini tetap load tanpa crash. Detail lengkap:
+      `CHANGELOG.md` v1.98.0.
 - [ ] **8. Automated audio-engine test** — `PrefsHelperTest`/
       `FormatFreqLabelTest` yang ada belum menyentuh audio engine sama sekali
       (effect creation failure, control loss, state reconciliation, dst).
@@ -145,6 +154,12 @@ kosong, app TIDAK BISA disebut 100% walau fitur-nya kelihatan lengkap.
       lain rebut kontrol session 0), cek: banner muncul dalam ≤1 detik, tombol
       "Coba Ambil Alih Lagi" gak crash, snackbar muncul, banner hilang sendiri
       begitu `EffectState` balik `ENABLED`/`AVAILABLE`.
+- [ ] **Preset custom simpan EQ (Batch 63)** — install APK asli: atur EQ manual
+      beda-beda per band, simpan preset baru, ubah lagi EQ-nya, lalu terapkan
+      preset yang barusan disimpan → pastikan slider EQ balik PERSIS ke nilai
+      saat disimpan (bukan cuma bass/virtualizer/loudness). Juga cek preset
+      LAMA (kalau ada, disimpan sebelum update ini) masih bisa diterapkan tanpa
+      crash & tidak mengubah EQ manual yang sedang aktif.
 
 **Cara kerja disarankan**: JANGAN coba validasi semua sekaligus. Tiap kali
 user install APK baru, cocokkan ke daftar ini — centang yang sudah dicoba +

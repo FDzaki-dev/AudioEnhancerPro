@@ -1,5 +1,70 @@
 # Changelog
 
+## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
+
+Lanjutan Batch 62. roadmap.md Fase 0 item #7 ("Preset lengkap termasuk EQ",
+audit Gap #16) sekarang `[x]` SELESAI — custom preset sebelumnya cuma
+snapshot bass/virtualizer/loudness, EQ manual TIDAK ikut tersimpan.
+
+**`PrefsHelper.kt`**:
+- `CustomPreset` data class dapat field baru `eqBands: List<Int> = emptyList()`
+  (default kosong = backward-compat penuh dengan preset lama).
+- `getCustomPresets()`: pakai `obj.optJSONArray("eqBands")` (BUKAN
+  `getJSONArray`) — preset JSON lama yang TIDAK punya field ini sama sekali
+  tetap ke-load normal dengan `eqBands = emptyList()`, bukan exception yang
+  bikin SELURUH preset (bukan cuma bagian EQ-nya) ikut lenyap lewat catch
+  generic yang sudah ada.
+- `saveCustomPresets()`: field `eqBands` SELALU ditulis (termasuk array kosong
+  `[]` kalau device tidak dukung equalizer) — preset yang disimpan SETELAH
+  batch ini strukturnya konsisten, tidak ambigu "sengaja kosong" vs "field
+  belum ada" seperti preset lama.
+
+**`BoosterScreen.kt`**:
+- Dialog "Simpan Preset" (`confirmButton` onClick): SEBELUM membuat
+  `CustomPreset`, baca balik `PrefsHelper.getEqualizerBandLevel(context, band,
+  0)` untuk tiap band (`0 until equalizerBandCount`) — ini SUMBER KEBENARAN
+  nilai EQ saat ini karena `AudioEnhancerService.setEqualizerBand()` SELALU
+  menulis ke situ tiap kali 1 band digeser (sudah ada sejak lama, dipakai
+  fitur lain juga). Pendekatan ini SENGAJA dipilih dibanding hoisting state
+  Compose `EqualizerSection` (yang `private`, levelnya cuma hidup di dalam
+  composable itu sendiri) — 0 plumbing/refactor state baru dibutuhkan.
+- State baru `eqOverrideLevels: List<Short>?` (default `null`) — nilai EQ
+  eksplisit yang HARUS ditampilkan `EqualizerSection` setelah preset
+  diterapkan. `applyPreset()` (built-in) diubah supaya set ini ke
+  `List(bandCount) { 0 }` (perilaku LAMA, cuma dipindah dari ternary inline ke
+  variabel eksplisit). `applyCustomPreset()` (baru): kalau `preset.eqBands`
+  TERISI, terapkan ke tiap band (`onEqualizerBand`) + set `eqOverrideLevels` ke
+  nilai preset + `eqResetCounter++` (paksa `EqualizerSection` recompose, pola
+  identik built-in). Kalau `preset.eqBands` KOSONG (preset lama), EQ SENGAJA
+  TIDAK disentuh sama sekali — persis perilaku ASLI sebelum batch ini,
+  supaya preset lama yang sudah tersimpan user tidak tiba-tiba "menghapus"
+  EQ manual yang sedang aktif (preset itu memang tidak pernah tahu nilai
+  EQ-nya, beda dari preset built-in yang memang didesain selalu flat).
+- Parameter `initialLevels` di call-site `EqualizerSection(...)` disederhanakan
+  dari ternary `if (eqResetCounter == 0) ... else List(...) { 0 }` jadi
+  `eqOverrideLevels ?: equalizerInitialLevels` — lebih eksplisit, dan kini
+  mendukung 3 kasus (initial mount / reset flat built-in / restore nilai
+  custom) bukan cuma 2.
+
+**`strings.xml`** (values/ + values-en/): `presets_empty_hint` diupdate
+teksnya — sekarang menyebut "equalizer" juga (sebelumnya cuma
+"bass/virtualizer/loudness", sudah tidak akurat sejak batch ini). Tidak ada
+string BARU (cuma edit isi 1 string existing), parity tetap 108/108.
+
+**`PrefsHelperTest.kt`**: 2 test baru — round-trip JSON `eqBands` (simpan
+preset dengan EQ, load ulang, cocokkan persis), dan preset JSON LAMA tanpa
+field `eqBands` sama sekali (ditulis manual ke SharedPreferences, simulasi
+data pra-Batch-63) tetap ke-load tanpa crash dengan `eqBands = emptyList()`.
+
+**Verifikasi statis**: brace/paren balance `BoosterScreen.kt` 215/215 &
+660/660, `PrefsHelper.kt` 25/25 & 170/170, `PrefsHelperTest.kt` 26/26 &
+136/136; parity string 108/108; seluruh call-site `CustomPreset(...)` lama
+(termasuk di `PrefsHelperTest.kt`, positional 4-argumen) dicek TETAP valid
+berkat default parameter `eqBands = emptyList()`. **Belum divalidasi
+runtime.**
+
+---
+
 ## v1.97.0 - Batch 62 (audit eksternal): Gap #4 control-ownership recovery, surface ke UI
 
 Lanjutan Batch 61. roadmap.md Fase 0 item #4 ("Control ownership/lifecycle

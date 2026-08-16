@@ -32,7 +32,7 @@
 
     <!-- Preset -->
     <string name="presets_title">Preset Cepat</string>
-    <string name="presets_empty_hint">Atur bass/virtualizer/loudness sesuai selera, lalu tekan \"Simpan\" buat jadiin preset favorit sendiri.</string>
+    <string name="presets_empty_hint">Atur bass/virtualizer/loudness/equalizer sesuai selera, lalu tekan \"Simpan\" buat jadiin preset favorit sendiri.</string>
     <string name="preset_flat">Flat</string>
     <string name="preset_bass_heavy">Bass Heavy</string>
     <string name="preset_vocal_boost">Vocal Boost</string>

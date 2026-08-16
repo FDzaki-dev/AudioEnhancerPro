@@ -10,8 +10,52 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.97.0
-- 🔧🩺 **Batch 62 (v1.97.0, terbaru)**: lanjutan Batch 61, nutup roadmap.md Fase
+- **Versi**: v1.98.0
+- 🔧🩺 **Batch 63 (v1.98.0, terbaru)**: lanjutan Batch 62, nutup roadmap.md Fase
+  0 item #7 ("Preset lengkap termasuk EQ", audit Gap #16) — sekarang `[x]`
+  SELESAI. `PrefsHelper.CustomPreset` (`PrefsHelper.kt`) dapat field baru
+  `eqBands: List<Int> = emptyList()`. **Baca saat simpan**: dialog "Simpan
+  Preset" (`BoosterScreen.kt`) sekarang snapshot EQ dengan baca balik
+  `PrefsHelper.getEqualizerBandLevel()` per-band — INI SUMBER KEBENARAN yang
+  SUDAH ADA sejak lama (`AudioEnhancerService.setEqualizerBand()` selalu
+  nulis ke situ tiap slider band digeser), jadi 0 plumbing/hoisting state
+  Compose baru dibutuhkan, cuma baca ulang API yang sudah ada. **Terapkan saat
+  load**: `applyCustomPreset()` sekarang cek `preset.eqBands` — kalau TERISI
+  (preset baru, disimpan sejak batch ini), EQ ikut diterapkan + state
+  `eqOverrideLevels` baru (var Compose) dipakai maksa `EqualizerSection`
+  recompose ke nilai itu (pola sama seperti `applyPreset()` built-in yang
+  sudah lebih dulu ada, cuma built-in selalu flat/nol sedangkan custom pakai
+  nilai preset). Kalau `eqBands` KOSONG (preset LAMA, disimpan SEBELUM batch
+  ini, JSON tersimpan tidak punya field ini sama sekali), EQ manual user
+  SENGAJA TIDAK disentuh — persis perilaku ASLI sebelum batch ini
+  dipertahankan (backward-compat penuh, `getCustomPresets()` pakai
+  `optJSONArray` yang toleran field hilang, bukan `getJSONArray` yang akan
+  bikin SELURUH preset lenyap kalau field baru ini tidak ada). String
+  `presets_empty_hint` (ID+EN) diupdate teksnya (sekarang sebut "equalizer"
+  juga, sebelumnya cuma "bass/virtualizer/loudness" — sudah tidak akurat
+  sejak batch ini). 2 test unit baru di `PrefsHelperTest.kt`: round-trip JSON
+  `eqBands`, dan JSON preset lama tanpa field `eqBands` tetap load tanpa
+  crash (simulasi tulis SharedPreferences langsung, bukan lewat
+  `addCustomPreset` yang sekarang SELALU nulis field ini). Detail lengkap:
+  `CHANGELOG.md` v1.98.0.
+  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
+    215/215 & 660/660, `PrefsHelper.kt` 25/25 & 170/170, `PrefsHelperTest.kt`
+    26/26 & 136/136; parity string 108/108; semua call-site `CustomPreset(...)`
+    lama dicek masih valid berkat default parameter `eqBands`). Kandidat
+    pertama dicurigai kalau: preset baru disimpan tapi EQ-nya gak pernah balik
+    saat diterapkan ulang, atau preset LAMA (kalau ada di device user) tiba-tiba
+    gagal dimuat/crash sama sekali (harusnya TIDAK — `optJSONArray` toleran).
+  - **PENTING buat sesi depan**: roadmap.md Fase 0 tersisa item #3 (Output
+    routing awareness), #5 (Gain staging/dynamics), #6 (rebuild session-0 —
+    JANGAN tanpa user minta eksplisit), #8 (Automated audio-engine test —
+    scope LEBIH BESAR dari 2 test kecil batch ini, item #8 soal effect
+    creation failure/control loss/dst yang butuh mocking `AudioEffect`
+    Android, bukan cuma persistence JSON), #9 (UI/error-state refinement
+    lanjutan). Semua item tersisa butuh riset/device-testing/scope lebih
+    besar dari #4/#7 yang baru selesai — kalau user "lanjut" tanpa arahan,
+    TANYAKAN dulu mana yang diprioritaskan (beda dari Batch 61→62→63 yang
+    tiap kandidat "berikutnya"-nya jelas & kecil).
+- 🔧🩺 **Batch 62 (v1.97.0, riwayat)**: lanjutan Batch 61, nutup roadmap.md
   0 item #4 ("Control ownership/lifecycle lanjutan") — sekarang `[x]` SELESAI.
   `AudioEnhancerService.retryControlAcquisition()` (Batch 61, sebelumnya fungsi
   Service menggantung TANPA pemanggil sama sekali) DISURFACE penuh ke UI:
@@ -1652,7 +1696,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.

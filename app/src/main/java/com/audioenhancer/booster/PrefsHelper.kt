@@ -116,8 +116,23 @@ object PrefsHelper {
     }
 
     /** Preset yang disimpan user sendiri (di luar 4 preset bawaan) — nama harus unik,
-     *  simpan ulang dengan nama sama akan menimpa yang lama. */
-    data class CustomPreset(val name: String, val bass: Float, val virtualizer: Float, val loudness: Float)
+     *  simpan ulang dengan nama sama akan menimpa yang lama.
+     *  Batch 63 (roadmap Fase 0 #7, audit Gap #16): `eqBands` baru — snapshot level tiap
+     *  pita equalizer SAAT preset disimpan (index list = index band, mB). Default
+     *  `emptyList()` demi BACKWARD COMPAT: preset lama yang disimpan SEBELUM Batch 63 tidak
+     *  punya field ini di JSON tersimpan → `getCustomPresets()` di bawah otomatis isi
+     *  `emptyList()` kalau key JSON "eqBands" tidak ada (bukan crash). `applyCustomPreset()`
+     *  di `BoosterScreen.kt` SENGAJA membedakan `emptyList()` (preset lama, EQ TIDAK
+     *  disentuh — perilaku asli sebelum batch ini) vs list terisi (preset baru, EQ
+     *  DITERAPKAN) — supaya preset lama yang sudah tersimpan user tidak tiba-tiba
+     *  "kehilangan" EQ manual mereka pas preset itu di-apply ulang. */
+    data class CustomPreset(
+        val name: String,
+        val bass: Float,
+        val virtualizer: Float,
+        val loudness: Float,
+        val eqBands: List<Int> = emptyList()
+    )
 
     fun getCustomPresets(context: Context): List<CustomPreset> {
         val json = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -126,11 +141,18 @@ object PrefsHelper {
             val arr = org.json.JSONArray(json)
             (0 until arr.length()).map { i ->
                 val obj = arr.getJSONObject(i)
+                // Batch 63: "eqBands" bisa TIDAK ADA di JSON preset lama (disimpan sebelum
+                // field ini ditambahkan) — optJSONArray return null dengan aman, bukan
+                // exception, beda dari getJSONArray yang akan gagal & bikin SELURUH preset
+                // (bukan cuma bagian eqBands-nya) ikut lenyap lewat catch generic di bawah.
+                val eqArr = obj.optJSONArray("eqBands")
+                val eqBands = if (eqArr != null) (0 until eqArr.length()).map { j -> eqArr.getInt(j) } else emptyList()
                 CustomPreset(
                     obj.getString("name"),
                     obj.getDouble("bass").toFloat(),
                     obj.getDouble("virtualizer").toFloat(),
-                    obj.getDouble("loudness").toFloat()
+                    obj.getDouble("loudness").toFloat(),
+                    eqBands
                 )
             }
         } catch (_: Exception) {
@@ -157,6 +179,13 @@ object PrefsHelper {
             obj.put("bass", p.bass.toDouble())
             obj.put("virtualizer", p.virtualizer.toDouble())
             obj.put("loudness", p.loudness.toDouble())
+            // Batch 63: ditulis SELALU (termasuk array kosong `[]` kalau equalizerBandCount
+            // 0/tidak didukung device) — beda dari baca (optJSONArray toleran field hilang),
+            // tulis selalu eksplisit supaya preset yang disimpan SETELAH batch ini konsisten
+            // strukturnya, tidak ambigu antara "sengaja kosong" vs "field belum ada".
+            val eqArr = org.json.JSONArray()
+            p.eqBands.forEach { eqArr.put(it) }
+            obj.put("eqBands", eqArr)
             arr.put(obj)
         }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()

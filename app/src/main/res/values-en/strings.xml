@@ -32,7 +32,7 @@
 
     <!-- Presets -->
     <string name="presets_title">Quick Presets</string>
-    <string name="presets_empty_hint">Adjust bass/virtualizer/loudness to taste, then tap \"Save\" to turn it into your own favorite preset.</string>
+    <string name="presets_empty_hint">Adjust bass/virtualizer/loudness/equalizer to taste, then tap \"Save\" to turn it into your own favorite preset.</string>
     <string name="preset_flat">Flat</string>
     <string name="preset_bass_heavy">Bass Heavy</string>
     <string name="preset_vocal_boost">Vocal Boost</string>

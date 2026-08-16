@@ -145,6 +145,38 @@ class PrefsHelperTest {
         assertEquals("Simpan", loaded[0].name)
     }
 
+    // Batch 63 (roadmap Fase 0 #7, audit Gap #16): eqBands baru di CustomPreset.
+    @Test
+    fun `custom preset with eq bands round-trips through JSON serialization`() {
+        val preset = PrefsHelper.CustomPreset(
+            name = "Malam Hari EQ",
+            bass = 700f,
+            virtualizer = 250f,
+            loudness = 1500.5f,
+            eqBands = listOf(-300, 0, 150, 600, -1200)
+        )
+        PrefsHelper.addCustomPreset(context, preset)
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(1, loaded.size)
+        assertEquals(preset.eqBands, loaded[0].eqBands)
+    }
+
+    // Preset lama (disimpan sebelum Batch 63) tidak punya key "eqBands" di JSON sama sekali —
+    // simulasikan dengan menulis SharedPreferences langsung (BUKAN lewat addCustomPreset, yang
+    // sekarang SELALU nulis field ini), pastikan getCustomPresets() tidak crash & isi emptyList().
+    @Test
+    fun `legacy custom preset json without eqBands field loads with empty eq list`() {
+        val legacyJson = """[{"name":"Lama","bass":100.0,"virtualizer":100.0,"loudness":100.0}]"""
+        context.getSharedPreferences("audio_enhancer_prefs", android.content.Context.MODE_PRIVATE).edit()
+            .putString("custom_presets_json", legacyJson).apply()
+
+        val loaded = PrefsHelper.getCustomPresets(context)
+        assertEquals(1, loaded.size)
+        assertEquals("Lama", loaded[0].name)
+        assertEquals(emptyList<Int>(), loaded[0].eqBands)
+    }
+
     @Test
     fun `last seen crash timestamp defaults to zero`() {
         assertEquals(0L, PrefsHelper.getLastSeenCrashTimestamp(context))
