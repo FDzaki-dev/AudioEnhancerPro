@@ -1,5 +1,75 @@
 # Changelog
 
+## v1.96.0 - Batch 61 (audit eksternal): Gap #4 control-ownership recovery (Service-layer)
+
+Lanjutan audit eksternal, roadmap.md Fase 0 item #4 ("Control
+ownership/lifecycle lanjutan"). Batch 57 baru DETEKSI `CONTROL_LOST` (via
+listener), belum ada strategi apa pun buat REBUT KEMBALI kontrol — batch ini
+nutup itu, Service-layer dulu (pola sama seperti Batch 57→58: deteksi dulu,
+baru surface UI batch terpisah).
+
+**`AudioEnhancerService.kt`** (satu-satunya file yang diubah):
+- `attachEffects()` DIPECAH jadi 4 fungsi private per-effect
+  (`attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/
+  `attachLoudness()`) — **0 logic berubah**, isi tiap blok try-catch persis
+  sama seperti sebelum refactor, cuma dipindah supaya bisa dipanggil ulang
+  1 effect spesifik tanpa reset effect lain yang sehat. `attachEffects()`
+  sendiri sekarang cuma 4 baris pemanggilan + `restoreSavedSettings()`
+  (perilaku dari luar TIDAK berubah sama sekali — dipanggil dari `onCreate()`
+  seperti biasa).
+- Fungsi publik baru `retryControlAcquisition(): Boolean` — buat tiap effect
+  yang state-nya `CONTROL_LOST` ATAU `FAILED`: release object lama (try-catch,
+  gagal cuma di-Log.e bukan crash) lalu panggil `attachXxx()` yang sesuai buat
+  recreate. Effect yang sudah `ENABLED`/`AVAILABLE` TIDAK disentuh. Setelah
+  minimal 1 effect di-retry, `restoreSavedSettings()` dipanggil ulang (reuse
+  fungsi yang sudah ada) supaya nilai slider bass/virtualizer/loudness/EQ
+  band yang user set tidak hilang. Return `true` kalau ada yang di-retry,
+  `false` kalau semua effect sudah sehat (tidak ada yang perlu di-retry).
+- **PENTING, didokumentasikan panjang di komentar fungsi**: fungsi ini TIDAK
+  DIJAMIN BERHASIL — `CONTROL_LOST` berarti sistem Android sudah memutuskan
+  effect/app LAIN menang priority-arbitration di session 0 yang sama;
+  recreate object TIDAK mengubah priority (`BassBoost(0, 0)` dkk masih
+  priority normal, SENGAJA tidak dinaikkan — menaikkan priority effect
+  session-0 global punya efek samping ke app lain, di luar scope batch ini).
+  Paling berguna buat skenario: app lain yang tadi rebut kontrol SUDAH
+  release duluan (mis. user tutup app itu) tapi listener kita belum
+  ke-trigger ulang otomatis oleh sistem.
+- **BELUM ADA pemanggil otomatis** batch ini — bukan dari
+  `ServiceWatchdogWorker` (poll 15 menit), bukan dari listener manapun, bukan
+  dari UI. Cuma fungsi publik yang BISA dipanggil. Alasan eksplisit ditunda:
+  kalau dipanggil otomatis tanpa observasi device nyata dulu, risiko
+  retry-loop rapat saat kondisi persisten (device lain terus pegang kontrol)
+  — churn object `AudioEffect` sia-sia, potensi baterai/CPU terbuang.
+
+`app/build.gradle.kts`: versionCode 100→101, versionName 1.95.0→1.96.0.
+
+**roadmap.md**: item Fase 0 #4 ditandai `[ ]`→SEBAGIAN dijelaskan (recovery
+mechanism ADA, pemanggil otomatis/UI BELUM) — bukan `[x]` penuh karena bagian
+"UI action eksplisit" dari definisi item ini belum dikerjakan.
+
+**Belum divalidasi runtime** — statis only (brace/paren `AudioEnhancerService.
+kt`: 120/120 `{}`, 334/334 `()`; 4 fungsi `attachXxx()` baru dicek dipanggil
+persis 1x dari `attachEffects()` + dipanggil ulang dari `retryControlAcquisition()`
+sesuai kondisi masing-masing). Refactor ini RISIKO LEBIH RENDAH dari biasanya
+(bukan API baru yang belum pernah dipakai kayak Batch 60 — cuma mindahin kode
+existing yang SUDAH pernah "jalan" ke fungsi terpisah, isi logic verbatim
+sama) tapi TETAP kandidat pertama dicurigai kalau ada laporan crash pas
+Service `onCreate()` (jalur `attachEffects()` normal, TIDAK lewat
+`retryControlAcquisition()` sama sekali di startup) — kalau itu kejadian,
+kemungkinan besar ada typo halus pas refactor manual, bukan soal
+`retryControlAcquisition()` itu sendiri (belum ada pemanggil = belum bisa jadi
+penyebab crash startup).
+
+**PENTING buat sesi depan**: `retryControlAcquisition()` masih "menggantung"
+tanpa pemanggil — kalau user minta "lanjut" tanpa arahan baru, next kandidat
+natural: surface ke `BoosterViewModel` (fungsi baru, mirip pola `setBass()`
+dkk) + tombol/aksi eksplisit di `BoosterScreen` (mis. dekat helpText yang
+nampilin `CONTROL_LOST`, mirip pola tombol "Coba Lagi" yang sudah ada buat
+`ConnectionState.ERROR`) — BUKAN dipanggil otomatis dari watchdog tanpa
+observasi device dulu (lihat alasan di atas). ALTERNATIF LAIN kalau user
+minta ganti prioritas: roadmap.md Fase 0 item #3 (Output routing awareness)
+masih belum disentuh sama sekali.
+
 ## v1.95.0 - Batch 60 (audit eksternal): capability detection Gap #7 (Bass/Virtualizer rounding) — LoudnessEnhancer diverifikasi tidak punya API query
 
 Lanjutan audit eksternal, roadmap.md Fase 0 item #2 ("Capability detection +

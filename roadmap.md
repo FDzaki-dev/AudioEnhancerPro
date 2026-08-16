@@ -77,9 +77,21 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
 - [ ] **3. Output routing awareness** — belum ada handling lifecycle output
       device (speaker↔Bluetooth, wired headset, USB DAC), belum ada re-attach
       pipeline effect saat output route berubah selagi service aktif.
-- [ ] **4. Control ownership/lifecycle lanjutan** — Batch 57 baru deteksi
-      `CONTROL_LOST` via listener, belum ada strategi re-acquire/recovery
-      otomatis atau UI action eksplisit saat kontrol hilang.
+- [ ] **4. Control ownership/lifecycle lanjutan** (Batch 61 v1.96.0,
+      SEBAGIAN) — `AudioEnhancerService.kt`: `attachEffects()` dipecah jadi 4
+      fungsi per-effect (`attachBass()`/`attachVirtualizer()`/
+      `attachEqualizer()`/`attachLoudness()`, 0 logic berubah, cuma refactor
+      struktur) + fungsi publik baru `retryControlAcquisition()` — release +
+      recreate PER-EFFECT yang `CONTROL_LOST`/`FAILED` saja (effect sehat
+      tidak disentuh), lalu `restoreSavedSettings()` supaya slider value user
+      tidak hilang. **TIDAK ADA jaminan berhasil** (arbitration priority
+      Android di luar kendali app — didokumentasikan panjang di komentar
+      fungsi). **BELUM ada pemanggil otomatis** (bukan dari watchdog, bukan
+      dari UI) — baru fungsi Service-layer yang BISA dipanggil, belum
+      disurface. Next kandidat alami: surface ke `BoosterViewModel` + tombol
+      UI eksplisit "Coba Ambil Alih Kontrol Lagi" (pola sama seperti Batch
+      57→58), ATAU biarkan manual dulu sampai ada observasi device nyata
+      soal seberapa sering `CONTROL_LOST` kejadian.
 - [ ] **5. Gain staging + dynamics pipeline** — belum ada master limiter/
       compressor terkontrol; pipeline konseptual saat ini `BassBoost →
       Virtualizer → EQ → LoudnessEnhancer` tanpa tahapan gain staging yang

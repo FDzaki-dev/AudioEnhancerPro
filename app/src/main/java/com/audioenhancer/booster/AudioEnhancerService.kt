@@ -200,8 +200,27 @@ class AudioEnhancerService : Service() {
      *  support) TETAP `UNAVAILABLE` seperti sebelumnya (null check `isXxxSupported()` di
      *  bawah TIDAK berubah — kompatibel mundur). PERTAMA KALI dipakai di project ini —
      *  belum divalidasi runtime, kandidat pertama dicurigai kalau ada laporan badge/state
-     *  baru ini tidak pernah berubah dari ENABLED atau crash saat callback terpanggil. */
+     *  baru ini tidak pernah berubah dari ENABLED atau crash saat callback terpanggil.
+     *
+     *  Batch 61 (audit Gap #4, lanjutan Batch 57): DIPECAH jadi 4 fungsi
+     *  `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` di
+     *  bawah — SEBELUMNYA 4 blok try-catch ini nempel jadi 1 fungsi besar, gak bisa
+     *  dipanggil ulang PER-EFFECT. Perilaku tiap blok saat dipanggil dari sini (startup
+     *  normal) 100% SAMA seperti sebelum refactor — 0 logic berubah, cuma dipindah jadi
+     *  fungsi terpisah supaya `retryControlAcquisition()` (baru, di bawah) bisa panggil
+     *  ulang 1 effect spesifik tanpa reset effect lain yang sehat. */
     private fun attachEffects() {
+        attachBass()
+        attachVirtualizer()
+        attachEqualizer()
+        attachLoudness()
+
+        // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
+        // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
+        restoreSavedSettings()
+    }
+
+    private fun attachBass() {
         try {
             bassBoost = BassBoost(0, 0).apply {
                 enabled = true
@@ -219,7 +238,9 @@ class AudioEnhancerService : Service() {
             bassBoost = null; bassState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "BassBoost tidak tersedia di device ini", e)
         }
+    }
 
+    private fun attachVirtualizer() {
         try {
             virtualizer = Virtualizer(0, 0).apply {
                 enabled = true
@@ -237,7 +258,9 @@ class AudioEnhancerService : Service() {
             virtualizer = null; virtualizerState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "Virtualizer tidak tersedia di device ini", e)
         }
+    }
 
+    private fun attachEqualizer() {
         try {
             equalizer = Equalizer(0, 0).apply {
                 enabled = true
@@ -255,7 +278,9 @@ class AudioEnhancerService : Service() {
             equalizer = null; equalizerState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "Equalizer tidak tersedia di device ini", e)
         }
+    }
 
+    private fun attachLoudness() {
         try {
             loudnessEnhancer = LoudnessEnhancer(0).apply {
                 enabled = true
@@ -273,10 +298,78 @@ class AudioEnhancerService : Service() {
             loudnessEnhancer = null; loudnessState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "LoudnessEnhancer tidak tersedia di device ini", e)
         }
+    }
 
-        // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
-        // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
-        restoreSavedSettings()
+    /** Batch 61 (audit Gap #4 "Tidak Ada Handling AudioEffect Control Ownership" —
+     *  lanjutan Batch 57 yang baru sebatas DETEKSI `CONTROL_LOST` via listener, belum
+     *  ada strategi re-acquire/recovery apa pun): coba rebut kembali kontrol effect
+     *  yang `CONTROL_LOST` ATAU `FAILED`, PER-EFFECT (bukan restart Service penuh) —
+     *  release object lama (kalau masih ada) lalu recreate persis proses yang sama
+     *  seperti startup pertama (`attachBass()` dkk di atas), lalu terapkan ulang
+     *  setting slider terakhir (`restoreSavedSettings()`) SUPAYA user tidak kehilangan
+     *  nilai yang mereka set. Effect yang sudah sehat (`ENABLED`/`AVAILABLE`) TIDAK
+     *  disentuh sama sekali.
+     *
+     *  PENTING — TIDAK DIJAMIN BERHASIL: `CONTROL_LOST` artinya sistem Android sudah
+     *  memutuskan app/effect LAIN menang priority-arbitration di session yang sama;
+     *  recreate object di sini TIDAK mengubah priority (`BassBoost(0, 0)` dkk masih
+     *  priority normal, sama seperti sebelumnya, SENGAJA tidak dinaikkan — menaikkan
+     *  priority effect global session-0 punya efek samping ke app lain yang di luar
+     *  scope batch ini). Kalau app lain masih pegang kontrol, effect ini kemungkinan
+     *  besar akan langsung balik `CONTROL_LOST` lagi begitu listener baru terpasang —
+     *  itu BUKAN bug fungsi ini, itu cara kerja arbitration Android yang memang di
+     *  luar kendali 1 aplikasi manapun. Fungsi ini PALING BERGUNA buat kasus effect
+     *  lain (mis. app lain) SUDAH release effect-nya duluan (skenario paling umum:
+     *  user tutup app lain yang tadi rebut kontrol) tapi listener kita belum
+     *  ke-trigger ulang otomatis oleh sistem.
+     *
+     *  SENGAJA belum ada pemanggil otomatis batch ini (bukan dari
+     *  `ServiceWatchdogWorker`, bukan dari listener manapun) — cuma fungsi publik yang
+     *  bisa dipanggil, BELUM disurface ke ViewModel/UI (pola sama seperti Batch 57:
+     *  Service-layer dulu). Kalau nanti dipanggil otomatis dari watchdog (poll 15
+     *  menit), PERLU hati-hati: jangan retry-loop rapat kalau kondisi persisten
+     *  (device lain terus-terusan pegang kontrol) — bisa bikin churn object AudioEffect
+     *  tanpa guna, potensi baterai/CPU sia-sia. Keputusan itu SENGAJA ditunda ke batch
+     *  terpisah setelah ada cara uji/observasi perilakunya di device nyata.
+     *
+     *  @return true kalau ADA MINIMAL 1 effect yang di-retry, false kalau semua effect
+     *  sudah sehat (tidak ada yang perlu di-retry) — pemanggil (ke depan: UI/watchdog)
+     *  bisa pakai ini buat tahu apakah aksi retry ini benar-benar melakukan sesuatu. */
+    fun retryControlAcquisition(): Boolean {
+        var retried = false
+        if (bassState == EffectState.CONTROL_LOST || bassState == EffectState.FAILED) {
+            try { bassBoost?.release() } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal release BassBoost lama sebelum retry", e)
+            }
+            attachBass()
+            retried = true
+        }
+        if (virtualizerState == EffectState.CONTROL_LOST || virtualizerState == EffectState.FAILED) {
+            try { virtualizer?.release() } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal release Virtualizer lama sebelum retry", e)
+            }
+            attachVirtualizer()
+            retried = true
+        }
+        if (equalizerState == EffectState.CONTROL_LOST || equalizerState == EffectState.FAILED) {
+            try { equalizer?.release() } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal release Equalizer lama sebelum retry", e)
+            }
+            attachEqualizer()
+            retried = true
+        }
+        if (loudnessState == EffectState.CONTROL_LOST || loudnessState == EffectState.FAILED) {
+            try { loudnessEnhancer?.release() } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal release LoudnessEnhancer lama sebelum retry", e)
+            }
+            attachLoudness()
+            retried = true
+        }
+        if (retried) {
+            android.util.Log.w(TAG, "retryControlAcquisition(): recreate effect yang CONTROL_LOST/FAILED")
+            restoreSavedSettings()
+        }
+        return retried
     }
 
     private fun restoreSavedSettings() {

@@ -10,7 +10,33 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.95.0
+- **Versi**: v1.96.0
+- 🔧🩺 **Batch 61 (v1.96.0, terbaru)**: lanjutan audit eksternal, roadmap.md
+  Fase 0 item #4 ("Control ownership/lifecycle lanjutan"). Batch 57 baru
+  DETEKSI `CONTROL_LOST`, belum ada cara REBUT KEMBALI kontrol — batch ini
+  nutup itu, Service-layer dulu. `attachEffects()` dipecah jadi 4 fungsi
+  per-effect (`attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/
+  `attachLoudness()`, 0 logic berubah, murni refactor struktur) + fungsi
+  publik baru `retryControlAcquisition(): Boolean` — release+recreate PER-
+  EFFECT yang `CONTROL_LOST`/`FAILED` saja, lalu `restoreSavedSettings()`
+  biar slider value user gak hilang. TIDAK dijamin berhasil (arbitration
+  priority Android di luar kendali app, didokumentasikan panjang di komentar
+  fungsi). **BELUM ADA pemanggil otomatis** (bukan watchdog, bukan UI) —
+  masih "menggantung" sengaja, nunggu observasi device nyata sebelum
+  diotomatisasi (risiko retry-loop rapat kalau langsung diotomatisasi tanpa
+  data). Detail lengkap: `CHANGELOG.md` v1.96.0.
+  - **Belum divalidasi runtime** — statis only (brace/paren 120/120 &
+    334/334 di `AudioEnhancerService.kt`). Risiko lebih rendah dari batch
+    biasa (refactor kode existing yang sudah "jalan", bukan API baru) tapi
+    tetap kandidat pertama dicurigai kalau `onCreate()` (jalur
+    `attachEffects()` normal) crash — kemungkinan typo halus pas refactor
+    manual per-fungsi.
+  - **PENTING buat sesi depan**: `retryControlAcquisition()` belum ada
+    pemanggil. Next kandidat alami kalau "lanjut" tanpa arahan baru: surface
+    ke `BoosterViewModel` + tombol UI eksplisit (pola sama Batch 57→58,
+    mirip tombol "Coba Lagi" yang sudah ada buat `ConnectionState.ERROR`).
+    ALTERNATIF: roadmap.md Fase 0 item #3 (Output routing awareness) masih
+    belum disentuh sama sekali.
 - 🔧🩺 **Batch 60 (v1.95.0, terbaru)**: lanjutan audit eksternal, roadmap.md
   Fase 0 item #2 ("Capability detection + fallback"). **Riset dulu via web
   search ke dokumentasi resmi Android SDK sebelum nulis kode** (gak ada
@@ -1589,7 +1615,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`) — TIDAK ADA lagi state yang "nyangkut" di layer Service saja. Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` baru (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap (kontrak API tetap), dan kenapa LoudnessEnhancer sengaja tidak disentuh (gak ada API query range).
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED) — BELUM ada pemanggil (watchdog/UI), masih fungsi menggantung sengaja.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
