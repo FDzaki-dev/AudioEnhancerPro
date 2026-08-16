@@ -249,6 +249,13 @@ fun BoosterScreen(
     loudnessSupported: Boolean = true,
     bassStrengthSupported: Boolean = true,
     virtualizerStrengthSupported: Boolean = true,
+    // Batch 58: EffectState (Batch 57) di-poll ViewModel, dipass ke sini buat helpText
+    // yang lebih spesifik (FAILED/CONTROL_LOST) — default ENABLED biar preview/pemanggil
+    // lama yang belum kasih parameter ini tidak berubah perilaku (backward-compatible).
+    bassEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     equalizerSupported: Boolean = false,
     equalizerBandCount: Int = 0,
     equalizerLevelMin: Short = -1500,
@@ -685,6 +692,13 @@ fun BoosterScreen(
             accentColor2 = BassAccent2,
             helpText = when {
                 !bassSupported -> stringResource(R.string.feature_help_unsupported)
+                // Batch 58: CONTROL_LOST/FAILED (Batch 57) diprioritaskan di atas cek
+                // strength_unsupported — dua-duanya soal "effect ada tapi lagi
+                // bermasalah", bukan soal chipset gak punya fitur kontrol granular.
+                bassEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                    stringResource(R.string.feature_help_control_lost)
+                bassEffectState == AudioEnhancerService.EffectState.FAILED ->
+                    stringResource(R.string.feature_help_failed)
                 !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
                 else -> stringResource(R.string.feature_bass_help_normal)
             },
@@ -702,6 +716,10 @@ fun BoosterScreen(
             accentColor2 = VirtualizerAccent2,
             helpText = when {
                 !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
+                virtualizerEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                    stringResource(R.string.feature_help_control_lost)
+                virtualizerEffectState == AudioEnhancerService.EffectState.FAILED ->
+                    stringResource(R.string.feature_help_failed)
                 !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
                 else -> stringResource(R.string.feature_virtualizer_help_normal)
             },
@@ -717,8 +735,14 @@ fun BoosterScreen(
             icon = Icons.Filled.Campaign,
             accentColor = LoudnessAccent,
             accentColor2 = LoudnessAccent2,
-            helpText = if (loudnessSupported) stringResource(R.string.feature_loudness_help_normal)
-                       else stringResource(R.string.feature_help_unsupported),
+            helpText = when {
+                !loudnessSupported -> stringResource(R.string.feature_help_unsupported)
+                loudnessEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                    stringResource(R.string.feature_help_control_lost)
+                loudnessEffectState == AudioEnhancerService.EffectState.FAILED ->
+                    stringResource(R.string.feature_help_failed)
+                else -> stringResource(R.string.feature_loudness_help_normal)
+            },
             value = loudness,
             valueLabel = "${loudness.toInt()} mB",
             onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },

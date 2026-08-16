@@ -1,5 +1,61 @@
 # Changelog
 
+## v1.93.0 - Batch 58 (lanjutan audit eksternal): surface EffectState ke UI
+
+Lanjutan Batch 57 (v1.92.0) — user minta "lanjut" tanpa detail baru, jadi
+dikerjakan item yang sudah dicatat eksplisit sebagai "sisa" di
+`PROJECT_STATE.md`/`roadmap.md` Fase 0 #1: surface `AudioEnhancerService.
+EffectState` (Batch 57, sebelumnya cuma ada di Service, tidak pernah dibaca
+siapa pun) ke `BoosterViewModel` lalu `BoosterScreen` sebagai helpText
+kontekstual per-fitur. Tetap 1 langkah kecil (bukan lompat ke item Fase 0
+lain) — konsisten instruksi "bertahap, jangan greedy".
+
+**`BoosterViewModel.kt`**:
+- 4 properti `Compose State` baru (`bassEffectState`/`virtualizerEffectState`/
+  `loudnessEffectState`/`equalizerEffectState`), default `UNAVAILABLE`.
+- `init {}` baru: loop `viewModelScope.launch { while(true) { ...; delay(1000)
+  } }` — poll 4 field `EffectState` dari `service` (kalau `bound`) tiap 1
+  detik. PERTAMA KALI `viewModelScope`/`delay`-loop dipakai di file ini (pola
+  MIRIP polling `isRunning` di `BoosterScreen.kt`, tapi ditaruh di ViewModel
+  karena `bassState` dkk field INSTANCE Service, butuh referensi `service`
+  yang cuma dipegang ViewModel secara private — Composable gak bisa akses
+  langsung kayak `isRunning` yang companion/static). Saat belum/putus konek,
+  state DIBIARKAN nilai terakhir (bukan dipaksa `UNAVAILABLE`) — supaya UI
+  gak berkedip "gagal" pas reconnect sesaat.
+
+**`MainActivity.kt`** (edit parsial, 4 baris argumen baru ke `BoosterScreen()`).
+
+**`BoosterScreen.kt`**:
+- 4 parameter baru `bassEffectState`/`virtualizerEffectState`/
+  `loudnessEffectState`/`equalizerEffectState` (default `ENABLED` — backward-
+  compatible, pemanggil lama/preview yang belum kasih parameter ini perilakunya
+  TIDAK berubah).
+- `helpText` di 3 `FeatureControl` (Bass/Virtualizer/Loudness) sekarang punya
+  2 cabang baru: `CONTROL_LOST` → pesan "kontrol direbut aplikasi/sistem
+  lain", `FAILED` → pesan "gagal diterapkan, coba Nyalakan Lagi/restart HP" —
+  DIPRIORITASKAN di atas cek `strengthSupported` (soal beda: itu limitasi
+  chipset permanen, ini masalah sementara). `equalizerEffectState` DITERIMA
+  sebagai parameter tapi BELUM disurface ke `EqualizerSection` (struktur multi-
+  band-slider beda dari `FeatureControl` tunggal, butuh desain terpisah —
+  disengaja ditunda, dicatat biar gak dikira kelupaan).
+
+**String baru** (`values/strings.xml` + `values-en/strings.xml`, parity
+103→105/105): `feature_help_failed`, `feature_help_control_lost`.
+
+**Belum dikerjakan dari audit** (Fase 0 roadmap.md #2-#9, urutan sesuai
+dokumen audit) — TIDAK berubah dari catatan Batch 57, cuma item #1 yang
+sekarang genap selesai (Service + UI, minus equalizer band-level yang
+ditunda).
+
+**File diubah**: `BoosterViewModel.kt`, `MainActivity.kt` (parsial),
+`BoosterScreen.kt`, `values/strings.xml`, `values-en/strings.xml`,
+`app/build.gradle.kts` (versionCode 97→98, versionName 1.92.0→1.93.0).
+**Belum divalidasi runtime** — statis only (brace/paren 0 selisih 3 file
+Kotlin disentuh, parity string 105/105, XML valid). `viewModelScope`+`delay`
+loop & param `EffectState` baru di composable — kandidat pertama dicurigai
+kalau badge/helpText baru tidak pernah berubah dari kondisi normal, atau ada
+crash terkait coroutine saat ViewModel dibersihkan.
+
 ## v1.92.0 - Batch 57 (audit eksternal): actual effect-state verification + non-silent error handling
 
 User upload dokumen audit eksternal ("AudioEnhancerPro — Audit Nyata, Gap

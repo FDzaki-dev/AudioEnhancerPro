@@ -10,6 +10,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
 // koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel,
@@ -54,6 +57,22 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var loudnessSupported by mutableStateOf(true); private set
     var bassStrengthSupported by mutableStateOf(true); private set
     var virtualizerStrengthSupported by mutableStateOf(true); private set
+
+    // Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) — sebelumnya cuma
+    // "supported/tidak" yang dibaca SEKALI saat konek (di atas), sekarang effect state
+    // BISA berubah kapan saja SELAGI service jalan (mis. CONTROL_LOST kalau OS mencabut
+    // kontrol ke app lain) — makanya perlu di-poll berkala, bukan cuma sekali. Pola
+    // polling 1 detik ini SENGAJA MIRIP `isRunning` di ServiceStatusBadge/PowerToggleRow
+    // (BoosterScreen.kt) — tapi ditaruh DI SINI (ViewModel, pakai `viewModelScope`) bukan
+    // di Composable, karena `bassState` dkk adalah field INSTANCE Service (bukan
+    // companion/static seperti `isRunning`), butuh referensi `service` yang cuma dipegang
+    // ViewModel ini secara private. PERTAMA KALI `viewModelScope`/`delay` loop dipakai di
+    // file ini — belum divalidasi runtime, kandidat pertama dicurigai kalau UI badge baru
+    // (BoosterScreen, batch ini) tidak pernah update.
+    var bassEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    var virtualizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    var loudnessEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    var equalizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
 
     // Info equalizer per-band, diisi begitu service konek (band count 0 = belum siap/tidak didukung).
     var equalizerSupported by mutableStateOf(false); private set
@@ -102,6 +121,25 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
             connectionState = ConnectionState.CONNECTING
+        }
+    }
+
+    // Batch 58: loop polling `EffectState` — jalan terus selama ViewModel ini hidup
+    // (viewModelScope otomatis di-cancel di onCleared, TIDAK perlu Job manual). Saat
+    // `bound == false` (belum/putus konek), state dibiarkan apa adanya (nilai terakhir
+    // yang diketahui) — bukan dipaksa balik UNAVAILABLE, supaya UI tidak berkedip ke
+    // "gagal" cuma karena reconnect sesaat.
+    init {
+        viewModelScope.launch {
+            while (true) {
+                if (bound) {
+                    bassEffectState = service?.bassState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    virtualizerEffectState = service?.virtualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    loudnessEffectState = service?.loudnessState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    equalizerEffectState = service?.equalizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                }
+                delay(1000)
+            }
         }
     }
 

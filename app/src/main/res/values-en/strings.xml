@@ -47,6 +47,11 @@
     <string name="feature_loudness_help_normal">Extra volume boost above the phone\'s normal limit. Lower it if the sound starts clipping.</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
+    <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —
+         previously only "supported/not", now can show a distinct message when an
+         effect fails to apply or its control gets taken over by system/another app. -->
+    <string name="feature_help_failed">Failed to apply — try tapping "Turn On Again" or restart your phone.</string>
+    <string name="feature_help_control_lost">Control temporarily taken over by another app/the system.</string>
 
     <!-- Manual equalizer -->
     <string name="eq_title">Manual Equalizer</string>

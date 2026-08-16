@@ -47,6 +47,11 @@
     <string name="feature_loudness_help_normal">Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
+    <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —
+         sebelumnya cuma "didukung/tidak", sekarang bisa beda pesan kalau effect gagal
+         diterapkan atau kontrolnya direbut sistem/app lain. -->
+    <string name="feature_help_failed">Gagal diterapkan — coba tekan "Nyalakan Lagi" atau restart HP.</string>
+    <string name="feature_help_control_lost">Kontrol direbut aplikasi/sistem lain sementara.</string>
 
     <!-- Equalizer manual -->
     <string name="eq_title">Equalizer Manual</string>

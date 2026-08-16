@@ -179,6 +179,13 @@ class MainActivity : ComponentActivity() {
                             loudnessSupported = viewModel.loudnessSupported,
                             bassStrengthSupported = viewModel.bassStrengthSupported,
                             virtualizerStrengthSupported = viewModel.virtualizerStrengthSupported,
+                            // Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57)
+                            // ke BoosterScreen — di-poll berkala oleh viewModel sendiri
+                            // (viewModelScope), bukan sekali baca kayak *Supported di atas.
+                            bassEffectState = viewModel.bassEffectState,
+                            virtualizerEffectState = viewModel.virtualizerEffectState,
+                            loudnessEffectState = viewModel.loudnessEffectState,
+                            equalizerEffectState = viewModel.equalizerEffectState,
                             equalizerSupported = viewModel.equalizerSupported,
                             equalizerBandCount = viewModel.equalizerBandCount,
                             equalizerLevelMin = viewModel.equalizerLevelMin,

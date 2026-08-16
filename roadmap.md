@@ -44,12 +44,14 @@ duluan) — **kerjakan SATU per satu, jangan sekaligus** (instruksi eksplisit
 user). Detail gap lengkap: lihat file audit asli yang di-upload user /
 `CHANGELOG.md` v1.92.0.
 
-- [~] **1. Actual effect-state verification + non-silent errors** (Batch 57,
-      v1.92.0, SEBAGIAN) — `EffectState` enum + `setControlStatusListener`/
-      `setEnableStatusListener` di `AudioEnhancerService.kt`, exception di
-      `enableEffects()`/`set*()` gak lagi silent. **Sisa dari item ini**:
-      surface `EffectState` ke `BoosterViewModel`/`BoosterScreen` (badge per-
-      fitur) — data-nya sudah ada di Service, tinggal dikonsumsi UI.
+- [~] **1. Actual effect-state verification + non-silent errors** (Batch 57
+      v1.92.0 + Batch 58 v1.93.0, HAMPIR SELESAI) — `EffectState` enum +
+      listener di Service (Batch 57), di-poll `BoosterViewModel` & disurface
+      ke `helpText` Bass/Virtualizer/Loudness di `BoosterScreen` (Batch 58).
+      **Sisa dari item ini**: `equalizerEffectState` sudah diterima
+      `BoosterScreen` tapi belum ditampilkan di `EqualizerSection` (struktur
+      multi-band beda dari `FeatureControl` tunggal, butuh desain kecil
+      terpisah).
 - [ ] **2. Capability detection + fallback** — range kontrol (bass/
       virtualizer/loudness) masih hard-coded asumsi (`0..1000`, `0..3000mB`),
       belum dinormalisasi dari capability aktual device. Belum ada fallback
@@ -198,7 +200,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
-| 0. Audio Engine Robustness (audit eksternal) | 🟡 1/9 item mulai (Batch 57, sebagian) |
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 1/9 item hampir selesai (Batch 57+58) |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

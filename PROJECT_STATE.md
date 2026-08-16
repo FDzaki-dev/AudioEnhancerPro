@@ -10,8 +10,25 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.92.0
-- 🔧🩺 **Batch 57 (v1.92.0, terbaru)**: user upload audit eksternal
+- **Versi**: v1.93.0
+- 🔧🩺 **Batch 58 (v1.93.0, terbaru)**: lanjutan Batch 57, user cuma bilang
+  "Lanjut" (tanpa detail baru) — dikerjakan item yang sudah eksplisit dicatat
+  sebagai "sisa" di Batch 57: surface `AudioEnhancerService.EffectState` ke
+  `BoosterViewModel` (poll 1 detik via `viewModelScope`, PERTAMA KALI dipakai
+  file ini) → `BoosterScreen` (`helpText` FeatureControl Bass/Virtualizer/
+  Loudness sekarang beda pesan saat `CONTROL_LOST`/`FAILED`, bukan cuma
+  "didukung/tidak"). String baru `feature_help_failed`/
+  `feature_help_control_lost` (ID+EN, parity 105/105). Detail lengkap:
+  `CHANGELOG.md` v1.93.0. **PENTING buat sesi depan**: `equalizerEffectState`
+  SUDAH diterima `BoosterScreen` tapi BELUM disurface ke `EqualizerSection`
+  (struktur multi-band beda dari `FeatureControl` tunggal) — kalau lanjut lagi
+  tanpa arahan baru, itu next kandidat kecil sebelum pindah ke Fase 0 #2
+  (capability detection + fallback range, roadmap.md).
+  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih 3 file
+    Kotlin, parity string 105/105, XML valid). Kandidat pertama dicurigai
+    kalau helpText baru gak pernah berubah dari normal walau `EffectState`
+    seharusnya berubah, atau crash coroutine saat ViewModel di-clear.
+- 🔧🩺 **Batch 57 (v1.92.0, riwayat)**: user upload audit eksternal
   ("AudioEnhancerPro — Audit Nyata, Gap Terbesar Menuju 100% Functional")
   yang menegaskan gap terbesar ada di **audio-engine robustness** (~60-70%),
   bukan UI (~90-95%). Instruksi eksplisit: kerjakan bertahap, jangan sekaligus.
