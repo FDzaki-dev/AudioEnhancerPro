@@ -27,6 +27,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Batch 65 (FEATURE LOCKS #3, mandatory, sebelumnya HILANG total dari workflow
+      # ini — pelanggaran nyata, bukan asumsi): "Stale Run Guard" — cegah run yang
+      # sudah usang (commit main sudah maju lagi sebelum run ini sempat publish)
+      # tetap lanjut nge-release APK utk commit yang bukan HEAD main lagi. Kasus
+      # nyata yang dicegah: 2 push Termux beruntun cepat -> 2 run CI paralel/
+      # overlap -> run PERTAMA (SHA lama) masih jalan lambat, run KEDUA (SHA baru)
+      # selesai duluan & publish duluan -> run PERTAMA lanjut & overwrite/nambah
+      # Release baru pakai kode LAMA yang sudah ketinggalan. `git ls-remote` dipilih
+      # (bukan `git rev-parse origin/main`) karena checkout default SHALLOW +
+      # single-branch, remote-tracking ref `origin/main` belum tentu ke-fetch penuh
+      # — `ls-remote` query LANGSUNG ke server, gak butuh riwayat lokal apapun.
+      # Ditaruh PALING AWAL (sebelum step apapun lain yang makan waktu/resource)
+      # biar run stale exit SECEPAT mungkin, gak buang menit CI build penuh.
+      - name: Stale Run Guard
+        run: |
+          REMOTE_MAIN_SHA=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ -z "$REMOTE_MAIN_SHA" ]; then
+            echo "::warning::Tidak bisa ambil SHA remote main (network/repo issue?) — guard dilewati, lanjut build."
+          elif [ "$GITHUB_SHA" != "$REMOTE_MAIN_SHA" ]; then
+            echo "::error::Stale run terdeteksi — GITHUB_SHA ($GITHUB_SHA) sudah bukan HEAD main lagi (HEAD sekarang: $REMOTE_MAIN_SHA). Run ini dibatalkan supaya tidak publish Release untuk commit yang sudah usang."
+            exit 1
+          else
+            echo "OK — GITHUB_SHA sama dengan HEAD main ($GITHUB_SHA)."
+          fi
+
       # v1.59 fix: dipindah ke PALING AWAL (sebelum step apapun yang bisa gagal) —
       # dibutuhkan buat penamaan artifact log kegagalan & nama rilis, jadi harus
       # selalu ada nilainya sedini mungkin. Cuma `grep` ke file teks, gak butuh

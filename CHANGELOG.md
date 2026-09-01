@@ -2,6 +2,32 @@
 
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
+**Addendum Batch 65 (inspeksi+fix workflow release, diminta user eksplisit)**:
+user tanya "apakah project melanggar workflow GitHub release yang wajib
+otomatis" — jawaban: **YA, 2 pelanggaran nyata**, keduanya langsung
+diperbaiki di batch ini.
+1. `app/build.gradle.kts`: `versionCode` SELAMA INI literal manual (di-bump
+   tangan 64 batch berturut-turut) — melanggar "Versioning Lock" (WAJIB
+   otomatis dari `GITHUB_RUN_NUMBER`, dilarang bump manual). Fix:
+   `versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1`.
+   `versionName` SENGAJA TETAP manual (rasional lengkap: kunci pencarian
+   step CI "Extract changelog entry for this version", lihat
+   `PROJECT_STATE.md` Batch 65).
+2. `.github/workflows/build.yml`: "Stale Run Guard" (FEATURE LOCKS #3 user,
+   `exit 1` kalau `GITHUB_SHA != local main`) TERNYATA TIDAK PERNAH
+   diimplementasi sama sekali sepanjang 64 batch riwayat — gap tersembunyi.
+   Fix: step baru "Stale Run Guard" (posisi ke-2, setelah Checkout, paling
+   awal) — `git ls-remote origin refs/heads/main` dibandingkan `$GITHUB_SHA`,
+   `exit 1` kalau beda (run usang, ada commit main lebih baru).
+Detail lengkap + rasional tiap keputusan: `PROJECT_STATE.md` Batch 65. 2 file
+(`app/build.gradle.kts`, `.github/workflows/build.yml`), keduanya Protected
+(edit parsial). **Belum divalidasi CI beneran** — `git ls-remote` butuh
+network sungguhan yang gak ada di sandbox, statis only (YAML parse valid 15
+step, brace/paren gradle 18/18 & 48/48, grep regex versionName CI
+disimulasikan ulang hasil tetap benar `1.98.0`).
+
+---
+
 **Addendum Batch 64 (perkuat efek preset, diminta user eksplisit)**: 3 dari 4
 preset bawaan (`BoosterScreen.kt`, `listOf(Preset(...))`) dinaikkan
 intensitasnya — Flat SENGAJA tidak disentuh (definisinya netral/nol).

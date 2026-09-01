@@ -10,8 +10,77 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.98.0 (Batch 64 TIDAK bump — lihat catatan di bawah)
-- 🔊 **Batch 64 (v1.98.0, terbaru)**: user minta "perkuat efek preset!!" (fast-track,
+- **Versi**: v1.98.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
+- 🔧🚨 **Batch 65 (v1.98.0, terbaru)**: user eksplisit minta "inspeksi+langsung
+  perbaiki" soal BLOCKER Versioning Lock yang dicatat Batch 64. **2 pelanggaran
+  NYATA ketemu & DIPERBAIKI** (bukan cuma versioning, full re-check ke seluruh
+  FEATURE LOCKS #3 "CI/CD" user karena diminta "inspeksi"):
+  1. **Versioning Lock** (`app/build.gradle.kts`): `versionCode` SELAMA INI
+     literal manual (`103`, di-bump tangan tiap batch 64x berturut-turut) —
+     LANGSUNG melanggar instruksi standing "WAJIB otomatis dari
+     GITHUB_RUN_NUMBER, DILARANG bump manual". Fix: `versionCode =
+     System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1` — `GITHUB_RUN_NUMBER`
+     env var BAWAAN tiap step GitHub Actions (0 perubahan workflow dibutuhkan
+     buat expose var ini), naik monoton per run, PERSIS kontrak yang Android
+     butuhkan dari versionCode (strictly-increasing). Fallback `1` cuma kepake
+     kalau di luar CI (app ini gak pernah dibuild lokal). **Keputusan sadar:
+     `versionName` TETAP manual** (`"1.98.0"`, TIDAK ikut diotomatisasi) — alasan:
+     (a) instruksi soal "bump versi dilarang" paling masuk akal ke `versionCode`
+     spesifik (itu yang secara teknis WAJIB strictly-increasing & yang selama
+     ini di-bump manual tiap batch, root cause pelanggaran nyata), (b) `versionName`
+     adalah LABEL semantik yang jadi KUNCI PENCARIAN CI step "Extract changelog
+     entry for this version" (`awk` match exact `## v<versionName>` di
+     CHANGELOG.md, mekanisme dari Batch 48) — kalau ini ikut diotomatisasi jadi
+     angka run number mentah, seluruh sistem CHANGELOG->Release-notes matching
+     (63+ batch riwayat) rusak tanpa diminta. Diverifikasi grep regex CI
+     (`versionName\s*=\s*"\K[^"]+`) TETAP nangkep `1.98.0` dengan benar meski
+     ada komentar baru di atasnya (disimulasikan di sandbox, hasil cocok).
+     **Kalau user MAKSUDNYA versionName juga harus ikut otomatis dari run
+     number**, itu perubahan lebih besar (bakal ubah cara CHANGELOG.md
+     dirujuk CI) — TANYAKAN dulu sebelum dikerjakan, jangan diasumsikan dari
+     sini.
+  2. **FEATURE LOCKS #3 "Stale Run Guard" HILANG TOTAL** — spek user eksplisit
+     ("CI/CD: Release APK via Github Action + 'Stale Run Guard' [exit 1 kalau
+     GITHUB_SHA != local main]") TERNYATA TIDAK PERNAH diimplementasi sama
+     sekali di `.github/workflows/build.yml` sepanjang 64 batch riwayat proyek
+     ini — gap tersembunyi, baru ketauan karena diminta inspeksi eksplisit kali
+     ini. Fix: step baru "Stale Run Guard" (step ke-2, PALING AWAL setelah
+     Checkout, sebelum step lain apapun biar run stale exit cepat tanpa buang
+     menit CI) — `git ls-remote origin refs/heads/main` ambil SHA HEAD main
+     TERKINI dari server (bukan `git rev-parse origin/main`, karena checkout
+     default shallow+single-branch, remote-tracking ref lokal belum tentu
+     lengkap), bandingkan ke `$GITHUB_SHA` bawaan run ini — `exit 1` kalau beda
+     (run ini sudah "usang", ada commit main lebih baru yang seharusnya yang
+     jalan, bukan run ini). Mencegah race: 2 push Termux beruntun cepat -> 2 run
+     CI overlap -> run lama selesai belakangan & publish Release utk kode yang
+     sudah ketinggalan. `if [ -z "$REMOTE_MAIN_SHA" ]` guard tambahan (warning,
+     BUKAN exit 1) kalau `ls-remote` gagal total (network/repo issue) — biar
+     masalah infra sesaat gak nge-block SEMUA build selamanya secara tidak
+     adil.
+  - **File yang berubah**: `app/build.gradle.kts` (versionCode 1 baris +
+    komentar), `.github/workflows/build.yml` (1 step baru, 15 total dari 14).
+    2 file, KEDUANYA Protected (gradles + workflows) — edit PARSIAL sesuai
+    aturan, bukan rewrite.
+  - **Verifikasi statis**: YAML parse valid (`python3 -c "import yaml"`, 15 step
+    terbaca, urutan "Stale Run Guard" persis posisi ke-2/setelah Checkout
+    dikonfirmasi), brace/paren `app/build.gradle.kts` 18/18 & 48/48, grep
+    regex CI versionName disimulasikan ulang di sandbox (hasil `1.98.0` benar,
+    tidak ke-distract komentar baru). **Belum divalidasi runtime/CI beneran**
+    — `git ls-remote` butuh koneksi jaringan sungguhan ke GitHub yang gak ada
+    di sandbox, jadi step "Stale Run Guard" baru BENAR-BENAR ketahuan jalan
+    normal (exit 0 kondisi normal, TIDAK exit 1 palsu di run non-race biasa)
+    setelah CI run pertama pasca-push ini. Kalau CI tiba-tiba merah di step
+    ini padahal cuma 1 push tunggal (bukan race beneran), kandidat pertama:
+    permission token checkout gak punya akses baca `ls-remote` (jarang, tapi
+    cek `permissions:` block kalau kejadian).
+  - **PENTING buat sesi depan**: versionCode SEKARANG OTOMATIS — JANGAN PERNAH
+    lagi manual edit angka versionCode di `app/build.gradle.kts` (baris itu
+    sekarang formula, bukan literal — mengubahnya balik ke angka statis
+    berarti REVERT fix batch ini tanpa alasan). `versionName` MASIH manual
+    (boleh diubah Claude kalau ada milestone semantik baru yang pantas, tapi
+    BUKAN "wajib naik tiap batch" seperti versionCode dulu — hanya kalau
+    memang relevan, mis. kalau user eksplisit minta rilis versi baru).
+- 🔊 **Batch 64 (v1.98.0, riwayat)**: user minta "perkuat efek preset!!" (fast-track,
   micro task). 3 dari 4 preset bawaan (`presets = listOf(Preset(...))`,
   `BoosterScreen.kt`) dinaikkan intensitasnya — **Flat SENGAJA TIDAK disentuh**
   (definisinya memang netral/nol, menaikkan nilainya kontradiksi sama namanya
