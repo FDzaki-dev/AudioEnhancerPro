@@ -10,8 +10,48 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.98.0
-- 🔧🩺 **Batch 63 (v1.98.0, terbaru)**: lanjutan Batch 62, nutup roadmap.md Fase
+- **Versi**: v1.98.0 (Batch 64 TIDAK bump — lihat catatan di bawah)
+- 🔊 **Batch 64 (v1.98.0, terbaru)**: user minta "perkuat efek preset!!" (fast-track,
+  micro task). 3 dari 4 preset bawaan (`presets = listOf(Preset(...))`,
+  `BoosterScreen.kt`) dinaikkan intensitasnya — **Flat SENGAJA TIDAK disentuh**
+  (definisinya memang netral/nol, menaikkan nilainya kontradiksi sama namanya
+  sendiri). Bass Heavy `bass 900→1000 (MAX)` / `virtualizer 300→400` /
+  `loudness 500→750`. Vocal Boost `bass 200→300` / `virtualizer 600→750` /
+  `loudness 800→1100`. Treble Boost `bass 100→150` / `virtualizer 800→950` /
+  `loudness 600→850`. Batas dicek dulu SEBELUM diubah: Bass/Virtualizer tetap
+  di kontrak platform `0..1000` (per mille, Batch 60 — bukan device-specific,
+  Bass Heavy sekarang pas di MAX), Loudness tetap di batas slider UI `0..3000`
+  mB (`FeatureControl` loudness, `valueRange = 0f..3000f` — melebihi ini bikin
+  thumb slider invalid). Karakter tiap preset (fitur mana yang dominan)
+  dipertahankan, cuma headroom ke batas platform yang dipakai lebih banyak
+  (+11–50% tergantung preset). Detail lengkap: `CHANGELOG.md` v1.98.0
+  (addendum Batch 64, di atas entry Batch 63).
+  - **Versioning Lock BELUM diwiring ke project ini**: instruksi standing user
+    ("otomatis dari `GITHUB_RUN_NUMBER`, dilarang bump manual") BEDA dari
+    praktik project ini selama 63 batch sebelumnya (selalu bump manual
+    `versionCode`/`versionName` di `app/build.gradle.kts` tiap batch, CI cuma
+    BACA `versionName` dari situ buat label/tag, bukan generate dari
+    `run_number`/`run_id` — lihat `.github/workflows/build.yml` step "Extract
+    version name"). Batch ini PATUH ke instruksi baru (TIDAK bump manual),
+    tapi konsekuensinya: `versionCode`/`versionName` TETAP `103`/`"1.98.0"`
+    (punya Batch 63) dan entry CHANGELOG Batch 64 numpang di header `## v1.98.0`
+    yang sama (bukan header baru) — kalau tidak, ekstraksi release-notes CI
+    (`awk` match exact `## v<versionName> `) tidak akan pernah nemu entry
+    Batch 64 karena versionName di gradle tidak berubah. **BLOCKER buat sesi
+    depan kalau user mau push ke GitHub**: sebelum Batch 64 bisa di-release,
+    HARUS diputuskan salah satu — (a) user cabut instruksi Versioning Lock
+    khusus project ini (balik ke manual bump seperti 63 batch sebelumnya), atau
+    (b) implementasikan wiring sungguhan (`versionCode` dari
+    `GITHUB_RUN_NUMBER`/`github.run_number` di `build.gradle.kts` via
+    `System.getenv()`, `versionName` tetap semantic manual ATAU ikut skema
+    baru) — ini Atomic Change tersendiri (nyentuh `app/build.gradle.kts` +
+    kemungkinan `.github/workflows/build.yml`, 2 file Protected), JANGAN
+    dikerjakan tanpa user pilih opsi & konfirmasi eksplisit dulu (bukan
+    diasumsikan/dikerjakan sepihak, sesuai kaidah Hard Reset & Protect).
+  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
+    215/215 & 667/667, cuma nilai literal Float yang diubah di 3 baris,
+    0 logic/state/struktur baru — resiko regresi minimal).
+- 🔧🩺 **Batch 63 (v1.98.0, riwayat)**: lanjutan Batch 62, nutup roadmap.md Fase
   0 item #7 ("Preset lengkap termasuk EQ", audit Gap #16) — sekarang `[x]`
   SELESAI. `PrefsHelper.CustomPreset` (`PrefsHelper.kt`) dapat field baru
   `eqBands: List<Int> = emptyList()`. **Baca saat simpan**: dialog "Simpan

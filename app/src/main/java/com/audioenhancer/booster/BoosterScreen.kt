@@ -341,10 +341,18 @@ fun BoosterScreen(
     onRequestedPresetConsumed: () -> Unit = {}
 ) {
     val presets = listOf(
+        // Batch 64: nilai 3 preset non-flat DINAIKKAN ("perkuat efek preset", user eksplisit) —
+        // Flat SENGAJA TIDAK disentuh (definisinya memang netral/nol, menaikkan nilainya
+        // kontradiksi sama namanya sendiri). Bass/Virtualizer tetap dalam batas kontrak
+        // platform 0..1000 (Batch 60, per mille, BUKAN device-specific) — Bass Heavy sekarang
+        // MAX (1000). Loudness tetap dalam batas slider UI 0..3000 mB (baris valueRange di
+        // bawah, FeatureControl loudness) supaya thumb slider gak invalid. Karakter tiap preset
+        // (dominasi bass/virtualizer/loudness masing-masing) dipertahankan, cuma intensitasnya
+        // naik proporsional (+11–50% tergantung headroom yang tersisa ke batas platform).
         Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
-        Preset(stringResource(R.string.preset_bass_heavy), bass = 900f, virtualizer = 300f, loudness = 500f),
-        Preset(stringResource(R.string.preset_vocal_boost), bass = 200f, virtualizer = 600f, loudness = 800f),
-        Preset(stringResource(R.string.preset_treble_boost), bass = 100f, virtualizer = 800f, loudness = 600f)
+        Preset(stringResource(R.string.preset_bass_heavy), bass = 1000f, virtualizer = 400f, loudness = 750f),
+        Preset(stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 1100f),
+        Preset(stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f)
     )
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }

@@ -2,6 +2,27 @@
 
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
+**Addendum Batch 64 (perkuat efek preset, diminta user eksplisit)**: 3 dari 4
+preset bawaan (`BoosterScreen.kt`, `listOf(Preset(...))`) dinaikkan
+intensitasnya — Flat SENGAJA tidak disentuh (definisinya netral/nol).
+Bass Heavy `bass 900→1000 (MAX)` / `virtualizer 300→400` / `loudness 500→750`.
+Vocal Boost `bass 200→300` / `virtualizer 600→750` / `loudness 800→1100`.
+Treble Boost `bass 100→150` / `virtualizer 800→950` / `loudness 600→850`.
+Semua nilai baru tetap dalam batas kontrak platform Bass/Virtualizer `0..1000`
+(per mille, Batch 60 — bukan device-specific) dan batas slider UI Loudness
+`0..3000` mB (`FeatureControl` loudness, `valueRange = 0f..3000f`) — tidak ada
+yang melebihi range API atau bikin thumb slider invalid. Karakter tiap preset
+(dominasi fitur masing-masing) dipertahankan, cuma headroom-nya dipakai lebih
+banyak. **Versi TIDAK dibump** (lihat instruksi standing "Versioning Lock:
+otomatis dari `GITHUB_RUN_NUMBER`, dilarang bump manual" — repo ini belum
+diwiring ke mekanisme itu, jadi entry ini numpang di v1.98.0 yang sama, belum
+pernah di-CI-build/release; lihat catatan lengkap di `PROJECT_STATE.md` Batch
+64 soal gap ini). 1 file kode (`BoosterScreen.kt`, cuma 4 baris nilai + komentar),
+0 file lain. **Belum divalidasi runtime** — statis only (brace/paren 215/215 &
+667/667, cuma nilai numerik literal yang diubah, 0 logic/struktur berubah).
+
+---
+
 Lanjutan Batch 62. roadmap.md Fase 0 item #7 ("Preset lengkap termasuk EQ",
 audit Gap #16) sekarang `[x]` SELESAI — custom preset sebelumnya cuma
 snapshot bass/virtualizer/loudness, EQ manual TIDAK ikut tersimpan.
