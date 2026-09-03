@@ -11,7 +11,34 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Status saat ini
 - **Versi**: v1.98.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
-- 🔧🚨 **Batch 65 (v1.98.0, terbaru)**: user eksplisit minta "inspeksi+langsung
+- ✏️ **Batch 67 (v1.98.0, terbaru)**: KOREKSI Batch 66 — user tegur eksplisit
+  pilihan nama Batch 66 (`AudioBooster`) MASIH kerasa "generik/placeholder"
+  (cuma gabungan literal "Audio"+"Booster", sama kelasnya dgn
+  "AudioEnhancerPro" lama — bukan brand asli). Ganti ke **`Boomly`** (1 kata,
+  invented/brandable, main dari "boom"/bass — bukan deskriptif harfiah).
+  Scope TETAP SAMA persis Batch 66 (baca situ dulu kalau belum): HANYA nama
+  ZIP output Claude, 0 kode/repo disentuh. `NamaFolderProyek` TETAP
+  `AudioEnhancerPro` (tidak diminta ganti, tetap vital/stable — kalau user
+  MAKSUDNYA repo juga mau di-rename, itu scope lebih besar & butuh
+  konfirmasi eksplisit dulu, JANGAN diasumsikan dari teguran ini). Aturan
+  permanen "Keputusan sadar" di bawah SUDAH di-update ke `Boomly` (override
+  entry Batch 66, bukan dihapus).
+- 🏷️ **Batch 66 (v1.98.0, riwayat, nama DIKOREKSI Batch 67)**: rebrand KOSMETIK, diminta user eksplisit.
+  Scope SEMPIT SENGAJA: HANYA nama output ZIP artifact Claude, BUKAN kode/repo.
+  `NamaApp` ZIP baru **AudioBooster** (ganti `AudioEnhancerPro`) — dipilih
+  karena sudah match `app_name` yang LAMA live di HP user ("Audio Booster",
+  lihat `strings.xml`), jadi bukan nama baru asing. **0 file kode disentuh**:
+  `applicationId`/`namespace`/`rootProject.name`/nama workflow/
+  `CrashLogger.APP_FOLDER`/`strings.xml` SEMUA TETAP literal
+  `AudioEnhancerPro` (Protected: gradles+workflows, atau sudah lama-stable:
+  path MediaStore user, onboarding string). `NamaFolderProyek` (repo GitHub +
+  folder lokal Termux) **TETAP `AudioEnhancerPro`** — TIDAK ikut rename (git
+  history 65 batch + secrets + workflow sudah terikat ke nama ini, rename repo
+  = breaking, di luar "kosmetik"). Aturan PERMANEN dicatat di "Keputusan
+  sadar" di bawah — baca sebelum bikin ZIP/skrip Termux sesi depan.
+  - **File disentuh**: `PROJECT_STATE.md` + `CHANGELOG.md` saja (VIP docs,
+    kebal limit). Tidak ada bump versi (tidak ada kode berubah).
+- 🔧🚨 **Batch 65 (v1.98.0, riwayat)**: user eksplisit minta "inspeksi+langsung
   perbaiki" soal BLOCKER Versioning Lock yang dicatat Batch 64. **2 pelanggaran
   NYATA ketemu & DIPERBAIKI** (bukan cuma versioning, full re-check ke seluruh
   FEATURE LOCKS #3 "CI/CD" user karena diminta "inspeksi"):
@@ -1679,6 +1706,20 @@ eksplisit user.
    Detail lengkap: `CHANGELOG.md` v1.76.0.
 
 ## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
+- **[PERMANEN, Batch 67 — override Batch 66] Nama brand ZIP output Claude**:
+  `Boomly` — bukan `AudioEnhancerPro` (lama) atau `AudioBooster` (pilihan
+  Batch 66, ditolak user karena masih generik). HANYA nama artifact ZIP
+  (kosmetik, output Claude doang). Placeholder Termux mulai sesi ini:
+  `[NamaFileAplikasi]` = `Boomly`, `[NamaFolderProyek]` =
+  `AudioEnhancerPro` (repo GitHub/folder lokal, TIDAK ikut ganti — vital &
+  stable, JANGAN diubah tanpa user minta eksplisit + paham konsekuensi
+  rename repo). Identifier internal berikut TETAP `AudioEnhancerPro`/
+  `audioenhancer` selamanya kecuali user eksplisit minta lain:
+  `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
+  (`settings.gradle.kts`), nama workflow (`build.yml`), `APP_FOLDER`
+  (`CrashLogger.kt` — path MediaStore user, ganti ini FRAGMENTASI log lama),
+  `ob1_title` (`strings.xml`). `app_name` user-facing di HP (`"Audio
+  Booster"`) SUDAH lama begini, TIDAK berubah, TIDAK terkait keputusan ini.
 - **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
   (`grep` nol hasil), TAPI mekanisme inti app ini (nempel efek audio ke
   session ID `0` global) itu sendiri di luar cara resmi API ini
@@ -1794,7 +1835,11 @@ eksplisit user.
   3. Repo ini PUBLIC → GitHub Actions minutes GRATIS/unlimited. Biaya
      sebenarnya bukan uang, tapi WAKTU per putaran (~5-10 menit all-in).
 
-## Command Termux standar (update harian, bukan setup awal)
+## [ARSIP, USANG sejak Batch 66/67] Command Termux lama — JANGAN dipakai lagi
+Glob ZIP di bawah (`AudioEnhancerPro*.zip`) sudah TIDAK MATCH output Claude
+sejak Batch 66 (sekarang `Boomly*.zip` per koreksi Batch 67, lihat
+"Keputusan sadar"). Riwayat saja. Skrip aktif = template Immutable Box A/B/
+Daily Update user preferences, di-generate ulang Claude tiap sesi.
 ```
 LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo "Pakai ZIP: $LATEST_ZIP" && mkdir -p ~/projects/AudioEnhancerPro && cd ~/projects/AudioEnhancerPro && ( [ -d .git ] || git init ) && find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + && unzip -o "$LATEST_ZIP" -d ~/projects/AudioEnhancerPro/ && git add -A && git commit -m "[ringkasan perubahan]" && git push
 ```

@@ -2,6 +2,25 @@
 
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
+**Addendum Batch 67 (koreksi nama brand, ditegur user eksplisit)**: pilihan
+Batch 66 (`AudioBooster`) dinilai user MASIH generik/placeholder (gabungan
+literal kata deskriptif, bukan brand asli). Ganti ke **`Boomly`**. Scope
+identik Batch 66 (kosmetik, nama ZIP output Claude doang) — 0 kode/repo
+disentuh, 0 bump versi. Aturan permanen ter-update: `PROJECT_STATE.md` §
+"Keputusan sadar".
+
+---
+
+**Addendum Batch 66 (rebrand kosmetik nama ZIP output, diminta user)**: nama
+brand ZIP output Claude ganti `AudioEnhancerPro` → **`AudioBooster`** (match
+`app_name` yang sudah lama live di HP user). Scope 100% kosmetik/artifact —
+`applicationId`, `namespace`, `rootProject.name`, nama repo GitHub/folder
+lokal Termux, nama workflow, `CrashLogger.APP_FOLDER`, `strings.xml` semua
+TETAP `AudioEnhancerPro`. 0 file kode disentuh, 0 bump versi. Aturan
+permanen: `PROJECT_STATE.md` § "Keputusan sadar".
+
+---
+
 **Addendum Batch 65 (inspeksi+fix workflow release, diminta user eksplisit)**:
 user tanya "apakah project melanggar workflow GitHub release yang wajib
 otomatis" — jawaban: **YA, 2 pelanggaran nyata**, keduanya langsung
