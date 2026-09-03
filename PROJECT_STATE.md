@@ -2,16 +2,123 @@
 
 File ini didesain buat dibaca AI (Claude) di awal sesi baru, bukan cuma manusia.
 Isinya padat & langsung actionable — bukan riwayat lengkap (itu ada di
-CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
-1. Baca file ini full.
-2. Baca 2-3 entry TERATAS CHANGELOG.md aja (bukan semua) buat detail teknis terbaru.
-3. Baru mulai kerja. Jangan ulang pertanyaan yang jawabannya udah ada di sini.
+CHANGELOG.md). Struktur file ini 2 lapis, JANGAN dicampur lagi (Batch 72):
+1. **🔒 ATURAN PERMANEN & HIERARKI** — jarang berubah, ringkas, WAJIB dibaca.
+2. **📅 LOG UPDATE HARIAN** — naratif per-batch, descending, BUKAN permanen.
+
+Kalau kamu Claude dan baru diminta lanjut project ini:
+1. Baca **🔒 ATURAN PERMANEN & HIERARKI** dulu, jangan skip.
+2. Baca **🧭 Status Terkini** + 2-3 entry TERATAS **📅 LOG UPDATE HARIAN** (bukan
+   semua) buat detail teknis terbaru.
+3. Baca 2-3 entry TERATAS CHANGELOG.md aja buat detail rilis.
+4. Baru mulai kerja. Jangan ulang pertanyaan yang jawabannya udah ada di sini.
 
 ---
 
-## Status saat ini
-- **Versi**: v1.99.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
-- 📌 **Batch 71 (v1.99.0, terbaru)**: Rule Batch 70 DIPERTEGAS — sempat salah
+## 🔒 ATURAN PERMANEN & HIERARKI (PIN — terpisah dari log harian, HANYA berubah kalau ada instruksi baru eksplisit dari user)
+
+Bagian ini TIDAK ikut naik-turun tiap batch. Kalau di sesi depan bagian ini
+kelihatan mulai "kecampur" narasi batch lagi, itu regresi — pisahkan ulang.
+
+**Hierarki instruksi**: User Instruction > Core Protocol (instruksi custom
+user) > isi file ini (PROJECT_STATE.md).
+
+**Index Core Protocol** (rujukan cepat — detail lengkap ada di instruksi
+custom user, bukan diulang di sini):
+- STABILITY > Speed. STOP → tandai BLOKER kalau info kurang, jangan nebak.
+- ZERO-REFACTOR pada file yang tak relevan ke task yang diminta.
+- Micro-Batch: maks 3 file KODE per batch. Dokumen VIP (file ini, README.md,
+  CHANGELOG.md) KEBAL limit ini & WAJIB disinkronkan tiap sesi ada perubahan.
+- Versioning Lock: `versionCode` WAJIB otomatis dari `GITHUB_RUN_NUMBER`,
+  DILARANG bump manual (detail & alasan `versionName` tetap manual ada di
+  "Keputusan sadar" di bawah).
+- Format respon chat: HANYA status 1-2 baris + 1 ZIP + skrip Termux utuh.
+  Narasi/analisis panjang WAJIB masuk ke file ini (bagian LOG HARIAN),
+  BUKAN ke chat.
+- Skrip Termux Immutable: Claude cuma isi placeholder `[Nama...]`, DILARANG
+  ubah logika Bash atau gabung Box A & B.
+
+### Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
+- **[PERMANEN, Batch 68 — perluas Batch 67] Brand kosmetik/user-facing =
+  `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
+  Batch 66 yang ditolak). Berlaku ke DUA lapisan:
+  1. **Nama ZIP output Claude** (Batch 66/67 — **FORMAT DI-PIN Batch 70,
+     WAJIB PERSIS**: `Boomly_<versi>-<batch>.zip`, contoh
+     `Boomly_v1.99.0-batch70.zip`): `[NamaFileAplikasi]` = `Boomly`. Konsekuensi
+     LANGSUNG ke skrip Termux (Batch 71, dipertegas krn sempat salah pakai):
+     glob WAJIB `~/storage/downloads/Boomly*.zip` — BUKAN
+     `AudioEnhancerPro*.zip`. `[NamaFolderProyek]` (repo GitHub/folder lokal
+     Termux) TETAP `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti
+     tanpa user minta eksplisit + paham konsekuensi rename repo.
+  2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
+     `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
+     `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
+     baru yang butuh sebut nama app, WAJIB pakai `Boomly`, JANGAN
+     `Audio Booster`/`AudioEnhancerPro` lagi.
+  - **TETAP TIDAK ikut rebrand (vital/fungsional, bukan kosmetik)**:
+    `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
+    (`settings.gradle.kts`), nama workflow (`build.yml`), nama APK/artifact
+    dari CI, `CrashLogger.APP_FOLDER` (path MediaStore fisik user — ganti ini
+    FRAGMENTASI log lama tersimpan, BUKAN sekadar ganti tampilan).
+- **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
+  (`grep` nol hasil), TAPI mekanisme inti app ini (nempel efek audio ke
+  session ID `0` global) itu sendiri di luar cara resmi API ini
+  didokumentasikan Android — ada laporan anekdotal beberapa OEM/chipset
+  butuh permission ini biar efek session-0 nempel dengan benar. TIDAK
+  dihapus karena resikonya (app berhenti berfungsi di sebagian HP) gak
+  bisa diverifikasi tanpa device fisik.
+- **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: dipertahankan apa adanya meski app
+  bukan media player asli — user gak ada niat publish Play Store, jadi resiko
+  rejection review gak relevan buat dia.
+- **Dynamic color (Material You)**: default OFF, opt-in toggle. Alasan:
+  biar palet warna custom app gak ketiban tema wallpaper user secara paksa.
+- **Equalizer band individual TIDAK dibungkus card sendiri** (`wrapInCard =
+  false`) — udah di dalam card "Equalizer Manual", biar gak numpuk
+  kaca-di-atas-kaca kalau bandnya banyak.
+- **Preset custom (v1.33) TIDAK ikut reset equalizer manual** saat diterapkan
+  — beda dari 4 preset bawaan yang eksplisit reset EQ ke flat. Alasan: preset
+  custom cuma menyimpan bass/virtualizer/loudness (bukan state EQ), jadi
+  reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
+
+### Cara update file ini
+Tiap sesi yang bikin keputusan arsitektur/desain baru (bukan sekadar bugfix
+kecil), WAJIB: (1) tambah entry baru di "📅 LOG UPDATE HARIAN" — entry TERBARU
+di PALING ATAS (descending), tandai entry sebelumnya jadi "riwayat"; (2) update
+"🧭 Status Terkini" (versi + 1-2 baris highlight batch terbaru saja); (3) update
+"Riwayat pivot" dan/atau "Keputusan sadar" di atas KALAU relevan — supaya sesi
+berikutnya gak mulai dari nol lagi. **JANGAN** taruh narasi panjang di section
+"🔒 ATURAN PERMANEN & HIERARKI" — itu index/rule ringkas yang kebal dari
+perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
+
+## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
+- **Versi**: v1.99.0 (versionName manual TETAP, versionCode OTOMATIS dari
+  `GITHUB_RUN_NUMBER` — lihat "Keputusan sadar" di atas).
+- **Batch terakhir**: Batch 72 — restrukturisasi murni `PROJECT_STATE.md`
+  (pisah "🔒 ATURAN PERMANEN" vs "📅 LOG UPDATE HARIAN"), diminta user eksplisit.
+  0 kode/repo disentuh, 0 bump versi.
+
+## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
+- 🗂️ **Batch 72 (v1.99.0, terbaru)**: Restrukturisasi murni `PROJECT_STATE.md`,
+  diminta user eksplisit ("pisahkan header/hierarchy rule permanen dari daily
+  update information, tidak ada narasi panjang lebar yang ikut di-pin"). Yang
+  berubah HANYA lokasi/pelabelan, **0 konten historis dihapus**:
+  1. Section "Keputusan sadar" + "Cara update file ini" DIPINDAH jadi
+     sub-bagian dari blok baru **"🔒 ATURAN PERMANEN & HIERARKI"** tepat
+     setelah header — isinya ringkas (index/rule + list keputusan, BUKAN
+     narasi batch).
+  2. Seluruh log naratif per-batch (dulu numpuk di bawah "Status saat ini")
+     DIPINDAH ke section baru **"📅 LOG UPDATE HARIAN"** ini — eksplisit
+     dilabeli "BUKAN bagian permanen" biar gak ketuker lagi ke depannya.
+  3. "Status saat ini" diringkas jadi **"🧭 Status Terkini"** — cuma versi +
+     1-2 baris highlight batch terakhir, detail penuh pointer ke sini.
+  4. Referensi nama section di "Cara update file ini" disesuaikan ke nama
+     baru di atas, + ditambah larangan eksplisit taruh narasi di blok
+     permanen (biar gak regresi ke struktur campur-aduk lama).
+  - **File disentuh**: `PROJECT_STATE.md` saja (VIP, kebal limit) — 0 file
+    kode. `README.md`/`CHANGELOG.md` TIDAK berubah (tidak ada fitur/versi
+    yang bergeser, isinya masih akurat, tidak ada yang perlu disinkronkan).
+    0 bump versi (murni reorganisasi dokumen, 0 logic/behavior app berubah).
+- 📌 **Batch 71 (v1.99.0, riwayat)**: Rule Batch 70 DIPERTEGAS — sempat salah
   diterapkan (skrip Termux pakai glob `AudioEnhancerPro*.zip`, padahal ZIP
   sudah `Boomly_...`). Glob `Boomly*.zip` sekarang di-spell-out LANGSUNG di
   "Keputusan sadar" poin 1, gak lagi cuma implisit dari `[NamaFileAplikasi]`.
@@ -1787,48 +1894,6 @@ eksplisit user.
    opsi ke-2 "Aurora Glass" lebih vivid), bukan lagi 1 glass + 1 skeuomorphism.
    Detail lengkap: `CHANGELOG.md` v1.76.0.
 
-## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
-- **[PERMANEN, Batch 68 — perluas Batch 67] Brand kosmetik/user-facing =
-  `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
-  Batch 66 yang ditolak). Berlaku ke DUA lapisan:
-  1. **Nama ZIP output Claude** (Batch 66/67 — **FORMAT DI-PIN Batch 70,
-     WAJIB PERSIS**: `Boomly_<versi>-<batch>.zip`, contoh
-     `Boomly_v1.99.0-batch70.zip`): `[NamaFileAplikasi]` = `Boomly`. Konsekuensi
-     LANGSUNG ke skrip Termux (Batch 71, dipertegas krn sempat salah pakai):
-     glob WAJIB `~/storage/downloads/Boomly*.zip` — BUKAN
-     `AudioEnhancerPro*.zip`. `[NamaFolderProyek]` (repo GitHub/folder lokal
-     Termux) TETAP `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti
-     tanpa user minta eksplisit + paham konsekuensi rename repo.
-  2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
-     `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
-     `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
-     baru yang butuh sebut nama app, WAJIB pakai `Boomly`, JANGAN
-     `Audio Booster`/`AudioEnhancerPro` lagi.
-  - **TETAP TIDAK ikut rebrand (vital/fungsional, bukan kosmetik)**:
-    `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
-    (`settings.gradle.kts`), nama workflow (`build.yml`), nama APK/artifact
-    dari CI, `CrashLogger.APP_FOLDER` (path MediaStore fisik user — ganti ini
-    FRAGMENTASI log lama tersimpan, BUKAN sekadar ganti tampilan).
-- **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
-  (`grep` nol hasil), TAPI mekanisme inti app ini (nempel efek audio ke
-  session ID `0` global) itu sendiri di luar cara resmi API ini
-  didokumentasikan Android — ada laporan anekdotal beberapa OEM/chipset
-  butuh permission ini biar efek session-0 nempel dengan benar. TIDAK
-  dihapus karena resikonya (app berhenti berfungsi di sebagian HP) gak
-  bisa diverifikasi tanpa device fisik.
-- **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: dipertahankan apa adanya meski app
-  bukan media player asli — user gak ada niat publish Play Store, jadi resiko
-  rejection review gak relevan buat dia.
-- **Dynamic color (Material You)**: default OFF, opt-in toggle. Alasan:
-  biar palet warna custom app gak ketiban tema wallpaper user secara paksa.
-- **Equalizer band individual TIDAK dibungkus card sendiri** (`wrapInCard =
-  false`) — udah di dalam card "Equalizer Manual", biar gak numpuk
-  kaca-di-atas-kaca kalau bandnya banyak.
-- **Preset custom (v1.33) TIDAK ikut reset equalizer manual** saat diterapkan
-  — beda dari 4 preset bawaan yang eksplisit reset EQ ke flat. Alasan: preset
-  custom cuma menyimpan bass/virtualizer/loudness (bukan state EQ), jadi
-  reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
-
 ## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
 - **Insiden nyata (v1.40 → v1.41, build gagal di CI)**: `ic_qs_tile.xml` (drawable
   baru buat Quick Settings Tile) pakai `android:tint="?attr/colorControlNormal"`
@@ -1956,7 +2021,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
 - Konfirmasi hasil tombol Autostart v1.35 di Infinix Note 50 Pro 4G & Note 40
-  Pro 4G — **DIDEPRIORITASKAN oleh user** (lihat "Status saat ini"), gak perlu
+  Pro 4G — **DIDEPRIORITASKAN oleh user** (lihat "🧭 Status Terkini"), gak perlu
   ditanya/dikerjain proaktif. Kalau user singgung lagi: gagal → opsi (a) cari
   kandidat ComponentName alternatif buat XOS versi device itu spesifik, atau
   (b) terima kenyataan gak ada kandidat reliable buat Infinix/Tecno (persis
@@ -1966,7 +2031,3 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   kontras tombol biru — user bilang eksplisit TIDAK urgent, jangan dikerjain
   duluan tanpa diminta.
 
-## Cara update file ini
-Tiap sesi yang bikin keputusan arsitektur/desain baru (bukan sekadar bugfix
-kecil), WAJIB update bagian "Status saat ini", "Riwayat pivot", dan/atau
-"Keputusan sadar" di atas — supaya sesi berikutnya gak mulai dari nol lagi.
