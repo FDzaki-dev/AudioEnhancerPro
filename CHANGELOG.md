@@ -91,6 +91,24 @@ kalau ragu). Detail rasional lengkap tiap keputusan: `PROJECT_STATE.md` Batch 69
 
 ---
 
+**Addendum Batch 70 (rule permanen dipertegas, diminta user, TANPA narasi
+panjang)**: format nama ZIP output Claude di-PIN eksplisit persis
+`Boomly_<versi>-<batch>.zip` (Batch 69 sempat salah pakai prefix
+`AudioEnhancerPro`, melanggar aturan `Boomly` yang sudah permanen sejak Batch
+66/67). 0 kode/repo disentuh, 0 bump versi. Detail: `PROJECT_STATE.md` §
+"Keputusan sadar" poin 1.
+
+---
+
+**Addendum Batch 71 (rule Batch 70 dipertegas lagi — sempat salah diterapkan)**:
+skrip Termux sesi Batch 70 masih pakai glob lama `AudioEnhancerPro*.zip`,
+kontradiksi sama rule yang baru saja dipin di batch yang sama. Glob
+`Boomly*.zip` sekarang di-spell-out LANGSUNG di `PROJECT_STATE.md` §
+"Keputusan sadar" poin 1 (gak lagi cuma implisit dari `[NamaFileAplikasi]`).
+0 kode/repo disentuh, 0 bump versi.
+
+---
+
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
 **Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:

@@ -11,7 +11,16 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Status saat ini
 - **Versi**: v1.99.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
-- 🆕📡 **Batch 69 (v1.99.0, terbaru)**: In-app update — FITUR BESAR diminta user
+- 📌 **Batch 71 (v1.99.0, terbaru)**: Rule Batch 70 DIPERTEGAS — sempat salah
+  diterapkan (skrip Termux pakai glob `AudioEnhancerPro*.zip`, padahal ZIP
+  sudah `Boomly_...`). Glob `Boomly*.zip` sekarang di-spell-out LANGSUNG di
+  "Keputusan sadar" poin 1, gak lagi cuma implisit dari `[NamaFileAplikasi]`.
+  0 kode/repo disentuh, 0 bump versi.
+- 📌 **Batch 70 (v1.99.0, riwayat)**: Rule permanen dipertegas, diminta user
+  eksplisit tanpa narasi panjang — format ZIP output Claude di-PIN persis
+  `Boomly_<versi>-<batch>.zip` (lihat "Keputusan sadar" poin 1; Batch 69 sempat
+  salah pakai prefix `AudioEnhancerPro`). 0 kode/repo disentuh, 0 bump versi.
+- 🆕📡 **Batch 69 (v1.99.0, riwayat)**: In-app update — FITUR BESAR diminta user
   eksplisit ("Tambahkan konfigurasi update langsung dalam aplikasinya"). Sebelumnya
   cuma tercatat sebagai item SENGAJA DITUNDA sejak MODE MAINTENANCE (Batch 44) —
   maintenance mode ngatur INISIATIF Claude, BUKAN larangan mutlak buat user,
@@ -1782,10 +1791,14 @@ eksplisit user.
 - **[PERMANEN, Batch 68 — perluas Batch 67] Brand kosmetik/user-facing =
   `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
   Batch 66 yang ditolak). Berlaku ke DUA lapisan:
-  1. **Nama ZIP output Claude** (Batch 66/67): `[NamaFileAplikasi]` =
-     `Boomly`. `[NamaFolderProyek]` (repo GitHub/folder lokal Termux) TETAP
-     `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti tanpa user minta
-     eksplisit + paham konsekuensi rename repo.
+  1. **Nama ZIP output Claude** (Batch 66/67 — **FORMAT DI-PIN Batch 70,
+     WAJIB PERSIS**: `Boomly_<versi>-<batch>.zip`, contoh
+     `Boomly_v1.99.0-batch70.zip`): `[NamaFileAplikasi]` = `Boomly`. Konsekuensi
+     LANGSUNG ke skrip Termux (Batch 71, dipertegas krn sempat salah pakai):
+     glob WAJIB `~/storage/downloads/Boomly*.zip` — BUKAN
+     `AudioEnhancerPro*.zip`. `[NamaFolderProyek]` (repo GitHub/folder lokal
+     Termux) TETAP `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti
+     tanpa user minta eksplisit + paham konsekuensi rename repo.
   2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
      `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
      `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
