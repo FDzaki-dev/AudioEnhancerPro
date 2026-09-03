@@ -31,7 +31,7 @@ android {
         // PROJECT_STATE.md "Versioning Lock" utk detail lengkap + kenapa versionName
         // di bawah TETAP manual, bukan bagian larangan ini).
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.98.0"
+        versionName = "1.99.0"
     }
 
     signingConfigs {
@@ -102,6 +102,11 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+    // Fitur baru: in-app update (UpdateManager.kt). Okio dipakai KHUSUS buat chunk
+    // streaming unduhan APK Release (Feature Lock standing user: DILARANG readBytes(),
+    // resiko OOM) — bukan buat networking (masih HttpURLConnection bawaan Android, 0
+    // dependency HTTP client baru ditambahkan, biar tetap minim seperti gaya project ini).
+    implementation("com.squareup.okio:okio:3.9.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")

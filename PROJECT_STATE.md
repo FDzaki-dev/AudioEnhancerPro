@@ -10,8 +10,58 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 ---
 
 ## Status saat ini
-- **Versi**: v1.98.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
-- 📱 **Batch 68 (v1.98.0, terbaru)**: EKSPANSI rebrand — user tegur eksplisit
+- **Versi**: v1.99.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
+- 🆕📡 **Batch 69 (v1.99.0, terbaru)**: In-app update — FITUR BESAR diminta user
+  eksplisit ("Tambahkan konfigurasi update langsung dalam aplikasinya"). Sebelumnya
+  cuma tercatat sebagai item SENGAJA DITUNDA sejak MODE MAINTENANCE (Batch 44) —
+  maintenance mode ngatur INISIATIF Claude, BUKAN larangan mutlak buat user,
+  permintaan eksplisit tetap dikerjakan (aturan §4 di bawah).
+  - **File baru**: `UpdateManager.kt` (lihat "Struktur proyek singkat"),
+    `res/xml/file_paths.xml` (FileProvider paths, expose SUBFOLDER
+    `cacheDir/updates/` doang — least-privilege).
+  - **Sumber kebenaran versi — 0 field API baru**: judul tiap Release GitHub SELALU
+    diakhiri `(Run #<run_number>)` (Batch 42). `versionCode` APK yang lagi jalan
+    OTOMATIS = `GITHUB_RUN_NUMBER` run yang men-generate-nya (Batch 65). Jadi "ada
+    update?" = run_number Release TERBARU > versionCode yang jalan — TIDAK
+    bandingkan versionName (string) sama sekali (tidak selalu naik tiap rilis CI,
+    lihat Batch 64).
+  - **Chunk streaming (Feature Lock §3)**: `downloadApk()` baca APK per-chunk
+    (64KB) via `Source.read(Buffer,Long)`/`Sink.write(Buffer,Long)` — interface
+    DASAR Okio, `.buffer()` TIDAK dipanggil sama sekali (kedua method itu sudah
+    ada langsung di `Source`/`Sink`, permukaan API lebih sempit = lebih sedikit
+    resiko salah). DILARANG `readBytes()`. Panggilan API metadata Release (JSON,
+    beberapa KB) TIDAK kena aturan ini, baca sekaligus aman.
+  - **Dependency baru**: `com.squareup.okio:okio:3.9.0`. **Permission baru**
+    (PERTAMA KALI project ini butuh network): `INTERNET`, `REQUEST_INSTALL_PACKAGES`.
+    **FileProvider baru** di Manifest. SENGAJA TIDAK cek/minta
+    `REQUEST_INSTALL_PACKAGES` manual di kode — PackageInstaller sistem sendiri
+    yang tampilkan layar izin kalau belum diizinkan, cek manual cuma duplikasi.
+  - **UX**: cek update diam-diam sekali tiap `BoosterViewModel` dibuat (~sekali per
+    sesi app dibuka), kegagalan cek DITELAN (tidak ada banner, BUKAN snackbar
+    error — ini otomatis, bukan aksi user). Kalau ada update: `UpdateBanner` baru
+    (`BoosterScreen.kt`, pola SAMA CrashBanner/ControlRecoveryBanner, tint
+    `primary` bukan `error`). Tap "Unduh & Pasang" → unduh (progress bar) LALU
+    LANGSUNG trigger intent instalasi (1 aksi, bukan 2 langkah). Installer sistem
+    sempat di-dismiss? Tombol jadi "Pasang Sekarang", TANPA unduh ulang (APK cache
+    dipakai lagi). Kegagalan unduh (dipicu eksplisit tap user, BEDA dari kegagalan
+    cek di atas) → snackbar via `SnackbarHostState` yang sudah ada (Batch 51).
+  - **Versioning**: `versionName` dibump manual `1.98.0`→`1.99.0` (keputusan sadar
+    Batch 65 masih berlaku: "boleh diubah Claude kalau ada milestone semantik
+    baru yang pantas" — network permission pertama kali + fitur self-update
+    dianggap pantas). `versionCode` TIDAK disentuh (tetap otomatis).
+  - **File disentuh**: 5 file kode (`UpdateManager.kt` baru, `BoosterViewModel.kt`,
+    `BoosterScreen.kt`, `MainActivity.kt`, `values/strings.xml`+`values-en/
+    strings.xml` — 5 string baru/bahasa, parity 113/113) + 3 Protected
+    edit-parsial (`AndroidManifest.xml`, `app/build.gradle.kts`,
+    `res/xml/file_paths.xml` baru) + VIP docs (`README.md` Fitur+Troubleshooting,
+    `CHANGELOG.md`, `FILE_MANIFEST.txt`, file ini).
+  - **Belum divalidasi runtime** — statis only (brace/paren balance 0 selisih 4
+    file Kotlin, XML parse-valid semua, parity string 113/113). `okio.*`,
+    `FileProvider`, intent instalasi PERTAMA KALI dipakai project ini — kandidat
+    pertama dicurigai kalau CI compile error di sekitar import itu, atau laporan
+    device nyata soal banner/unduhan/instalasi gagal. Detail rasional lengkap:
+    `CHANGELOG.md` v1.99.0.
+- 📱 **Batch 68 (v1.98.0, riwayat)**: EKSPANSI rebrand — user tegur eksplisit
   Batch 66/67 cuma ganti nama ZIP, PADAHAL maksudnya **aplikasi juga kena**
   (tetap "user facing, kosmetik only", scope diperjelas bukan diperlebar ke
   vital). Semua string USER-FACING yang isinya `Audio Booster`/
@@ -1882,6 +1932,13 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.
 - `ServiceWatchdogWorker.kt` — WorkManager periodic (15 menit), restart service kalau mati padahal `PrefsHelper.getUserWantsRunning()` true. Dijadwalkan sekali di `AudioEnhancerApp.onCreate()`.
 - `OnboardingScreen.kt` — 6 halaman onboarding.
+- `UpdateManager.kt` — Batch 69, BARU. Object stateless: `checkForUpdate()` (cek
+  Release GitHub terbaru vs `versionCode` yang lagi jalan, baca `PackageManager`
+  runtime — BUKAN `BuildConfig`, kelas itu mati sejak Batch 41), `downloadApk()`
+  (unduh via chunk streaming Okio, `Source.read(Buffer,Long)`/`Sink.write(
+  Buffer,Long)` langsung — TANPA `.buffer()`, interface dasar Okio sudah cukup),
+  `installApk()` (intent `ACTION_VIEW` + FileProvider). PERTAMA KALI project ini
+  butuh `INTERNET` sama sekali — sebelumnya 100% offline.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")

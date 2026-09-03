@@ -23,6 +23,7 @@ app/src/main/java/com/audioenhancer/booster/ServiceWatchdogWorker.kt
 app/src/main/java/com/audioenhancer/booster/ShortcutHelper.kt
 app/src/main/java/com/audioenhancer/booster/SkeuomorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt
+app/src/main/java/com/audioenhancer/booster/UpdateManager.kt
 app/src/main/res/drawable/ic_launcher_background.xml
 app/src/main/res/drawable/ic_launcher_foreground.xml
 app/src/main/res/drawable/ic_launcher_monochrome.xml
@@ -50,6 +51,7 @@ app/src/main/res/values-night/colors.xml
 app/src/main/res/values/colors.xml
 app/src/main/res/values/strings.xml
 app/src/main/res/values/themes.xml
+app/src/main/res/xml/file_paths.xml
 app/src/main/res/xml/shortcuts.xml
 app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt

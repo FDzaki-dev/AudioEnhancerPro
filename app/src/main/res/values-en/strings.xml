@@ -154,4 +154,11 @@
     <!-- App Shortcuts (long-press launcher icon) -->
     <string name="shortcut_toggle_short_label">Toggle On/Off</string>
     <string name="shortcut_toggle_long_label">Turn Booster On/Off</string>
+
+    <!-- In-app update (new feature, UpdateManager.kt) -->
+    <string name="update_banner_message">Version %1$s is available to download.</string>
+    <string name="update_download_button">Download &amp; Install</string>
+    <string name="update_downloading_label">Downloading update… %1$d%%</string>
+    <string name="update_install_button">Install Now</string>
+    <string name="update_download_failed_message">Failed to download update, please try again later</string>
 </resources>

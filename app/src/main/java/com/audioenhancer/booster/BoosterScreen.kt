@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -290,6 +291,69 @@ private fun ControlRecoveryBanner(
     }
 }
 
+/** Fitur baru: in-app update (UpdateManager.kt), diminta user eksplisit ("Tambahkan
+ *  konfigurasi update langsung dalam aplikasinya"). Pola SAMA seperti CrashBanner/
+ *  ControlRecoveryBanner di atas (SkeuTintedCard + Row icon+teks+tombol), tapi tint
+ *  `primary` (BUKAN error) — ini notifikasi netral, beda dari 2 banner lain yang
+ *  keduanya soal masalah. `updateInfo` null = banner disembunyikan total (return
+ *  awal). 2 sub-state kalau ADA update: (1) belum/sedang diunduh -> tombol
+ *  "Unduh & Pasang", disembunyikan SELAGI `downloadProgress` != null (progress bar
+ *  tampil sebagai gantinya — guard dobel-tap juga sudah ada di ViewModel); (2) sudah
+ *  pernah selesai diunduh (`hasDownloadedUpdate`, mis. installer sistem sempat
+ *  di-dismiss user) -> tombol jadi "Pasang Sekarang", TANPA unduh ulang. */
+@Composable
+private fun UpdateBanner(
+    updateInfo: UpdateManager.UpdateInfo?,
+    downloadProgress: Float?,
+    hasDownloadedUpdate: Boolean,
+    onDownload: () -> Unit,
+    onReinstall: () -> Unit
+) {
+    val info = updateInfo ?: return
+
+    SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
+        Column(modifier = Modifier.padding(12.dp).fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    Icons.Filled.SystemUpdate,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    stringResource(R.string.update_banner_message, info.versionName),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f)
+                )
+                if (downloadProgress == null) {
+                    CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                        TextButton(onClick = { if (hasDownloadedUpdate) onReinstall() else onDownload() }) {
+                            Text(
+                                stringResource(
+                                    if (hasDownloadedUpdate) R.string.update_install_button
+                                    else R.string.update_download_button
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+            if (downloadProgress != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(progress = downloadProgress, modifier = Modifier.fillMaxWidth())
+                Text(
+                    stringResource(R.string.update_downloading_label, (downloadProgress * 100).toInt()),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -338,7 +402,15 @@ fun BoosterScreen(
     // (pola sama seperti default EffectState.ENABLED di atas, Batch 58).
     onRetryControl: () -> Boolean = { false },
     requestedCustomPresetName: String? = null,
-    onRequestedPresetConsumed: () -> Unit = {}
+    onRequestedPresetConsumed: () -> Unit = {},
+    // Fitur baru: in-app update (UpdateManager.kt) — lihat UpdateBanner di atas.
+    updateInfo: UpdateManager.UpdateInfo? = null,
+    updateDownloadProgress: Float? = null,
+    hasDownloadedUpdate: Boolean = false,
+    updateDownloadFailed: Boolean = false,
+    onDownloadUpdate: () -> Unit = {},
+    onReinstallUpdate: () -> Unit = {},
+    onUpdateDownloadFailedShown: () -> Unit = {}
 ) {
     val presets = listOf(
         // Batch 64: nilai 3 preset non-flat DINAIKKAN ("perkuat efek preset", user eksplisit) —
@@ -439,6 +511,16 @@ fun BoosterScreen(
         ShortcutHelper.refreshCustomPresetShortcuts(context)
     }
 
+    // Fitur baru: in-app update — snackbar sekali tiap unduhan gagal, lalu konsumsi
+    // flag-nya via callback (pola sama seperti requestedCustomPresetName di atas)
+    // supaya tidak nongol berulang tiap recomposition selagi flag masih true.
+    LaunchedEffect(updateDownloadFailed) {
+        if (updateDownloadFailed) {
+            showSnackbar(context.getString(R.string.update_download_failed_message))
+            onUpdateDownloadFailedShown()
+        }
+    }
+
     // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
     // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
     // tetap sama seperti sebelumnya (full width).
@@ -502,6 +584,13 @@ fun BoosterScreen(
             states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState),
             onRetryControl = onRetryControl,
             onRetryAttempted = { showSnackbar(context.getString(R.string.control_recovery_snackbar)) }
+        )
+        UpdateBanner(
+            updateInfo = updateInfo,
+            downloadProgress = updateDownloadProgress,
+            hasDownloadedUpdate = hasDownloadedUpdate,
+            onDownload = onDownloadUpdate,
+            onReinstall = onReinstallUpdate
         )
 
         when (connectionState) {

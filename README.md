@@ -39,6 +39,10 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
   kalau user sengaja tekan "Matikan", watchdog TIDAK menghidupkan paksa lagi.
+- Update langsung dari dalam app — dicek otomatis tiap app dibuka ke tab Releases
+  GitHub repo ini, dan kalau ada versi lebih baru, muncul banner "Unduh & Pasang"
+  yang mengunduh APK signed lalu langsung membuka layar instalasi sistem, tanpa
+  perlu buka browser/tab Releases manual.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
@@ -110,6 +114,17 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
 
 **Equalizer manual tidak muncul**
 - Kartu "Equalizer Manual" hanya muncul kalau chipset HP mendukung `android.media.audiofx.Equalizer` dengan jumlah band > 0. Sebagian chipset budget tidak menyediakan equalizer per-band sama sekali — ini batasan hardware, bukan bug app.
+
+**Banner "Update tersedia" tidak pernah muncul walau sudah ada Release baru**
+- Cek app punya izin "Install unknown apps" untuk Boomly (Settings > Apps > Boomly
+  > Install unknown apps) — kalau ditolak saat instalasi, tap lagi tombol "Pasang
+  Sekarang" di banner setelah izin diaktifkan (APK yang sudah terunduh dipakai
+  ulang, tidak diunduh dobel).
+- Cek koneksi internet perangkat — pengecekan update butuh akses ke
+  `api.github.com`, gagal diam-diam (tanpa pesan error) kalau offline.
+- Pengecekan hanya menganggap ada update kalau nomor run CI Release terbaru lebih
+  besar dari versi yang sedang jalan — build APK yang di-*sideload* manual (bukan
+  dari CI) bisa saja tidak terdeteksi sesuai urutan ini.
 
 **Build gagal di GitHub Actions**
 - Cek apakah 4 secrets keystore (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) sudah diset kalau butuh APK release yang signed — kalau belum diset, job `release` di-skip otomatis (bukan gagal), tapi job `build` (debug) tetap harus sukses. Cek log job `build` dulu untuk error compile murni.

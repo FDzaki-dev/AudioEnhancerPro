@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fitur baru: in-app update (UpdateManager.kt). Cuma expose subfolder
+     cacheDir/updates/ (tempat APK hasil unduhan disimpan) — bukan seluruh
+     cacheDir, prinsip least-privilege buat FileProvider. -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

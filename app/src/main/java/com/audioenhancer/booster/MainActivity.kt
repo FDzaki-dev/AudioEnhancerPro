@@ -219,7 +219,15 @@ class MainActivity : ComponentActivity() {
                             // Batch 62: tombol "Coba Ambil Alih Kontrol Lagi" (ControlRecoveryBanner).
                             onRetryControl = { viewModel.retryControlAcquisition() },
                             requestedCustomPresetName = shortcutCustomPresetName,
-                            onRequestedPresetConsumed = { shortcutCustomPresetName = null }
+                            onRequestedPresetConsumed = { shortcutCustomPresetName = null },
+                            // Fitur baru: in-app update (UpdateManager.kt, BoosterViewModel).
+                            updateInfo = viewModel.updateInfo,
+                            updateDownloadProgress = viewModel.updateDownloadProgress,
+                            hasDownloadedUpdate = viewModel.downloadedApkFile != null,
+                            updateDownloadFailed = viewModel.updateDownloadFailed,
+                            onDownloadUpdate = { viewModel.downloadAndInstallUpdate() },
+                            onReinstallUpdate = { viewModel.reinstallDownloadedUpdate() },
+                            onUpdateDownloadFailedShown = { viewModel.dismissUpdateDownloadFailed() }
                         )
                     }
                 }

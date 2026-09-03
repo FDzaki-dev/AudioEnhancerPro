@@ -7,6 +7,12 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Fitur baru: in-app update (diminta user eksplisit, lihat UpdateManager.kt).
+         INTERNET: PERTAMA KALI app ini butuh network sama sekali (cek+unduh Release
+         GitHub) — sebelumnya app 100% offline. REQUEST_INSTALL_PACKAGES: pasang APK
+         hasil unduhan via intent instalasi (FileProvider di bawah). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".AudioEnhancerApp"
@@ -70,6 +76,19 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_booster_info" />
         </receiver>
+
+        <!-- Fitur baru: in-app update (UpdateManager.kt) — expose APK hasil unduhan
+             di cacheDir/updates/ ke intent instalasi sistem via content:// URI, TANPA
+             perlu android:exported="true"/FLAG_GRANT_READ_URI_PERMISSION global. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
     </application>
 </manifest>

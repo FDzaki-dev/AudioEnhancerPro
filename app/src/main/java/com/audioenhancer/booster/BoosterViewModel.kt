@@ -13,6 +13,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
 // koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel,
@@ -90,6 +91,18 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingLoudness: Float? = null
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
+    // Fitur baru: in-app update (UpdateManager.kt, diminta user eksplisit). `updateInfo`
+    // null = belum ada update (atau belum dicek/gagal cek — checkForUpdate() menelan
+    // exception jadi null, lihat komentar di sana). `downloadProgress` null = TIDAK
+    // sedang mengunduh (beda dari 0f = baru mulai), dipakai UI buat tahu kapan tampilkan
+    // progress bar. `downloadedApkFile` terisi begitu unduhan selesai — dipertahankan
+    // (bukan langsung dibuang) supaya tombol "Pasang Sekarang" bisa retry tanpa unduh
+    // ulang kalau user sempat dismiss layar installer sistem.
+    var updateInfo by mutableStateOf<UpdateManager.UpdateInfo?>(null); private set
+    var updateDownloadProgress by mutableStateOf<Float?>(null); private set
+    var downloadedApkFile by mutableStateOf<File?>(null); private set
+    var updateDownloadFailed by mutableStateOf(false); private set
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as AudioEnhancerService.LocalBinder).getService()
@@ -141,6 +154,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                 delay(1000)
             }
         }
+        // Cek update sekali tiap ViewModel ini dibuat (~sekali per sesi app dibuka) —
+        // diam-diam, lihat komentar checkForUpdate() soal kenapa gagalnya ditelan.
+        viewModelScope.launch { updateInfo = UpdateManager.checkForUpdate(getApplication()) }
     }
 
     /** Bisa dipanggil ulang kapan saja (bukan cuma sekali) — misal dari tombol
@@ -195,6 +211,44 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
      *  `false` (tidak ada apa-apa buat di-retry, tombol ini sengaja cuma muncul saat CONNECTED). */
     fun retryControlAcquisition(): Boolean {
         return if (bound) service?.retryControlAcquisition() ?: false else false
+    }
+
+    /** Tombol "Unduh & Pasang" di UpdateBanner (BoosterScreen). Unduh (chunk streaming,
+     *  lihat UpdateManager.downloadApk) lalu LANGSUNG trigger intent instalasi begitu
+     *  selesai — dipersepsikan user sebagai 1 aksi ("update langsung"), bukan 2 langkah
+     *  terpisah. Kalau gagal unduh, `updateDownloadFailed` dinyalakan buat UI tampilkan
+     *  snackbar (BEDA dari checkForUpdate() yang menelan kegagalan diam-diam — ini
+     *  dipicu eksplisit oleh tap user, jadi kegagalannya WAJIB kelihatan). */
+    fun downloadAndInstallUpdate() {
+        val info = updateInfo ?: return
+        if (updateDownloadProgress != null) return // sudah jalan, jangan dobel
+        viewModelScope.launch {
+            updateDownloadFailed = false
+            updateDownloadProgress = 0f
+            try {
+                val file = UpdateManager.downloadApk(getApplication(), info) { progress ->
+                    updateDownloadProgress = progress
+                }
+                downloadedApkFile = file
+                UpdateManager.installApk(getApplication(), file)
+            } catch (_: Exception) {
+                updateDownloadFailed = true
+            } finally {
+                updateDownloadProgress = null
+            }
+        }
+    }
+
+    /** Tombol "Pasang Sekarang" yang muncul setelah unduhan sukses — dipakai kalau
+     *  user sempat dismiss layar installer sistem yang otomatis terbuka di
+     *  `downloadAndInstallUpdate()`, supaya bisa coba lagi TANPA unduh ulang APK yang
+     *  sudah ada di cache. */
+    fun reinstallDownloadedUpdate() {
+        downloadedApkFile?.let { UpdateManager.installApk(getApplication(), it) }
+    }
+
+    fun dismissUpdateDownloadFailed() {
+        updateDownloadFailed = false
     }
 
     override fun onCleared() {

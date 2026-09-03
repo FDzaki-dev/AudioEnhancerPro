@@ -1,5 +1,96 @@
 # Changelog
 
+## v1.99.0 - Batch 69: In-app update (unduh & pasang APK langsung dari app)
+
+Diminta user eksplisit ("Tambahkan konfigurasi update langsung dalam aplikasinya")
+— sebelumnya cuma tercatat sebagai item yang SENGAJA DITUNDA sejak MODE
+MAINTENANCE dimulai (Batch 44), maintenance mode ngatur inisiatif Claude BUKAN
+larangan mutlak buat user, jadi permintaan eksplisit ini tetap dikerjakan.
+
+**File baru**: `UpdateManager.kt` — object stateless, 3 fungsi: `checkForUpdate()`
+(cek Release GitHub terbaru), `downloadApk()` (unduh APK via chunk streaming
+Okio), `installApk()` (trigger intent instalasi sistem).
+
+**Sumber kebenaran versi — pakai ulang skema yang SUDAH ADA, 0 field API baru**:
+judul tiap Release SELALU diakhiri `(Run #<run_number>)` (Batch 42), dan
+`versionCode` APK yang lagi jalan SEKARANG OTOMATIS = `GITHUB_RUN_NUMBER` dari run
+yang men-generate-nya (Batch 65 Versioning Lock). Jadi "ada update?" = run_number
+di judul Release TERBARU > versionCode yang lagi jalan — TIDAK perlu
+bandingkan versionName (string) sama sekali, lebih akurat karena versionName tidak
+selalu naik tiap rilis CI (lihat Batch 64). `versionCode` WAJIB dibaca runtime via
+`PackageManager` (BUKAN `BuildConfig.VERSION_CODE` — kelas `BuildConfig` dimatikan
+total sejak Batch 41, `buildFeatures.buildConfig = false`).
+
+**Chunk streaming (Feature Lock §3, standing instruction user)**: `downloadApk()`
+baca body APK per-chunk (64KB) lewat `Source.read(Buffer, Long)` + `Sink.write(
+Buffer, Long)` (interface dasar Okio, BUKAN `BufferedSource`/`BufferedSink` —
+keduanya sudah punya method ini sendiri, jadi `.buffer()` tidak perlu dipanggil
+sama sekali, lebih sedikit permukaan API yang beresiko salah). DILARANG
+`readBytes()`/muat body sekaligus ke memori. Panggilan API metadata Release
+(JSON, cuma beberapa KB) TIDAK kena aturan ini — dibaca sekaligus, aman (bukan
+bagian yang beresiko OOM).
+
+**Dependency baru**: `com.squareup.okio:okio:3.9.0` (`app/build.gradle.kts`) —
+KHUSUS buat chunk streaming di atas, BUKAN buat networking (tetap
+`HttpURLConnection` bawaan Android, 0 HTTP client library baru, biar tetap minim
+seperti gaya project ini — `org.json` juga dipakai ulang, bukan Gson/Moshi baru).
+
+**Permission baru (PERTAMA KALI app ini butuh network sama sekali)**:
+`INTERNET` (cek+unduh Release GitHub) dan `REQUEST_INSTALL_PACKAGES` (pasang APK
+hasil unduhan). SENGAJA TIDAK cek/minta `REQUEST_INSTALL_PACKAGES` manual di kode
+— kalau belum diizinkan, PackageInstaller sistem sendiri yang menampilkan layar
+"Izinkan dari sumber ini" + tombol ke Settings, cek ulang manual di app cuma
+duplikasi UX yang sistem sudah handle.
+
+**FileProvider baru** (`AndroidManifest.xml` + `res/xml/file_paths.xml` baru) —
+expose SUBFOLDER `cacheDir/updates/` saja (bukan seluruh cacheDir, least-privilege)
+lewat `content://` URI ke intent instalasi (`ACTION_VIEW` + MIME
+`application/vnd.android.package-archive`). Isi folder ini dibersihkan tiap
+unduhan baru, supaya APK basi tidak numpuk di cache device user.
+
+**UX**: `BoosterViewModel` cek update sekali diam-diam tiap ViewModel dibuat
+(~sekali per sesi app dibuka) — kegagalan cek SENGAJA ditelan jadi tidak ada
+banner (bukan snackbar error), karena ini jalan otomatis tanpa user minta. Kalau
+ADA update, `UpdateBanner` baru (`BoosterScreen.kt`, pola SAMA seperti
+CrashBanner/ControlRecoveryBanner — `SkeuTintedCard` + Row icon+teks+tombol, tint
+`primary` bukan `error` karena ini notifikasi netral bukan masalah) tampil dengan
+tombol "Unduh & Pasang". Tap tombol → unduh (progress bar + persentase) LALU
+LANGSUNG trigger intent instalasi begitu selesai (dipersepsikan user sebagai 1
+aksi, bukan 2 langkah terpisah). Kalau user sempat dismiss layar installer
+sistem, tombol berubah jadi "Pasang Sekarang" — retry TANPA unduh ulang APK yang
+sudah ada di cache. Kegagalan unduh (BEDA dari kegagalan cek di atas — ini
+dipicu eksplisit oleh tap user) surface sebagai snackbar via `SnackbarHostState`
+yang sudah ada (Batch 51), bukan diam-diam.
+
+**Versioning**: `versionName` dibump manual `1.98.0` → `1.99.0` (keputusan sadar
+Batch 65: `versionName` MASIH manual, "boleh diubah Claude kalau ada milestone
+semantik baru yang pantas" — permission network pertama kali + fitur self-update
+dianggap pantas, konsisten pola batch-batch fitur besar sebelumnya sebelum
+Batch 64's gap ditemukan/diperbaiki Batch 65). `versionCode` TIDAK disentuh
+(tetap formula otomatis `GITHUB_RUN_NUMBER`, sesuai Versioning Lock).
+
+**File yang berubah** (5 file kode: `UpdateManager.kt` baru,
+`BoosterViewModel.kt`, `BoosterScreen.kt`, `MainActivity.kt`, `values/strings.xml`
++ `values-en/strings.xml` — 5 string baru tiap bahasa, parity 113/113; +3 file
+Protected edit-parsial: `AndroidManifest.xml`, `app/build.gradle.kts`,
+`res/xml/file_paths.xml` baru).
+
+**Belum divalidasi runtime** — statis only (brace/paren balance 0 selisih di
+4 file Kotlin yang disentuh, XML parse-valid semua, parity string 113/113).
+`Source.read(Buffer, Long)`/`Sink.write(Buffer, Long)` (interface dasar Okio) dan
+`FileProvider`/intent instalasi PERTAMA KALI dipakai project ini — kandidat
+pertama dicurigai kalau CI compile error di sekitar import `okio.*`, atau kalau
+laporan device nyata: banner tidak pernah muncul walau ada Release baru (cek dulu
+koneksi internet + `api.github.com` tidak diblokir), unduhan gagal terus (cek
+permission INTERNET granted — WAJIB, tidak butuh runtime request, tapi device
+tertentu dengan firewall/VPN restriktif bisa blokir diam-diam), atau instalasi
+tidak jalan sama sekali (cek `${applicationId}.fileprovider` authority tidak
+tabrakan dengan app lain, dan `REQUEST_INSTALL_PACKAGES` benar ada di
+AndroidManifest hasil merge — bisa dicek `aapt dump permissions` pada APK jadi
+kalau ragu). Detail rasional lengkap tiap keputusan: `PROJECT_STATE.md` Batch 69.
+
+---
+
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
 **Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:
