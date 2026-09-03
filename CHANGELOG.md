@@ -2,6 +2,21 @@
 
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
+**Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:
+Batch 66/67 cuma ganti nama ZIP output — user tegur, maksudnya app juga kena
+(tetap "user facing, kosmetik only"). 8 string `Audio Booster`/
+`AudioEnhancerPro` → **`Boomly`** di `values/strings.xml` +
+`values-en/strings.xml` (`app_name`, `app_title`, `notif_title`,
+`notif_channel_name`, `qs_tile_label`, `status_running`, `notif_perm_body`,
+`ob1_title` — parity 108/108 terjaga), `docs/preview/current.html` (h1 + 1
+span, sinkron ke Kotlin), `README.md` (1 baris troubleshooting). SENGAJA
+TIDAK diubah: `CrashLogger.APP_FOLDER` (path fisik MediaStore, ganti =
+fragmentasi log lama, bukan kosmetik), semua identifier vital
+(applicationId/namespace/rootProject.name/nama workflow/repo). 0 bump versi.
+Aturan permanen ter-update: `PROJECT_STATE.md` § "Keputusan sadar".
+
+---
+
 **Addendum Batch 67 (koreksi nama brand, ditegur user eksplisit)**: pilihan
 Batch 66 (`AudioBooster`) dinilai user MASIH generik/placeholder (gabungan
 literal kata deskriptif, bukan brand asli). Ganti ke **`Boomly`**. Scope

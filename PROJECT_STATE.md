@@ -11,7 +11,30 @@ CHANGELOG.md). Kalau kamu Claude dan baru diminta lanjut project ini:
 
 ## Status saat ini
 - **Versi**: v1.98.0 (versionName manual TETAP, versionCode SEKARANG otomatis — lihat Batch 65)
-- ✏️ **Batch 67 (v1.98.0, terbaru)**: KOREKSI Batch 66 — user tegur eksplisit
+- 📱 **Batch 68 (v1.98.0, terbaru)**: EKSPANSI rebrand — user tegur eksplisit
+  Batch 66/67 cuma ganti nama ZIP, PADAHAL maksudnya **aplikasi juga kena**
+  (tetap "user facing, kosmetik only", scope diperjelas bukan diperlebar ke
+  vital). Semua string USER-FACING yang isinya `Audio Booster`/
+  `AudioEnhancerPro` diganti **`Boomly`** — label launcher, judul notifikasi,
+  channel notifikasi, QS Tile, subtitle header, teks izin notifikasi, judul
+  onboarding. 3 file kode (pas limit Micro-Batch): `values/strings.xml`
+  (8 string), `values-en/strings.xml` (8 string, parity 108/108 terjaga),
+  `docs/preview/current.html` (h1 + 1 span, biar preview HTML gak stale vs
+  Kotlin — lesson Batch 34). + `README.md` (1 baris troubleshooting "Settings
+  > Apps > Boomly", VIP kebal limit, biar instruksi ke user tetap akurat).
+  - **SENGAJA TETAP TIDAK diubah** (bukan kelewat, ini keputusan sadar — baca
+    sebelum tanya lagi): `CrashLogger.APP_FOLDER` (`Documents/AudioEnhancerPro/
+    logs/`) — ini PATH PENYIMPANAN fungsional, bukan teks kosmetik; ganti ini
+    FRAGMENTASI crash log lama yang sudah tersimpan di device user (log lama
+    jadi "hilang" dari sudut pandang app, bukan cuma ganti nama tampilan).
+    Kalau user MAU ini juga diganti, itu given eksplisit + terima
+    konsekuensinya, bukan didefault dari sini. `applicationId`/`namespace`/
+    `rootProject.name`/nama workflow/`NamaFolderProyek` (repo GitHub) TETAP —
+    itu vital, di luar definisi "kosmetik" apapun konteksnya (lihat Batch 66).
+  - **Belum divalidasi runtime** — statis only (XML parse valid 2 file,
+    parity string 108/108, tidak ada tag/struktur HTML yang berubah cuma isi
+    teks). 0 bump versi (nol logic/behavior berubah, cuma isi string).
+- ✏️ **Batch 67 (v1.98.0, riwayat)**: KOREKSI Batch 66 — user tegur eksplisit
   pilihan nama Batch 66 (`AudioBooster`) MASIH kerasa "generik/placeholder"
   (cuma gabungan literal "Audio"+"Booster", sama kelasnya dgn
   "AudioEnhancerPro" lama — bukan brand asli). Ganti ke **`Boomly`** (1 kata,
@@ -1706,20 +1729,23 @@ eksplisit user.
    Detail lengkap: `CHANGELOG.md` v1.76.0.
 
 ## Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
-- **[PERMANEN, Batch 67 — override Batch 66] Nama brand ZIP output Claude**:
-  `Boomly` — bukan `AudioEnhancerPro` (lama) atau `AudioBooster` (pilihan
-  Batch 66, ditolak user karena masih generik). HANYA nama artifact ZIP
-  (kosmetik, output Claude doang). Placeholder Termux mulai sesi ini:
-  `[NamaFileAplikasi]` = `Boomly`, `[NamaFolderProyek]` =
-  `AudioEnhancerPro` (repo GitHub/folder lokal, TIDAK ikut ganti — vital &
-  stable, JANGAN diubah tanpa user minta eksplisit + paham konsekuensi
-  rename repo). Identifier internal berikut TETAP `AudioEnhancerPro`/
-  `audioenhancer` selamanya kecuali user eksplisit minta lain:
-  `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
-  (`settings.gradle.kts`), nama workflow (`build.yml`), `APP_FOLDER`
-  (`CrashLogger.kt` — path MediaStore user, ganti ini FRAGMENTASI log lama),
-  `ob1_title` (`strings.xml`). `app_name` user-facing di HP (`"Audio
-  Booster"`) SUDAH lama begini, TIDAK berubah, TIDAK terkait keputusan ini.
+- **[PERMANEN, Batch 68 — perluas Batch 67] Brand kosmetik/user-facing =
+  `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
+  Batch 66 yang ditolak). Berlaku ke DUA lapisan:
+  1. **Nama ZIP output Claude** (Batch 66/67): `[NamaFileAplikasi]` =
+     `Boomly`. `[NamaFolderProyek]` (repo GitHub/folder lokal Termux) TETAP
+     `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti tanpa user minta
+     eksplisit + paham konsekuensi rename repo.
+  2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
+     `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
+     `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
+     baru yang butuh sebut nama app, WAJIB pakai `Boomly`, JANGAN
+     `Audio Booster`/`AudioEnhancerPro` lagi.
+  - **TETAP TIDAK ikut rebrand (vital/fungsional, bukan kosmetik)**:
+    `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
+    (`settings.gradle.kts`), nama workflow (`build.yml`), nama APK/artifact
+    dari CI, `CrashLogger.APP_FOLDER` (path MediaStore fisik user — ganti ini
+    FRAGMENTASI log lama tersimpan, BUKAN sekadar ganti tampilan).
 - **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
   (`grep` nol hasil), TAPI mekanisme inti app ini (nempel efek audio ke
   session ID `0` global) itu sendiri di luar cara resmi API ini

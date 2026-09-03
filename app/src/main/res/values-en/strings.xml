@@ -1,8 +1,8 @@
 <resources>
-    <string name="app_name">Audio Booster</string>
+    <string name="app_name">Boomly</string>
 
     <!-- Status badge -->
-    <string name="status_running">Service running in background — also check the \'Audio Booster active\' notification</string>
+    <string name="status_running">Service running in background — also check the \'Boomly active\' notification</string>
     <string name="status_not_running">Service not running — it may have been stopped from the notification</string>
     <string name="restart_service">Restart</string>
 
@@ -17,13 +17,13 @@
     <string name="controls_title">Controls</string>
 
     <!-- Header -->
-    <string name="app_title">Audio Booster</string>
+    <string name="app_title">Boomly</string>
     <string name="app_subtitle">Effects apply to all system audio</string>
     <string name="cd_help">Help / feature explanation</string>
 
     <!-- Notification permission -->
     <string name="notif_perm_title">Notification not allowed yet</string>
-    <string name="notif_perm_body">Without this permission, the \'Audio Booster active\' notification won\'t appear (the service still runs, you just won\'t see the status bar indicator).</string>
+    <string name="notif_perm_body">Without this permission, the \'Boomly active\' notification won\'t appear (the service still runs, you just won\'t see the status bar indicator).</string>
     <string name="notif_perm_button">Open Notification Settings</string>
 
     <!-- Chipset support banners -->
@@ -88,7 +88,7 @@
     <string name="onboarding_start">Start Using the App</string>
     <string name="onboarding_next">Next</string>
 
-    <string name="ob1_title">Welcome to AudioEnhancerPro</string>
+    <string name="ob1_title">Welcome to Boomly</string>
     <string name="ob1_desc">This app boosts audio quality &amp; volume across your entire phone system — not just inside this app, but also when you listen to music, watch videos, or play games in other apps.</string>
 
     <string name="ob2_title">Bass Boost</string>
@@ -142,12 +142,12 @@
     <string name="cd_delete_preset">Delete preset %1$s</string>
 
     <!-- Foreground service notification -->
-    <string name="notif_channel_name">Audio Booster Active</string>
+    <string name="notif_channel_name">Boomly Active</string>
     <string name="notif_channel_desc">Shows the running status of the audio booster</string>
-    <string name="notif_title">Audio Booster active</string>
+    <string name="notif_title">Boomly active</string>
     <string name="notif_text">Enhancing system audio quality &amp; volume</string>
     <string name="notif_action_stop">Stop</string>
-    <string name="qs_tile_label">Audio Booster</string>
+    <string name="qs_tile_label">Boomly</string>
     <string name="qs_tile_subtitle_on">Active</string>
     <string name="qs_tile_subtitle_off">Inactive</string>
 

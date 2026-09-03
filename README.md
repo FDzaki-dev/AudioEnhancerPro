@@ -93,7 +93,7 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
 ## Troubleshooting
 
 **Notifikasi service tidak muncul / hilang sendiri**
-- Cek permission notifikasi belum ditolak: Settings > Apps > Audio Booster > Notifications.
+- Cek permission notifikasi belum ditolak: Settings > Apps > Boomly > Notifications.
 - Cek battery optimization: sebagian HP (Xiaomi/MIUI, Oppo/ColorOS, Vivo/FuntouchOS, Samsung) agresif membunuh background service. Matikan battery optimization untuk app ini lewat Settings > Battery > pilih app > "Tidak dibatasi" / "No restrictions".
 - Kalau baru install ulang, buka app minimal sekali biar `BootReceiver` bisa daftar ulang service.
 
