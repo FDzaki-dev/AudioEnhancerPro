@@ -27,6 +27,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -166,6 +167,16 @@ class MainActivity : ComponentActivity() {
                     // boleh true), ditaruh terpisah (bukan enum) supaya diff minimal
                     // terhadap showOnboarding yang sudah ada & battle-tested.
                     var showSettings by remember { mutableStateOf(false) }
+                    // Batch 74: FIX regresi gesture back — SettingsScreen (Batch 73) punya
+                    // tombol panah-balik eksplisit, tapi system back gesture/tombol TIDAK
+                    // diintersep sama sekali sebelum ini, jadi malah nutup TOTAL app (0
+                    // BackHandler ada di manapun di project ini sebelum baris ini). SENGAJA
+                    // CUMA showSettings yang di-guard di sini — showOnboarding TIDAK
+                    // disentuh: itu forced first-run flow, ngasih BackHandler generik ke
+                    // situ resikonya user bisa skip onboarding pertama tanpa lihat semua
+                    // halaman cuma modal gesture back, beda kelas masalah dari regresi yang
+                    // dilaporkan (yang eksplisit soal Settings).
+                    BackHandler(enabled = showSettings) { showSettings = false }
 
                     if (showOnboarding) {
                         OnboardingScreen(onFinish = {

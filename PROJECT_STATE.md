@@ -93,15 +93,31 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
 - **Versi**: v1.99.0 (versionName manual TETAP, versionCode OTOMATIS dari
   `GITHUB_RUN_NUMBER` — lihat "Keputusan sadar" di atas).
-- **Batch terakhir**: Batch 73 — Section Settings baru + tombol "Cek Update
-  Sekarang" (entry point manual, user tegur eksplisit lewat screenshot).
-  5 file kode disentuh (`SettingsScreen.kt` baru, `UpdateManager.kt`,
-  `BoosterViewModel.kt`, `BoosterScreen.kt`, `MainActivity.kt`) + strings
-  ID/EN (parity 122/122). Melebihi Micro-Batch 3 file, justifikasi = fitur
-  besar diminta eksplisit (sama pola Batch 69). 0 bump versi.
+- **Batch terakhir**: Batch 74 — FIX regresi gesture back di `SettingsScreen`
+  (Batch 73 gak intersep back sama sekali, nutup TOTAL app). 1 file kode
+  (`MainActivity.kt`, Protected edit-parsial, `BackHandler` baru). 0 bump versi.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🆕 **Batch 73 (v1.99.0, terbaru)**: Section **Settings baru** (`SettingsScreen.kt`)
+- 🐛 **Batch 74 (v1.99.0, terbaru)**: FIX regresi gesture back, user tegur
+  singkat ("Gesture back mengalami regresi") langsung setelah Batch 73.
+  **Root cause**: 0 `BackHandler` ada di MANAPUN di project ini sebelum batch
+  ini — `SettingsScreen` (Batch 73) dikasih tombol panah-balik EKSPLISIT di
+  UI, tapi system back gesture/tombol Android TIDAK diintersep sama sekali,
+  jadi malah nutup TOTAL app (bukan balik ke `BoosterScreen` seperti tombol
+  panahnya). **Fix**: `BackHandler(enabled = showSettings) { showSettings =
+  false }` baru di `MainActivity.kt`, SENGAJA CUMA guard `showSettings`.
+  `showOnboarding` SADAR TIDAK disentuh — itu forced first-run flow, `Back
+  Handler` generik di situ resikonya user bisa skip onboarding pertama cuma
+  modal gesture back (kelas masalah beda dari yang dilaporkan, jangan
+  digabung tanpa user minta eksplisit). **File disentuh**: `MainActivity.kt`
+  saja (1 file kode, Protected edit-parsial — tambah 1 import + 1 baris
+  `BackHandler` + komentar, 0 baris lain disentuh). Brace/paren balance 0
+  selisih. 0 bump versi. **Belum divalidasi runtime** — kandidat pertama
+  dicurigai kalau masih ada gejala aneh soal gesture: cek
+  `android:enableOnBackInvokedCallback` TIDAK ada di `AndroidManifest.xml`
+  (app masih pakai legacy back dispatch, BUKAN predictive-back API 33+ —
+  di luar scope batch ini, cuma dicatat kalau relevan nanti).
+- 🆕 **Batch 73 (v1.99.0, riwayat)**: Section **Settings baru** (`SettingsScreen.kt`)
   — entry point cek-update MANUAL, user tegur eksplisit lewat 2 screenshot
   ("dimana tab update dalam aplikasinya") setelah BLOCKER dijawab user pilih
   "Section Settings baru". Root cause (sudah dikonfirmasi dari kode SEBELUM

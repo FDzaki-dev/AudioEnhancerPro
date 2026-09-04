@@ -136,6 +136,19 @@ brace/paren balance 0 selisih di 5 file Kotlin, XML parse-valid, parity string
 
 ---
 
+**Addendum Batch 74 (FIX regresi gesture back, user tegur singkat langsung
+setelah Batch 73)**: `SettingsScreen` (Batch 73) dikasih tombol panah-balik
+eksplisit, tapi 0 `BackHandler` ada di manapun di project ini — system back
+gesture/tombol Android nutup TOTAL app, bukan balik ke `BoosterScreen`. Fix:
+`BackHandler(enabled = showSettings) { showSettings = false }` baru di
+`MainActivity.kt`. SENGAJA CUMA guard `showSettings` — `showOnboarding` (forced
+first-run flow) SADAR TIDAK disentuh, beda kelas masalah dari yang dilaporkan
+(resiko user bisa skip onboarding pertama cuma modal gesture back). 1 file
+kode (`MainActivity.kt`, Protected edit-parsial), brace/paren balance 0
+selisih, 0 bump versi. Detail: `PROJECT_STATE.md` Batch 74.
+
+---
+
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
 **Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:
