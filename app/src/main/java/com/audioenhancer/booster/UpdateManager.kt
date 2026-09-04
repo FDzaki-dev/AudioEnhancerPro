@@ -55,6 +55,24 @@ object UpdateManager {
         val fileName: String
     )
 
+    /** Batch 74 (bugfix): hasil `fetchLatestRelease()` dipecah 3 kondisi yang SEBELUMNYA
+     *  digepyok jadi satu nilai `null` — root cause laporan user "app bilang sudah versi
+     *  terbaru padahal jelas belum": HTTP non-200 (mis. rate-limit 403 GitHub API
+     *  unauthenticated, 60 req/jam per-IP — gampang kena di jaringan seluler ber-NAT),
+     *  judul Release gagal match regex, ATAU asset APK tidak ketemu — SEMUA sebelumnya
+     *  balik `null` yang PERSIS SAMA nilainya dengan "memang sudah versi terbaru"
+     *  (`runNumber <= currentVersionCode`). `checkForUpdate()` (silent, auto tiap app
+     *  dibuka) sengaja tetap perlakukan ketiganya sama (diam saja, TIDAK ganggu user) —
+     *  itu bukan bug. Tapi `checkForUpdateManual()` (tombol "Cek Update Sekarang") wajib
+     *  bisa BEDAKAN "sudah dicek, betul terbaru" vs "gagal dicek" (itu justru ALASAN
+     *  tombol ini dibikin, lihat komentar `checkForUpdateManual` di bawah) — nilai
+     *  `null` yang ambigu bikin janji itu tidak pernah benar-benar terpenuhi. */
+    sealed class CheckResult {
+        data class Available(val info: UpdateInfo) : CheckResult()
+        data object UpToDate : CheckResult()
+        data object Failed : CheckResult()
+    }
+
     private fun currentVersionCode(context: Context): Int {
         val info = context.packageManager.getPackageInfo(context.packageName, 0)
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -66,13 +84,15 @@ object UpdateManager {
     }
 
     /** Inti logic cek Release GitHub terbaru — DIPAKAI ULANG oleh 2 fungsi publik di
-     *  bawah (`checkForUpdate`/`checkForUpdateManual`, Batch 73). Return `null` kalau
-     *  versi yang lagi jalan SUDAH paling baru (atau lebih baru — mis. build lokal
-     *  manual), APK asset tidak ketemu di Release itu, atau body Release gagal
-     *  di-parse. Exception jaringan/HTTP (timeout, DNS, dll) SENGAJA TIDAK ditelan di
-     *  sini — soal telan-atau-lempar itu keputusan tiap PEMANGGIL (lihat masing-masing
-     *  di bawah), bukan tanggung jawab fungsi inti ini. */
-    private suspend fun fetchLatestRelease(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+     *  bawah (`checkForUpdate`/`checkForUpdateManual`, Batch 73). Return `CheckResult`
+     *  (Batch 74, sebelumnya `UpdateInfo?` — lihat komentar `CheckResult` soal kenapa):
+     *  `UpToDate` kalau versi yang lagi jalan SUDAH paling baru (atau lebih baru — mis.
+     *  build lokal manual); `Failed` kalau HTTP non-200/regex tidak match/APK asset
+     *  tidak ketemu di Release. Exception jaringan/parsing JSON (timeout, DNS, JSON
+     *  invalid, dll) SENGAJA TIDAK ditelan di sini — soal telan-atau-lempar itu
+     *  keputusan tiap PEMANGGIL (lihat masing-masing di bawah), bukan tanggung jawab
+     *  fungsi inti ini. */
+    private suspend fun fetchLatestRelease(context: Context): CheckResult = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
             connection = (URL(REPO_API_LATEST_RELEASE).openConnection() as HttpURLConnection).apply {
@@ -85,18 +105,23 @@ object UpdateManager {
                 connectTimeout = 15_000
                 readTimeout = 15_000
             }
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext null
+            // Batch 74: non-200 (mis. 403 rate-limit GitHub API unauthenticated, 404, 5xx)
+            // BUKAN "sudah terbaru" — itu gagal cek. Lihat komentar CheckResult di atas.
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext CheckResult.Failed
 
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(body)
 
+            // Judul Release gagal match regex = anomali/gagal parse, BUKAN "sudah terbaru".
             val runNumber = RUN_NUMBER_REGEX.find(json.optString("name"))
-                ?.groupValues?.getOrNull(1)?.toIntOrNull() ?: return@withContext null
-            if (runNumber <= currentVersionCode(context)) return@withContext null
+                ?.groupValues?.getOrNull(1)?.toIntOrNull() ?: return@withContext CheckResult.Failed
+            if (runNumber <= currentVersionCode(context)) return@withContext CheckResult.UpToDate
 
             val versionName = json.optString("tag_name").removePrefix("v").substringBefore("-run")
 
-            val assets = json.optJSONArray("assets") ?: return@withContext null
+            // Release ketemu & lebih baru, tapi asset APK tidak ada = release rusak/belum
+            // lengkap ter-upload — gagal cek, BUKAN "sudah terbaru".
+            val assets = json.optJSONArray("assets") ?: return@withContext CheckResult.Failed
             var apkUrl: String? = null
             var apkName: String? = null
             for (i in 0 until assets.length()) {
@@ -108,9 +133,11 @@ object UpdateManager {
                     break
                 }
             }
-            if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext null
+            if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext CheckResult.Failed
 
-            UpdateInfo(versionName = versionName, runNumber = runNumber, downloadUrl = apkUrl, fileName = apkName)
+            CheckResult.Available(
+                UpdateInfo(versionName = versionName, runNumber = runNumber, downloadUrl = apkUrl, fileName = apkName)
+            )
         } finally {
             connection?.disconnect()
         }
@@ -122,7 +149,9 @@ object UpdateManager {
      *  di luar aksi eksplisit apapun. WAJIB dipanggil dari coroutine (viewModelScope),
      *  bukan main thread langsung. */
     suspend fun checkForUpdate(context: Context): UpdateInfo? =
-        try { fetchLatestRelease(context) } catch (_: Exception) { null }
+        try {
+            (fetchLatestRelease(context) as? CheckResult.Available)?.info
+        } catch (_: Exception) { null }
 
     /** Batch 73: dipicu EKSPLISIT oleh tombol "Cek Update Sekarang" (section Settings
      *  baru) — user tegur eksplisit tidak ada entry point manual sama sekali sebelum
@@ -133,7 +162,7 @@ object UpdateManager {
      *  (`BoosterViewModel.checkForUpdateManually`) yang tangkap & surface pesan error
      *  ke UI, pola sama seperti `downloadApk()` di bawah (aksi eksplisit tap user,
      *  kegagalan WAJIB kelihatan). */
-    suspend fun checkForUpdateManual(context: Context): UpdateInfo? = fetchLatestRelease(context)
+    suspend fun checkForUpdateManual(context: Context): CheckResult = fetchLatestRelease(context)
 
     /** Unduh APK Release via chunk streaming Okio ke `context.cacheDir/updates/` —
      *  folder ini yang diekspos FileProvider (`res/xml/file_paths.xml`, `cache-path

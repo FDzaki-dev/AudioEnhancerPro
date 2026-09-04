@@ -93,12 +93,54 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
 - **Versi**: v1.99.0 (versionName manual TETAP, versionCode OTOMATIS dari
   `GITHUB_RUN_NUMBER` — lihat "Keputusan sadar" di atas).
-- **Batch terakhir**: Batch 74 — FIX regresi gesture back di `SettingsScreen`
-  (Batch 73 gak intersep back sama sekali, nutup TOTAL app). 1 file kode
-  (`MainActivity.kt`, Protected edit-parsial, `BackHandler` baru). 0 bump versi.
+- **Batch terakhir**: Batch 75 — FIX bug "Cek Update Sekarang" bisa lapor
+  "sudah versi terbaru" padahal cek-nya sendiri GAGAL (HTTP non-200/rate-limit
+  GitHub API, dll). 2 file kode (`UpdateManager.kt`, `BoosterViewModel.kt`).
+  0 bump versi.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🐛 **Batch 74 (v1.99.0, terbaru)**: FIX regresi gesture back, user tegur
+- 🐛 **Batch 75 (v1.99.0, terbaru)**: FIX laporan user ("app bilang sudah versi
+  terbaru padahal jelas belum") soal tombol "Cek Update Sekarang".
+  **Root cause**: `UpdateManager.fetchLatestRelease()` (privat) balik nilai
+  `null` untuk 3 kondisi yang beda arti — (1) memang sudah versi terbaru
+  (`runNumber <= currentVersionCode`), (2) HTTP request gagal (respons
+  non-200 — paling mungkin: rate-limit `403` GitHub REST API unauthenticated,
+  cuma 60 request/jam PER-IP, gampang kena di jaringan seluler ber-NAT), atau
+  (3) judul Release gagal match regex `Run #(\d+)` / asset APK tidak ketemu di
+  Release. `checkForUpdateManual()` (dipanggil tombol Settings) meneruskan
+  `null` itu apa adanya ke `BoosterViewModel.checkForUpdateManually()`, yang
+  cuma cek `result != null` — jadi kondisi (2) dan (3) SALAH diklasifikasi
+  jadi `UP_TO_DATE`, padahal seharusnya `ERROR` (state ini SUDAH ADA di enum
+  `ManualUpdateCheckState` sejak Batch 73, cuma gak pernah ke-trigger buat
+  kasus HTTP-gagal). Cek otomatis diam-diam (`checkForUpdate()`, dipanggil
+  `init` ViewModel tiap app dibuka) TIDAK kena bug ini secara user-facing —
+  dia emang SENGAJA diam kalau gagal (lihat dokumentasi Batch 69), jadi
+  ke-3 kondisi kebetulan boleh sama-sama `null` di situ.
+  **Fix**: `UpdateManager.CheckResult` sealed class baru (`Available(info)` /
+  `UpToDate` / `Failed`) — `fetchLatestRelease()` sekarang return ini, bukan
+  `UpdateInfo?`. `checkForUpdate()` (silent) unwrap `Available` ke
+  `UpdateInfo?` seperti sebelumnya (0 perubahan perilaku di jalur ini).
+  `checkForUpdateManual()` sekarang return `CheckResult` apa adanya.
+  `BoosterViewModel.checkForUpdateManually()` di-`when`-kan ke 3 cabang:
+  `Available`→`FOUND`, `UpToDate`→`UP_TO_DATE`, `Failed`→`ERROR` (exception
+  asli — network timeout dkk — tetap ketangkep `catch` luar seperti sebelumnya,
+  0 perubahan di situ). **`SettingsScreen.kt` TIDAK disentuh** — UI buat state
+  `ERROR` (teks + warna `MaterialTheme.colorScheme.error`) SUDAH ADA sejak
+  Batch 73, cuma gak pernah ke-reach untuk kasus ini; sekarang ke-reach.
+  **File disentuh** (2 file kode, dalam Micro-Batch): `UpdateManager.kt`
+  (sealed class baru + `fetchLatestRelease`/`checkForUpdate`/
+  `checkForUpdateManual`, komentar lama yang sebut "return null" diperbaiki
+  biar gak stale), `BoosterViewModel.kt` (`checkForUpdateManually` jadi
+  `when` 3-cabang, guard dobel-tap & `try/catch` luar tidak diubah).
+  **Cek statis**: brace/paren balance 0 selisih di kedua file (dihitung ulang
+  setelah semua edit). **0 bump versi** — bugfix atas fitur v1.99.0 yang sama
+  (Batch 69/73), bukan milestone baru. **BELUM divalidasi runtime** (CI
+  belum jalan dari sesi ini) — kandidat pertama dicurigai kalau masih ada
+  gejala aneh: constant `REPO_API_LATEST_RELEASE` masih hardcode
+  `FDzaki-dev/AudioEnhancerPro` (benar, itu `[NamaFolderProyek]`/repo asli,
+  BUKAN brand kosmetik `Boomly` — lihat "Keputusan sadar", sengaja tidak
+  ikut disentuh batch ini).
+- 🐛 **Batch 74 (v1.99.0, riwayat)**: FIX regresi gesture back, user tegur
   singkat ("Gesture back mengalami regresi") langsung setelah Batch 73.
   **Root cause**: 0 `BackHandler` ada di MANAPUN di project ini sebelum batch
   ini — `SettingsScreen` (Batch 73) dikasih tombol panah-balik EKSPLISIT di
@@ -2080,7 +2122,10 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   (unduh via chunk streaming Okio, `Source.read(Buffer,Long)`/`Sink.write(
   Buffer,Long)` langsung — TANPA `.buffer()`, interface dasar Okio sudah cukup),
   `installApk()` (intent `ACTION_VIEW` + FileProvider). PERTAMA KALI project ini
-  butuh `INTERNET` sama sekali — sebelumnya 100% offline. Batch 73: logic inti
+  butuh `INTERNET` sama sekali — sebelumnya 100% offline. Batch 75: `fetchLatestRelease()`
+  privat return `CheckResult` sealed class (`Available`/`UpToDate`/`Failed`),
+  BUKAN `UpdateInfo?` polos lagi — fix bug "gagal cek disalahartikan sudah
+  terbaru" (lihat LOG UPDATE HARIAN Batch 75). Batch 73: logic inti
   diekstrak ke `fetchLatestRelease()` privat (dipakai ulang `checkForUpdate()`
   DAN `checkForUpdateManual()` baru — beda cuma soal exception ditelan/dilempar).
 - `SettingsScreen.kt` — Batch 73, BARU. Entry point cek-update MANUAL (tombol

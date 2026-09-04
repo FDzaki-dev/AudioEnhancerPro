@@ -149,6 +149,28 @@ selisih, 0 bump versi. Detail: `PROJECT_STATE.md` Batch 74.
 
 ---
 
+**Addendum Batch 75 (FIX bug "Cek Update Sekarang" bilang sudah terbaru
+padahal cek-nya sendiri gagal, dilaporkan user)**: `UpdateManager.
+fetchLatestRelease()` privat balik `null` untuk 3 kondisi beda arti — sudah
+terbaru, HTTP gagal (mis. rate-limit `403` GitHub API unauthenticated,
+60 req/jam per-IP), atau judul Release/asset APK gagal di-parse.
+`checkForUpdateManual()` meneruskan `null` itu apa adanya, dan
+`BoosterViewModel.checkForUpdateManually()` cuma cek `!= null` — jadi
+"gagal cek" ikut diklasifikasi jadi "sudah terbaru" (state `ERROR` yang
+sudah ada di enum sejak Batch 73 gak pernah ke-trigger buat kasus ini). Fix:
+`UpdateManager.CheckResult` sealed class baru (`Available`/`UpToDate`/
+`Failed`) — `fetchLatestRelease()` return ini, bukan `UpdateInfo?` polos.
+`checkForUpdate()` (silent, otomatis) unwrap `Available` seperti sebelumnya,
+0 perubahan perilaku di jalur itu. `checkForUpdateManually()` di-`when`-kan
+3 cabang eksplisit ke `FOUND`/`UP_TO_DATE`/`ERROR`. `SettingsScreen.kt` TIDAK
+disentuh — UI state `ERROR` sudah ada sejak Batch 73, sekarang benar-benar
+ke-reach. 2 file kode (`UpdateManager.kt`, `BoosterViewModel.kt`, dalam
+Micro-Batch), brace/paren balance 0 selisih, 0 bump versi (bugfix milestone
+v1.99.0 yang sama). **Belum divalidasi runtime** (CI belum jalan dari sesi
+ini). Detail: `PROJECT_STATE.md` Batch 75.
+
+---
+
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
 **Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:

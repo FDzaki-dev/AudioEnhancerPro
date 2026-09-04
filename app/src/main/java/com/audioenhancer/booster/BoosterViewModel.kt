@@ -270,12 +270,21 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         manualUpdateCheckState = ManualUpdateCheckState.CHECKING
         viewModelScope.launch {
             try {
-                val result = UpdateManager.checkForUpdateManual(getApplication())
-                if (result != null) {
-                    updateInfo = result
-                    manualUpdateCheckState = ManualUpdateCheckState.FOUND
-                } else {
-                    manualUpdateCheckState = ManualUpdateCheckState.UP_TO_DATE
+                // Batch 74 (bugfix): dulu `result != null` doang — HTTP gagal (rate-limit
+                // dkk) balik null dari UpdateManager PERSIS SAMA kayak "sudah terbaru",
+                // jadi user lihat "Sudah versi terbaru" walau ceknya sendiri gagal total.
+                // Sekarang 3 kondisi dibedakan eksplisit lewat UpdateManager.CheckResult.
+                when (val result = UpdateManager.checkForUpdateManual(getApplication())) {
+                    is UpdateManager.CheckResult.Available -> {
+                        updateInfo = result.info
+                        manualUpdateCheckState = ManualUpdateCheckState.FOUND
+                    }
+                    UpdateManager.CheckResult.UpToDate -> {
+                        manualUpdateCheckState = ManualUpdateCheckState.UP_TO_DATE
+                    }
+                    UpdateManager.CheckResult.Failed -> {
+                        manualUpdateCheckState = ManualUpdateCheckState.ERROR
+                    }
                 }
             } catch (_: Exception) {
                 manualUpdateCheckState = ManualUpdateCheckState.ERROR
