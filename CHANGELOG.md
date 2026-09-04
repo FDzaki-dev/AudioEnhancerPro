@@ -109,6 +109,33 @@ kontradiksi sama rule yang baru saja dipin di batch yang sama. Glob
 
 ---
 
+**Addendum Batch 73 (entry point cek-update MANUAL, user tegur eksplisit lewat
+screenshot — banner otomatis Batch 69 gak punya cara dipicu manual & gagalnya
+diam-diam, jadi user gak tahu app-nya beneran ngecek atau enggak)**: Section
+Settings baru (ikon ⚙️ di layar utama, sebelah ikon bantuan) — tombol "Cek
+Update Sekarang" + tampilan versi app terpasang. BEDA dari cek otomatis:
+hasilnya SELALU ditampilkan (sudah terbaru / ketemu update / gagal jaringan),
+tidak pernah diam-diam. `UpdateManager.kt` di-refactor (BUKAN ubah perilaku):
+logic inti diekstrak ke `fetchLatestRelease()` privat, dipakai ulang oleh
+`checkForUpdate()` (otomatis, tetap menelan exception seperti sebelumnya —
+0 perubahan perilaku) dan `checkForUpdateManual()` baru (exception dilempar
+apa adanya, ditangkap `BoosterViewModel.checkForUpdateManually()` yang baru).
+Kalau cek manual ketemu update, `updateInfo` (state yang sudah ada) ikut
+di-set — `UpdateBanner` di layar utama otomatis muncul balik, TIDAK ada
+duplikasi UI unduh/pasang di Settings. Navigasi 3-state di `MainActivity.kt`
+(Onboarding/Settings/Booster, pola sama seperti `showOnboarding` yang sudah
+ada). **File disentuh** (5 file kode: `SettingsScreen.kt` baru,
+`UpdateManager.kt`, `BoosterViewModel.kt`, `BoosterScreen.kt` + `MainActivity.kt`
+Protected edit-parsial; `values/strings.xml` + `values-en/strings.xml` — 9
+string baru tiap bahasa, parity 122/122 — melebihi Micro-Batch 3 file kode,
+justifikasi SAMA seperti Batch 69: fitur besar diminta eksplisit, satu unit
+atomik, lihat `PROJECT_STATE.md` Batch 73). 0 bump versi (kelanjutan/penuntasan
+milestone in-app-update v1.99.0 yang sama, bukan milestone baru). Statis only —
+brace/paren balance 0 selisih di 5 file Kotlin, XML parse-valid, parity string
+122/122. **Belum divalidasi runtime.**
+
+---
+
 ## v1.98.0 - Batch 63 (audit eksternal): Gap #16 preset custom kini simpan EQ
 
 **Addendum Batch 68 (ekspansi rebrand ke dalam app, ditegur user eksplisit)**:

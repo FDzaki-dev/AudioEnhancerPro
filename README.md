@@ -42,7 +42,10 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka ke tab Releases
   GitHub repo ini, dan kalau ada versi lebih baru, muncul banner "Unduh & Pasang"
   yang mengunduh APK signed lalu langsung membuka layar instalasi sistem, tanpa
-  perlu buka browser/tab Releases manual.
+  perlu buka browser/tab Releases manual. Ada juga tombol "Cek Update Sekarang"
+  di halaman Pengaturan (ikon ⚙️ di layar utama) buat trigger cek manual kapan
+  saja, lengkap status jelas (sudah terbaru / ketemu update / gagal cek) — beda
+  dari cek otomatis di atas yang diam-diam kalau gagal.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
@@ -116,12 +119,17 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
 - Kartu "Equalizer Manual" hanya muncul kalau chipset HP mendukung `android.media.audiofx.Equalizer` dengan jumlah band > 0. Sebagian chipset budget tidak menyediakan equalizer per-band sama sekali — ini batasan hardware, bukan bug app.
 
 **Banner "Update tersedia" tidak pernah muncul walau sudah ada Release baru**
+- Buka Pengaturan (ikon ⚙️ di layar utama) → "Cek Update Sekarang" buat trigger
+  cek manual — beda dari cek otomatis, hasilnya SELALU ditampilkan (sudah
+  terbaru / ketemu update / gagal, bukan diam-diam) jadi langsung ketahuan
+  apakah masalahnya jaringan atau memang belum ada Release baru.
 - Cek app punya izin "Install unknown apps" untuk Boomly (Settings > Apps > Boomly
   > Install unknown apps) — kalau ditolak saat instalasi, tap lagi tombol "Pasang
   Sekarang" di banner setelah izin diaktifkan (APK yang sudah terunduh dipakai
   ulang, tidak diunduh dobel).
 - Cek koneksi internet perangkat — pengecekan update butuh akses ke
-  `api.github.com`, gagal diam-diam (tanpa pesan error) kalau offline.
+  `api.github.com`, cek otomatis gagal diam-diam (tanpa pesan error) kalau
+  offline (pakai cek manual di atas buat lihat pesan errornya).
 - Pengecekan hanya menganggap ada update kalau nomor run CI Release terbaru lebih
   besar dari versi yang sedang jalan — build APK yang di-*sideload* manual (bukan
   dari CI) bisa saja tidak terdeteksi sesuai urutan ini.

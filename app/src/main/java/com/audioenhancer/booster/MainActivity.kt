@@ -161,12 +161,25 @@ class MainActivity : ComponentActivity() {
                     var showOnboarding by remember {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
                     }
+                    // Batch 73: layar Settings baru (entry point cek-update manual) —
+                    // pola tri-state SAMA seperti showOnboarding di atas (cuma 1 yang
+                    // boleh true), ditaruh terpisah (bukan enum) supaya diff minimal
+                    // terhadap showOnboarding yang sudah ada & battle-tested.
+                    var showSettings by remember { mutableStateOf(false) }
 
                     if (showOnboarding) {
                         OnboardingScreen(onFinish = {
                             PrefsHelper.setOnboardingDone(this@MainActivity)
                             showOnboarding = false
                         })
+                    } else if (showSettings) {
+                        SettingsScreen(
+                            appVersionName = packageManager.getPackageInfo(packageName, 0).versionName ?: "",
+                            manualUpdateCheckState = viewModel.manualUpdateCheckState,
+                            foundUpdateInfo = viewModel.updateInfo,
+                            onCheckUpdate = { viewModel.checkForUpdateManually() },
+                            onBack = { showSettings = false }
+                        )
                     } else {
                         BoosterScreen(
                             onBass = { viewModel.setBass(it) },
@@ -174,6 +187,7 @@ class MainActivity : ComponentActivity() {
                             onLoudness = { viewModel.setLoudness(it) },
                             onEqualizerBand = { band, level -> viewModel.setEqualizerBand(band, level) },
                             onOpenHelp = { showOnboarding = true },
+                            onOpenSettings = { showSettings = true },
                             bassSupported = viewModel.bassSupported,
                             virtualizerSupported = viewModel.virtualizerSupported,
                             loudnessSupported = viewModel.loudnessSupported,

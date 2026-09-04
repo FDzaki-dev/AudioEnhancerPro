@@ -65,16 +65,14 @@ object UpdateManager {
         }
     }
 
-    /** Cek Release GitHub terbaru. Return `null` kalau versi yang lagi jalan SUDAH
-     *  paling baru (atau lebih baru — mis. build lokal manual), APK asset tidak
-     *  ketemu di Release itu, atau request gagal (network/parsing) — SEMUA exception
-     *  SENGAJA ditelan jadi `null` di sini (bukan dilempar), karena check ini jalan
-     *  otomatis diam-diam tiap app dibuka (lihat BoosterViewModel.init), gagalnya
-     *  TIDAK seharusnya mengganggu user dengan pesan error. Beda dari `downloadApk()`
-     *  di bawah yang dipicu eksplisit oleh tap user — itu WAJIB melempar exception
-     *  biar kegagalannya kelihatan. WAJIB dipanggil dari coroutine (viewModelScope),
-     *  bukan main thread langsung. */
-    suspend fun checkForUpdate(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
+    /** Inti logic cek Release GitHub terbaru — DIPAKAI ULANG oleh 2 fungsi publik di
+     *  bawah (`checkForUpdate`/`checkForUpdateManual`, Batch 73). Return `null` kalau
+     *  versi yang lagi jalan SUDAH paling baru (atau lebih baru — mis. build lokal
+     *  manual), APK asset tidak ketemu di Release itu, atau body Release gagal
+     *  di-parse. Exception jaringan/HTTP (timeout, DNS, dll) SENGAJA TIDAK ditelan di
+     *  sini — soal telan-atau-lempar itu keputusan tiap PEMANGGIL (lihat masing-masing
+     *  di bawah), bukan tanggung jawab fungsi inti ini. */
+    private suspend fun fetchLatestRelease(context: Context): UpdateInfo? = withContext(Dispatchers.IO) {
         var connection: HttpURLConnection? = null
         try {
             connection = (URL(REPO_API_LATEST_RELEASE).openConnection() as HttpURLConnection).apply {
@@ -113,12 +111,29 @@ object UpdateManager {
             if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext null
 
             UpdateInfo(versionName = versionName, runNumber = runNumber, downloadUrl = apkUrl, fileName = apkName)
-        } catch (_: Exception) {
-            null
         } finally {
             connection?.disconnect()
         }
     }
+
+    /** Dipanggil OTOMATIS diam-diam tiap app dibuka (`BoosterViewModel.init`) — SEMUA
+     *  exception (network/parsing) SENGAJA ditelan jadi `null` di sini (bukan
+     *  dilempar), karena gagalnya TIDAK seharusnya mengganggu user dengan pesan error
+     *  di luar aksi eksplisit apapun. WAJIB dipanggil dari coroutine (viewModelScope),
+     *  bukan main thread langsung. */
+    suspend fun checkForUpdate(context: Context): UpdateInfo? =
+        try { fetchLatestRelease(context) } catch (_: Exception) { null }
+
+    /** Batch 73: dipicu EKSPLISIT oleh tombol "Cek Update Sekarang" (section Settings
+     *  baru) — user tegur eksplisit tidak ada entry point manual sama sekali sebelum
+     *  ini (banner `checkForUpdate()` di atas cuma nongol otomatis KALAU ada rilis
+     *  baru, disembunyikan total kalau enggak, TIDAK ada cara user tahu "sudah dicek
+     *  belum/gagal atau memang belum ada update"). BEDA dari `checkForUpdate()`:
+     *  exception SENGAJA dilempar ulang (bukan ditelan) — pemanggil
+     *  (`BoosterViewModel.checkForUpdateManually`) yang tangkap & surface pesan error
+     *  ke UI, pola sama seperti `downloadApk()` di bawah (aksi eksplisit tap user,
+     *  kegagalan WAJIB kelihatan). */
+    suspend fun checkForUpdateManual(context: Context): UpdateInfo? = fetchLatestRelease(context)
 
     /** Unduh APK Release via chunk streaming Okio ke `context.cacheDir/updates/` —
      *  folder ini yang diekspos FileProvider (`res/xml/file_paths.xml`, `cache-path

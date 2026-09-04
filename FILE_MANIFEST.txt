@@ -20,6 +20,7 @@ app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt
 app/src/main/java/com/audioenhancer/booster/QuickToggleTileService.kt
 app/src/main/java/com/audioenhancer/booster/ServiceWatchdogWorker.kt
+app/src/main/java/com/audioenhancer/booster/SettingsScreen.kt
 app/src/main/java/com/audioenhancer/booster/ShortcutHelper.kt
 app/src/main/java/com/audioenhancer/booster/SkeuomorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt

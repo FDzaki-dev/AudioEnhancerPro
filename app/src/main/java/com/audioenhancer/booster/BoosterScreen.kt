@@ -361,6 +361,7 @@ fun BoosterScreen(
     onLoudness: (Float) -> Unit,
     onEqualizerBand: (Int, Short) -> Unit = { _, _ -> },
     onOpenHelp: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
     virtualizerSupported: Boolean = true,
     loudnessSupported: Boolean = true,
@@ -550,6 +551,9 @@ fun BoosterScreen(
                 Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
+                }
                 IconButton(onClick = onOpenHelp) {
                     Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
                 }

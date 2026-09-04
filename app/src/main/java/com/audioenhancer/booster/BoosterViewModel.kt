@@ -103,6 +103,14 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var downloadedApkFile by mutableStateOf<File?>(null); private set
     var updateDownloadFailed by mutableStateOf(false); private set
 
+    // Batch 73: state tombol "Cek Update Sekarang" (SettingsScreen baru) — TERPISAH
+    // dari `updateInfo` (silent auto-check) karena butuh bedakan ke user: belum pernah
+    // dicek manual (IDLE), lagi mengecek (CHECKING), sudah dicek & TERNYATA paling
+    // baru (UP_TO_DATE), ketemu update (FOUND — `updateInfo` di atas ikut di-set,
+    // biar UpdateBanner otomatis muncul balik ke layar utama), atau gagal (ERROR).
+    enum class ManualUpdateCheckState { IDLE, CHECKING, UP_TO_DATE, FOUND, ERROR }
+    var manualUpdateCheckState by mutableStateOf(ManualUpdateCheckState.IDLE); private set
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as AudioEnhancerService.LocalBinder).getService()
@@ -249,6 +257,30 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun dismissUpdateDownloadFailed() {
         updateDownloadFailed = false
+    }
+
+    /** Tombol "Cek Update Sekarang" di SettingsScreen (Batch 73). Guard dobel-tap:
+     *  diam kalau masih CHECKING. Kalau ketemu update, `updateInfo` (state yang sudah
+     *  ada) ikut di-set — UpdateBanner di BoosterScreen otomatis muncul begitu user
+     *  balik ke layar utama, TANPA duplikasi UI unduh/pasang di sini. Lihat
+     *  `UpdateManager.checkForUpdateManual` soal kenapa exception WAJIB kelihatan
+     *  (beda dari `checkForUpdate()` otomatis di init{}, yang menelan kegagalan). */
+    fun checkForUpdateManually() {
+        if (manualUpdateCheckState == ManualUpdateCheckState.CHECKING) return
+        manualUpdateCheckState = ManualUpdateCheckState.CHECKING
+        viewModelScope.launch {
+            try {
+                val result = UpdateManager.checkForUpdateManual(getApplication())
+                if (result != null) {
+                    updateInfo = result
+                    manualUpdateCheckState = ManualUpdateCheckState.FOUND
+                } else {
+                    manualUpdateCheckState = ManualUpdateCheckState.UP_TO_DATE
+                }
+            } catch (_: Exception) {
+                manualUpdateCheckState = ManualUpdateCheckState.ERROR
+            }
+        }
     }
 
     override fun onCleared() {

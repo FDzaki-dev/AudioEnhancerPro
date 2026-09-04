@@ -161,4 +161,16 @@
     <string name="update_downloading_label">Mengunduh update… %1$d%%</string>
     <string name="update_install_button">Pasang Sekarang</string>
     <string name="update_download_failed_message">Gagal mengunduh update, coba lagi nanti</string>
+
+    <!-- Settings (fitur baru, Batch 73 — entry point cek-update manual, diminta user -->
+    <!-- eksplisit karena banner otomatis di atas gak punya cara dipicu manual) -->
+    <string name="cd_settings">Pengaturan</string>
+    <string name="cd_back">Kembali</string>
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_app_version_label">Versi aplikasi: %1$s</string>
+    <string name="settings_check_update_button">Cek Update Sekarang</string>
+    <string name="settings_checking_update">Mengecek update…</string>
+    <string name="settings_up_to_date">Sudah pakai versi terbaru</string>
+    <string name="settings_update_found">Update v%1$s ketemu — lihat banner di layar utama</string>
+    <string name="settings_check_update_failed">Gagal mengecek update, coba lagi nanti</string>
 </resources>

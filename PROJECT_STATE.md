@@ -93,12 +93,60 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
 - **Versi**: v1.99.0 (versionName manual TETAP, versionCode OTOMATIS dari
   `GITHUB_RUN_NUMBER` — lihat "Keputusan sadar" di atas).
-- **Batch terakhir**: Batch 72 — restrukturisasi murni `PROJECT_STATE.md`
-  (pisah "🔒 ATURAN PERMANEN" vs "📅 LOG UPDATE HARIAN"), diminta user eksplisit.
-  0 kode/repo disentuh, 0 bump versi.
+- **Batch terakhir**: Batch 73 — Section Settings baru + tombol "Cek Update
+  Sekarang" (entry point manual, user tegur eksplisit lewat screenshot).
+  5 file kode disentuh (`SettingsScreen.kt` baru, `UpdateManager.kt`,
+  `BoosterViewModel.kt`, `BoosterScreen.kt`, `MainActivity.kt`) + strings
+  ID/EN (parity 122/122). Melebihi Micro-Batch 3 file, justifikasi = fitur
+  besar diminta eksplisit (sama pola Batch 69). 0 bump versi.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🗂️ **Batch 72 (v1.99.0, terbaru)**: Restrukturisasi murni `PROJECT_STATE.md`,
+- 🆕 **Batch 73 (v1.99.0, terbaru)**: Section **Settings baru** (`SettingsScreen.kt`)
+  — entry point cek-update MANUAL, user tegur eksplisit lewat 2 screenshot
+  ("dimana tab update dalam aplikasinya") setelah BLOCKER dijawab user pilih
+  "Section Settings baru". Root cause (sudah dikonfirmasi dari kode SEBELUM
+  eksekusi, bukan tebakan): `UpdateBanner` (Batch 69) emang cuma banner
+  KONDISIONAL (`val info = updateInfo ?: return`), disembunyikan TOTAL kalau
+  gak ada rilis baru — bukan bug/gagal, tapi juga TIDAK ADA cara user
+  trigger/pantau cek manual sama sekali sebelum batch ini.
+  - **UI baru**: ikon ⚙️ di header `BoosterScreen` (sebelah ikon bantuan) buka
+    `SettingsScreen` — 1 kartu: versi app terpasang + tombol "Cek Update
+    Sekarang" + status teks (mengecek/sudah terbaru/ketemu update/gagal).
+    SENGAJA TIDAK duplikasi UI unduh/pasang — kalau ketemu update, `updateInfo`
+    (state `BoosterViewModel` yang SUDAH ADA) ikut di-set, `UpdateBanner` yang
+    urus unduh/pasang begitu user balik ke layar utama.
+  - **`UpdateManager.kt` di-refactor (BUKAN ubah perilaku lama)**: logic inti
+    diekstrak ke `fetchLatestRelease()` privat. `checkForUpdate()` (otomatis,
+    init ViewModel) TETAP menelan exception — 0 perubahan perilaku, cuma
+    delegasi ke fungsi privat baru. `checkForUpdateManual()` BARU: exception
+    dilempar apa adanya (pola sama `downloadApk()`), ditangkap
+    `BoosterViewModel.checkForUpdateManually()` baru (guard dobel-tap kalau
+    masih CHECKING) — `ManualUpdateCheckState` enum baru (IDLE/CHECKING/
+    UP_TO_DATE/FOUND/ERROR) buat status teks di Settings.
+  - **Navigasi**: `MainActivity.kt` sekarang tri-state (`showOnboarding`/
+    `showSettings`/default `BoosterScreen`, pola SAMA seperti `showOnboarding`
+    yang sudah ada — bukan direfactor jadi enum, biar diff minimal).
+  - **File disentuh** (5 file kode — MELEBIHI Micro-Batch 3, justifikasi SAMA
+    seperti Batch 69: fitur besar diminta eksplisit + user baru jawab BLOCKER,
+    1 unit atomik lebih aman daripada dipecah nanggung): `SettingsScreen.kt`
+    baru, `UpdateManager.kt`, `BoosterViewModel.kt`, `BoosterScreen.kt` +
+    `MainActivity.kt` (Protected, edit-parsial — cuma tambah 1 state + 1
+    cabang `else if`, 0 baris lain disentuh). `values/strings.xml` +
+    `values-en/strings.xml`: +9 string tiap bahasa, parity 113→122/122.
+    README.md (Fitur + Troubleshooting) & CHANGELOG.md (Addendum di bawah
+    v1.99.0) ikut disinkronkan (VIP).
+  - **Cek statis**: brace/paren balance 0 selisih di 5 file Kotlin (dihitung
+    ulang setelah SEMUA edit selesai, bukan per-file terpisah), kedua
+    strings.xml XML-valid (`xml.etree.ElementTree`), parity 122/122.
+  - **0 bump versi** — kelanjutan/penuntasan milestone in-app-update v1.99.0
+    yang sama (Batch 69), BUKAN milestone baru yang pantas versionName naik.
+  - **BELUM divalidasi runtime** — statis only, kandidat pertama dicurigai
+    kalau ada gejala aneh: (a) `packageManager.getPackageInfo(packageName, 0)
+    .versionName` di `MainActivity.kt` return null/kosong di device tertentu,
+    (b) navigasi tri-state `showSettings` konflik sama `showOnboarding` kalau
+    user somehow trigger keduanya nyaris bersamaan (harusnya gak mungkin dari
+    UI biasa, cuma 1 ikon masing-masing).
+- 🗂️ **Batch 72 (v1.99.0, riwayat)**: Restrukturisasi murni `PROJECT_STATE.md`,
   diminta user eksplisit ("pisahkan header/hierarchy rule permanen dari daily
   update information, tidak ada narasi panjang lebar yang ikut di-pin"). Yang
   berubah HANYA lokasi/pelabelan, **0 konten historis dihapus**:
@@ -2016,7 +2064,15 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   (unduh via chunk streaming Okio, `Source.read(Buffer,Long)`/`Sink.write(
   Buffer,Long)` langsung — TANPA `.buffer()`, interface dasar Okio sudah cukup),
   `installApk()` (intent `ACTION_VIEW` + FileProvider). PERTAMA KALI project ini
-  butuh `INTERNET` sama sekali — sebelumnya 100% offline.
+  butuh `INTERNET` sama sekali — sebelumnya 100% offline. Batch 73: logic inti
+  diekstrak ke `fetchLatestRelease()` privat (dipakai ulang `checkForUpdate()`
+  DAN `checkForUpdateManual()` baru — beda cuma soal exception ditelan/dilempar).
+- `SettingsScreen.kt` — Batch 73, BARU. Entry point cek-update MANUAL (tombol
+  "Cek Update Sekarang" + versi app terpasang), dibuka dari ikon ⚙️ di header
+  `BoosterScreen`. SENGAJA TIDAK duplikasi UI unduh/pasang (itu tetap di
+  `UpdateBanner`, `BoosterScreen.kt`) — begitu ketemu update, `updateInfo`
+  (state `BoosterViewModel` yang sudah ada) ikut di-set, banner itu yang urus
+  unduh/pasang begitu user balik ke layar utama.
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
