@@ -29,9 +29,10 @@ custom user, bukan diulang di sini):
 - ZERO-REFACTOR pada file yang tak relevan ke task yang diminta.
 - Micro-Batch: maks 3 file KODE per batch. Dokumen VIP (file ini, README.md,
   CHANGELOG.md) KEBAL limit ini & WAJIB disinkronkan tiap sesi ada perubahan.
-- Versioning Lock: `versionCode` WAJIB otomatis dari `GITHUB_RUN_NUMBER`,
-  DILARANG bump manual (detail & alasan `versionName` tetap manual ada di
-  "Keputusan sadar" di bawah).
+- Versioning Lock: `versionCode` DAN `versionName` WAJIB otomatis dari
+  `GITHUB_RUN_NUMBER` (diperluas Batch 76, eksplisit diminta user — dulu HANYA
+  versionCode, lihat "Keputusan sadar" di bawah utk riwayat lengkap), DILARANG
+  bump manual.
 - Format respon chat: HANYA status 1-2 baris + 1 ZIP + skrip Termux utuh.
   Narasi/analisis panjang WAJIB masuk ke file ini (bagian LOG HARIAN),
   BUKAN ke chat.
@@ -43,13 +44,19 @@ custom user, bukan diulang di sini):
   `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
   Batch 66 yang ditolak). Berlaku ke DUA lapisan:
   1. **Nama ZIP output Claude** (Batch 66/67 — **FORMAT DI-PIN Batch 70,
-     WAJIB PERSIS**: `Boomly_<versi>-<batch>.zip`, contoh
-     `Boomly_v1.99.0-batch70.zip`): `[NamaFileAplikasi]` = `Boomly`. Konsekuensi
-     LANGSUNG ke skrip Termux (Batch 71, dipertegas krn sempat salah pakai):
-     glob WAJIB `~/storage/downloads/Boomly*.zip` — BUKAN
-     `AudioEnhancerPro*.zip`. `[NamaFolderProyek]` (repo GitHub/folder lokal
-     Termux) TETAP `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti
-     tanpa user minta eksplisit + paham konsekuensi rename repo.
+     DIREVISI Batch 76**: `Boomly_batch<N>.zip`, contoh `Boomly_batch76.zip`.
+     Komponen `<versi>` DICABUT dari format Batch 70 (`Boomly_v1.99.0-batchN.zip`)
+     — sejak Batch 76 `versionName` = angka run_number CI yang BELUM ADA
+     nilainya saat Claude packaging ZIP (baru di-assign GitHub PAS CI jalan),
+     jadi gak ada apa pun valid buat diisi ke slot `<versi>` lagi. Nomor batch
+     TETAP satu-satunya penanda urutan yang Claude tahu pasti di titik ini):
+     `[NamaFileAplikasi]` = `Boomly`. Konsekuensi LANGSUNG ke skrip Termux
+     (Batch 71, dipertegas krn sempat salah pakai): glob WAJIB
+     `~/storage/downloads/Boomly*.zip` — BUKAN `AudioEnhancerPro*.zip` (glob
+     ini TIDAK terpengaruh revisi Batch 76, wildcard-nya sudah cukup longgar).
+     `[NamaFolderProyek]` (repo GitHub/folder lokal Termux) TETAP
+     `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti tanpa user minta
+     eksplisit + paham konsekuensi rename repo.
   2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
      `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
      `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
@@ -91,15 +98,68 @@ berikutnya gak mulai dari nol lagi. **JANGAN** taruh narasi panjang di section
 perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
 
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
-- **Versi**: v1.99.0 (versionName manual TETAP, versionCode OTOMATIS dari
-  `GITHUB_RUN_NUMBER` — lihat "Keputusan sadar" di atas).
-- **Batch terakhir**: Batch 75 — FIX bug "Cek Update Sekarang" bisa lapor
-  "sudah versi terbaru" padahal cek-nya sendiri GAGAL (HTTP non-200/rate-limit
-  GitHub API, dll). 2 file kode (`UpdateManager.kt`, `BoosterViewModel.kt`).
-  0 bump versi.
+- **Versi**: versionCode DAN versionName SEKARANG SAMA-SAMA otomatis dari
+  `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
+  lagi label semantik manual macam "1.99.0", `versionName` = angka run number
+  polos (String), sama nilainya dengan `versionCode` (Int).
+- **Batch terakhir**: Batch 76 — `versionName` ikut auto dari
+  `GITHUB_RUN_NUMBER` (dulu cuma `versionCode`). Redesain 2 step CI yang
+  bergantung ke `versionName` sebagai label stabil (`Extract version name`,
+  `Extract changelog entry for this version`) biar gak regresi diam-diam.
+  2 file kode (`app/build.gradle.kts`, `.github/workflows/build.yml`, KEDUANYA
+  Protected). Heading `CHANGELOG.md` ke depan ganti format (`## Batch N: ...`,
+  bukan `## v<versi> - Batch N: ...`).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🐛 **Batch 75 (v1.99.0, terbaru)**: FIX laporan user ("app bilang sudah versi
+- 🔧🚨 **Batch 76 (terbaru)**: User eksplisit ("Pokoknya versionName wajib
+  otomatis dari GITHUB_RUN_NUMBER!!") setelah ditawarkan BLOCKER 3-opsi (lihat
+  catatan Batch 65 di bawah — perubahan ini SUDAH diantisipasi sejak lama,
+  sengaja ditahan sampai user pilih arah eksplisit). User pilih **"angka run
+  number polos"** (bukan semantic+suffix `1.99.<run>`).
+  **Perubahan inti**: `app/build.gradle.kts` — `versionName =
+  System.getenv("GITHUB_RUN_NUMBER") ?: "1"` (PERSIS sumber sama dengan
+  `versionCode`, cuma beda tipe). Bukan literal string manual lagi.
+  **Konsekuensi berantai (WAJIB ikut diperbaiki, bukan opsional)**:
+  1. Step CI **"Extract version name"**: dulu `grep` literal dari gradle file
+     — gradle sekarang formula bukan string, grep bakal selalu kosong/salah.
+     Ganti: baca `${{ github.run_number }}` langsung (context var bawaan,
+     nilai identik, 0 parsing gradle).
+  2. Step CI **"Extract changelog entry for this version"**: dulu `awk`
+     cocokkan header PERSIS `## v<versionName>` di `CHANGELOG.md` — MUSTAHIL
+     berhasil lagi karena `versionName` beda tiap run dan Claude nulis
+     CHANGELOG.md SEBELUM push (gak mungkin tahu run_number run berikutnya).
+     Diredesain total: ambil section PALING ATAS `CHANGELOG.md` apa adanya
+     (`## ` pertama s.d. `## ` kedua), 0 kebutuhan tahu versi/run_number —
+     konsisten sama konvensi "entry terbaru paling atas" yang MEMANG sudah
+     dipakai file itu. **Disimulasikan di sandbox terhadap CHANGELOG.md asli
+     (bukan cuma dibaca) — hasil ambil section Batch 76 yang baru dengan
+     benar, berhenti pas di baris `**Perubahan inti**` sesuai pola 40+ entry
+     sebelumnya, 7 baris release notes bersih, TIDAK jatuh ke fallback.**
+  **Konsekuensi kosmetik DITERIMA (bukan bug, jangan "diperbaiki" tanpa user
+  minta)**: nama APK CI & judul GitHub Release sekarang tampilkan angka run
+  number 2x format beda (mis. `v78` dan `Run #78`) — redundan tapi benar. UI
+  in-app (`SettingsScreen`/banner update) ikut tampil angka polos ("Versi
+  baru: 78") bukan "1.99.0" — `UpdateManager.kt` TIDAK disentuh, otomatis ikut
+  karena cuma baca `versionName`/`tag_name` apa adanya.
+  **Heading CHANGELOG.md ke depan**: `## Batch N: <deskripsi>` (bukan lagi
+  `## v<versi> - Batch N: ...`) — histori lama (`## v1.98.0` dst) TIDAK ditulis
+  ulang.
+  **Konsekuensi lain (dokumentasi, bukan kode)**: format nama ZIP output
+  Claude yang di-pin Batch 70 (`Boomly_<versi>-<batch>.zip`) ikut DIREVISI
+  jadi `Boomly_batch<N>.zip` — slot `<versi>` gak ada lagi yang valid diisi
+  (versionName = run_number, belum ke-assign GitHub saat Claude packaging).
+  Detail lengkap & alasan di "Keputusan sadar" > Brand kosmetik di atas.
+  **File disentuh** (2 file kode, dalam Micro-Batch, KEDUANYA Protected,
+  edit-parsial): `app/build.gradle.kts`, `.github/workflows/build.yml`.
+  **Cek statis**: brace/paren `build.gradle.kts` 0 selisih, YAML `build.yml`
+  parse-valid (`python3 -c "import yaml"`, 15 step, urutan sama persis).
+  **BELUM divalidasi runtime/CI beneran** — kandidat pertama dicurigai kalau
+  ada gejala aneh: (a) artifact/tag CI redundan (lihat "Konsekuensi kosmetik"
+  — bukan bug), (b) kalau CHANGELOG.md suatu saat kosong/cuma ada
+  "# Changelog" tanpa entry apapun, step baru fallback ke pesan generik
+  ("CHANGELOG.md kosong/tidak ada entry"), belum pernah kejadian nyata jadi
+  belum tervalidasi runtime.
+- 🐛 **Batch 75 (v1.99.0, riwayat)**: FIX laporan user ("app bilang sudah versi
   terbaru padahal jelas belum") soal tombol "Cek Update Sekarang".
   **Root cause**: `UpdateManager.fetchLatestRelease()` (privat) balik nilai
   `null` untuk 3 kondisi yang beda arti — (1) memang sudah versi terbaru

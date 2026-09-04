@@ -1,5 +1,68 @@
 # Changelog
 
+## Batch 76: versionName otomatis dari GITHUB_RUN_NUMBER (Versioning Lock diperluas)
+
+Diminta user eksplisit ("Pokoknya versionName wajib otomatis dari
+GITHUB_RUN_NUMBER!!") setelah ditawarkan 3 opsi lewat BLOCKER (lihat
+`PROJECT_STATE.md` Batch 65 — perubahan ini sudah diantisipasi & sengaja
+ditahan sampai user konfirmasi eksplisit) — user pilih opsi **"angka run
+number polos"** (bukan semantic+suffix seperti `1.99.78`).
+
+**Perubahan inti**: `app/build.gradle.kts` — `versionName` sekarang
+`System.getenv("GITHUB_RUN_NUMBER") ?: "1"`, PERSIS sumber yang sama dengan
+`versionCode` (cuma beda tipe String vs Int). Bukan lagi label semantik manual
+(`"1.99.0"`).
+
+**Konsekuensi berantai yang WAJIB ikut diperbaiki (bukan kerja tambahan
+opsional — tanpa ini CI regresi diam-diam)**: `versionName` sekarang beda
+NILAI tiap run CI (naik terus, gak pernah sama dengan run sebelumnya), jadi 2
+mekanisme CI yang SEBELUMNYA cocokkan `versionName` sebagai label stabil
+langsung rusak kalau tidak diredesain:
+1. **Step "Extract version name"** (`.github/workflows/build.yml`): dulu
+   `grep` literal string dari `app/build.gradle.kts` — sekarang gak ada
+   literal buat di-grep lagi (formula, bukan string). Ganti: baca langsung
+   `${{ github.run_number }}` (context var GitHub Actions bawaan, sama
+   persis nilainya, 0 parsing gradle dibutuhkan).
+2. **Step "Extract changelog entry for this version"**: dulu `awk` cocokkan
+   header PERSIS `## v<versionName>` di `CHANGELOG.md` buat ambil body Release
+   notes. Sejak `versionName` = run number yang beda tiap run, Claude
+   (menulis CHANGELOG.md SEBELUM push) TIDAK MUNGKIN tahu run_number yang
+   akan di-assign GitHub ke run berikutnya — matching persis MUSTAHIL
+   berhasil selamanya. Diganti total: ambil section PALING ATAS
+   `CHANGELOG.md` apa adanya (baris `## ` pertama s.d. `## ` kedua), 0
+   kebutuhan tahu versi/run_number lagi — konsisten sama konvensi "entry
+   terbaru paling atas" yang MEMANG sudah dipakai file ini.
+
+**Konsekuensi kosmetik yang DITERIMA (bukan bug)**: nama APK CI
+(`AudioEnhancerPro-v<run>-run<run_id>-release.apk`) dan judul GitHub Release
+(`AudioEnhancerPro v<run> (Run #<run>)`) sekarang menampilkan angka run
+number 2x dengan format berbeda (mis. `v78` dan `Run #78`) — redundan tapi
+tidak salah, konsekuensi langsung dari pilihan "angka polos" user. Tampilan
+versi di UI in-app (`UpdateManager`/`SettingsScreen`) juga ikut jadi angka
+polos (mis. "Versi baru: 78" bukan "1.99.0") — TIDAK disentuh kodenya
+(`UpdateManager.kt` cuma baca `versionName`/`tag_name` apa adanya, otomatis
+ikut format baru tanpa perlu diubah).
+
+**Heading `CHANGELOG.md` ke depan JUGA ganti format**: `## Batch N:
+<deskripsi>` (BUKAN lagi `## v<versionName> - Batch N: ...`) — `versionName`
+sudah gak stabil/gak bermakna lagi buat dijadiin bagian heading. Heading versi
+lama (`## v1.98.0`, `## v1.99.0`, dst di bawah) **TIDAK diubah** (riwayat,
+Hard Reset ZIP hanya berlaku ke source code, bukan alasan nulis ulang
+histori CHANGELOG).
+
+**File disentuh** (2 file kode, dalam Micro-Batch, KEDUANYA Protected —
+edit-parsial): `app/build.gradle.kts` (1 baris `versionName` + komentar),
+`.github/workflows/build.yml` (2 step: "Extract version name" disederhanakan,
+"Extract changelog entry for this version" diredesain total). Brace/paren
+`build.gradle.kts` 0 selisih, YAML `build.yml` parse-valid (15 step, urutan
+tidak berubah), simulasi `awk` baru terhadap `CHANGELOG.md` asli dikonfirmasi
+ambil section teratas dengan benar. **Belum divalidasi runtime/CI beneran**
+— kandidat pertama dicurigai kalau ada gejala aneh: nama artifact/tag CI yang
+sekarang redundan (lihat "Konsekuensi kosmetik" di atas) bukan bug, jangan
+"diperbaiki" tanpa user minta.
+
+---
+
 ## v1.99.0 - Batch 69: In-app update (unduh & pasang APK langsung dari app)
 
 Diminta user eksplisit ("Tambahkan konfigurasi update langsung dalam aplikasinya")

@@ -56,11 +56,15 @@ jobs:
       # dibutuhkan buat penamaan artifact log kegagalan & nama rilis, jadi harus
       # selalu ada nilainya sedini mungkin. Cuma `grep` ke file teks, gak butuh
       # gradlew/JDK sama sekali, aman dijalankan paling depan.
+      # Batch 76: versionName di app/build.gradle.kts SEKARANG formula
+      # (`System.getenv("GITHUB_RUN_NUMBER") ?: "1"`), BUKAN literal string lagi —
+      # `grep` lama ke gradle file gak bakal nemu apa-apa (selalu jatuh ke fallback
+      # "0.0", SALAH). `github.run_number` context var GitHub Actions SUDAH PERSIS
+      # nilai yang sama, dipakai langsung, 0 parsing gradle dibutuhkan lagi.
       - name: Extract version name
         id: version
         run: |
-          VERSION=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
-          if [ -z "$VERSION" ]; then VERSION="0.0"; fi
+          VERSION="${{ github.run_number }}"
           echo "Terdeteksi versionName: $VERSION"
           echo "name=$VERSION" >> "$GITHUB_OUTPUT"
 
@@ -226,12 +230,18 @@ jobs:
       # entry nanti gak ikut pola ini, body Release TETAP gak bisa membengkak).
       # Detail teknis penuh TETAP ada, cuma pindah jadi link ke CHANGELOG.md,
       # bukan hilang.
+      # Batch 76: dulu cari header PERSIS `## v<versionName>` — MUSTAHIL berhasil
+      # lagi sejak versionName otomatis dari GITHUB_RUN_NUMBER (nilainya beda
+      # tiap run, Claude nulis CHANGELOG.md SEBELUM push jadi gak mungkin tahu
+      # run_number run berikutnya duluan). Ganti total: ambil section PALING ATAS
+      # CHANGELOG.md apa adanya (baris "## " pertama s.d. baris "## " kedua,
+      # exclusive) — konsisten sama konvensi "entry terbaru paling atas" yang
+      # MEMANG sudah dipakai file ini, 0 kebutuhan tahu versi/run_number lagi.
       - name: Extract changelog entry for this version
         if: steps.secret_check.outputs.has_secret == 'true'
         id: changelog
         run: |
-          VERSION="${{ steps.version.outputs.name }}"
-          awk -v ver="## v${VERSION} " 'BEGIN{p=0} $0 ~ "^## v" && index($0, ver)==1 {p=1; next} p && /^## v/{p=0} p{print}' CHANGELOG.md > full_changelog_entry.md
+          awk '/^## /{c++} c==1{print} c==2{exit}' CHANGELOG.md > full_changelog_entry.md
           if [ -s full_changelog_entry.md ]; then
             awk '/^\*\*/{exit} NR>15{exit} {print}' full_changelog_entry.md > release_notes.md
             if [ ! -s release_notes.md ]; then
@@ -243,7 +253,7 @@ jobs:
               echo "_Ringkasan singkat. Rasional teknis lengkap: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)_"
             } >> release_notes.md
           else
-            echo "_(Tidak ada entry CHANGELOG.md untuk v${VERSION} — lihat riwayat commit)_" > release_notes.md
+            echo "_(CHANGELOG.md kosong/tidak ada entry — lihat riwayat commit)_" > release_notes.md
           fi
 
       # Batch 42 (diminta user, "tambahkan unique key ... mencegah duplikasi"):

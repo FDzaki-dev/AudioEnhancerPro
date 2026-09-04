@@ -18,20 +18,30 @@ android {
         applicationId = "com.audioenhancer.booster"
         minSdk = 24
         targetSdk = 34
-        // Batch 65 (Versioning Lock, instruksi standing user): versionCode WAJIB
-        // otomatis dari GITHUB_RUN_NUMBER, DILARANG di-bump manual lagi mulai batch
-        // ini — beda dari 64 batch sebelumnya (manual increment tiap sesi, root
-        // cause pelanggaran yang diperbaiki batch ini). GITHUB_RUN_NUMBER: env var
+        // Batch 76 (Versioning Lock, DIPERLUAS eksplisit oleh user — lihat
+        // PROJECT_STATE.md "Keputusan sadar" utk riwayat lengkap kenapa dulu SENGAJA
+        // dipisah): versionName SEKARANG IKUT otomatis dari GITHUB_RUN_NUMBER, SAMA
+        // PERSIS sumbernya dengan versionCode di bawah — user eksplisit pilih opsi
+        // "angka run number polos" (bukan semantic+suffix) saat ditanya. Konsekuensi
+        // LANGSUNG: versionName BUKAN LAGI label semantik manusia (mis. "1.99.0")
+        // — jadi CI step "Extract changelog entry for this version"
+        // (.github/workflows/build.yml) TIDAK BISA LAGI cari header CHANGELOG.md
+        // persis `## v<versionName>` (nilainya beda tiap run, mustahil ditebak
+        // Claude SEBELUM push). Step itu DIREDESAIN batch ini jadi ambil section
+        // PALING ATAS CHANGELOG.md apa adanya (konsisten sama konvensi
+        // "entry terbaru paling atas" yang sudah dipakai file itu) — TIDAK lagi
+        // cocokkan versi sama sekali. Heading CHANGELOG.md ke depan JUGA ganti
+        // format (BUKAN lagi `## v<versionName> - Batch N: ...`, lihat CHANGELOG.md
+        // + PROJECT_STATE.md Batch 76 utk detail).
+        // Batch 65 (asal instruksi Versioning Lock): GITHUB_RUN_NUMBER env var
         // BAWAAN GitHub Actions (otomatis ada di tiap step, tanpa perlu di-`env:`
         // eksplisit di workflow), naik monoton per run workflow ini, TIDAK PERNAH
         // reset/reuse — kontrak ini PERSIS sama dengan syarat versionCode Android
-        // (wajib strictly-increasing tiap APK yang dipublish). Fallback `1` HANYA
-        // kepake kalau ke-evaluate di luar GitHub Actions (mis. lokal) — TIDAK
-        // relevan buat rilis nyata, app ini SATU-SATUNYA dibuild lewat CI (lihat
-        // PROJECT_STATE.md "Versioning Lock" utk detail lengkap + kenapa versionName
-        // di bawah TETAP manual, bukan bagian larangan ini).
+        // (wajib strictly-increasing tiap APK yang dipublish). Fallback `"1"`/`1`
+        // HANYA kepake kalau ke-evaluate di luar GitHub Actions (mis. lokal) — TIDAK
+        // relevan buat rilis nyata, app ini SATU-SATUNYA dibuild lewat CI.
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.99.0"
+        versionName = System.getenv("GITHUB_RUN_NUMBER") ?: "1"
     }
 
     signingConfigs {
