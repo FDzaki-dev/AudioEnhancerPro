@@ -1,115 +1,86 @@
-# 🧠 PROJECT_STATE.md — baca file ini PALING PERTAMA
+# 🧠 PROJECT_STATE.md — baca PALING PERTAMA
 
-File ini didesain buat dibaca AI (Claude) di awal sesi baru, bukan cuma manusia.
-Isinya padat & langsung actionable — bukan riwayat lengkap (itu ada di
-CHANGELOG.md). Struktur file ini 2 lapis, JANGAN dicampur lagi (Batch 72):
-1. **🔒 ATURAN PERMANEN & HIERARKI** — jarang berubah, ringkas, WAJIB dibaca.
-2. **📅 LOG UPDATE HARIAN** — naratif per-batch, descending, BUKAN permanen.
+Untuk Claude, bukan manusia. Padat & actionable, bukan riwayat penuh (itu di
+CHANGELOG.md). 2 lapis (JANGAN dicampur, Batch 72):
+1. 🔒 ATURAN PERMANEN & HIERARKI — jarang berubah, WAJIB dibaca duluan.
+2. 📅 LOG UPDATE HARIAN — naratif per-batch, descending, BUKAN permanen.
 
-Kalau kamu Claude dan baru diminta lanjut project ini:
-1. Baca **🔒 ATURAN PERMANEN & HIERARKI** dulu, jangan skip.
-2. Baca **🧭 Status Terkini** + 2-3 entry TERATAS **📅 LOG UPDATE HARIAN** (bukan
-   semua) buat detail teknis terbaru.
-3. Baca 2-3 entry TERATAS CHANGELOG.md aja buat detail rilis.
-4. Baru mulai kerja. Jangan ulang pertanyaan yang jawabannya udah ada di sini.
+Urutan sesi baru: ATURAN PERMANEN → Status Terkini + 2-3 entry teratas LOG
+HARIAN → 2-3 entry teratas CHANGELOG.md → mulai kerja. Jangan ulang
+pertanyaan yang jawabannya sudah ada di sini.
 
 ---
 
-## 🔒 ATURAN PERMANEN & HIERARKI (PIN — terpisah dari log harian, HANYA berubah kalau ada instruksi baru eksplisit dari user)
+## 🔒 ATURAN PERMANEN & HIERARKI (PIN — hanya berubah via instruksi baru eksplisit user)
 
-Bagian ini TIDAK ikut naik-turun tiap batch. Kalau di sesi depan bagian ini
-kelihatan mulai "kecampur" narasi batch lagi, itu regresi — pisahkan ulang.
+Hierarki: User Instruction > Core Protocol > file ini.
 
-**Hierarki instruksi**: User Instruction > Core Protocol (instruksi custom
-user) > isi file ini (PROJECT_STATE.md).
-
-**Index Core Protocol** (rujukan cepat — detail lengkap ada di instruksi
-custom user, bukan diulang di sini):
+Index Core Protocol (detail lengkap di instruksi custom user):
 - STABILITY > Speed. STOP → tandai BLOKER kalau info kurang, jangan nebak.
-- ZERO-REFACTOR pada file yang tak relevan ke task yang diminta.
-- Micro-Batch: maks 3 file KODE per batch. Dokumen VIP (file ini, README.md,
-  CHANGELOG.md) KEBAL limit ini & WAJIB disinkronkan tiap sesi ada perubahan.
-- Versioning Lock: `versionCode` DAN `versionName` WAJIB otomatis dari
-  `GITHUB_RUN_NUMBER` (diperluas Batch 76, eksplisit diminta user — dulu HANYA
-  versionCode, lihat "Keputusan sadar" di bawah utk riwayat lengkap), DILARANG
-  bump manual.
-- Format respon chat: HANYA status 1-2 baris + 1 ZIP + skrip Termux utuh.
-  Narasi/analisis panjang WAJIB masuk ke file ini (bagian LOG HARIAN),
-  BUKAN ke chat.
-- Skrip Termux Immutable: Claude cuma isi placeholder `[Nama...]`, DILARANG
-  ubah logika Bash atau gabung Box A & B.
+- ZERO-REFACTOR file tak relevan ke task.
+- Micro-Batch: maks 3 file KODE/batch. Dokumen VIP (file ini, README.md,
+  CHANGELOG.md) kebal limit, WAJIB sync tiap sesi ada perubahan.
+- Versioning Lock: versionCode DAN versionName otomatis dari
+  `GITHUB_RUN_NUMBER` (sejak Batch 76; sebelumnya hanya versionCode).
+  DILARANG bump manual.
+- Format chat: status 1-2 baris + 1 ZIP + skrip Termux utuh. Narasi/analisis
+  panjang → LOG HARIAN, bukan chat.
+- Skrip Termux Immutable: isi placeholder `[Nama...]` saja. DILARANG ubah
+  logika Bash atau gabung Box A & B.
 
-### Keputusan sadar yang JANGAN diubah tanpa alasan baru dari user
-- **[PERMANEN, Batch 68 — perluas Batch 67] Brand kosmetik/user-facing =
-  `Boomly`** (bukan `AudioEnhancerPro` lama, bukan `AudioBooster` pilihan
-  Batch 66 yang ditolak). Berlaku ke DUA lapisan:
-  1. **Nama ZIP output Claude** (Batch 66/67 — **FORMAT DI-PIN Batch 70,
-     DIREVISI Batch 76**: `Boomly_batch<N>.zip`, contoh `Boomly_batch76.zip`.
-     Komponen `<versi>` DICABUT dari format Batch 70 (`Boomly_v1.99.0-batchN.zip`)
-     — sejak Batch 76 `versionName` = angka run_number CI yang BELUM ADA
-     nilainya saat Claude packaging ZIP (baru di-assign GitHub PAS CI jalan),
-     jadi gak ada apa pun valid buat diisi ke slot `<versi>` lagi. Nomor batch
-     TETAP satu-satunya penanda urutan yang Claude tahu pasti di titik ini):
-     `[NamaFileAplikasi]` = `Boomly`. Konsekuensi LANGSUNG ke skrip Termux
-     (Batch 71, dipertegas krn sempat salah pakai): glob WAJIB
-     `~/storage/downloads/Boomly*.zip` — BUKAN `AudioEnhancerPro*.zip` (glob
-     ini TIDAK terpengaruh revisi Batch 76, wildcard-nya sudah cukup longgar).
-     `[NamaFolderProyek]` (repo GitHub/folder lokal Termux) TETAP
-     `AudioEnhancerPro` — vital & stable, JANGAN ikut ganti tanpa user minta
-     eksplisit + paham konsekuensi rename repo.
-  2. **String user-facing di dalam app** (Batch 68): `app_name`, `app_title`,
-     `notif_title`, `notif_channel_name`, `qs_tile_label`, `status_running`,
-     `notif_perm_body`, `ob1_title` (ID+EN) = `Boomly`. Kalau nambah string
-     baru yang butuh sebut nama app, WAJIB pakai `Boomly`, JANGAN
-     `Audio Booster`/`AudioEnhancerPro` lagi.
-  - **TETAP TIDAK ikut rebrand (vital/fungsional, bukan kosmetik)**:
-    `applicationId`/`namespace` (`app/build.gradle.kts`), `rootProject.name`
-    (`settings.gradle.kts`), nama workflow (`build.yml`), nama APK/artifact
-    dari CI, `CrashLogger.APP_FOLDER` (path MediaStore fisik user — ganti ini
-    FRAGMENTASI log lama tersimpan, BUKAN sekadar ganti tampilan).
-- **`MODIFY_AUDIO_SETTINGS` permission**: kelihatan gak dipakai di kode
-  (`grep` nol hasil), TAPI mekanisme inti app ini (nempel efek audio ke
-  session ID `0` global) itu sendiri di luar cara resmi API ini
-  didokumentasikan Android — ada laporan anekdotal beberapa OEM/chipset
-  butuh permission ini biar efek session-0 nempel dengan benar. TIDAK
-  dihapus karena resikonya (app berhenti berfungsi di sebagian HP) gak
-  bisa diverifikasi tanpa device fisik.
-- **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: dipertahankan apa adanya meski app
-  bukan media player asli — user gak ada niat publish Play Store, jadi resiko
-  rejection review gak relevan buat dia.
-- **Dynamic color (Material You)**: default OFF, opt-in toggle. Alasan:
-  biar palet warna custom app gak ketiban tema wallpaper user secara paksa.
-- **Equalizer band individual TIDAK dibungkus card sendiri** (`wrapInCard =
-  false`) — udah di dalam card "Equalizer Manual", biar gak numpuk
-  kaca-di-atas-kaca kalau bandnya banyak.
-- **Preset custom (v1.33) TIDAK ikut reset equalizer manual** saat diterapkan
-  — beda dari 4 preset bawaan yang eksplisit reset EQ ke flat. Alasan: preset
-  custom cuma menyimpan bass/virtualizer/loudness (bukan state EQ), jadi
-  reset paksa EQ user tanpa alasan justru terasa seperti kehilangan data.
+### Keputusan sadar (JANGAN diubah tanpa alasan baru dari user)
+- **Brand kosmetik/user-facing = "Boomly"** (Batch 68, bukan
+  AudioEnhancerPro/AudioBooster).
+  - ZIP output: `Boomly_batch<N>.zip` (final Batch 76, tanpa komponen versi —
+    versionName = run_number CI, belum ada saat packaging). Glob Termux:
+    `Boomly*.zip`.
+  - String user-facing app (ID+EN): `app_name`, `app_title`, `notif_title`,
+    `notif_channel_name`, `qs_tile_label`, `status_running`,
+    `notif_perm_body`, `ob1_title` = "Boomly". String baru yang sebut nama
+    app WAJIB "Boomly".
+  - TETAP TIDAK ikut rebrand (vital/fungsional): `applicationId`/`namespace`,
+    `rootProject.name`, nama workflow (`build.yml`), nama APK/artifact CI,
+    `CrashLogger.APP_FOLDER` (ganti = fragmentasi log lama user). Repo
+    GitHub/folder Termux TETAP "AudioEnhancerPro" — jangan ganti tanpa user
+    minta eksplisit.
+- **`MODIFY_AUDIO_SETTINGS`**: tak terpakai di kode (grep nihil) tapi TIDAK
+  dihapus — sebagian OEM/chipset dilaporkan butuh ini agar efek session-0
+  nempel, tak bisa diverifikasi tanpa device fisik.
+- **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: dipertahankan meski bukan media
+  player asli — user tak berniat publish Play Store.
+- **Dynamic color (Material You)**: default OFF, opt-in — palet custom app
+  tak ketiban wallpaper user paksa.
+- **Equalizer band individual**: `wrapInCard=false` — sudah di card
+  "Equalizer Manual", hindari kaca-di-atas-kaca.
+- **Preset custom (v1.33)**: TIDAK reset equalizer manual saat diterapkan
+  (beda dari 4 preset bawaan) — cuma simpan bass/virtualizer/loudness, bukan
+  state EQ.
 
 ### Cara update file ini
-Tiap sesi yang bikin keputusan arsitektur/desain baru (bukan sekadar bugfix
-kecil), WAJIB: (1) tambah entry baru di "📅 LOG UPDATE HARIAN" — entry TERBARU
-di PALING ATAS (descending), tandai entry sebelumnya jadi "riwayat"; (2) update
-"🧭 Status Terkini" (versi + 1-2 baris highlight batch terbaru saja); (3) update
-"Riwayat pivot" dan/atau "Keputusan sadar" di atas KALAU relevan — supaya sesi
-berikutnya gak mulai dari nol lagi. **JANGAN** taruh narasi panjang di section
-"🔒 ATURAN PERMANEN & HIERARKI" — itu index/rule ringkas yang kebal dari
-perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
+Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru di
+LOG HARIAN (paling atas); (2) update Status Terkini (versi + 1-2 baris); (3)
+update Keputusan Sadar kalau relevan. JANGAN taruh narasi panjang di ATURAN
+PERMANEN.
 
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
 - **Versi**: versionCode DAN versionName SEKARANG SAMA-SAMA otomatis dari
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 79 — 0 file kode. User KONFIRMASI Batch 78
-  (fix quote `name:` GitHub Release) BENERAN JALAN di produksi — "Cek Update
-  Sekarang" sekarang berfungsi normal. Caveat "belum tervalidasi runtime CI"
-  di Batch 78 RESMI DITUTUP. Fitur update SEKARANG dianggap fully working
-  end-to-end (rantai Batch 69→73→74→75→76→77→78 selesai).
+- **Batch terakhir**: Batch 80 — 0 file kode. Pangkas narasi bertele-tele di
+  section 🔒 ATURAN PERMANEN & HIERARKI (98→63 baris) atas permintaan user —
+  semua keputusan/fakta teknis tetap utuh, cuma justifikasi panjang dipotong.
+  Fitur update (rantai Batch 69→78) tetap fully working end-to-end.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- ✅ **Batch 79 (terbaru, 0 file kode)**: User konfirmasi eksplisit ("It
+- ✂️ **Batch 80 (terbaru, 0 file kode)**: Pangkas narasi bertele-tele di
+  section 🔒 ATURAN PERMANEN & HIERARKI (98→63 baris) atas permintaan
+  eksplisit user. Semua keputusan/fakta teknis dipertahankan utuh (rebrand
+  Boomly + konsekuensinya, permission locks, versioning lock, dst) — cuma
+  justifikasi/penjelasan panjang yang dipotong jadi ringkas. LOG HARIAN &
+  CHANGELOG.md TIDAK disentuh (di luar scope permintaan). **File disentuh**:
+  0 kode. Cuma sync status doc ini.
+- ✅ **Batch 79 (riwayat, 0 file kode)**: User konfirmasi eksplisit ("It
   works") — fix Batch 78 (quote `name:` di step "Publish GitHub Release")
   BENERAN nyelesain masalah di produksi, tombol "Cek Update Sekarang"
   sekarang berfungsi. **Caveat "BELUM tervalidasi runtime CI beneran" di
