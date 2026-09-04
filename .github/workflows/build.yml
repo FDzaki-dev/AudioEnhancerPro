@@ -274,12 +274,27 @@ jobs:
       # bukan 1 Release yang di-update. Judul Release tetap tampilkan nomor versi
       # DAN nomor run (`Run #<run_number>`, lebih pendek/gampang dibaca dari `run_id`
       # panjang) biar tetap jelas dari mana asalnya.
+      # Batch 78 (ROOT CAUSE laporan user "Cek Update Sekarang" gagal/salah lapor,
+      # dikonfirmasi dari `curl` API response asli — bukan dugaan): baris `name:`
+      # di bawah TIDAK di-quote — YAML plain scalar (unquoted) memperlakukan
+      # SPASI+`#` (` #`) sebagai AWAL KOMENTAR, walau di tengah baris. Judul yang
+      # SEHARUSNYA "AudioEnhancerPro v127 (Run #127)" kepotong jadi
+      # "AudioEnhancerPro v127 (Run" SEBELUM sempat dikirim ke GitHub API — bukan
+      # dipotong pas transit/API, tapi SEJAK di-parse YAML lokal di runner CI.
+      # Konsekuensi: `RUN_NUMBER_REGEX = "Run #(\d+)"` (UpdateManager.kt) TIDAK
+      # PERNAH nemu match sejak fitur update ada (Batch 69) — sebelum Batch 75
+      # ini bikin app SALAH lapor "sudah versi terbaru" (root cause ASLI laporan
+      # awal user), setelah Batch 75 bikin app jujur lapor "Gagal mengecek
+      # update" (dikira awalnya soal jaringan, ternyata bukan). Fix: quote SELURUH
+      # value `name:` (`"..."`) — expression `${{ }}` GitHub Actions TETAP
+      # jalan normal di dalam string YAML yang di-quote, cuma `#` di dalamnya
+      # jadi literal, bukan comment starter lagi.
       - name: Publish GitHub Release
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
-          name: AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})
+          name: "AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})"
           files: ${{ steps.rename.outputs.path }}
           body_path: release_notes.md
 

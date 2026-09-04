@@ -102,16 +102,59 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 77 — DIAGNOSTIK, 0 file kode. User laporan
-  screenshot "Cek Update Sekarang" → `ManualUpdateCheckState.ERROR` ("Gagal
-  mengecek update, coba lagi nanti"). Dikonfirmasi BUKAN bug: (1) status bar
-  screenshot nunjukin Mode Pesawat AKTIF bareng WiFi, (2) user konfirmasi
-  eksplisit itu emang kondisi tes-nya. `ERROR` yang tampil justru BUKTI Batch
-  75 kepakai bener (dulu skenario ini bakal SALAH tampil "Sudah versi
-  terbaru" diam-diam). Lihat LOG UPDATE HARIAN Batch 77 detail lengkap.
+- **Batch terakhir**: Batch 78 — ROOT CAUSE ASLI fitur "Cek Update" dari awal
+  (dikonfirmasi via `curl` API response asli, BUKAN dugaan): baris `name:`
+  judul Release (`.github/workflows/build.yml`) TIDAK di-quote — YAML
+  perlakukan ` #` di tengah string unquoted sebagai AWAL KOMENTAR, motong
+  judul SEBELUM sempat dikirim ke GitHub sama sekali. `RUN_NUMBER_REGEX`
+  (`UpdateManager.kt`) TIDAK PERNAH nemu match sejak fitur ada (Batch 69) —
+  ini akar masalah "salah lapor sudah terbaru" (sebelum Batch 75) MAUPUN
+  "gagal cek" (setelah Batch 75). Fix: quote value `name:`. 1 file kode
+  (`.github/workflows/build.yml`, Protected).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🔍 **Batch 77 (terbaru, 0 file kode)**: User kirim screenshot Settings:
+- 🐛🎯 **Batch 78 (terbaru)**: Lanjutan investigasi Batch 77 — user push balik
+  soal "sinyal WiFi tetap normal walau Mode Pesawat aktif", jadi Claude
+  MINTA BUKTI LANGSUNG (bukan nebak lagi): `curl` ke endpoint API PERSIS yang
+  dipanggil app (`https://api.github.com/repos/FDzaki-dev/AudioEnhancerPro/releases/latest`),
+  dijalankan user dari Termux. Percobaan PERTAMA (nulis ke `/tmp/...`) balik
+  body kosong — dicurigai `/tmp` gak writable di Termux (root fs asli, bukan
+  `$HOME`), user diminta ulang nulis ke `$HOME` + cek byte count eksplisit.
+  Percobaan KEDUA: `HTTP_STATUS:200 SIZE:4359`, body LENGKAP kebaca.
+  **ROOT CAUSE KETEMU** dari field `"name"` di JSON asli:
+  `"name":"AudioEnhancerPro v127 (Run"` — KEPOTONG, seharusnya
+  `"...(Run #127)"`. Diperiksa `.github/workflows/build.yml` baris 282:
+  `name: AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{
+  github.run_number }})` — TIDAK di-quote. **YAML plain scalar (unquoted)
+  memperlakukan SPASI+`#` sebagai awal komentar** — di tengah baris SEKALIPUN
+  — jadi ` #${{ github.run_number }})` KEHAPUS saat parsing YAML di runner
+  CI, SEBELUM softprops/action-gh-release sempat kirim apa pun ke GitHub API.
+  Bukan soal transit/API sama sekali.
+  **Dampak retroaktif (penting buat konteks histori project)**: bug YAML ini
+  SUDAH ADA sejak baris `name:` ini pertama ditulis (Batch 69, fitur update
+  pertama kali dibuat) — TIDAK PERNAH sekalipun `RUN_NUMBER_REGEX` di
+  `UpdateManager.kt` berhasil match judul Release. Ini akar masalah GANDA:
+  1. **Sebelum Batch 75**: `fetchLatestRelease()` lama balik `null` kalau
+     regex gak match — app SALAH lapor "sudah versi terbaru" (laporan awal
+     user di percakapan ini, root cause SEBENARNYA baru ketemu sekarang).
+  2. **Setelah Batch 75**: `null` diganti `CheckResult.Failed`→`ERROR` — app
+     jujur lapor "Gagal mengecek update" (Batch 77), TAPI regex tetap gak
+     pernah match karena root cause YAML ini belum kesentuh — makanya
+     Batch 77 sempat salah duga soal jaringan/Mode Pesawat (masuk akal saat
+     itu, HTTP 200 asli emang gak pernah dicek isinya duluan).
+  **Fix**: `name:` value dibungkus tanda kutip ganda (`"..."`) — expression
+  `${{ }}` GitHub Actions tetap jalan normal di dalam string YAML yang
+  di-quote, `#` di dalamnya jadi literal (bukan comment starter). Divalidasi
+  `python3 -c "import yaml"`: value ke-parse UTUH
+  `'AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{
+  github.run_number }})'`, 15 step tetap sama, urutan gak berubah.
+  **File disentuh** (1 file kode, dalam Micro-Batch, Protected):
+  `.github/workflows/build.yml`. **BELUM tervalidasi runtime CI beneran**
+  (perlu push + run CI baru + tes tombol "Cek Update Sekarang" lagi utk
+  konfirmasi FINAL — kandidat pertama kalau MASIH gagal setelah ini: cek
+  ulang isi `assets` array di response, atau kemungkinan `versionCode`
+  device yang diinstall user justru SUDAH >= run terbaru).
+- 🔍 **Batch 77 (riwayat)**: User kirim screenshot Settings:
   "Versi aplikasi: 126", tap "Cek Update Sekarang" → hasil merah "Gagal
   mengecek update, coba lagi nanti" (`ManualUpdateCheckState.ERROR`). Ini
   LAPORAN BARU, bukan gejala bug lama Batch 75 (yang salah nampilin

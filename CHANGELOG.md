@@ -1,5 +1,35 @@
 # Changelog
 
+## Batch 78: Fix judul GitHub Release kepotong (root cause ASLI fitur Cek Update sejak awal)
+
+Root cause fitur "Cek Update" akhirnya ketemu lewat bukti langsung —
+`curl` ke API GitHub dari Termux (dijalankan user), bukan dugaan lagi.
+Field `"name"` (judul) Release GitHub ternyata kepotong:
+`"AudioEnhancerPro v127 (Run"` (seharusnya `"...(Run #127)"`). Penyebab:
+baris `name:` di `.github/workflows/build.yml` (step "Publish GitHub
+Release") TIDAK di-quote — YAML plain scalar unquoted memperlakukan
+SPASI+`#` sebagai AWAL KOMENTAR walau di tengah baris, motong judul saat
+parsing YAML di runner CI, SEBELUM sempat dikirim ke GitHub API sama
+sekali.
+
+**Dampak**: `RUN_NUMBER_REGEX` di `UpdateManager.kt` (Batch 69) TIDAK PERNAH
+berhasil match judul Release SEJAK fitur update pertama kali dibuat — akar
+masalah ganda yang baru sekarang kekonfirmasi: sebelum Batch 75 bikin app
+salah lapor "sudah versi terbaru" padahal belum; setelah Batch 75 bikin app
+lapor "gagal cek" (jujur, tapi belum tahu kenapa gagal — root cause-nya
+justru baris ini).
+
+**Fix**: `name:` value dibungkus tanda kutip ganda — expression `${{ }}`
+GitHub Actions tetap jalan normal di dalam string YAML yang di-quote, `#` di
+dalamnya jadi karakter literal. Divalidasi parse YAML (`python3 -c "import
+yaml"`): value ke-parse utuh, 15 step tetap sama. 1 file kode (dalam
+Micro-Batch, Protected): `.github/workflows/build.yml`. **Belum tervalidasi
+runtime CI beneran** — butuh push + run CI baru + tes ulang tombol "Cek
+Update Sekarang" utk konfirmasi final. Detail investigasi lengkap:
+`PROJECT_STATE.md` Batch 77-78.
+
+---
+
 ## Batch 76: versionName otomatis dari GITHUB_RUN_NUMBER (Versioning Lock diperluas)
 
 Diminta user eksplisit ("Pokoknya versionName wajib otomatis dari
