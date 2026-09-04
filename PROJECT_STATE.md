@@ -102,18 +102,34 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 78 — ROOT CAUSE ASLI fitur "Cek Update" dari awal
-  (dikonfirmasi via `curl` API response asli, BUKAN dugaan): baris `name:`
-  judul Release (`.github/workflows/build.yml`) TIDAK di-quote — YAML
-  perlakukan ` #` di tengah string unquoted sebagai AWAL KOMENTAR, motong
-  judul SEBELUM sempat dikirim ke GitHub sama sekali. `RUN_NUMBER_REGEX`
-  (`UpdateManager.kt`) TIDAK PERNAH nemu match sejak fitur ada (Batch 69) —
-  ini akar masalah "salah lapor sudah terbaru" (sebelum Batch 75) MAUPUN
-  "gagal cek" (setelah Batch 75). Fix: quote value `name:`. 1 file kode
-  (`.github/workflows/build.yml`, Protected).
+- **Batch terakhir**: Batch 79 — 0 file kode. User KONFIRMASI Batch 78
+  (fix quote `name:` GitHub Release) BENERAN JALAN di produksi — "Cek Update
+  Sekarang" sekarang berfungsi normal. Caveat "belum tervalidasi runtime CI"
+  di Batch 78 RESMI DITUTUP. Fitur update SEKARANG dianggap fully working
+  end-to-end (rantai Batch 69→73→74→75→76→77→78 selesai).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🐛🎯 **Batch 78 (terbaru)**: Lanjutan investigasi Batch 77 — user push balik
+- ✅ **Batch 79 (terbaru, 0 file kode)**: User konfirmasi eksplisit ("It
+  works") — fix Batch 78 (quote `name:` di step "Publish GitHub Release")
+  BENERAN nyelesain masalah di produksi, tombol "Cek Update Sekarang"
+  sekarang berfungsi. **Caveat "BELUM tervalidasi runtime CI beneran" di
+  Batch 78 RESMI DITUTUP — dikonfirmasi VALID.**
+  User juga komentar: fitur update di project LAIN dia gak pernah kena
+  masalah serupa. **Catatan buat sesi depan (transferable, BUKAN klaim soal
+  project lain — Claude gak punya akses kode project lain user di sesi
+  ini)**: root cause Batch 78 (YAML unquoted string yang isinya ` #` diam-diam
+  kepotong jadi komentar) itu SPESIFIK ke kombinasi: (a) workflow YAML nulis
+  literal `#` di tengah value TANPA quote, (b) value itu dipakai lagi
+  di-parse balik oleh kode app (regex `Run #(\d+)`). Kombinasi ini gak
+  otomatis muncul di project lain KECUALI mereka juga punya pola serupa
+  (judul/field yang disisipin `#<angka>` unquoted di YAML lalu di-parse balik
+  app). Gagal-nya SENGAJA "senyap" — CI tetap SUKSES, Release tetap
+  ke-publish, gak ada error di mana pun — cuma field-nya aja yang isinya beda
+  dari yang dimaksud. Kalau user pernah/mau bikin fitur serupa (title/field
+  YAML yang disisipin `#<run-number>` dkk) di project lain, worth di-quote
+  preventif dari awal.
+  **File disentuh**: 0 kode. Cuma sync status doc ini.
+- 🐛🎯 **Batch 78 (riwayat, DIKONFIRMASI JALAN — lihat Batch 79)**: Lanjutan investigasi Batch 77 — user push balik
   soal "sinyal WiFi tetap normal walau Mode Pesawat aktif", jadi Claude
   MINTA BUKTI LANGSUNG (bukan nebak lagi): `curl` ke endpoint API PERSIS yang
   dipanggil app (`https://api.github.com/repos/FDzaki-dev/AudioEnhancerPro/releases/latest`),
@@ -149,11 +165,8 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
   `'AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{
   github.run_number }})'`, 15 step tetap sama, urutan gak berubah.
   **File disentuh** (1 file kode, dalam Micro-Batch, Protected):
-  `.github/workflows/build.yml`. **BELUM tervalidasi runtime CI beneran**
-  (perlu push + run CI baru + tes tombol "Cek Update Sekarang" lagi utk
-  konfirmasi FINAL — kandidat pertama kalau MASIH gagal setelah ini: cek
-  ulang isi `assets` array di response, atau kemungkinan `versionCode`
-  device yang diinstall user justru SUDAH >= run terbaru).
+  `.github/workflows/build.yml`. ~~BELUM tervalidasi runtime CI beneran~~ —
+  **DIKONFIRMASI JALAN di produksi, lihat Batch 79** (user: "It works").
 - 🔍 **Batch 77 (riwayat)**: User kirim screenshot Settings:
   "Versi aplikasi: 126", tap "Cek Update Sekarang" → hasil merah "Gagal
   mengecek update, coba lagi nanti" (`ManualUpdateCheckState.ERROR`). Ini
