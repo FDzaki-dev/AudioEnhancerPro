@@ -1,5 +1,50 @@
 # Changelog
 
+## Batch 81: Feedback update lebih informatif, unduh langsung dari Pengaturan (bukan bolak-balik tab)
+
+Diminta user eksplisit lewat 2 screenshot: feedback "Cek Update Sekarang"
+sebelumnya cuma bilang "Update v129 ketemu — lihat banner di layar utama",
+maksa pindah tab ke layar utama cuma buat lihat detail & mulai unduh — dan
+gak ada info apa pun soal ISI update-nya selain nomor versi baru. Sekarang
+begitu ketemu update, Pengaturan langsung tampilkan komparasi versi eksplisit
+("v128 → v129", bukan cuma versi baru), ringkasan 1-baris dari rilis GitHub
+(BUKAN link ke CHANGELOG.md selengkapnya — diminta eksplisit), DAN tombol
+"Unduh & Pasang" yang bisa langsung ditekan di situ juga.
+
+**File disentuh (3 kode + strings.xml ID/EN)**:
+- `UpdateManager.kt`: `UpdateInfo` dapat field baru `releaseNotes: String`,
+  diisi fungsi privat baru `extractReleaseSummary()` — ambil baris heading
+  "## ..." paling atas dari body Release GitHub (body itu SENDIRI sudah
+  ringkasan versi `release_notes.md` di build.yml, Batch 26/48 — BUKAN full
+  CHANGELOG.md), buang bagian "---"+link CHANGELOG.md di ekornya, cap 160
+  char jaring pengaman.
+- `SettingsScreen.kt`: dapat 2 param baru (`updateDownloadProgress`,
+  `updateDownloadFailed`) + tombol unduh inline begitu state FOUND — reuse
+  penuh state/fungsi unduh yang SUDAH ADA di `BoosterViewModel` (dipakai
+  bareng `UpdateBanner` di `BoosterScreen.kt`), 0 logic unduh baru/duplikat.
+- `MainActivity.kt` (edit parsial): wiring 2 param baru + callback
+  `onDownloadAndInstall` ke `viewModel.downloadAndInstallUpdate()` yang
+  SUDAH ADA — 0 fungsi baru di `BoosterViewModel.kt`.
+- `strings.xml` (ID+EN): `settings_update_found` sekarang 2 placeholder
+  (versi lama → versi baru, bukan cuma versi baru), tambah string baru
+  `settings_whats_new_label` ("Yang baru:"/"What's new:").
+
+**Kenapa 0 perubahan di `BoosterViewModel.kt`**: semua state
+(`updateDownloadProgress`, `updateDownloadFailed`) & fungsi
+(`downloadAndInstallUpdate()`) yang dibutuhkan SUDAH public (`private set`)
+sejak fitur update pertama kali dibuat (Batch 69) — dipakai `UpdateBanner` di
+`BoosterScreen.kt`. `SettingsScreen.kt` sekarang cuma jadi konsumen KEDUA dari
+state yang sama, bukan sumber logic baru. `UpdateBanner` di layar utama TETAP
+ada apa adanya (tidak dihapus/diubah) — cuma sekarang bukan satu-satunya jalan
+unduh lagi.
+
+**BELUM divalidasi runtime** (siklus lengkap zip → Termux → CI → install) —
+kandidat pertama dicurigai kalau nanti ringkasan rilis nongol kosong/aneh di
+Pengaturan: format `body` Release GitHub asli belum pernah diadu langsung
+lawan asumsi `extractReleaseSummary()` pasca perubahan ini (`json.optString
+("body")` sendiri sudah aman balik `""` kalau field-nya null/tidak ada, jadi
+skenario TERBURUK cuma baris "Yang baru:" tidak muncul, BUKAN crash).
+
 ## Batch 78: Fix judul GitHub Release kepotong (root cause ASLI fitur Cek Update sejak awal)
 
 Root cause fitur "Cek Update" akhirnya ketemu lewat bukti langsung —

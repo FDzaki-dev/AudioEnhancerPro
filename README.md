@@ -44,8 +44,11 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
   yang mengunduh APK signed lalu langsung membuka layar instalasi sistem, tanpa
   perlu buka browser/tab Releases manual. Ada juga tombol "Cek Update Sekarang"
   di halaman Pengaturan (ikon ⚙️ di layar utama) buat trigger cek manual kapan
-  saja, lengkap status jelas (sudah terbaru / ketemu update / gagal cek) — beda
-  dari cek otomatis di atas yang diam-diam kalau gagal.
+  saja — beda dari cek otomatis di atas yang diam-diam kalau gagal, tombol ini
+  kasih status jelas (sudah terbaru / gagal cek), dan kalau ketemu update
+  langsung tampilkan komparasi versi (mis. "v128 → v129") + ringkasan 1-baris
+  rilisnya (Batch 81, bukan link changelog selengkapnya) plus tombol unduh di
+  situ juga — tidak perlu lagi pindah ke layar utama buat mulai unduh.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).

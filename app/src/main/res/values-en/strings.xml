@@ -171,6 +171,7 @@
     <string name="settings_check_update_button">Check for Update Now</string>
     <string name="settings_checking_update">Checking for update…</string>
     <string name="settings_up_to_date">You\'re on the latest version</string>
-    <string name="settings_update_found">Update v%1$s found — see the banner on the main screen</string>
+    <string name="settings_update_found">Update found: v%1$s → v%2$s</string>
     <string name="settings_check_update_failed">Failed to check for update, please try again later</string>
+    <string name="settings_whats_new_label">What\'s new:</string>
 </resources>

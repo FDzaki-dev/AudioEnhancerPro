@@ -188,7 +188,10 @@ class MainActivity : ComponentActivity() {
                             appVersionName = packageManager.getPackageInfo(packageName, 0).versionName ?: "",
                             manualUpdateCheckState = viewModel.manualUpdateCheckState,
                             foundUpdateInfo = viewModel.updateInfo,
+                            updateDownloadProgress = viewModel.updateDownloadProgress,
+                            updateDownloadFailed = viewModel.updateDownloadFailed,
                             onCheckUpdate = { viewModel.checkForUpdateManually() },
+                            onDownloadAndInstall = { viewModel.downloadAndInstallUpdate() },
                             onBack = { showSettings = false }
                         )
                     } else {

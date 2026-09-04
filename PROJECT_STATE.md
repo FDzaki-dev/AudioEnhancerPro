@@ -67,13 +67,35 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 80 — 0 file kode. Pangkas narasi bertele-tele di
-  section 🔒 ATURAN PERMANEN & HIERARKI (98→63 baris) atas permintaan user —
-  semua keputusan/fakta teknis tetap utuh, cuma justifikasi panjang dipotong.
-  Fitur update (rantai Batch 69→78) tetap fully working end-to-end.
+- **Batch terakhir**: Batch 81 — 3 file kode (`UpdateManager.kt`,
+  `SettingsScreen.kt`, `MainActivity.kt` edit parsial) + `strings.xml` ID/EN.
+  Feedback "Cek Update Sekarang" sekarang tampilkan komparasi versi + ringkasan
+  rilis + tombol unduh LANGSUNG di Pengaturan (dulu cuma nyuruh pindah ke layar
+  utama). BELUM divalidasi runtime.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- ✂️ **Batch 80 (terbaru, 0 file kode)**: Pangkas narasi bertele-tele di
+- 🆕 **Batch 81 (terbaru, 3 file kode + strings.xml ID/EN)**: Diminta user
+  eksplisit lewat 2 screenshot — feedback tombol "Cek Update Sekarang" di
+  Pengaturan dikeluhkan gak informatif ("Update v129 ketemu — lihat banner di
+  layar utama") DAN maksa bolak-balik tab ke layar utama cuma buat lihat
+  detail/mulai unduh. Sekarang begitu FOUND, Pengaturan langsung tampilkan:
+  (1) komparasi versi eksplisit "v128 → v129" (dulu cuma versi baru doang),
+  (2) ringkasan 1-baris rilis dari `UpdateManager.extractReleaseSummary()` —
+  BUKAN link ke CHANGELOG.md selengkapnya, diminta eksplisit, (3) tombol
+  "Unduh & Pasang" yang bisa langsung ditekan di situ.
+  **0 logic unduh baru** — `SettingsScreen.kt` reuse 100% state
+  (`updateDownloadProgress`/`updateDownloadFailed`) & fungsi
+  (`downloadAndInstallUpdate()`) yang SUDAH ADA di `BoosterViewModel` sejak
+  Batch 69 (dipakai bareng `UpdateBanner`/`BoosterScreen.kt`, yang TETAP ada
+  apa adanya) — makanya `BoosterViewModel.kt` 0 disentuh sama sekali.
+  `strings.xml` (ID+EN): `settings_update_found` sekarang 2 placeholder
+  (versi lama→baru), tambah `settings_whats_new_label`.
+  **BELUM divalidasi runtime** (siklus zip→Termux→CI→install) — kandidat
+  pertama dicurigai kalau summary rilis nongol kosong/format aneh: asumsi
+  `extractReleaseSummary()` soal bentuk body Release GitHub (lihat komentar
+  fungsinya, `UpdateManager.kt`) belum pernah diadu lawan response API asli
+  pasca perubahan ini. Detail teknis lengkap: lihat CHANGELOG.md.
+- ✂️ **Batch 80 (riwayat, 0 file kode)**: Pangkas narasi bertele-tele di
   section 🔒 ATURAN PERMANEN & HIERARKI (98→63 baris) atas permintaan
   eksplisit user. Semua keputusan/fakta teknis dipertahankan utuh (rebrand
   Boomly + konsekuensinya, permission locks, versioning lock, dst) — cuma
@@ -2253,12 +2275,18 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   terbaru" (lihat LOG UPDATE HARIAN Batch 75). Batch 73: logic inti
   diekstrak ke `fetchLatestRelease()` privat (dipakai ulang `checkForUpdate()`
   DAN `checkForUpdateManual()` baru — beda cuma soal exception ditelan/dilempar).
+  Batch 81: `UpdateInfo` dapat field `releaseNotes` (ringkasan 1-baris, diisi
+  fungsi baru privat `extractReleaseSummary()` — baca heading "## ..." paling
+  atas body Release GitHub, buang ekor "---"+link CHANGELOG.md).
 - `SettingsScreen.kt` — Batch 73, BARU. Entry point cek-update MANUAL (tombol
   "Cek Update Sekarang" + versi app terpasang), dibuka dari ikon ⚙️ di header
-  `BoosterScreen`. SENGAJA TIDAK duplikasi UI unduh/pasang (itu tetap di
-  `UpdateBanner`, `BoosterScreen.kt`) — begitu ketemu update, `updateInfo`
-  (state `BoosterViewModel` yang sudah ada) ikut di-set, banner itu yang urus
-  unduh/pasang begitu user balik ke layar utama.
+  `BoosterScreen`. Batch 81 (REVISI — user keluhkan hasil FOUND gak informatif
+  + maksa pindah tab): SEKARANG juga tampilkan komparasi versi + `releaseNotes`
+  + tombol unduh inline di sini, TETAP 0 logic unduh baru — 100% reuse state
+  (`updateDownloadProgress`/`updateDownloadFailed`) & fungsi
+  (`downloadAndInstallUpdate()`) yang sudah ada di `BoosterViewModel`, sama
+  yang dipakai `UpdateBanner` (`BoosterScreen.kt`, TETAP ada apa adanya, bukan
+  satu-satunya jalan unduh lagi).
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")

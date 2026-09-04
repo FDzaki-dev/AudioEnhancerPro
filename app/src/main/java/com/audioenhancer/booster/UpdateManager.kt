@@ -52,8 +52,31 @@ object UpdateManager {
         val versionName: String,
         val runNumber: Int,
         val downloadUrl: String,
-        val fileName: String
+        val fileName: String,
+        val releaseNotes: String
     )
+
+    /** Batch 81 (diminta user, feedback "Cek Update" dikeluhkan gak informatif +
+     *  maksa bolak-balik tab ke layar utama cuma buat lihat ada apa di update-nya):
+     *  ambil ringkasan 1-baris dari body Release GitHub. Body itu SENDIRI sudah
+     *  ringkasan (`release_notes.md` di build.yml, Batch 26/48 — heading + paragraf
+     *  pembuka entry CHANGELOG.md TERATAS, hard cap 15 baris), BUKAN full
+     *  CHANGELOG.md — jadi TIDAK perlu potong berat di sini, cuma 2 hal: (1) buang
+     *  baris "---" + link CHANGELOG.md di ekornya (user eksplisit: summary in-app
+     *  TIDAK boleh nampilin link changelog selengkapnya, cukup teksnya), (2) ambil
+     *  baris heading "## ..." paling atas SEBAGAI ringkasan 1-baris (sudah cukup
+     *  deskriptif dari pengamatan format CHANGELOG.md project ini — lihat
+     *  "Cara update file ini" varian CHANGELOG), bukan seluruh paragraf (biar gak
+     *  bertele-tele di kartu Settings yang sempit). Cap 160 char jaring pengaman
+     *  kalau ada judul entry yang meleset panjang. Return "" (bukan exception/null)
+     *  kalau body kosong/format tak terduga — pemanggil cukup skip baris summary. */
+    private fun extractReleaseSummary(body: String): String {
+        if (body.isBlank()) return ""
+        val beforeLink = body.substringBefore("\n---").trim()
+        val heading = beforeLink.lineSequence().firstOrNull { it.isNotBlank() }
+            ?.removePrefix("## ")?.trim().orEmpty()
+        return if (heading.length > 160) heading.take(157) + "…" else heading
+    }
 
     /** Batch 74 (bugfix): hasil `fetchLatestRelease()` dipecah 3 kondisi yang SEBELUMNYA
      *  digepyok jadi satu nilai `null` — root cause laporan user "app bilang sudah versi
@@ -136,7 +159,13 @@ object UpdateManager {
             if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext CheckResult.Failed
 
             CheckResult.Available(
-                UpdateInfo(versionName = versionName, runNumber = runNumber, downloadUrl = apkUrl, fileName = apkName)
+                UpdateInfo(
+                    versionName = versionName,
+                    runNumber = runNumber,
+                    downloadUrl = apkUrl,
+                    fileName = apkName,
+                    releaseNotes = extractReleaseSummary(json.optString("body"))
+                )
             )
         } finally {
             connection?.disconnect()
