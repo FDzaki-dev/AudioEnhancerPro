@@ -2,6 +2,9 @@ package com.audioenhancer.booster
 
 import android.app.*
 import android.content.Intent
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
@@ -108,6 +111,33 @@ class AudioEnhancerService : Service() {
     @Volatile var loudnessState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var equalizerState: EffectState = EffectState.UNAVAILABLE; private set
 
+    // Batch 82 (roadmap.md Fase 0 #3, "Output routing awareness"): deskripsi ringkas
+    // sink output TERAKHIR yang terdeteksi (mis. "Bluetooth A2DP (terhubung)") — diisi
+    // `onOutputRouteChanged()` di bawah. @Volatile: sama alasan seperti state effect di
+    // atas, ditulis dari callback sistem (thread TIDAK dijamin sama dengan pembaca ke
+    // depan kalau ViewModel/UI mulai poll field ini). SENGAJA belum dikonsumsi
+    // ViewModel/UI batch ini (pola sama seperti Batch 60: Service-layer dulu, Log
+    // diagnostik cukup untuk batch ini, surface ke UI kalau ada kebutuhan/laporan nyata
+    // dari device — kandidat kuat buat roadmap.md Fase 0 #9 "UI/error-state lanjutan").
+    @Volatile var lastOutputRouteDescription: String? = null; private set
+
+    private var audioManager: AudioManager? = null
+
+    // Batch 82: listener perubahan device audio SISTEM (bukan cuma sesi app ini) — cara
+    // resmi Android modern (API 23+, project ini minSdk 31 jadi selalu tersedia) untuk tahu
+    // kapan sink output BERPINDAH (speaker->Bluetooth, headset dicabut, USB DAC nyambung,
+    // dst) TANPA perlu polling. Kelas anonim (bukan fungsi top-level) supaya bisa
+    // unregister persis instance yang sama di `onDestroy()` (API `unregisterAudioDeviceCallback`
+    // butuh reference objek yang SAMA persis dengan yang di-register, bukan instance baru).
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
+            onOutputRouteChanged(addedDevices, added = true)
+        }
+        override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
+            onOutputRouteChanged(removedDevices, added = false)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Batch 45: "kunci" service ini di prioritas penjadwalan CPU tertinggi yang
@@ -126,6 +156,17 @@ class AudioEnhancerService : Service() {
         } catch (_: Exception) { }
         createNotificationChannel()
         attachEffects()
+        // Batch 82: register SETELAH attachEffects() — urutan tidak kritis (callback baru
+        // aktif async lewat sistem), tapi biar konsisten "state effect dulu baru listener
+        // tambahan" sama seperti pola attachXxx() di atas. Dibungkus try-catch: teoretis
+        // OEM tertentu bisa restrict (belum ada laporan nyata), gagal diam-diam ke Log.e
+        // daripada crash Service ini seluruhnya cuma gara-gara 1 listener opsional.
+        try {
+            audioManager = getSystemService(AudioManager::class.java)
+            audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -183,6 +224,13 @@ class AudioEnhancerService : Service() {
     }
 
     override fun onDestroy() {
+        // Batch 82: lepas listener SEBELUM releaseEffects() — urutan ini yang penting
+        // (beda dari onCreate di atas): Service mau mati, hentikan dulu sumber callback
+        // baru masuk supaya tidak ada race kecil `onOutputRouteChanged()` terpanggil
+        // (mis. panggil `enableEffects()`) di tengah/sesudah effect object dilepas.
+        try { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal unregister AudioDeviceCallback", e)
+        }
         releaseEffects()
         isRunning = false
         BoosterWidgetProvider.refreshAll(this)
@@ -370,6 +418,68 @@ class AudioEnhancerService : Service() {
             restoreSavedSettings()
         }
         return retried
+    }
+
+    /** Batch 82 (roadmap.md Fase 0 #3, audit Gap "Output routing awareness" — audio
+     *  session 0 tidak dijamin "menempel" seragam di semua HAL vendor saat sink output
+     *  berpindah, lihat komentar panjang `EffectState` di atas soal kenapa gap ini beda
+     *  dari `CONTROL_LOST`). Dipanggil `AudioDeviceCallback` tiap ada device audio
+     *  SISTEM nyambung/lepas — filter `isSink` dulu (buang device INPUT seperti mic
+     *  eksternal, tidak relevan buat effect output session-0 di sini).
+     *
+     *  Aksi yang diambil SENGAJA ringan (bukan `retryControlAcquisition()`): cuma
+     *  re-assert `enabled = true` (lewat `enableEffects()` yang SUDAH ADA, idempotent +
+     *  null-safe + menandai `FAILED` kalau exception) sebagai "nudge" jaga-jaga effect
+     *  yang diam-diam ke-disable HAL saat route pindah. TIDAK recreate object AudioEffect
+     *  di sini — alasan SAMA PERSIS dengan kenapa `retryControlAcquisition()` juga belum
+     *  ada pemanggil otomatis (lihat komentar fungsi itu): route audio bisa berpindah
+     *  CUKUP SERING dalam pemakaian normal (mis. earbuds TWS reconnect berkali-kali),
+     *  recreate object tiap kali berisiko churn CPU/baterai sia-sia tanpa bukti itu
+     *  benar-benar perlu. Kalau nudge ringan ini TIDAK cukup dan effect beneran
+     *  `CONTROL_LOST`, jalur yang SUDAH ADA (listener di `attachXxx()` →
+     *  `ControlRecoveryBanner` UI, Batch 61/62) tetap akan menangkapnya lewat mekanisme
+     *  normal — fungsi ini TIDAK menggantikan jalur itu, cuma lapisan tambahan di depan.
+     *
+     *  Digerbang `isRunning` SENGAJA: kalau user baru saja tekan "Matikan" (effect
+     *  sengaja `disabled`, `isRunning=false`), route change TIDAK BOLEH diam-diam
+     *  menyalakan ulang effect — itu akan melanggar pilihan eksplisit user (persis
+     *  alasan `enableEffects()` juga tidak dipanggil sembarangan tempat lain).
+     *
+     *  BELUM divalidasi runtime — kandidat pertama dicurigai kalau nanti ada laporan
+     *  "kok Logcat gak pernah kecatat pas ganti Bluetooth/headset": kemungkinan device
+     *  tertentu tidak fire `AudioDeviceCallback` untuk tipe device tertentu (variasi HAL
+     *  vendor, sama kelas masalah dengan capability lain di file ini). */
+    private fun onOutputRouteChanged(devices: Array<AudioDeviceInfo>, added: Boolean) {
+        val outputDevices = devices.filter { it.isSink }
+        if (outputDevices.isEmpty()) return // semua device di batch callback ini INPUT, bukan urusan fungsi ini
+        val label = outputDevices.joinToString { describeOutputDeviceType(it.type) }
+        val suffix = if (added) "terhubung" else "terputus"
+        lastOutputRouteDescription = "$label ($suffix)"
+        android.util.Log.i(TAG, "Output route berubah: $label $suffix")
+        if (isRunning) {
+            enableEffects()
+        }
+    }
+
+    /** Nama ringkas tipe sink output buat Log/`lastOutputRouteDescription` — HANYA cover
+     *  tipe yang relevan skenario audit (speaker, Bluetooth klasik+BLE, wired, USB DAC),
+     *  bukan daftar lengkap seluruh `AudioDeviceInfo.TYPE_*` (banyak yang tipe INPUT atau
+     *  tidak relevan konteks booster audio ini). Tipe di luar daftar tetap tercatat
+     *  (fallback `"device tipe $type"`), bukan hilang diam-diam. */
+    private fun describeOutputDeviceType(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker internal"
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
+        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
+        AudioDeviceInfo.TYPE_BLE_HEADSET -> "Bluetooth LE headset"
+        AudioDeviceInfo.TYPE_BLE_SPEAKER -> "Bluetooth LE speaker"
+        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Headset kabel"
+        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Headphone kabel"
+        AudioDeviceInfo.TYPE_USB_DEVICE -> "USB DAC/device"
+        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
+        AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB accessory"
+        AudioDeviceInfo.TYPE_HDMI -> "HDMI"
+        AudioDeviceInfo.TYPE_DOCK -> "Dock"
+        else -> "device tipe $type"
     }
 
     private fun restoreSavedSettings() {

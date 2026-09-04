@@ -74,9 +74,30 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
       (rebuild ke `DynamicsProcessing`), SENGAJA tidak diinisiasi di sini,
       effort/risiko besar & butuh device-testing intensif di luar kapasitas
       sandbox. Detail lengkap: `CHANGELOG.md` v1.95.0.
-- [ ] **3. Output routing awareness** — belum ada handling lifecycle output
-      device (speaker↔Bluetooth, wired headset, USB DAC), belum ada re-attach
-      pipeline effect saat output route berubah selagi service aktif.
+- [~] **3. Output routing awareness** (Batch 83, SEBAGIAN — lihat catatan) —
+      `AudioEnhancerService.kt` sekarang register `AudioDeviceCallback` sistem
+      (API 23+, tersedia penuh di minSdk 31 project ini) buat DETEKSI kapan
+      sink output berpindah (speaker↔Bluetooth klasik/LE, wired headset,
+      wired headphones, USB DAC/headset/accessory, HDMI, dock) — SEBELUMNYA
+      nol handling sama sekali, gap ini yang paling mendasar sekarang
+      tertutup. Tiap perubahan dicatat `Log.i` + field baru
+      `lastOutputRouteDescription` (Service-layer, belum disurface
+      ViewModel/UI — kandidat kuat item #9). Aksi "re-attach" yang diambil
+      SENGAJA ringan: nudge `enableEffects()` (re-assert `enabled=true`,
+      idempotent) begitu route berubah SELAGI `isRunning=true` — BUKAN
+      recreate object penuh via `retryControlAcquisition()`, alasan SAMA
+      PERSIS kenapa fungsi itu juga belum ada pemanggil otomatis (churn
+      CPU/baterai sia-sia kalau route sering ganti, mis. TWS reconnect
+      berkali-kali). Kalau nudge ringan ini TIDAK cukup dan effect beneran
+      `CONTROL_LOST`, jalur `ControlRecoveryBanner` (Batch 61/62) yang SUDAH
+      ADA tetap menangkap lewat mekanisme normal. **Kenapa masih SEBAGIAN
+      bukan SELESAI**: (a) belum ada recreate/full re-attach otomatis untuk
+      kasus effect beneran lepas total dari route baru (deliberately
+      deferred, overlap dengan #6), (b) belum divalidasi APAKAH
+      `AudioDeviceCallback` benar-benar fire konsisten lintas OEM (variasi
+      HAL, sama kelas risiko capability lain di file ini), (c) belum ada UI
+      apa pun yang tampilkan `lastOutputRouteDescription` ke user (item #9).
+      Detail lengkap: `CHANGELOG.md` Batch 83.
 - [x] **4. Control ownership/lifecycle lanjutan** (Batch 61 v1.96.0 + Batch 62
       v1.97.0, SELESAI dari sisi app — sisa risiko cuma runtime-validation,
       bukan gap desain) — `AudioEnhancerService.kt` (Batch 61): `attachEffects()`
@@ -250,7 +271,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
-| 0. Audio Engine Robustness (audit eksternal) | 🟡 1/9 item hampir selesai (Batch 57+58) |
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 3/9 selesai (dari sisi app) + 2/9 sebagian (#2, #3) — Batch 57-63, 83 |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

@@ -1,5 +1,79 @@
 # Changelog
 
+## Batch 83: roadmap.md Fase 0 #3 — Output routing awareness (AudioDeviceCallback)
+
+Item pertama dari antrian 5 sisa Fase 0 (dicatat Batch 82). Implementasi
+`AudioDeviceCallback` sistem di `AudioEnhancerService.kt` untuk mendeteksi
+perpindahan sink output audio — SEBELUMNYA project ini nol handling untuk
+skenario speaker↔Bluetooth↔wired headset↔USB DAC sama sekali, walau effect
+di-attach ke session 0 (global mix, seharusnya route-agnostic per kontrak
+platform, TAPI beberapa HAL vendor dilaporkan melepas effect diam-diam saat
+sink berpindah — inilah gap yang mau ditutup).
+
+**Yang ditambahkan (1 file: `AudioEnhancerService.kt`)**:
+- `AudioDeviceCallback` (anonymous class field, API 23+, aman untuk minSdk 31
+  project ini) — register di `onCreate()` (setelah `attachEffects()`),
+  unregister di `onDestroy()` (SEBELUM `releaseEffects()`, urutan sengaja
+  untuk menghindari race callback nyangkut setelah effect object dilepas).
+  Registrasi dibungkus try-catch (Log.e kalau gagal, service tetap jalan
+  tanpa fitur ini — bukan crash total).
+- `onOutputRouteChanged()` (privat, dipanggil `onAudioDevicesAdded`/
+  `onAudioDevicesRemoved`) — filter `AudioDeviceInfo.isSink` (buang device
+  INPUT), catat `Log.i` + field baru `lastOutputRouteDescription` (@Volatile
+  String?, pola sama seperti `bassState` dkk), lalu — HANYA kalau
+  `isRunning == true` — panggil ulang `enableEffects()` yang SUDAH ADA
+  (re-assert `enabled=true`, idempotent + null-safe + menandai `FAILED`
+  kalau exception) sebagai nudge ringan.
+- `describeOutputDeviceType()` (privat) — map `AudioDeviceInfo.TYPE_*` yang
+  relevan (builtin speaker, Bluetooth A2DP/SCO/LE headset/LE speaker, wired
+  headset/headphones, USB device/headset/accessory, HDMI, dock) ke label
+  ringkas untuk Log; tipe di luar daftar fallback `"device tipe $type"`
+  (tetap tercatat, tidak hilang diam-diam).
+
+**Kenapa nudge ringan (`enableEffects()`), BUKAN recreate object
+(`retryControlAcquisition()`)**: alasan sama persis dengan kenapa
+`retryControlAcquisition()` (Batch 61) juga tidak punya pemanggil otomatis
+dari mana pun — route audio bisa berpindah CUKUP SERING dalam pemakaian
+normal (contoh: earbuds TWS yang reconnect berkali-kali dalam durasi
+pendek), recreate object `AudioEffect` tiap kali route berubah berisiko
+churn CPU/baterai sia-sia tanpa bukti itu benar-benar diperlukan. Kalau nudge
+ringan ini ternyata tidak cukup dan effect beneran `CONTROL_LOST`, jalur yang
+SUDAH ADA sejak Batch 61/62 (listener di `attachXxx()` →
+`ControlRecoveryBanner` di UI) tetap akan menangkapnya lewat mekanisme
+normal — fungsi baru ini adalah lapisan tambahan DI DEPAN jalur itu, bukan
+pengganti.
+
+**Kenapa digate `isRunning`**: kalau user baru saja menekan "Matikan" di
+notifikasi (`disableEffects()` dipanggil, effect sengaja `enabled=false`),
+route audio yang kebetulan berubah TIDAK BOLEH diam-diam menyalakan ulang
+effect — itu akan melanggar pilihan eksplisit user, konsisten dengan alasan
+`enableEffects()` juga tidak dipanggil sembarangan di tempat lain dalam
+Service ini.
+
+**`roadmap.md`**: checklist Fase 0 #3 diubah dari `[ ]` ke `[~]` (SEBAGIAN —
+alasan detail kenapa belum `[x]` penuh ada di file itu: belum ada recreate
+otomatis untuk kasus effect beneran lepas total, belum divalidasi konsistensi
+`AudioDeviceCallback` lintas OEM, belum ada UI apa pun yang tampilkan
+`lastOutputRouteDescription`). Baris "Progress ringkas" Fase 0 juga
+diperbaiki di batch ini — SEBELUMNYA stale (masih tertulis "1/9" padahal
+beberapa item sudah `[x]`/`[~]` dari batch-batch lama), bukan perubahan
+status baru, cuma menutup gap 2-sumber-kebenaran yang kebetulan ketemu.
+
+**0 file lain disentuh** — `BoosterViewModel.kt`, seluruh file UI, dan
+`AndroidManifest.xml` 100% apa adanya. Tidak ada permission baru yang
+dibutuhkan (`AudioDeviceCallback` tidak butuh permission khusus apa pun).
+
+**BELUM divalidasi runtime** (siklus lengkap zip → Termux → CI → install) —
+kandidat pertama dicurigai: (1) apakah `AudioDeviceCallback` benar-benar fire
+konsisten di semua OEM/chipset (variasi HAL vendor, kelas risiko yang sama
+dengan capability lain di file ini — belum pernah diuji device fisik sama
+sekali), (2) cek Logcat filter `AudioEnhancerService` sambil ganti
+Bluetooth/cabut-colok headset kabel untuk lihat baris "Output route berubah"
+benar-benar muncul dan labelnya masuk akal, (3) pastikan nudge
+`enableEffects()` TIDAK ke-trigger saat `isRunning=false` — matikan dulu via
+notifikasi "Matikan", baru ganti device audio, pastikan efek TETAP mati
+(tidak menyala sendiri).
+
 ## Batch 81: Feedback update lebih informatif, unduh langsung dari Pengaturan (bukan bolak-balik tab)
 
 Diminta user eksplisit lewat 2 screenshot: feedback "Cek Update Sekarang"

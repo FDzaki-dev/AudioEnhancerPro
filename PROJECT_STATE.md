@@ -67,14 +67,75 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 81 — 3 file kode (`UpdateManager.kt`,
-  `SettingsScreen.kt`, `MainActivity.kt` edit parsial) + `strings.xml` ID/EN.
-  Feedback "Cek Update Sekarang" sekarang tampilkan komparasi versi + ringkasan
-  rilis + tombol unduh LANGSUNG di Pengaturan (dulu cuma nyuruh pindah ke layar
-  utama). BELUM divalidasi runtime.
+- **Batch terakhir**: Batch 83 — 1 file kode (`AudioEnhancerService.kt`).
+  Eksekusi item PERTAMA dari antrian Batch 82: `roadmap.md` Fase 0 **#3
+  Output routing awareness** — `AudioDeviceCallback` sistem + nudge ringan
+  `enableEffects()` saat route berubah (BUKAN recreate object, sengaja).
+  Status jadi SEBAGIAN (`[~]`), bukan `[x]` — lihat `roadmap.md` buat kenapa.
+  Antrian SISA: #5 Gain staging, #6 Rebuild session-0 (BLOKER, butuh
+  konfirmasi risiko user dulu), #8 Automated audio-engine test, #9
+  UI/error-state lanjutan — Claude TETAP menunggu instruksi eksplisit item
+  berikutnya (pola sama, "jangan sekaligus"). BELUM divalidasi runtime.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🆕 **Batch 81 (terbaru, 3 file kode + strings.xml ID/EN)**: Diminta user
+- 🆕 **Batch 83 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+  bilang "Kerjakan woy!!" — dijalankan sebagai eksekusi item PERTAMA dari
+  antrian Batch 82 (urutan sesuai daftar roadmap.md: #3 duluan, BUKAN
+  #6/blocker duluan). Implementasi **roadmap.md Fase 0 #3 "Output routing
+  awareness"**:
+  - `AudioDeviceCallback` (API 23+, aman di minSdk 31 project ini) di-register
+    `onCreate()` / unregister `onDestroy()` (urutan unregister SEBELUM
+    `releaseEffects()` sengaja, hindari race callback nyangkut sesudah effect
+    object dilepas) — sistem sekarang beri tahu Service tiap sink output
+    nyambung/lepas (speaker, Bluetooth klasik/LE, wired headset/headphones,
+    USB DAC/headset/accessory, HDMI, dock), SEBELUMNYA nol handling apa pun.
+  - Field baru `lastOutputRouteDescription: String?` (@Volatile, pola sama
+    seperti `bassState` dkk) — deskripsi ringkas route terakhir buat
+    Log/diagnostik, SENGAJA belum disurface ViewModel/UI batch ini (pola
+    persis Batch 60: Service-layer dulu — kandidat kuat #9 kalau nanti perlu
+    ditampilkan ke user).
+  - Reaksi ke route berubah SENGAJA ringan: `enableEffects()` (re-assert
+    `enabled=true`, sudah ada sejak lama, idempotent+null-safe) SAJA, DIGATE
+    `isRunning` (supaya TIDAK menyalakan ulang effect kalau user baru saja
+    tekan "Matikan" — menghormati pilihan eksplisit user). **BUKAN**
+    `retryControlAcquisition()` (recreate object) — alasan SAMA PERSIS
+    dengan kenapa fungsi itu juga tidak ada pemanggil otomatis sejak Batch
+    62: route bisa berpindah CUKUP SERING (mis. TWS Bluetooth reconnect
+    berkali-kali), recreate tiap kali berisiko churn CPU/baterai sia-sia.
+  - `roadmap.md` checklist #3 diubah `[ ]` → `[~]` (SEBAGIAN, bukan SELESAI —
+    detail kenapa ada di file itu), baris "Progress ringkas" Fase 0 ikut
+    diperbaiki (SEBELUMNYA stale, masih bilang "1/9" padahal sudah 3 item
+    `[x]` + 1 item `[~]` dari batch-batch lama — bukan perubahan status baru,
+    cuma nutup gap 2-sumber-kebenaran yang kebetulan ketemu pas sesi ini).
+  - **0 file lain disentuh** — `BoosterViewModel.kt`/UI/Manifest 100% apa
+    adanya, tidak ada permission baru dibutuhkan (`AudioDeviceCallback`
+    tidak butuh permission khusus).
+  **BELUM divalidasi runtime** (siklus zip→Termux→CI→install) — kandidat
+  curiga pertama: (1) apakah `AudioDeviceCallback` benar-benar fire
+  konsisten di semua OEM (variasi HAL, sama kelas risiko capability lain di
+  file ini — belum pernah diuji device fisik), (2) Logcat filter
+  `AudioEnhancerService` + ganti Bluetooth/cabut headset buat lihat baris
+  "Output route berubah" muncul, (3) pastikan nudge `enableEffects()` TIDAK
+  ke-trigger saat `isRunning=false` (matikan dulu via notifikasi, baru ganti
+  device audio, pastikan efek TETAP mati).
+- 🆕 **Batch 82 (0 file kode — dokumentasi/antrian only)**: User
+  instruksikan lanjut `roadmap.md` Fase 0 sisa 5 item — **#3** Output routing
+  awareness, **#5** Gain staging + dynamics pipeline, **#6** Rebuild
+  arsitektur session-0, **#8** Automated audio-engine test, **#9**
+  UI/error-state refinement lanjutan — dikerjakan **BERTAHAP, SATU per satu**
+  (konsisten instruksi lama di `roadmap.md` Fase 0: "jangan sekaligus"), mode
+  MAINTENANCE tetap aktif. Claude **MENUNGGU** user tunjuk eksplisit item
+  mana duluan sebelum mulai kode apa pun — TIDAK ada inisiatif otomatis lanjut
+  ke item berikutnya begitu 1 item selesai.
+  **Catatan BLOKER #6** (item paling berisiko dari 5): `roadmap.md` eksplisit
+  tandai "BUTUH testing device intensif lintas OEM ... JANGAN diinisiasi
+  tanpa user paham & setuju trade-off/risikonya" — kalau user pilih #6
+  duluan, Claude WAJIB minta konfirmasi eksplisit user paham risikonya
+  SEBELUM menulis kode apa pun, bukan asumsi otomatis lanjut.
+  **0 kode disentuh** — murni update dokumentasi (`PROJECT_STATE.md`) buat
+  catat antrian sesi berikutnya. Checklist `roadmap.md` Fase 0 TIDAK diubah
+  (belum ada item yang selesai/berubah status).
+- 🆕 **Batch 81 (3 file kode + strings.xml ID/EN)**: Diminta user
   eksplisit lewat 2 screenshot — feedback tombol "Cek Update Sekarang" di
   Pengaturan dikeluhkan gak informatif ("Update v129 ketemu — lihat banner di
   layar utama") DAN maksa bolak-balik tab ke layar utama cuma buat lihat
@@ -2255,7 +2316,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`.
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
