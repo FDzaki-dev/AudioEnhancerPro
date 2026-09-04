@@ -102,16 +102,54 @@ perubahan harian; narasi/penjelasan detail tetap tempatnya di LOG HARIAN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 76 — `versionName` ikut auto dari
-  `GITHUB_RUN_NUMBER` (dulu cuma `versionCode`). Redesain 2 step CI yang
-  bergantung ke `versionName` sebagai label stabil (`Extract version name`,
-  `Extract changelog entry for this version`) biar gak regresi diam-diam.
-  2 file kode (`app/build.gradle.kts`, `.github/workflows/build.yml`, KEDUANYA
-  Protected). Heading `CHANGELOG.md` ke depan ganti format (`## Batch N: ...`,
-  bukan `## v<versi> - Batch N: ...`).
+- **Batch terakhir**: Batch 77 — DIAGNOSTIK, 0 file kode. User laporan
+  screenshot "Cek Update Sekarang" → `ManualUpdateCheckState.ERROR` ("Gagal
+  mengecek update, coba lagi nanti"). Dikonfirmasi BUKAN bug: (1) status bar
+  screenshot nunjukin Mode Pesawat AKTIF bareng WiFi, (2) user konfirmasi
+  eksplisit itu emang kondisi tes-nya. `ERROR` yang tampil justru BUKTI Batch
+  75 kepakai bener (dulu skenario ini bakal SALAH tampil "Sudah versi
+  terbaru" diam-diam). Lihat LOG UPDATE HARIAN Batch 77 detail lengkap.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🔧🚨 **Batch 76 (terbaru)**: User eksplisit ("Pokoknya versionName wajib
+- 🔍 **Batch 77 (terbaru, 0 file kode)**: User kirim screenshot Settings:
+  "Versi aplikasi: 126", tap "Cek Update Sekarang" → hasil merah "Gagal
+  mengecek update, coba lagi nanti" (`ManualUpdateCheckState.ERROR`). Ini
+  LAPORAN BARU, bukan gejala bug lama Batch 75 (yang salah nampilin
+  "sudah terbaru" — ini malah jujur bilang gagal, PERSIS perilaku yang
+  dimaksud fix Batch 75).
+  **Investigasi**: Claude cek dulu apa GitHub Release repo ini kelihatan dari
+  luar (`web_search` "FDzaki-dev/AudioEnhancerPro releases") — NIHIL hasil
+  (repo kemungkinan private atau belum ke-index, Claude TIDAK BISA verifikasi
+  state Releases/API GitHub repo ini dari sandbox, harus dari observasi
+  screenshot + konfirmasi user). Dari screenshot: ikon Mode Pesawat status bar
+  NYALA bareng ikon WiFi bersebelahan — dicurigai jadi kandidat penyebab
+  paling gampang duluan (ketimbang langsung nebak-nebak ubah kode). **User
+  DITANYA dulu via tappable options (bukan langsung eksekusi/ubah kode) —
+  Core Protocol "STOP → BLOKER kalau info kurang", `Gagal mengecek update`
+  bisa banyak sebab beda (jaringan device vs state GitHub API/Releases repo)
+  yang gak kelihatan dari 1 screenshot doang.**
+  **Hasil konfirmasi user**: Mode Pesawat MEMANG ON saat tes (WiFi dinyalain
+  manual). **KESIMPULAN: BUKAN bug** — WiFi-saat-Mode-Pesawat TIDAK selalu
+  punya rute internet bersih ke luar (tergantung OEM/state koneksi persis
+  saat itu); `UpdateManager.fetchLatestRelease()` (Batch 74/75) benar
+  menangkap kegagalan HTTP/jaringan itu dan melaporkannya jujur sebagai
+  `Failed`→`ERROR`, BUKAN salah-lapor `UpToDate` seperti sebelum Batch 75.
+  **0 file kode disentuh** — tidak ada bug ditemukan untuk diperbaiki.
+  **Rekomendasi buat user (dicatat, bukan instruksi wajib)**: tes ulang tombol
+  "Cek Update Sekarang" dengan Mode Pesawat OFF total (bukan WiFi-saat-Mode-
+  Pesawat) buat konfirmasi jalur happy-path juga beneran jalan.
+  **BELUM tervalidasi**: apakah check BERHASIL (`FOUND`/`UP_TO_DATE`) di
+  kondisi jaringan normal — user belum laporan hasil tes ulang. Kandidat
+  investigasi lanjutan KALAU tes ulang jaringan-normal MASIH gagal juga:
+  (a) repo belum punya Release sama sekali / CI belum pernah jalan sukses,
+  (b) rate-limit GitHub API unauthenticated (403, 60 req/jam per-IP — Batch
+  75 catatan awal), (c) format judul Release lama (pra-perubahan tag/title
+  scheme sebelumnya) gak match `RUN_NUMBER_REGEX`. Claude TIDAK BISA cek ini
+  dari sandbox (repo gak ke-index search, kemungkinan private) — kalau
+  terjadi, user perlu share isi tab Releases repo atau hasil
+  `curl https://api.github.com/repos/FDzaki-dev/AudioEnhancerPro/releases/latest`
+  langsung dari Termux buat Claude diagnosis lanjut.
+- 🔧🚨 **Batch 76 (riwayat)**: User eksplisit ("Pokoknya versionName wajib
   otomatis dari GITHUB_RUN_NUMBER!!") setelah ditawarkan BLOCKER 3-opsi (lihat
   catatan Batch 65 di bawah — perubahan ini SUDAH diantisipasi sejak lama,
   sengaja ditahan sampai user pilih arah eksplisit). User pilih **"angka run
