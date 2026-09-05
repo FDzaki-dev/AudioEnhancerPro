@@ -1,5 +1,50 @@
 # Changelog
 
+## Batch 85 (hotfix): `compileDebugKotlin` gagal di CI run 133 — param constructor `DynamicsProcessing.Limiter` salah
+
+CI run 133 (dari zip Batch 84) merah total di `:app:compileDebugKotlin` —
+`processDebugResources`/task lain lolos, TIDAK ADA APK ke-generate. Root
+cause: `attachDynamicsProcessing()` (baru ditambah Batch 84) construct
+`DynamicsProcessing.Limiter(...)` dengan asumsi param pertama adalah
+`channelIndex: Int` (diisi literal `0`, dengan komentar "diabaikan —
+setLimiterAllChannelsTo menerapkan ke semua channel"). Asumsi ini SALAH —
+constructor asli `android.media.audiofx.DynamicsProcessing.Limiter` (dicek
+ulang ke dokumentasi resmi, TIDAK ada channelIndex sama sekali di
+constructor manapun untuk class ini) urutannya `(inUse: Boolean, enabled:
+Boolean, linkGroup: Int, attackTime: Float, releaseTime: Float, ratio:
+Float, threshold: Float, postGain: Float)` — param pertama itu `inUse`
+(Boolean), bukan channelIndex. Literal `0` (Int) di posisi Boolean itu yang
+bikin Kotlin compiler nolak (`The integer literal does not conform to the
+expected type Boolean`, `AudioEnhancerService.kt:440:46`).
+
+**Fix (1 file: `AudioEnhancerService.kt`, edit-parsial murni)**: argumen
+pertama diganti dari `/* channelIndex = */ 0` jadi `/* inUse = */ true` —
+secara semantik ini juga LEBIH benar dari niat awal (limiter ini memang
+"SATU-SATUNYA stage yang dipakai effect ini", jadi `inUse=true` sudah
+sesuai), bukan cuma tempelan biar compiler diam. 7 parameter lain
+(`enabled`, `linkGroup`, `attackTime`, `releaseTime`, `ratio`, `threshold`,
+`postGain`) TIDAK berubah nilai maupun urutan — semua sudah cocok dengan
+signature asli. Sisa `attachDynamicsProcessing()` (guard
+`SDK_INT >= VERSION_CODES.P`, `Config.Builder(...)`, listener,
+try-catch, state) 100% apa adanya dari Batch 84.
+
+**Cek statis pengganti compiler** (tidak ada kotlinc/Android SDK di sandbox
+Claude): brace/paren/bracket seluruh `AudioEnhancerService.kt` di-parse
+ulang secara terprogram (string/char/comment-aware) — 0 selisih, 0 token
+nyangkut. Signature constructor dikonfirmasi ke dokumentasi resmi
+`developer.android.com` (bukan tebakan dari memori) sebelum fix ditulis.
+
+**Scope**: HANYA baris yang salah ini yang disentuh — 0 refactor file lain,
+0 perubahan file lain di luar yang disebut, 0 bump versi manual (tetap
+`GITHUB_RUN_NUMBER`, sesuai `CI_CD_LOCK`). `roadmap.md` Fase 0 #5 TETAP
+`[~]` (status sebagian, alasan arsitektural sama seperti Batch 84 — hotfix
+ini cuma benerin compile error, tidak mengubah keputusan pipeline).
+
+**BELUM divalidasi runtime** — hotfix ini menghilangkan compile error yang
+terkonfirmasi dari log CI run 133, tapi siklus penuh (push → CI baru →
+install → dengar hasil limiter di device fisik) belum jalan lagi sejak fix
+ini.
+
 ## Batch 84: roadmap.md Fase 0 #5 — Gain staging + dynamics pipeline (master limiter)
 
 Item kedua dari antrian 5 sisa Fase 0 (dicatat Batch 82, item pertama #3 di

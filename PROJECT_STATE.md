@@ -67,19 +67,52 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 84 — 1 file kode (`AudioEnhancerService.kt`).
-  Item KEDUA dari antrian Batch 82: `roadmap.md` Fase 0 **#5 Gain staging +
-  dynamics pipeline** — effect TAMBAHAN `DynamicsProcessing` sebagai master
-  limiter murni (threshold -1dBFS, ratio 20:1, hardcoded, belum ada slider
-  UI), ceiling terakhir jaga-jaga stacking Bass+Virtualizer+EQ+Loudness
-  numpuk lewat 0dBFS. Status SEBAGIAN (`[~]`) — urutan pipeline eksplisit
-  TIDAK bisa dijamin API legacy ini, overlap ke #6. Antrian SISA: #6 Rebuild
-  session-0 (BLOKER, butuh konfirmasi risiko user dulu), #8 Automated
-  audio-engine test, #9 UI/error-state lanjutan — Claude TETAP menunggu
-  instruksi eksplisit item berikutnya. BELUM divalidasi runtime.
+- **Batch terakhir**: Batch 85 (hotfix, 1 file kode —
+  `AudioEnhancerService.kt`). CI run 133 dari zip Batch 84 GAGAL total
+  (`compileDebugKotlin`, 0 APK ke-generate) — `DynamicsProcessing.Limiter(...)`
+  construct dengan asumsi param pertama `channelIndex: Int` (literal `0`),
+  padahal constructor asli TIDAK punya channelIndex sama sekali, param
+  pertama sebenarnya `inUse: Boolean`. Fix: `0` → `true` (`inUse`), 7 param
+  lain tidak berubah. Detail lengkap + kutipan compiler error di
+  CHANGELOG.md entry "Batch 85 (hotfix)". `roadmap.md` Fase 0 #5 status
+  TETAP `[~]` (hotfix compile, bukan perubahan keputusan pipeline). Antrian
+  SISA (dari Batch 82, belum bergeser): #6 Rebuild session-0 (BLOKER, butuh
+  konfirmasi risiko user dulu), #8 Automated audio-engine test, #9
+  UI/error-state lanjutan — Claude TETAP menunggu instruksi eksplisit item
+  berikutnya. BELUM divalidasi runtime (siklus CI baru pasca-hotfix ini
+  belum jalan).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🆕 **Batch 84 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+- 🐛 **Batch 85 (terbaru, hotfix, 1 file kode — `AudioEnhancerService.kt`)**:
+  User kirim ZIP proyek (Batch 84) + log gagal CI run 133
+  (`log_fail_v133-debug-run133.zip`) tanpa instruksi teks — diperlakukan
+  sebagai laporan bug implisit (bukan instruksi baru diabaikan, ini
+  konsisten "AUTO_READ" sesi baru). Log nunjukkin `:app:compileDebugKotlin`
+  FAILED, satu baris error: `AudioEnhancerService.kt:440:46 The integer
+  literal does not conform to the expected type Boolean`. Root cause:
+  `attachDynamicsProcessing()` (baru Batch 84) construct
+  `DynamicsProcessing.Limiter(...)` dengan param pertama diisi
+  `/* channelIndex = */ 0` — nama param ini HALUSINASI, class
+  `android.media.audiofx.DynamicsProcessing.Limiter` TIDAK PERNAH punya
+  channelIndex di constructor manapun (dicek ulang eksplisit ke dokumentasi
+  resmi `developer.android.com` sebelum fix ditulis, bukan tebak dari
+  memori) — param pertama asli adalah `inUse: Boolean`. Fix: `0` → `true`
+  (`inUse`), 7 parameter lain (`enabled`/`linkGroup`/`attackTime`/
+  `releaseTime`/`ratio`/`threshold`/`postGain`) sudah cocok signature asli,
+  TIDAK disentuh. `inUse=true` juga lebih benar secara semantik (limiter ini
+  "satu-satunya stage yang dipakai" effect ini). LESSON: kalau construct
+  API effect Android yang jarang dipakai (`DynamicsProcessing.*` dkk) dan
+  TIDAK bisa compile-check di sandbox, urutan+nama parameter constructor
+  WAJIB dikonfirmasi ke dokumentasi resmi dulu (bukan pola-cocok dari nama
+  variabel/komentar yang "kedengaran masuk akal"), terutama untuk parameter
+  di posisi awal yang gampang salah asumsi urutannya. Detail penuh + isi
+  compiler error di CHANGELOG.md "Batch 85 (hotfix)". **File disentuh**: 1
+  file kode saja (`AudioEnhancerService.kt`, edit-parsial) + VIP docs
+  (`PROJECT_STATE.md`, `CHANGELOG.md`) buat sinkron — 0 refactor file lain
+  (Zero-Refactor), 0 bump versi manual. BELUM divalidasi runtime — cek
+  statis brace/paren file penuh saja (0 selisih), siklus CI baru pasca-fix
+  ini belum jalan.
+- 🆕 **Batch 84 (1 file kode — `AudioEnhancerService.kt`)**: User
   bilang "Next" / "Lanjutkan" — item KEDUA dari antrian Batch 82 (urutan
   sesuai daftar roadmap.md). Implementasi **roadmap.md Fase 0 #5 "Gain
   staging + dynamics pipeline"**:

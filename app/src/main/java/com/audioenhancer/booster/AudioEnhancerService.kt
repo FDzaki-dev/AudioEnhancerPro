@@ -437,7 +437,9 @@ class AudioEnhancerService : Service() {
             dynamicsProcessing = DynamicsProcessing(0, 0, config).apply {
                 setLimiterAllChannelsTo(
                     DynamicsProcessing.Limiter(
-                        /* channelIndex = */ 0, // diabaikan — setLimiterAllChannelsTo menerapkan ke semua channel
+                        /* inUse        = */ true, // FIX (v133): constructor Limiter TIDAK punya param channelIndex —
+                                                    // param pertama sebenarnya `inUse: Boolean` (lihat android.media.audiofx.DynamicsProcessing.Limiter).
+                                                    // Literal `0` (Int) di posisi ini yang bikin compileDebugKotlin gagal (run 133).
                         /* enabled      = */ true,
                         /* linkGroup    = */ 0,
                         /* attackTime   = */ 3f,
