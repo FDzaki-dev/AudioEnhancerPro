@@ -159,9 +159,13 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
       unit baru (`PrefsHelperTest.kt`): round-trip JSON `eqBands`, dan preset
       JSON lama tanpa field ini tetap load tanpa crash. Detail lengkap:
       `CHANGELOG.md` v1.98.0.
-- [ ] **8. Automated audio-engine test** — `PrefsHelperTest`/
-      `FormatFreqLabelTest` yang ada belum menyentuh audio engine sama sekali
-      (effect creation failure, control loss, state reconciliation, dst).
+- [x] **8. Automated audio-engine test** (Batch 86, SELESAI) —
+      `AudioEnhancerServiceStateTest.kt` baru (13 test, Robolectric): (a) EffectState
+      enum completeness guard, (b) effect creation failure → UNAVAILABLE (BUKAN crash /
+      FAILED), (c) state reconciliation `retryControlAcquisition()` return false saat
+      semua UNAVAILABLE + idempotent, (d) binder/companion smoke. Coverage path
+      RuntimeException AudioFlinger-absent yang sebelumnya nol automated test sama
+      sekali. `PrefsHelperTest`/`FormatFreqLabelTest` lama TIDAK disentuh (Zero-Refactor).
 - [ ] **9. UI/error-state refinement** — bedakan Unsupported vs Temporarily
       unavailable vs Control lost vs Effect failed vs Output changed secara
       eksplisit di UI (bukan cuma 1 helpText generik "tidak didukung").
@@ -295,7 +299,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
-| 0. Audio Engine Robustness (audit eksternal) | 🟡 3/9 selesai (dari sisi app) + 3/9 sebagian (#2, #3, #5) — Batch 57-63, 83-84 |
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 4/9 selesai + 3/9 sebagian (#2, #3, #5) — Batch 57-63, 83-86 |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

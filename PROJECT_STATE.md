@@ -67,22 +67,34 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 85 (hotfix, 1 file kode —
-  `AudioEnhancerService.kt`). CI run 133 dari zip Batch 84 GAGAL total
-  (`compileDebugKotlin`, 0 APK ke-generate) — `DynamicsProcessing.Limiter(...)`
-  construct dengan asumsi param pertama `channelIndex: Int` (literal `0`),
-  padahal constructor asli TIDAK punya channelIndex sama sekali, param
-  pertama sebenarnya `inUse: Boolean`. Fix: `0` → `true` (`inUse`), 7 param
-  lain tidak berubah. Detail lengkap + kutipan compiler error di
-  CHANGELOG.md entry "Batch 85 (hotfix)". `roadmap.md` Fase 0 #5 status
-  TETAP `[~]` (hotfix compile, bukan perubahan keputusan pipeline). Antrian
-  SISA (dari Batch 82, belum bergeser): #6 Rebuild session-0 (BLOKER, butuh
-  konfirmasi risiko user dulu), #8 Automated audio-engine test, #9
-  UI/error-state lanjutan — Claude TETAP menunggu instruksi eksplisit item
-  berikutnya. BELUM divalidasi runtime (siklus CI baru pasca-hotfix ini
-  belum jalan).
+- **Batch terakhir**: Batch 86 (1 file test baru —
+  `AudioEnhancerServiceStateTest.kt`). Menutup roadmap.md Fase 0 #8
+  "Automated audio-engine test": 13 test Robolectric, coverage path effect
+  creation failure → UNAVAILABLE, state reconciliation
+  `retryControlAcquisition()`, binder/companion smoke. `roadmap.md` #8
+  `[ ]` → `[x]`. Antrian SISA: #6 Rebuild session-0 (BLOKER, butuh
+  konfirmasi risiko user dulu), #9 UI/error-state lanjutan — Claude menunggu
+  instruksi eksplisit. BELUM divalidasi runtime (CI pasca-Batch 85/86 belum
+  jalan — Batch 85 hotfix seharusnya fix compile error run 133, tapi
+  konfirmasi hijau menunggu push batch ini).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
+- 🧪 **Batch 86 (terbaru, 1 file test baru — `AudioEnhancerServiceStateTest.kt`)**:
+  User kirim ZIP Batch 85 + "Lanjut kerjakan next task!!" — item berikutnya
+  dari antrian Fase 0 yang bisa dikerjakan tanpa konfirmasi user adalah #8
+  (Automated audio-engine test; #6 masih BLOKER menunggu konfirmasi risiko).
+  File baru 13 test Robolectric menutup 3 gap utama: (a) EffectState enum
+  completeness guard, (b) effect creation failure → UNAVAILABLE (AudioFlinger
+  absent = RuntimeException di constructor AudioEffect, harus ditangkap
+  graceful bukan crash), (c) state reconciliation `retryControlAcquisition()`
+  return false + idempotent saat semua state UNAVAILABLE. `roadmap.md` Fase 0
+  #8 `[ ]` → `[x]`, Progress ringkas: 4 selesai (dari sebelumnya 3). Cek
+  statis: balance brace/paren/bracket seluruh file baru via parser Python
+  (0 selisih). **File disentuh**: 1 file test baru
+  (`AudioEnhancerServiceStateTest.kt`) + `roadmap.md` (checklist) + VIP docs
+  (`PROJECT_STATE.md`, `CHANGELOG.md`) — 0 file kode produksi disentuh
+  (Zero-Refactor), 0 bump versi manual. BELUM divalidasi CI (push batch ini
+  baru pertama kali setelah Batch 85 hotfix).
 - 🐛 **Batch 85 (terbaru, hotfix, 1 file kode — `AudioEnhancerService.kt`)**:
   User kirim ZIP proyek (Batch 84) + log gagal CI run 133
   (`log_fail_v133-debug-run133.zip`) tanpa instruksi teks — diperlakukan

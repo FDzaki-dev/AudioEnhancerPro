@@ -1,5 +1,61 @@
 # Changelog
 
+## Batch 86: roadmap.md Fase 0 #8 — Automated audio-engine test (`AudioEnhancerServiceStateTest.kt`)
+
+Item ketiga dari antrian sisa Fase 0 (dicatat Batch 82). Menutup gap
+roadmap "automated audio-engine test" yang sebelumnya 0 coverage untuk
+behaviour `AudioEnhancerService` (effect creation failure, control loss,
+state reconciliation).
+
+**File baru: `app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt`**
+(13 test, Robolectric):
+
+- **[ENUM]** `EffectState enum has exactly the five expected named values` —
+  guard refactoring: kalau ada state yang terhapus/rename accidental, test
+  ini langsung merah.
+
+- **[FAIL]** 5 test per-effect + 1 test aggregat untuk path "effect creation
+  failure → graceful UNAVAILABLE":
+  - `service onCreate does not crash when AudioFlinger is absent` (smoke)
+  - `bassState / virtualizerState / equalizerState / loudnessState /
+    dynamicsState is UNAVAILABLE after failed [Effect] construction`
+  - `no effect state is FAILED after constructor RuntimeException` —
+    memverifikasi bahwa catch-block di `attachXxx()` menulis UNAVAILABLE,
+    bukan FAILED (keduanya berbeda semantik: FAILED = exception saat
+    enable setelah object ada; UNAVAILABLE = hardware/konstruksi gagal).
+
+- **[RECON]** 2 test state reconciliation:
+  - `retryControlAcquisition returns false when all effects are UNAVAILABLE`
+    — UNAVAILABLE ≠ CONTROL_LOST/FAILED; method tidak boleh salah-trigger
+    retry untuk hardware yang memang tidak ada.
+  - `retryControlAcquisition is idempotent when called twice` — pemanggil
+    ganda tidak mengubah return value kalau state tidak berubah.
+
+- **[SMOKE]** 3 test binder + companion:
+  - `onBind returns a non-null IBinder`
+  - `requestStart / requestStop with application context does not throw`
+
+**Catatan teknis Robolectric**: Constructor AudioEffect (BassBoost /
+Virtualizer / Equalizer / LoudnessEnhancer / DynamicsProcessing) melempar
+`RuntimeException("AudioFlinger not running")` di lingkungan Robolectric.
+Catch-block di setiap `attachXxx()` menangkap ini dan mendaratkan state ke
+UNAVAILABLE — ini SENGAJA jadi inti coverage test (path failure-graceful).
+`DynamicsProcessing` di-guard `Build.VERSION.SDK_INT >= P` di
+`attachDynamicsProcessing()`, sehingga apapun SDK Robolectric aktif,
+`dynamicsState` tetap UNAVAILABLE (dari else-branch API < 28 atau catch-block
+API >= 28).
+
+**Scope**: 1 file test baru + `roadmap.md` checklist #8 `[ ]` → `[x]` +
+Progress ringkas Fase 0 diperbarui (4 selesai, dari sebelumnya 3). 0 file
+kode produksi disentuh (Zero-Refactor). `PrefsHelperTest.kt` /
+`FormatFreqLabelTest.kt` lama 100% apa adanya. 0 bump versi manual.
+
+**Belum dicakup** (diserahkan ke testing device nyata):
+- CONTROL_LOST path: hanya bisa dipicu kalau ada audio app lain rebut
+  session 0 di device fisik — tidak bisa di-mock dari sisi state
+  (`private set`) tanpa reflection/inject.
+- ENABLED path: butuh AudioFlinger nyata → siklus CI + install device.
+
 ## Batch 85 (hotfix): `compileDebugKotlin` gagal di CI run 133 — param constructor `DynamicsProcessing.Limiter` salah
 
 CI run 133 (dari zip Batch 84) merah total di `:app:compileDebugKotlin` —
