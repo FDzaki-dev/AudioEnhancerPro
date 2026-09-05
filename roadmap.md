@@ -112,10 +112,34 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
       **TIDAK ADA jaminan berhasil** tetap berlaku (arbitration priority Android
       di luar kendali app) — snackbar sengaja bilang "dicoba", bukan "berhasil".
       Detail lengkap: `CHANGELOG.md` v1.97.0.
-- [ ] **5. Gain staging + dynamics pipeline** — belum ada master limiter/
-      compressor terkontrol; pipeline konseptual saat ini `BassBoost →
-      Virtualizer → EQ → LoudnessEnhancer` tanpa tahapan gain staging yang
-      jelas (`Input → Pre-Gain → EQ → Dynamics → Loudness → Output`).
+- [~] **5. Gain staging + dynamics pipeline** (Batch 84, SEBAGIAN) —
+      `AudioEnhancerService.kt` sekarang pasang effect TAMBAHAN
+      `DynamicsProcessing` dikonfigurasi HANYA sebagai limiter murni (0 band
+      pre-EQ/MBC/post-EQ, `limiterInUse=true` saja) sebagai "ceiling" terakhir
+      (threshold -1 dBFS, ratio 20:1, attack 3ms, release 60ms, postGain 0dB
+      — hardcoded, belum ada slider UI) supaya kombinasi Bass+Virtualizer+
+      EQ+Loudness yang di-set user TINGGI berbarengan tidak numpuk sampai
+      lewat 0 dBFS. SEBELUMNYA nol proteksi apa pun — "belum ada master
+      limiter/compressor terkontrol" dari audit sekarang tertutup dari sisi
+      keberadaan limiter-nya. **Kenapa masih SEBAGIAN bukan SELESAI**: (a)
+      pipeline eksplisit `Input → Pre-Gain → EQ → Dynamics → Loudness →
+      Output` yang diminta audit TIDAK bisa dijamin urutannya di API
+      `AudioEffect` publik legacy ini — semua effect session-0 nyambung
+      independen, app TIDAK punya cara resmi memaksa urutan insert HAL
+      (alasan #6 ada sebagai item terpisah jauh lebih besar); limiter ini
+      cuma "ceiling pasif" tambahan, BUKAN restrukturisasi pipeline
+      sungguhan. (b) channelCount di-hardcode 2 (stereo) — device mono-only
+      (kalau ada) belum divalidasi, berisiko `IllegalArgumentException`. (c)
+      belum divalidasi runtime device fisik APAKAH `DynamicsProcessing`
+      benar-benar tersedia lintas OEM/chipset (variasi HAL, sama kelas
+      risiko capability lain di file ini). **Catatan koreksi (masih di
+      batch yang sama, sebelum dikirim)**: `DynamicsProcessing` cuma ada
+      sejak API 28 — project ini `minSdk 24` (BUKAN 31), jadi seluruh fungsi
+      `attachDynamicsProcessing()` di-guard `Build.VERSION.SDK_INT >= P`;
+      di bawah API 28, `dynamicsState` = `UNAVAILABLE` tanpa menyentuh
+      class-nya sama sekali (tanpa guard ini berisiko crash total di device
+      API 24-27, `NoClassDefFoundError` tidak tertangkap `catch(Exception)`).
+      Detail lengkap: `CHANGELOG.md` Batch 84.
 - [ ] **6. Rebuild arsitektur session-0 ke API modern** — gap PALING besar &
       PALING berisiko dari semua (audit Gap #1/#2). Legacy `AudioEffect(...,
       0)` diasumsikan global session, deprecated & tidak portable lintas
@@ -271,7 +295,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
-| 0. Audio Engine Robustness (audit eksternal) | 🟡 3/9 selesai (dari sisi app) + 2/9 sebagian (#2, #3) — Batch 57-63, 83 |
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 3/9 selesai (dari sisi app) + 3/9 sebagian (#2, #3, #5) — Batch 57-63, 83-84 |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

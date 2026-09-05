@@ -67,18 +67,79 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 83 — 1 file kode (`AudioEnhancerService.kt`).
-  Eksekusi item PERTAMA dari antrian Batch 82: `roadmap.md` Fase 0 **#3
-  Output routing awareness** — `AudioDeviceCallback` sistem + nudge ringan
-  `enableEffects()` saat route berubah (BUKAN recreate object, sengaja).
-  Status jadi SEBAGIAN (`[~]`), bukan `[x]` — lihat `roadmap.md` buat kenapa.
-  Antrian SISA: #5 Gain staging, #6 Rebuild session-0 (BLOKER, butuh
-  konfirmasi risiko user dulu), #8 Automated audio-engine test, #9
-  UI/error-state lanjutan — Claude TETAP menunggu instruksi eksplisit item
-  berikutnya (pola sama, "jangan sekaligus"). BELUM divalidasi runtime.
+- **Batch terakhir**: Batch 84 — 1 file kode (`AudioEnhancerService.kt`).
+  Item KEDUA dari antrian Batch 82: `roadmap.md` Fase 0 **#5 Gain staging +
+  dynamics pipeline** — effect TAMBAHAN `DynamicsProcessing` sebagai master
+  limiter murni (threshold -1dBFS, ratio 20:1, hardcoded, belum ada slider
+  UI), ceiling terakhir jaga-jaga stacking Bass+Virtualizer+EQ+Loudness
+  numpuk lewat 0dBFS. Status SEBAGIAN (`[~]`) — urutan pipeline eksplisit
+  TIDAK bisa dijamin API legacy ini, overlap ke #6. Antrian SISA: #6 Rebuild
+  session-0 (BLOKER, butuh konfirmasi risiko user dulu), #8 Automated
+  audio-engine test, #9 UI/error-state lanjutan — Claude TETAP menunggu
+  instruksi eksplisit item berikutnya. BELUM divalidasi runtime.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🆕 **Batch 83 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+- 🆕 **Batch 84 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+  bilang "Next" / "Lanjutkan" — item KEDUA dari antrian Batch 82 (urutan
+  sesuai daftar roadmap.md). Implementasi **roadmap.md Fase 0 #5 "Gain
+  staging + dynamics pipeline"**:
+  - Effect BARU (TAMBAHAN, bukan pengganti 4 effect lama) —
+    `android.media.audiofx.DynamicsProcessing`, dikonfigurasi HANYA sebagai
+    limiter murni (0 pre-EQ band, 0 MBC band, 0 post-EQ band,
+    `limiterInUse=true` saja) via `attachDynamicsProcessing()`. Parameter
+    limiter (hardcoded, belum ada slider UI): threshold -1 dBFS, ratio 20:1
+    (nyaris brickwall), attack 3ms (tangkap transient cepat), release 60ms
+    (moderat, hindari "pumping"), postGain 0dB (TIDAK menambah loudness —
+    ceiling pasif, bukan duplikat `LoudnessEnhancer`).
+  - `dynamicsState: EffectState` (@Volatile, field baru, pola sama
+    `bassState` dkk) diikutkan penuh ke SEMUA jalur existing yang sudah ada:
+    `retryControlAcquisition()` (branch baru CONTROL_LOST/FAILED →
+    release+recreate), `releaseEffects()` (release + reset UNAVAILABLE),
+    `disableEffects()`/`enableEffects()` (ikut mati/nyala bareng 4 effect
+    lain) — TERMASUK otomatis ikut ter-nudge oleh `onOutputRouteChanged()`
+    (Batch 82/83) TANPA perubahan apa pun di fungsi itu (nudge manggil
+    `enableEffects()` yang sekarang sudah include limiter ini).
+  - **Kenapa BUKAN restrukturisasi pipeline sungguhan** (kenapa masih `[~]`
+    bukan `[x]`): audit asli minta urutan eksplisit `Input → Pre-Gain → EQ →
+    Dynamics → Loudness → Output`. API `AudioEffect` publik session-0
+    legacy TIDAK punya cara resmi buat app memaksa urutan insert di HAL —
+    semua effect (termasuk limiter baru ini) nyambung independen, urutan
+    proses akhir ditentukan sistem, bukan app. Limiter ini cuma "ceiling
+    tambahan" yang SEHARUSNYA tetap efektif menangkap level gabungan
+    terlepas dari urutan proses effect lain — bukan pipeline gain-staging
+    sungguhan seperti diminta audit. Rebuild yang benar-benar bisa jamin
+    urutan itu = scope `roadmap.md` Fase 0 #6 (item terpisah, jauh lebih
+    besar, masih BLOKER menunggu konfirmasi user).
+  - `channelCount` di-hardcode 2 (stereo) — `Config.Builder` (beda dari
+    BassBoost/Virtualizer/Equalizer/LoudnessEnhancer) butuh channelCount
+    eksplisit, tidak ada API resmi query channel count output aktif dari
+    sisi effect. Device mono-only (kalau ada) BELUM divalidasi.
+  - **KOREKSI ditemukan & diperbaiki SENDIRI sebelum zip dikirim** (bukan
+    dari user): `DynamicsProcessing` baru ada sejak API 28 — draf awal
+    SEMPAT tidak digated versi SDK (salah asumsi minSdk 31 dari deskripsi
+    role generik, padahal `app/build.gradle.kts` project ini `minSdk = 24`).
+    Tanpa guard, device API 24-27 bisa `NoClassDefFoundError` (subclass
+    `Error`, LOLOS dari `catch(Exception)` yang ada) — potensi crash total,
+    BUKAN graceful-degrade seperti niat awal. Fix: seluruh isi
+    `attachDynamicsProcessing()` dibungkus
+    `Build.VERSION.SDK_INT >= Build.VERSION_CODES.P`, di bawah itu langsung
+    `dynamicsState = UNAVAILABLE` tanpa menyentuh class-nya.
+  - `roadmap.md` checklist #5 `[ ]` → `[~]`, baris "Progress ringkas" Fase 0
+    ikut diperbarui (3 selesai + 3 sebagian, dari sebelumnya 3+2).
+  - **0 file lain disentuh** — `BoosterViewModel.kt`/UI/Manifest 100% apa
+    adanya, tidak ada permission baru dibutuhkan.
+  **BELUM divalidasi runtime** — kandidat curiga pertama: (1) apakah
+  `DynamicsProcessing` benar-benar tersedia/lolos construct di device API
+  28+ asli (variasi HAL, belum pernah diuji device fisik), (2) apakah
+  parameter limiter (threshold -1dBFS dkk) beneran ke-apply tanpa exception
+  — cek Logcat filter `AudioEnhancerService` cari baris "DynamicsProcessing
+  tidak tersedia" (kalau muncul = `dynamicsState` jatuh ke `UNAVAILABLE`,
+  bukan crash total, effect lain tetap jalan), (3) uji telinga langsung:
+  set Bass+Virtualizer+EQ+Loudness ke maksimal berbarengan, dengarkan
+  apakah ada clipping/distorsi yang masih lolos vs sebelum Batch 84, (4)
+  device API 24-27 asli (fix guard di atas belum pernah dites device fisik
+  sama sekali, cuma penalaran manual bytecode/verifier).
+- 🆕 **Batch 83 (1 file kode — `AudioEnhancerService.kt`)**: User
   bilang "Kerjakan woy!!" — dijalankan sebagai eksekusi item PERTAMA dari
   antrian Batch 82 (urutan sesuai daftar roadmap.md: #3 duluan, BUKAN
   #6/blocker duluan). Implementasi **roadmap.md Fase 0 #3 "Output routing
@@ -2316,7 +2377,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
 - `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`.
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`. Batch 84 (roadmap.md Fase 0 #5): effect BARU `DynamicsProcessing` (master limiter murni, hardcoded threshold -1dBFS/ratio 20:1) sebagai ceiling tambahan — diikutkan penuh ke `retryControlAcquisition()`/`releaseEffects()`/`disableEffects()`/`enableEffects()`, tidak merestrukturisasi urutan pipeline (itu scope #6).
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama).
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).

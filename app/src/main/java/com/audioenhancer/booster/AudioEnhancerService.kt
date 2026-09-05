@@ -6,6 +6,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.audiofx.BassBoost
+import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
@@ -101,6 +102,11 @@ class AudioEnhancerService : Service() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
 
+    // Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
+    // TAMBAHAN, bukan pengganti 4 effect di atas — lihat komentar panjang di
+    // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa.
+    private var dynamicsProcessing: DynamicsProcessing? = null
+
     // @Volatile: listener control/enable-status Android TIDAK dijamin dipanggil di main
     // thread (beda dari lifecycle callback Service/BroadcastReceiver yang selalu main
     // thread) — sama alasan seperti `isRunning` di atas (Batch 45), field ini dibaca dari
@@ -110,6 +116,7 @@ class AudioEnhancerService : Service() {
     @Volatile var virtualizerState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var loudnessState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var equalizerState: EffectState = EffectState.UNAVAILABLE; private set
+    @Volatile var dynamicsState: EffectState = EffectState.UNAVAILABLE; private set
 
     // Batch 82 (roadmap.md Fase 0 #3, "Output routing awareness"): deskripsi ringkas
     // sink output TERAKHIR yang terdeteksi (mis. "Bluetooth A2DP (terhubung)") — diisi
@@ -262,6 +269,13 @@ class AudioEnhancerService : Service() {
         attachVirtualizer()
         attachEqualizer()
         attachLoudness()
+        // Batch 84: dipanggil PALING TERAKHIR secara kode — TAPI ini urutan penulisan
+        // kode saja, BUKAN jaminan urutan proses sinyal DSP aktual. Effect session-0
+        // legacy (API `AudioEffect` publik ini) TIDAK punya API resmi buat app menentukan
+        // urutan insert di chain HAL — itu justru salah satu alasan utama roadmap.md Fase
+        // 0 #6 ("Rebuild session-0 architecture") ada sebagai item terpisah yang jauh
+        // lebih besar. Lihat komentar panjang di `attachDynamicsProcessing()` untuk detail.
+        attachDynamicsProcessing()
 
         // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
         // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
@@ -348,6 +362,109 @@ class AudioEnhancerService : Service() {
         }
     }
 
+    /** Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
+     *  TAMBAHAN (bukan pengganti 4 effect di atas) — dipasang sebagai `DynamicsProcessing`
+     *  BERISI HANYA stage limiter (0 pre-EQ band, 0 MBC band, 0 post-EQ band,
+     *  `limiterInUse=true` saja), fungsi SATU-SATUNYA: jadi "ceiling" pengaman terakhir
+     *  supaya kombinasi Bass+Virtualizer+EQ+Loudness yang di-set user TINGGI BERBARENGAN
+     *  tidak numpuk sampai lewat 0 dBFS (clipping/distorsi) — SEBELUMNYA nol proteksi
+     *  apa pun terhadap skenario ini (audit: "belum ada master limiter/compressor
+     *  terkontrol").
+     *
+     *  KENAPA INI BUKAN "#6 Rebuild session-0" (item terpisah, jauh lebih besar): effect
+     *  ini MENAMBAH satu stage limiter, TIDAK mengganti/menata-ulang 4 effect legacy di
+     *  atas. Audit asli minta pipeline eksplisit "Input → Pre-Gain → EQ → Dynamics →
+     *  Loudness → Output" — API `AudioEffect` publik session-0 TIDAK punya cara resmi
+     *  buat app memaksa urutan insert semacam itu di HAL (semua effect session-0 nyambung
+     *  independen, urutan proses akhir ditentukan sistem/HAL, di luar kendali app). Jadi
+     *  limiter ini BERFUNGSI sebagai ceiling tambahan yang mestinya tetap efektif terlepas
+     *  dari urutan proses effect lain (limiter menangkap level SETELAH semua effect ikut
+     *  campur ke sinyal, bukan sebelum) — TAPI urutan pasti "Dynamics SEBELUM Loudness"
+     *  seperti diminta audit TIDAK bisa dijamin tanpa rebuild ke API modern (#6).
+     *
+     *  Parameter (HARDCODED, belum ada slider UI — murni safety net, bukan fitur
+     *  loudness-maximizer baru):
+     *  - threshold -1 dBFS, ratio 20:1 (nyaris brickwall), attack 3ms (cepat, tangkap
+     *    transient) — target: baru aktif kalau sinyal beneran mepet clipping.
+     *  - releaseTime 60ms (moderat) — cukup cepat buat audio umum, TIDAK terlalu agresif
+     *    sampai "pumping" (volume naik-turun kedengaran, distorsi persepsi) yang biasa
+     *    muncul kalau release limiter kelewat cepat.
+     *  - postGain 0 dB — SENGAJA tidak menambah volume; ini ceiling pasif, bukan
+     *    pengganti/duplikat `LoudnessEnhancer` yang MEMANG untuk menaikkan loudness.
+     *
+     *  channelCount di-hardcode 2 (stereo): `DynamicsProcessing.Config.Builder` (beda
+     *  dari BassBoost/Virtualizer/Equalizer/LoudnessEnhancer di atas) BUTUH channelCount
+     *  eksplisit di construction time, dan TIDAK ada API resmi buat query channel count
+     *  OUTPUT sistem yang sedang aktif dari sisi effect sebelum construct. Stereo adalah
+     *  default hampir universal consumer Android (speaker device modern, Bluetooth,
+     *  wired umumnya stereo) — device mono-only (kalau ada) BELUM divalidasi, kandidat
+     *  gap pertama kalau ada laporan `IllegalArgumentException`/crash di device semacam
+     *  itu (dicatat juga di `roadmap.md`).
+     *
+     *  Pola attach/state SAMA PERSIS 4 fungsi di atas (`dynamicsState` ikut
+     *  `retryControlAcquisition()`, `releaseEffects()`, `disableEffects()`,
+     *  `enableEffects()` — lihat masing-masing) supaya konsisten, TERMASUK ikut nudge
+     *  `enableEffects()` di `onOutputRouteChanged()` (Batch 82/83) tanpa perubahan apa pun
+     *  di fungsi itu.
+     *
+     *  **KOREKSI PENTING (masih Batch 84, ditemukan & diperbaiki SEBELUM zip dikirim)**:
+     *  `DynamicsProcessing` baru ada sejak API 28 (Android 9/Pie) — SEMPAT salah asumsi
+     *  minSdk project ini 31 (ikut deskripsi generik role, BUKAN fakta project ini),
+     *  padahal `app/build.gradle.kts` project ini `minSdk = 24`. Referensi LANGSUNG ke
+     *  class ini (construct/import) di device API 24-27 melempar `NoClassDefFoundError`
+     *  — itu subclass `Error`, BUKAN `Exception`, jadi `catch (e: Exception)` di bawah
+     *  TIDAK AKAN menangkapnya — app bisa crash total di device lama kalau tidak
+     *  di-guard. Makanya SELURUH isi fungsi ini sekarang dibungkus
+     *  `Build.VERSION.SDK_INT >= Build.VERSION_CODES.P` — pola standar Android untuk
+     *  API level gating (aman untuk minSdk 24 project ini, yang sudah ART-only sejak
+     *  Android 5.0, bukan era Dalvik lama yang kadang verify eager). Di bawah API 28,
+     *  `dynamicsState` langsung `UNAVAILABLE` (diperlakukan SAMA seperti "chipset tidak
+     *  dukung" — dari sudut pandang user/UI, hasilnya sama: limiter tidak ada). */
+    private fun attachDynamicsProcessing() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
+            return
+        }
+        try {
+            val config = DynamicsProcessing.Config.Builder(
+                DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini (0 band EQ/MBC dipakai)
+                2,        // channelCount (stereo, lihat catatan panjang di atas)
+                false, 0, // pre-EQ: tidak dipakai — EQ user tetap lewat `Equalizer` effect terpisah di atas
+                false, 0, // multi-band compressor: di luar scope "master limiter" murni batch ini
+                false, 0, // post-EQ: tidak dipakai
+                true      // limiter: SATU-SATUNYA stage yang dipakai effect ini
+            ).build()
+            dynamicsProcessing = DynamicsProcessing(0, 0, config).apply {
+                setLimiterAllChannelsTo(
+                    DynamicsProcessing.Limiter(
+                        /* channelIndex = */ 0, // diabaikan — setLimiterAllChannelsTo menerapkan ke semua channel
+                        /* enabled      = */ true,
+                        /* linkGroup    = */ 0,
+                        /* attackTime   = */ 3f,
+                        /* releaseTime  = */ 60f,
+                        /* ratio        = */ 20f,
+                        /* threshold    = */ -1f,
+                        /* postGain     = */ 0f
+                    )
+                )
+                enabled = true
+                setControlStatusListener { _, granted ->
+                    dynamicsState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                }
+                setEnableStatusListener { _, isEnabled ->
+                    if (dynamicsState != EffectState.CONTROL_LOST) {
+                        dynamicsState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                    }
+                }
+            }
+            dynamicsState = EffectState.ENABLED
+        } catch (e: Exception) {
+            dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "DynamicsProcessing (master limiter) tidak tersedia di device ini", e)
+        }
+    }
+
+
     /** Batch 61 (audit Gap #4 "Tidak Ada Handling AudioEffect Control Ownership" —
      *  lanjutan Batch 57 yang baru sebatas DETEKSI `CONTROL_LOST` via listener, belum
      *  ada strategi re-acquire/recovery apa pun): coba rebut kembali kontrol effect
@@ -411,6 +528,13 @@ class AudioEnhancerService : Service() {
                 android.util.Log.e(TAG, "Gagal release LoudnessEnhancer lama sebelum retry", e)
             }
             attachLoudness()
+            retried = true
+        }
+        if (dynamicsState == EffectState.CONTROL_LOST || dynamicsState == EffectState.FAILED) {
+            try { dynamicsProcessing?.release() } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal release DynamicsProcessing lama sebelum retry", e)
+            }
+            attachDynamicsProcessing()
             retried = true
         }
         if (retried) {
@@ -500,6 +624,7 @@ class AudioEnhancerService : Service() {
     private fun releaseEffects() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
+        dynamicsProcessing?.release()
         // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
         // dibiarkan ENABLED/CONTROL_LOST, pembaca state (ke depan: ViewModel/UI) bisa
         // salah kira effect masih hidup padahal Service ini sendiri sudah di-destroy.
@@ -507,6 +632,7 @@ class AudioEnhancerService : Service() {
         virtualizerState = EffectState.UNAVAILABLE
         loudnessState = EffectState.UNAVAILABLE
         equalizerState = EffectState.UNAVAILABLE
+        dynamicsState = EffectState.UNAVAILABLE // Batch 84
     }
 
     /** Dipanggil dari notifikasi "Matikan" — reversible (beda dari releaseEffects yang
@@ -520,6 +646,9 @@ class AudioEnhancerService : Service() {
         try { virtualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Virtualizer", e) }
         try { equalizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Equalizer", e) }
         try { loudnessEnhancer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable LoudnessEnhancer", e) }
+        // Batch 84: limiter ikut mati bareng — kalau booster "Matikan", tidak ada lagi
+        // sinyal yang di-boost, jadi tidak ada lagi yang perlu di-limit.
+        try { dynamicsProcessing?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable DynamicsProcessing", e) }
     }
 
     /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan".
@@ -539,6 +668,12 @@ class AudioEnhancerService : Service() {
         }
         try { loudnessEnhancer?.enabled = true } catch (e: Exception) {
             loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable LoudnessEnhancer", e)
+        }
+        // Batch 84: ikut pola 4 effect di atas — termasuk otomatis kena nudge
+        // `onOutputRouteChanged()` (Batch 82/83) karena fungsi itu manggil enableEffects()
+        // ini apa adanya, tanpa perubahan apa pun di fungsi itu.
+        try { dynamicsProcessing?.enabled = true } catch (e: Exception) {
+            dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable DynamicsProcessing", e)
         }
     }
 

@@ -1,5 +1,89 @@
 # Changelog
 
+## Batch 84: roadmap.md Fase 0 #5 — Gain staging + dynamics pipeline (master limiter)
+
+Item kedua dari antrian 5 sisa Fase 0 (dicatat Batch 82, item pertama #3 di
+Batch 83). Menutup gap audit "belum ada master limiter/compressor
+terkontrol" dengan menambahkan effect `DynamicsProcessing` sebagai limiter
+murni di `AudioEnhancerService.kt` — TAMBAHAN, bukan pengganti 4 effect lama
+(`BassBoost`/`Virtualizer`/`Equalizer`/`LoudnessEnhancer`).
+
+**Yang ditambahkan (1 file: `AudioEnhancerService.kt`)**:
+- `attachDynamicsProcessing()` — konstruksi `DynamicsProcessing.Config`
+  dengan 0 pre-EQ band, 0 MBC band, 0 post-EQ band, `limiterInUse=true` saja
+  (`VARIANT_FAVOR_TIME_RESOLUTION`, `channelCount=2`), lalu
+  `setLimiterAllChannelsTo()` dengan parameter: threshold -1 dBFS, ratio
+  20:1, attack 3ms, release 60ms, postGain 0dB. Semua hardcoded — belum ada
+  slider UI untuk parameter ini di batch ini.
+- `dynamicsState: EffectState` (@Volatile, field baru pola sama `bassState`
+  dkk) — diikutkan penuh ke `retryControlAcquisition()` (branch baru),
+  `releaseEffects()`, `disableEffects()`, `enableEffects()`. Karena
+  `onOutputRouteChanged()` (Batch 82/83) memanggil `enableEffects()` apa
+  adanya, limiter baru ini OTOMATIS ikut ter-nudge saat output route
+  berubah tanpa perubahan apa pun di fungsi itu.
+
+**Kenapa SEBAGIAN (`[~]`), bukan restrukturisasi pipeline penuh**: audit
+asli minta urutan eksplisit `Input → Pre-Gain → EQ → Dynamics → Loudness →
+Output`. API `AudioEffect` publik session-0 legacy (yang dipakai project
+ini) TIDAK punya cara resmi bagi app untuk memaksa urutan insert effect di
+HAL — semua effect session-0, termasuk limiter baru ini, nyambung independen
+dan urutan proses akhir ditentukan sistem/HAL, di luar kendali app manapun.
+Limiter ini berfungsi sebagai "ceiling" tambahan yang SEHARUSNYA tetap
+efektif menangkap level sinyal gabungan terlepas dari urutan proses effect
+lain (karena bekerja pada level akhir, bukan per-tahap) — TAPI ini BUKAN
+jaminan urutan pipeline eksplisit seperti diminta audit. Rebuild yang
+benar-benar bisa menjamin urutan semacam itu ada di scope `roadmap.md` Fase
+0 **#6** (item terpisah, jauh lebih besar, masih berstatus BLOKER menunggu
+konfirmasi risiko dari user).
+
+**Kenapa parameter limiter dipilih seperti itu**: threshold -1 dBFS + ratio
+20:1 + attack 3ms = brickwall "safety ceiling" yang baru aktif kalau sinyal
+benar-benar mepet clipping — BUKAN loudness maximizer (beda tujuan dari
+`LoudnessEnhancer` yang memang untuk menaikkan loudness), makanya postGain
+sengaja 0 dB. Release 60ms dipilih moderat: cukup cepat untuk audio umum,
+tidak sampai menimbulkan "pumping" (distorsi persepsi akibat release
+limiter yang terlalu agresif).
+
+**`channelCount` hardcode 2 (stereo)**: `DynamicsProcessing.Config.Builder`
+(beda dari 4 effect lama) butuh channelCount eksplisit di construction time,
+dan tidak ada API resmi untuk query channel count output aktif dari sisi
+effect sebelum construct. Stereo adalah default hampir universal consumer
+Android modern — device mono-only (kalau ada) belum tervalidasi, kandidat
+gap pertama kalau ada laporan crash di device semacam itu.
+
+**KOREKSI PENTING (ditemukan & diperbaiki SEBELUM zip batch ini dikirim,
+BUKAN batch terpisah)**: `DynamicsProcessing` baru tersedia sejak API 28
+(Android 9/Pie). Draf awal fungsi ini SEMPAT tidak di-guard versi SDK sama
+sekali (salah asumsi minSdk project ini 31, padahal `app/build.gradle.kts`
+project ini `minSdk = 24`). Referensi langsung ke class ini di device API
+24-27 akan melempar `NoClassDefFoundError` — subclass `Error`, BUKAN
+`Exception`, sehingga `catch (e: Exception)` yang sudah ada TIDAK
+menangkapnya — berpotensi crash total (bukan graceful-degrade seperti 4
+effect lain) di device lama kalau tidak diperbaiki. **Fix**: seluruh isi
+`attachDynamicsProcessing()` sekarang dibungkus
+`Build.VERSION.SDK_INT >= Build.VERSION_CODES.P` (pola standar Android
+untuk API-level gating, aman untuk minSdk 24 yang sudah ART-only) — di
+bawah API 28, `dynamicsState` langsung `UNAVAILABLE` tanpa menyentuh class
+`DynamicsProcessing` sama sekali.
+
+**`roadmap.md`**: checklist Fase 0 #5 `[ ]` → `[~]` (alasan detail di atas
+juga tercatat di file itu), baris "Progress ringkas" Fase 0 diperbarui jadi
+3 selesai + 3 sebagian (dari sebelumnya 3+2).
+
+**0 file lain disentuh** — `BoosterViewModel.kt`, seluruh file UI, dan
+`AndroidManifest.xml` 100% apa adanya. Tidak ada permission baru dibutuhkan.
+
+**BELUM divalidasi runtime** (siklus lengkap zip → Termux → CI → install) —
+kandidat pertama dicurigai: (1) apakah `DynamicsProcessing` benar-benar bisa
+di-construct di semua OEM/chipset (variasi HAL vendor, belum pernah diuji
+device fisik sama sekali — kalau gagal, `dynamicsState` jatuh ke
+`UNAVAILABLE` via try-catch, BUKAN crash total, 4 effect lain tetap jalan
+normal), (2) cek Logcat filter `AudioEnhancerService` untuk baris
+"DynamicsProcessing tidak tersedia" kalau device tertentu tidak
+mendukungnya, (3) uji telinga langsung: set Bass+Virtualizer+EQ+Loudness ke
+maksimal berbarengan, dengarkan apakah clipping/distorsi yang tadinya lolos
+sekarang tertahan limiter.
+
 ## Batch 83: roadmap.md Fase 0 #3 — Output routing awareness (AudioDeviceCallback)
 
 Item pertama dari antrian 5 sisa Fase 0 (dicatat Batch 82). Implementasi
