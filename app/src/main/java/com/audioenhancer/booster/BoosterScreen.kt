@@ -16,6 +16,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -532,8 +534,7 @@ fun BoosterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 600.dp)
-                .padding(22.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
         Row(
@@ -689,6 +690,61 @@ fun BoosterScreen(
             }
         }
 
+        // Batch 94: SEBELUMNYA Kontrol/Equalizer Manual/Tampilan/Bantuan adalah sederet
+        // SkeuCard vertikal panjang dalam 1 scroll raksasa (user harus scroll jauh buat
+        // sampai ke kartu baterai/autostart di paling bawah). SEKARANG dipecah jadi 3 tab
+        // horizontal-scrollable ("Kontrol" [reuse controls_title, 0 string baru] /
+        // "Tampilan" / "Bantuan") via ScrollableTabRow + HorizontalPager (Foundation,
+        // SUDAH dipakai OnboardingScreen.kt — 0 dependency baru). Isi tiap tab (kartu,
+        // logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan ulang: tab
+        // "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness + Equalizer Manual
+        // (persis susunan lama paling atas); tab "Tampilan" = 4 toggle tema (dynamic
+        // color/Aurora Glass/Skeuomorphism/Studio Equalizer); tab "Bantuan" = kartu
+        // baterai&autostart + tombol "Lihat penjelasan lengkap". Tiap tab scroll vertikal
+        // independen (rememberScrollState per-page, otomatis lewat slot HorizontalPager)
+        // — bukan lagi 1 scroll gabungan semua kartu.
+        val tabLabels = listOf(
+            stringResource(R.string.controls_title),
+            stringResource(R.string.tab_display_label),
+            stringResource(R.string.tab_help_label)
+        )
+        val pagerState = rememberPagerState(pageCount = { tabLabels.size })
+        ScrollableTabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = Color.Transparent,
+            divider = {}
+        ) {
+            tabLabels.forEachIndexed { index, label ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                    unselectedContentColor = LocalSkeuTokens.current.mutedText,
+                    text = {
+                        Text(
+                            label,
+                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f)
+        ) { page ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+        when (page) {
+        0 -> {
         Column {
             SectionLabel(stringResource(R.string.presets_title))
             Spacer(modifier = Modifier.height(8.dp))
@@ -1003,7 +1059,9 @@ fun BoosterScreen(
                 }
             )
         }
+        }
 
+        1 -> {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             SkeuCard {
                 Row(
@@ -1147,7 +1205,9 @@ fun BoosterScreen(
                 SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_STUDIO_EQ, onCheckedChange = null)
             }
         }
+        }
 
+        2 -> {
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1175,6 +1235,10 @@ fun BoosterScreen(
 
         TextButton(onClick = onOpenHelp) {
             Text(stringResource(R.string.see_full_explanation))
+        }
+        }
+        }
+        }
         }
         }
         }

@@ -16,6 +16,10 @@
     <!-- Batch 13: "Controls" section label (ported from HTML preview) -->
     <string name="controls_title">Controls</string>
 
+    <!-- Batch 94: main screen horizontal tab labels ("Controls" tab reuses controls_title above, 0 new string for that one) -->
+    <string name="tab_display_label">Display</string>
+    <string name="tab_help_label">Help</string>
+
     <!-- Header -->
     <string name="app_title">Boomly</string>
     <string name="app_subtitle">Effects apply to all system audio</string>

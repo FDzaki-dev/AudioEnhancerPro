@@ -1,5 +1,81 @@
 # Changelog
 
+## Batch 94: Navigasi tab horizontal (Kontrol/Tampilan/Bantuan) menggantikan 1 scroll vertikal raksasa
+
+Request eksplisit user, disertai 2 screenshot layar utama (kartu Kontrol
+penuh, lalu lanjutan scroll sampai Studio Equalizer/kartu baterai) yang
+nunjukkin masalahnya: "semua tab yang awalnya vertikal kebawah ->
+horizontal scrollable dan masih enak navigasi nya".
+
+**Yang diubah** — sebelumnya `BoosterScreen` adalah 1 `Column` raksasa
+dengan `.verticalScroll()` membungkus SEMUA section sebagai sibling flat:
+Preset Cepat → kartu Bass/Virtualizer/Loudness (`SectionLabel controls_title`)
+→ Equalizer Manual (collapsible) → kartu dynamic color (SDK 31+) → Aurora
+Glass → Skeuomorphism → Studio Equalizer → kartu baterai/autostart →
+tombol "Lihat penjelasan lengkap". Sekarang dikelompokkan jadi 3 tab via
+`ScrollableTabRow` (Material3, tersedia sejak 1.0 — sengaja BUKAN
+`PrimaryScrollableTabRow` yang baru ada di M3 1.3+, biar tidak perlu bump
+BOM 2024.06.00/M3 1.2.1 di luar scope) + `HorizontalPager` (package
+`androidx.compose.foundation.pager`, sudah dipakai `OnboardingScreen.kt` —
+dicek dulu sebelum dipakai, 0 dependency baru):
+
+- **Tab "Kontrol"** (label reuse `controls_title`, 0 string baru): Preset
+  Cepat (chip horizontal-scroll, tidak disentuh — tetap sesuai roadmap
+  "TETAP horizontal-scroll") + kartu Bass/Virtualizer/Loudness + Equalizer
+  Manual. 2 `AlertDialog` (save preset & confirm delete) tetap co-located
+  di tab ini karena trigger-nya cuma ada di sini.
+- **Tab "Tampilan"** (string baru `tab_display_label`): dynamic color
+  (`SDK_INT >= S`), Aurora Glass, Skeuomorphism, Studio Equalizer.
+- **Tab "Bantuan"** (string baru `tab_help_label`): kartu penjelasan izin
+  baterai/autostart + tombol bantuan.
+
+Header (judul+ikon), `PowerToggleRow`, motif waveform, `ServiceStatusBadge`,
+dan semua banner (crash/control-recovery/update/koneksi/izin
+notifikasi/unsupported chipset) tetap di luar tab, selalu terlihat —
+sengaja tidak ikut ditab-kan karena ini status/alert penting.
+
+**Implementasi**: `Column` utama — `.verticalScroll()` dihapus (state
+pager yang sekarang atur scroll, bukan 1 scroll gabungan). Tap tab →
+`coroutineScope.launch { pagerState.animateScrollToPage(index) }` (reuse
+`coroutineScope` yang sudah ada buat snackbar, 0 scope baru) + haptic
+(pola sama seperti toggle lain di file ini). Swipe manual jalan otomatis
+(bawaan `HorizontalPager`). Tiap halaman pager dibungkus
+`Column(fillMaxSize().verticalScroll(rememberScrollState()))` sendiri —
+scroll independen per tab. Warna teks tab: `primary` bold pas selected,
+`LocalSkeuTokens.current.mutedText` pas unselected (konsisten sama
+treatment chip preset Batch 93). `divider = {}` di `ScrollableTabRow` —
+app ini dari awal tidak pakai divider Material default di mana pun. Isi
+tiap kartu/section/logic **tidak diubah sama sekali** — 0 refactor di
+luar scope, cuma dikelompokkan ulang jadi 3 branch `when(page)`.
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` — import
+`HorizontalPager`+`rememberPagerState` ditambah.
+
+**Resource (2 file, tidak dihitung micro-batch — bukan kode)**:
+`values/strings.xml` + `values-en/strings.xml`, 2 string baru
+(`tab_display_label`="Tampilan"/"Display", `tab_help_label`=
+"Bantuan"/"Help"). Parity ID/EN 125/125.
+
+**Sengaja ditunda** (diekstrak ke `PENDING_Batch94_SyncPreviewHTML.md`,
+bukan bagian batch ini): `docs/preview/current.html` belum disinkronkan ke
+struktur tab baru — butuh markup tab-bar+tab-panel+JS toggle, effort lebih
+besar dari sekadar ubah CSS var (beda dari sync Batch 93).
+
+Cek statis: balance kurung/kurawal `BoosterScreen.kt` — diverifikasi 2x,
+termasuk mini-lexer Python yang sadar string-interpolasi `${...}`/komentar
+(biar tidak false-positive), hasil akhir 0 selisih & 0 error "unmatched
+closing brace" di titik manapun. Paren dicek cara yang sama, 0 error.
+
+**Belum divalidasi visual/device sama sekali** — butuh screenshot user.
+Kandidat curiga: (1) warna indicator garis-bawah `ScrollableTabRow` masih
+default M3, belum di-custom ke token skeuomorphic/glass app ini, (2)
+transisi tap-vs-swipe antar-tab belum dites device fisik, (3)
+`HorizontalPager` pakai `Modifier.weight(1f)` di `Column` tanpa
+`.fillMaxSize()` eksplisit — secara teori tetap bekerja (constraint
+bounded diwariskan dari root `Box(fillMaxSize())`, pola sama persis
+`OnboardingScreen.kt` yang sudah jalan), tapi belum divalidasi runtime
+nyata di device.
+
 ## Batch 93: Styling pill "Preset Cepat" (roadmap.md Fase 7 Fase 2 opsi C)
 
 User pilih **"C: styling pill Preset Cepat"** dari 4 opsi Fase 2+ sisa yang

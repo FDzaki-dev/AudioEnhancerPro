@@ -2,6 +2,7 @@
 .gitignore
 CHANGELOG.md
 FILE_MANIFEST.txt
+PENDING_Batch94_SyncPreviewHTML.md
 PENDING_Fase0_Item6_RebuildSessionZero.md
 PROJECT_STATE.md
 README.md

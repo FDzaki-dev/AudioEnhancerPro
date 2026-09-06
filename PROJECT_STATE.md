@@ -31,9 +31,13 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 ### Keputusan sadar (JANGAN diubah tanpa alasan baru dari user)
 - **Brand kosmetik/user-facing = "Boomly"** (Batch 68, bukan
   AudioEnhancerPro/AudioBooster).
-  - ZIP output: `Boomly_batch<N>.zip` (final Batch 76, tanpa komponen versi —
-    versionName = run_number CI, belum ada saat packaging). Glob Termux:
-    `Boomly*.zip`.
+  - ZIP output: `Boomly_v<N>.zip` (direvisi Batch 94 — Core Protocol user
+    minta pola generik `<NamaApp>_v<Batch>.zip`, dikonfirmasi eksplisit
+    user "Y". Histori pola sebelumnya: `Boomly_<versi>-<batch>.zip` [pin
+    Batch 70] → `Boomly_batch<N>.zip` [revisi Batch 76, versionName belum
+    ke-assign GitHub saat packaging] → `Boomly_v<N>.zip` [revisi Batch 94]).
+    Glob Termux TETAP `Boomly*.zip` — wildcard cocok ke semua pola di atas,
+    0 perubahan skrip Termux diperlukan.
   - String user-facing app (ID+EN): `app_name`, `app_title`, `notif_title`,
     `notif_channel_name`, `qs_tile_label`, `status_running`,
     `notif_perm_body`, `ob1_title` = "Boomly". String baru yang sebut nama
@@ -67,27 +71,118 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 93 (1 file kode — `BoosterScreen.kt`). User
-  pilih opsi **C (styling pill "Preset Cepat")** dari 4 kandidat Fase 7
-  Fase 2 sisa. Shape capsule SUDAH ada sejak awal (`RoundedCornerShape(50)`,
-  TIDAK diubah, sesuai roadmap "TETAP horizontal-scroll"). Yang diubah:
-  selected-state — unselected SEBELUMNYA filled abu-abu (`surfaceVariant`,
-  0 border) → SEKARANG transparan + border tipis (`mutedText` alpha 0.35,
-  token yang SUDAH ADA, 0 token baru) ala iOS "outline-only". Selected TETAP
-  filled solid `primary`+`skeuGlow` (sudah tegas dari awal, tidak disentuh)
-  — border sengaja `null` pas selected (border+fill+glow bareng cuma bikin
-  berantakan). Berlaku SAMA ke preset bawaan & custom (2 lokasi disinkron).
-  `docs/preview/current.html` (`.chip`/`.chip.active` CSS) disinkronkan
-  sekalian — ternyata mockup itu SEBELUMNYA juga beda dari Kotlin (mockup
-  chip aktif gak pernah filled solid, cuma ganti warna teks/border) — dua-
-  duanya sekarang SAMA persis. Cek statis: balance kurung/kurawal
-  `BoosterScreen.kt` OK, brace CSS `current.html` OK. **BELUM divalidasi
-  visual/device** — butuh screenshot user. Antrian SISA: Fase 0 #9 + Fase 0
+- **Batch terakhir**: Batch 94 (1 file kode — `BoosterScreen.kt`). Request
+  eksplisit user (bukan dari roadmap): layar utama SEBELUMNYA 1 Column
+  raksasa `.verticalScroll()` membungkus SEMUA section (Preset → Kontrol →
+  Equalizer Manual → 4 toggle tema → kartu baterai/autostart → tombol
+  bantuan) — SEKARANG dipecah jadi 3 tab horizontal (**Kontrol** / **Tampilan**
+  / **Bantuan**) via `ScrollableTabRow` + `HorizontalPager` (Foundation,
+  SUDAH dipakai `OnboardingScreen.kt`, 0 dependency baru). Isi tiap
+  kartu/logic TIDAK diubah — cuma dikelompokkan ulang. Header/power-toggle/
+  waveform/badge status/SEMUA banner TETAP di luar tab (selalu terlihat).
+  Tiap tab scroll independen. 2 string baru (`tab_display_label`,
+  `tab_help_label`), parity ID/EN 125/125 — tab "Kontrol" reuse
+  `controls_title` lama. Cek statis: balance kurung/kurawal `BoosterScreen.kt`
+  OK (mini-lexer sadar string-interpolation & komentar, 0 error). **BELUM
+  divalidasi visual/device** — butuh screenshot user. `docs/preview/
+  current.html` SENGAJA belum disinkron ke struktur tab baru — lihat
+  `PENDING_Batch94_SyncPreviewHTML.md`. Antrian SISA: Fase 0 #9 + Fase 0
   #6 Fase 2 (masih tunggu arahan eksplisit user) + Fase 7 Fase 2+ SISA 3
   kandidat (D/E/F, lihat roadmap.md).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 💊 **Batch 93 (terbaru, 1 file kode — `BoosterScreen.kt`)**: User pilih
+- 💊 **Batch 94 (terbaru, 1 file kode — `BoosterScreen.kt`)**: Request
+  eksplisit user, disertai 2 screenshot layar utama (kartu Kontrol penuh +
+  lanjutan scroll sampai Studio Equalizer/kartu baterai) yang nunjukkin
+  masalah: 1 scroll vertikal panjang buat sampai ke kartu paling bawah.
+  Minta: "semua tab yang awalnya vertikal kebawah -> horizontal scrollable
+  dan masih enak navigasi nya".
+
+  **Yang diubah** — SEBELUMNYA `BoosterScreen` Composable-nya 1 `Column`
+  raksasa dengan `.verticalScroll(rememberScrollState())` membungkus SEMUA
+  section flat sebagai sibling: Preset Cepat (chip horizontal-scroll) →
+  kartu Bass/Virtualizer/Loudness (`SectionLabel controls_title`) →
+  Equalizer Manual (`EqualizerSection` collapsible) → kartu dynamic color
+  (SDK 31+) → Aurora Glass → Skeuomorphism → Studio Equalizer → kartu
+  baterai/autostart → tombol "Lihat penjelasan lengkap". SEKARANG
+  dikelompokkan jadi 3 tab via `ScrollableTabRow` (M3, tersedia sejak 1.0,
+  aman di BOM 2024.06.00/M3 1.2.1 — TIDAK pakai `PrimaryScrollableTabRow`
+  yang baru ada di M3 1.3+, biar gak perlu bump BOM) + `HorizontalPager`
+  (package `androidx.compose.foundation.pager`, SUDAH dipakai
+  `OnboardingScreen.kt` — dikonfirmasi dulu sebelum dipakai, 0 dependency
+  baru):
+  - **Tab "Kontrol"** (label reuse `controls_title`, 0 string baru): Preset
+    Cepat (TIDAK disentuh, tetap sesuai roadmap "TETAP horizontal-scroll")
+    + kartu Bass/Virtualizer/Loudness + Equalizer Manual. Termasuk 2
+    `AlertDialog` (save preset & confirm delete) — tetap co-located di sini
+    karena trigger-nya (chip "+") cuma ada di tab ini juga.
+  - **Tab "Tampilan"** (string baru `tab_display_label`): 4 toggle tema —
+    dynamic color (`SDK_INT >= S`), Aurora Glass, Skeuomorphism, Studio
+    Equalizer.
+  - **Tab "Bantuan"** (string baru `tab_help_label`): kartu penjelasan izin
+    baterai/autostart + tombol bantuan.
+
+  Header (judul+ikon), `PowerToggleRow`, motif waveform, `ServiceStatusBadge`,
+  dan SEMUA banner (crash/control-recovery/update/koneksi/izin
+  notifikasi/unsupported chipset) TETAP di luar tab, sebelum `ScrollableTabRow`
+  — sengaja TIDAK ikut di-tab-kan karena ini status/alert penting yang gak
+  boleh "hilang" di balik navigasi swipe.
+
+  **Implementasi**: `Column` utama — `.verticalScroll()` DIHAPUS (state
+  pager+tab yang sekarang atur scroll, bukan 1 scroll gabungan lagi).
+  `pagerState = rememberPagerState(pageCount = { 3 })`. Tap tab →
+  `coroutineScope.launch { pagerState.animateScrollToPage(index) }` (reuse
+  `coroutineScope` yang SUDAH ada buat snackbar, 0 scope baru) + haptic
+  (pola SAMA kayak semua toggle lain di file ini). Swipe manual jalan
+  otomatis (bawaan `HorizontalPager`). Tiap halaman pager dibungkus
+  `Column(fillMaxSize().verticalScroll(rememberScrollState()))` sendiri —
+  scroll independen per tab, bukan cuma 1 raksasa. Warna teks tab:
+  `primary` bold pas selected, `LocalSkeuTokens.current.mutedText` pas
+  unselected (konsisten sama treatment chip preset Batch 93).
+  `divider = {}` di `ScrollableTabRow` — app ini dari awal tidak pernah
+  pakai divider Material default di mana pun (pola custom
+  `SkeuGroupDivider`), nambah 1 lagi cuma elemen asing. Isi tiap
+  kartu/section/logic **TIDAK diubah SAMA SEKALI** — 0 refactor di luar
+  scope, cuma dikelompokkan ulang jadi 3 branch `when(page)`.
+
+  Cek statis DILAKUKAN 2x: (1) count kurung/kurawal naif — awalnya ketahuan
+  SELISIH 1 (kurang 1 `}` di ekor, keburu ke-skip pas nulis manual, langsung
+  diperbaiki), (2) re-cek pakai mini-lexer Python yang sadar string
+  literal/interpolasi `${...}`/komentar (biar gak false-positive/negative
+  dari karakter `{`/`}` yang numpang lewat di teks) — hasil akhir: depth 0,
+  0 error "unmatched closing brace" di titik manapun proses scan. Paren
+  juga dicek cara yang sama — 0 error.
+
+  **Resource (2 file, TIDAK dihitung ke micro-batch limit — bukan kode)**:
+  `values/strings.xml` + `values-en/strings.xml`, 2 string baru
+  (`tab_display_label`="Tampilan"/"Display", `tab_help_label`=
+  "Bantuan"/"Help"). Parity ID/EN terjaga 125/125.
+
+  **Sengaja DITUNDA** (diekstrak ke PENDING, bukan bagian batch ini, biar
+  micro-batch tetap 1 file kode): `docs/preview/current.html` — mockup
+  statis BELUM disinkronkan ke struktur tab baru (butuh markup tab-bar +
+  tab-panel + JS toggle, bukan cuma ubah CSS var kayak Batch 93 preset chip
+  — effort-nya lebih deket ke "file kode kedua" kalau dipaksa masuk batch
+  ini). Detail lengkap: `PENDING_Batch94_SyncPreviewHTML.md`.
+
+  Keputusan naming ZIP output sesi ini: Core Protocol user minta
+  `<NamaApp>_v<Batch>.zip` (`Boomly_v94.zip`), beda dari konvensi lama file
+  ini (`Boomly_batch<N>.zip`, lihat 🔒 Keputusan Sadar di bawah — SEKARANG
+  DIPERBARUI). Sesuai hierarki "User Instruction > Core Protocol > file
+  ini" yang dinyatakan sendiri oleh dokumen ini, Core Protocol menang —
+  user sudah eksplisit konfirmasi ("Y") pakai `Boomly_v94.zip` mulai
+  batch ini dan seterusnya.
+
+  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
+  Kandidat curiga: (1) warna indicator garis-bawah `ScrollableTabRow`
+  masih default M3 (belum di-custom ke token skeuomorphic/glass app ini —
+  mungkin kelihatan asing), (2) transisi tap-vs-swipe antar-tab belum
+  dites device fisik, (3) `HorizontalPager` pakai `Modifier.weight(1f)` di
+  `Column` yang TIDAK punya `.fillMaxSize()` eksplisit — SECARA TEORI tetap
+  bekerja karena constraint bounded diwariskan dari root `Box(fillMaxSize())`
+  (pola sama persis `OnboardingScreen.kt` yang sudah jalan), tapi belum
+  divalidasi runtime nyata di device.
+- 💊 **Batch 93 (1 file kode — `BoosterScreen.kt`)**: User pilih
   **"C: styling pill Preset Cepat"** dari 4 kandidat sisa Fase 7 Fase 2
   (`roadmap.md`).
   Dibaca dulu implementasi chip preset yang ada (`FilterChip` Material3,

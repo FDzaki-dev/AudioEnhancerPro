@@ -16,6 +16,10 @@
     <!-- Batch 13: label section "Kontrol" (porting dari HTML preview) -->
     <string name="controls_title">Kontrol</string>
 
+    <!-- Batch 94: label tab navigasi horizontal layar utama (tab "Kontrol" pakai controls_title di atas, 0 string baru buat itu) -->
+    <string name="tab_display_label">Tampilan</string>
+    <string name="tab_help_label">Bantuan</string>
+
     <!-- Header -->
     <string name="app_title">Boomly</string>
     <string name="app_subtitle">Efek berlaku ke seluruh audio sistem</string>
