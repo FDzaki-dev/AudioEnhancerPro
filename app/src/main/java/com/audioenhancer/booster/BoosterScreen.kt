@@ -10,6 +10,7 @@ package com.audioenhancer.booster
 // Batch 31: ThemeModeToggle DIHAPUS — app WAJIB dark-mode, tidak ada lagi pilihan
 // terang/ikuti sistem (lihat PROJECT_STATE.md).
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -704,9 +705,20 @@ fun BoosterScreen(
                             onClick = { applyPreset(preset) },
                             label = { Text(preset.label) },
                             shape = RoundedCornerShape(50),
-                            border = null,
+                            // Batch 93 (roadmap.md Fase 7 Fase 2 opsi C, "styling pill Preset
+                            // Cepat"): shape capsule SUDAH ada sejak awal (RoundedCornerShape(50)
+                            // = fully rounded karena tinggi chip << lebar, TIDAK diubah — sesuai
+                            // roadmap "TETAP horizontal-scroll", scope cuma selected-state). Yang
+                            // diubah: unselected SEBELUMNYA filled abu-abu (`surfaceVariant`) —
+                            // SEKARANG transparan + border tipis (`mutedText` alpha 0.35, token
+                            // yang SUDAH ada di ke-4 varian, 0 token baru) ala iOS "outline-only".
+                            // Selected TETAP filled solid `primary` + `skeuGlow` (SUDAH cukup
+                            // tegas dari awal, tidak disentuh) — border sengaja `null` pas
+                            // selected, nambah border DI ATAS fill+glow yang udah rame cuma bikin
+                            // berantakan, bukan nambah ketegasan.
+                            border = if (selected) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
                             colors = FilterChipDefaults.filterChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                containerColor = Color.Transparent,
                                 labelColor = LocalSkeuTokens.current.mutedText,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White
@@ -731,9 +743,11 @@ fun BoosterScreen(
                                 )
                             },
                             shape = RoundedCornerShape(50),
-                            border = null,
+                            // Batch 93: sinkron persis styling preset bawaan di atas — 0 alasan
+                            // preset custom beda treatment dari preset bawaan.
+                            border = if (selected) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
                             colors = FilterChipDefaults.filterChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                containerColor = Color.Transparent,
                                 labelColor = LocalSkeuTokens.current.mutedText,
                                 selectedContainerColor = MaterialTheme.colorScheme.primary,
                                 selectedLabelColor = Color.White

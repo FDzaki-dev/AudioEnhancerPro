@@ -67,28 +67,74 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 92 (1 file kode — `SettingsScreen.kt`, fix
-  bug hasil validasi). User kirim 2 screenshot (`349771.jpg` header utama,
-  `349772.jpg` layar Settings) buat validasi Batch 90+91.
-  **Batch 90 (Large Title "Boomly") VALID 0 bug**: 34sp Bold jelas lebih
-  besar/tegas dari sebelumnya, 1 baris (gak wrap), gear icon gak
-  ketabrak. **Batch 91 (grouped-list Settings) SEBAGIAN valid**: row
-  "Versi Aplikasi | 139" render benar (label kiri/value kanan), TAPI
-  `SkeuGroupDivider()` di bawahnya kelihatan mulai jauh ke kanan dari teks
-  "Versi Aplikasi" — bukan flush, nyasar. Akar masalah: `startIndent=50.dp`
-  default divider itu dirancang buat skip icon-box 40dp+spacing 10dp di
-  `FeatureControl` (Fase 1, Kontrol), sedangkan baris versi di Settings TIDAK
-  punya icon — jadi 50dp itu jadi indent tanpa referensi apa pun. Fixed:
-  `SkeuGroupDivider(startIndent = 0.dp)` khusus di baris ini. Title inline
-  "Pengaturan" (17sp) juga dicek — proporsinya OK di sebelah tombol back,
-  gak kekecilan. **Fase 7 Fase 1 + Fase 2 opsi A/B sekarang SEMUA
-  tervalidasi visual PENUH** (setelah fix ini — belum ada screenshot ULANG
-  post-fix, tapi perubahannya cuma 1 parameter startIndent, low-risk).
-  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
-  user) + Fase 7 Fase 2+ SISA 4 kandidat (C/D/E/F, lihat roadmap.md).
+- **Batch terakhir**: Batch 93 (1 file kode — `BoosterScreen.kt`). User
+  pilih opsi **C (styling pill "Preset Cepat")** dari 4 kandidat Fase 7
+  Fase 2 sisa. Shape capsule SUDAH ada sejak awal (`RoundedCornerShape(50)`,
+  TIDAK diubah, sesuai roadmap "TETAP horizontal-scroll"). Yang diubah:
+  selected-state — unselected SEBELUMNYA filled abu-abu (`surfaceVariant`,
+  0 border) → SEKARANG transparan + border tipis (`mutedText` alpha 0.35,
+  token yang SUDAH ADA, 0 token baru) ala iOS "outline-only". Selected TETAP
+  filled solid `primary`+`skeuGlow` (sudah tegas dari awal, tidak disentuh)
+  — border sengaja `null` pas selected (border+fill+glow bareng cuma bikin
+  berantakan). Berlaku SAMA ke preset bawaan & custom (2 lokasi disinkron).
+  `docs/preview/current.html` (`.chip`/`.chip.active` CSS) disinkronkan
+  sekalian — ternyata mockup itu SEBELUMNYA juga beda dari Kotlin (mockup
+  chip aktif gak pernah filled solid, cuma ganti warna teks/border) — dua-
+  duanya sekarang SAMA persis. Cek statis: balance kurung/kurawal
+  `BoosterScreen.kt` OK, brace CSS `current.html` OK. **BELUM divalidasi
+  visual/device** — butuh screenshot user. Antrian SISA: Fase 0 #9 + Fase 0
+  #6 Fase 2 (masih tunggu arahan eksplisit user) + Fase 7 Fase 2+ SISA 3
+  kandidat (D/E/F, lihat roadmap.md).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🐛 **Batch 92 (terbaru, 1 file kode — `SettingsScreen.kt`, fix bug hasil
+- 💊 **Batch 93 (terbaru, 1 file kode — `BoosterScreen.kt`)**: User pilih
+  **"C: styling pill Preset Cepat"** dari 4 kandidat sisa Fase 7 Fase 2
+  (`roadmap.md`).
+  Dibaca dulu implementasi chip preset yang ada (`FilterChip` Material3,
+  built-in di `presets.forEach` + custom di `customPresets.forEach`, keduanya
+  identik strukturnya). **Shape capsule TERNYATA SUDAH ADA sejak awal**
+  (`shape = RoundedCornerShape(50)` — persentase 50% dari sisi terpendek,
+  otomatis fully-rounded karena chip jauh lebih lebar dari tinggi) — bagian
+  ini TIDAK disentuh, sesuai roadmap eksplisit "TETAP horizontal-scroll",
+  scope-nya emang cuma "selected-state lebih tegas ala iOS".
+  **Yang diubah** — sebelumnya unselected & selected SAMA-SAMA filled
+  (bedanya cuma warna: `surfaceVariant` abu vs `primary` biru), 0 chip
+  punya border sama sekali:
+  - Unselected: `containerColor` `surfaceVariant` (filled abu) →
+    **`Color.Transparent`** + `border = BorderStroke(1.dp,
+    LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f))` — token
+    `mutedText` SUDAH ADA di ke-4 varian tema, 0 token baru ditambah ke
+    `SkeuTokens`. Hasil: ala iOS "outline-only" buat opsi yang belum dipilih.
+  - Selected: TETAP `containerColor = primary` + `skeuGlow` (2 penanda itu
+    SUDAH cukup tegas dari awal, tidak disentuh) — `border` sengaja
+    `null` pas selected (nambah border DI ATAS fill+glow yang udah rame
+    cuma bikin berantakan visual, bukan nambah ketegasan — prinsip restraint
+    yang sama dipakai `SkeuGroupDivider` Fase 1).
+  Import `BorderStroke` (`androidx.compose.foundation`) ditambah. Berlaku
+  ke DUA lokasi (`presets.forEach` built-in + `customPresets.forEach`
+  custom) — disinkron identik, 0 alasan preset custom beda treatment.
+  **`docs/preview/current.html`**: dicek dulu (bukan diasumsikan gak
+  relevan) — ternyata section "PRESET CEPAT" ADA di mockup ini
+  (`.chip`/`.chip.active`), dan CSS-nya SUDAH LAMA beda dari Kotlin
+  (mockup: base chip udah punya border+`background:var(--surface)` dari
+  awal; `.chip.active` cuma ganti warna teks/border, `background` TETAP
+  `var(--surface)`, gak pernah filled solid kayak Kotlin). Disinkronkan
+  sekalian ke treatment baru: `.chip` → `background:transparent` (border
+  `var(--border)` YANG SUDAH ADA dipertahankan, 0 var baru), `.chip.active`
+  → `background:var(--primary)` + teks putih + border dihilangkan (mirror
+  logic sama persis kayak Kotlin di atas). Sekarang mockup & Kotlin SAMA
+  persis, sebelumnya enggak (temuan sampingan, bukan disengaja dicari).
+  Cek statis: balance kurung/kurawal `BoosterScreen.kt` — 0 selisih; brace
+  CSS `current.html` (41 buka = 41 tutup) — 0 selisih.
+  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
+  Kandidat curiga: (1) border 0.35 alpha mungkin kurang/kelewat kentara di
+  varian tema selain Neumorphism (Glass dkk — belum pernah dites, warna
+  background beda-beda per varian), (2) transisi ketika chip di-tap
+  (unselected→selected: border hilang, fill muncul bareng) mungkin
+  kelihatan "loncat" tanpa animasi — belum ada `animateColorAsState` di
+  `FilterChip` ini (di luar scope batch ini kalau ternyata jadi masalah,
+  perlu batch terpisah).
+- 🐛 **Batch 92 (1 file kode — `SettingsScreen.kt`, fix bug hasil
   validasi screenshot)**: User kirim 2 screenshot (`349771.jpg` = header
   utama "Boomly", `349772.jpg` = layar Settings) buat validasi Batch 90
   (Large Title) + Batch 91 (grouped-list Settings) yang dua-duanya masih

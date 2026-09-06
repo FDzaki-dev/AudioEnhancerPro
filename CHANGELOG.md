@@ -1,5 +1,63 @@
 # Changelog
 
+## Batch 93: Styling pill "Preset Cepat" (roadmap.md Fase 7 Fase 2 opsi C)
+
+User pilih **"C: styling pill Preset Cepat"** dari 4 opsi Fase 2+ sisa yang
+ditanya Batch 92.
+
+Dibaca dulu implementasi chip preset yang ada (`FilterChip` Material3,
+built-in di `presets.forEach` + custom di `customPresets.forEach`, keduanya
+identik strukturnya). **Shape capsule ternyata sudah ada sejak awal**
+(`shape = RoundedCornerShape(50)`, fully-rounded karena chip jauh lebih
+lebar dari tinggi) — bagian ini tidak disentuh, sesuai roadmap eksplisit
+"TETAP horizontal-scroll" (daftar preset bisa diperpanjang user via custom
+preset, unbounded — segmented control iOS asli cuma cocok pilihan tetap
+2-5 opsi, gak scroll).
+
+**Yang diubah** — sebelumnya unselected & selected sama-sama filled
+(bedanya cuma warna `surfaceVariant` abu vs `primary` biru), 0 chip punya
+border sama sekali:
+
+- **Unselected**: `containerColor` `surfaceVariant` (filled abu) →
+  **`Color.Transparent`** + `border = BorderStroke(1.dp,
+  LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f))` — token
+  `mutedText` sudah ada di ke-4 varian tema, 0 token baru. Hasil: ala iOS
+  "outline-only" buat opsi yang belum dipilih.
+- **Selected**: tetap `containerColor = primary` + `skeuGlow` (sudah cukup
+  tegas dari awal, tidak disentuh) — `border` sengaja `null` pas selected
+  (border di atas fill+glow yang udah rame cuma bikin berantakan, prinsip
+  restraint sama seperti `SkeuGroupDivider` Fase 1).
+
+**File disentuh (1 file kode)**:
+
+- **`BoosterScreen.kt`**: import `BorderStroke` ditambah. Perubahan di atas
+  diterapkan ke DUA lokasi (`presets.forEach` built-in + `customPresets.forEach`
+  custom) — disinkron identik, 0 alasan preset custom beda treatment dari
+  preset bawaan.
+
+**Dokumentasi disinkronkan**:
+
+- `docs/preview/current.html`: dicek dulu apakah section "PRESET CEPAT"
+  relevan di mockup ini — ternyata ADA (`.chip`/`.chip.active`), dan
+  CSS-nya sudah lama beda dari Kotlin (mockup: chip aktif sebelumnya gak
+  pernah filled solid, cuma ganti warna teks/border, background tetap sama
+  seperti unselected — temuan sampingan, bukan disengaja dicari).
+  Disinkronkan ke treatment baru: `.chip` → `background:transparent`
+  (border `var(--border)` yang sudah ada dipertahankan, 0 var baru),
+  `.chip.active` → `background:var(--primary)` + teks putih + border
+  dihilangkan — mirror logic sama persis Kotlin di atas.
+- `roadmap.md`/`PROJECT_STATE.md` disinkronkan.
+
+Cek statis: balance kurung/kurawal `BoosterScreen.kt` — 0 selisih. Brace
+CSS `current.html` (41 buka = 41 tutup) — 0 selisih.
+
+**BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
+Kandidat curiga: (1) border alpha 0.35 mungkin kurang/kelewat kentara di
+varian tema selain Neumorphism (Glass dkk — background beda-beda per
+varian, belum pernah dites), (2) transisi tap unselected→selected (border
+hilang, fill muncul bareng, 0 animasi warna) mungkin kelihatan "loncat" —
+di luar scope batch ini kalau ternyata jadi masalah nyata.
+
 ## Batch 92: Validasi screenshot Batch 90+91 — fix bug divider SettingsScreen.kt
 
 User kirim 2 screenshot device asli (`349771.jpg` header utama, `349772.jpg`

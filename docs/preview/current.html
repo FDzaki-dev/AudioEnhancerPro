@@ -116,14 +116,25 @@
   }
 
   .chips{ display:flex; gap:10px; margin-bottom:8px; overflow-x:auto; }
+  <!-- Batch 93 (Fase 7 Fase 2 opsi C, "styling pill Preset Cepat"): mirror
+       Kotlin `BoosterScreen.kt` — unselected SEBELUMNYA `background:var(--surface)`
+       (filled abu-abu, beda dari Kotlin yang justru borderless), SEKARANG
+       `background:transparent` + border yang SUDAH ADA (`var(--border)`, 0 var
+       baru) ala iOS "outline-only", jadi 2-2nya (mockup+Kotlin) akhirnya SAMA
+       persis. `.chip.active` SEBELUMNYA cuma ganti warna teks/border + glow,
+       background TETAP `var(--surface)` (beda dari Kotlin yang dari awal
+       filled solid `primary` buat selected) — SEKARANG `background:var(--primary)`
+       + teks putih, border dihilangkan (fill+glow udah cukup tegas, nambah
+       border DI ATASnya cuma bikin berantakan — alasan sama kayak Kotlin). -->
   .chip{
     padding:10px 16px; border-radius:100px; font-weight:700; font-size:13px;
-    white-space:nowrap; color:var(--muted); background:var(--surface);
+    white-space:nowrap; color:var(--muted); background:transparent;
     border:1px solid var(--border);
   }
   .chip.active{
-    color:var(--primary);
-    border-color:var(--primary);
+    color:#fff;
+    background:var(--primary);
+    border-color:transparent;
     box-shadow:0 0 10px var(--glow);
   }
 

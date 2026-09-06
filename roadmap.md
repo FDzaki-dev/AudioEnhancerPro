@@ -375,14 +375,21 @@ warna.
         `SkeuGroupDivider(startIndent = 0.dp)` di baris ini SAJA (default
         function tidak diubah, caller lain masih pakai 50dp). Detail
         lengkap: `CHANGELOG.md` Batch 91 & 92.
-      - Preset row ("Preset Cepat"): **TETAP horizontal-scroll**, BUKAN
+      - [x] **Styling pill "Preset Cepat"** (Batch 93, SELESAI dari sisi
+        kode, BELUM divalidasi visual): **TETAP horizontal-scroll**, BUKAN
         diganti segmented control literal — sudah dicek `BoosterScreen.kt`,
         daftar preset BISA diperpanjang user (custom preset, unbounded),
         segmented control iOS asli cuma cocok pilihan TETAP & sedikit (2-5
         opsi, tidak scroll) — kalau dipaksa jadi segmented, preset custom ke-6
-        dst ga ada tempat. Kandidat yang masih relevan: styling pill lebih
-        capsule-shaped + selected-state lebih tegas ala iOS (filled solid vs
-        outline-only), TANPA ubah struktur scroll-nya.
+        dst ga ada tempat. Shape capsule sudah ada sejak awal
+        (`RoundedCornerShape(50)`), tidak diubah. Yang diubah: selected-state
+        — unselected `surfaceVariant` filled → transparan + border tipis
+        (`mutedText` alpha 0.35, ala iOS "outline-only"); selected tetap
+        filled solid `primary`+`skeuGlow` (sudah tegas, tidak disentuh),
+        border sengaja `null` pas selected. Berlaku ke preset bawaan &
+        custom. `docs/preview/current.html` (`.chip`/`.chip.active`)
+        disinkronkan sekalian — ketemu mockup itu sebelumnya juga beda dari
+        Kotlin (temuan sampingan). Detail lengkap: `CHANGELOG.md` Batch 93.
       - Nav bar/header pattern (large title collapsing saat scroll) — lebih
         invasif (butuh koordinasi state scroll dgn `LazyColumn`/`Column`
         yang ada), kandidat batch terpisah, BUKAN quick win.
@@ -407,7 +414,7 @@ warna.
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |
-| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟢 Fase 1 + Fase 2 opsi A/B SELESAI PENUH & tervalidasi (88-92); 4 kandidat Fase 2+ sisa |
+| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟢 Fase 1 + Fase 2 opsi A/B tervalidasi (88-92); opsi C selesai kode/belum tervalidasi (93); 3 kandidat Fase 2+ sisa (D/E/F) |
 
 **Estimasi kasar menuju 100%** (bobot ke fungsi real, bukan jumlah baris
 kode): app **fungsional ~95%** (fitur lengkap, dipakai harian tanpa
