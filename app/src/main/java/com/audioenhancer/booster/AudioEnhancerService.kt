@@ -50,6 +50,33 @@ class AudioEnhancerService : Service() {
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
+
+        // Batch 87 (roadmap.md Fase 0 #6 "Rebuild arsitektur session-0", FASE 1 dari
+        // rebuild bertahap — bukan seluruh item #6 sekaligus, lihat PENDING_Fase0_
+        // Item6_RebuildSessionZero.md buat sisa fase). Bagian PALING konkret & PALING
+        // rendah-risiko dari "strategi modern (DynamicsProcessing/post-processing)
+        // sebagai fallback" yang diminta roadmap: kalau `Equalizer` legacy device ini
+        // UNAVAILABLE total (chipset/HAL tidak expose sama sekali — kasus jarang tapi
+        // NYATA, lihat roadmap.md Fase 0 #2 "belum ada fallback engine kalau effect
+        // null"), `DynamicsProcessing` yang SUDAH dipasang buat limiter (Batch 84)
+        // SEKARANG JUGA dipasangi PreEq stage 5-band sebagai pengganti. 5 titik
+        // frekuensi ini TIDAK di-query dari device — TIDAK ADA API resmi query "band
+        // layout ideal" dari `DynamicsProcessing` (beda dari `Equalizer.numberOfBands`/
+        // `getCenterFreq()` yang device-specific) — jadi ini pilihan TETAP/arbitrary,
+        // representatif rentang audible umum (bass dalam -> treble tinggi), dicek dulu
+        // ke dokumentasi resmi `DynamicsProcessing.EqBand`: parameter constructor
+        // `cutoffFrequency` = frekuensi TERATAS yang diproses band itu (bukan frekuensi
+        // tengah kayak `Equalizer.getCenterFreq()`), band HARUS naik urutannya — 5 angka
+        // di bawah sudah menaik, aman. `getEqualizerBandCenterFreqHz()` di bawah tetap
+        // mengembalikan angka ini apa adanya buat label UI (pendekatan, bukan center Hz
+        // sesungguhnya — beda semantik dicatat, dampak ke user cuma label, bukan fungsi).
+        private val FALLBACK_EQ_BANDS_HZ = floatArrayOf(60f, 230f, 910f, 3600f, 14000f)
+        // +-12 dB (1200 mB): TIDAK ADA API resmi query gain range EqBand per-device
+        // (beda dari `Equalizer.bandLevelRange` yang device-aware) — angka konservatif,
+        // filosofi sama seperti limiter Batch 84 (ceiling -1 dBFS SUDAH terpasang di
+        // effect yang SAMA, jadi walau user set semua band fallback ke +12 dB sekaligus,
+        // limiter di bawahnya tetap jadi pengaman terakhir).
+        private const val FALLBACK_EQ_RANGE_MB: Short = 1200
         // Batch 45: RACE CONDITION nyata ketemu. Field ini ditulis di main thread
         // (onStartCommand/onDestroy Service, dijamin main thread oleh framework),
         // TAPI dibaca dari THREAD LAIN juga: ServiceWatchdogWorker.doWork() jalan
@@ -106,6 +133,25 @@ class AudioEnhancerService : Service() {
     // TAMBAHAN, bukan pengganti 4 effect di atas — lihat komentar panjang di
     // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa.
     private var dynamicsProcessing: DynamicsProcessing? = null
+
+    // Batch 87: true kalau `dynamicsProcessing` di atas SEDANG berfungsi ganda sebagai
+    // pengganti `Equalizer` (fallback, lihat `FALLBACK_EQ_BANDS_HZ`/`attachDynamicsProcessing()`)
+    // KARENA `equalizer` (field di atas) UNAVAILABLE di device ini — false di mayoritas
+    // device (Equalizer legacy tetap dipakai apa adanya, 0 perubahan perilaku). Dibaca
+    // `isEqualizerSupported()`/`setEqualizerBand()`/`getEqualizerBand*()` di bawah buat
+    // menentukan rute mana yang dipakai — TIDAK disurface ke ViewModel/UI batch ini
+    // (pola sama seperti Batch 60/83: Service-layer dulu; kandidat kuat roadmap.md Fase
+    // 0 #9 kalau nanti user mau UI beda tampilan "EQ asli" vs "EQ fallback").
+    private var equalizerFallbackActive: Boolean = false
+
+    // Batch 87: cache lokal nilai gain per-band (mB) yang SEDANG diterapkan ke fallback —
+    // dibutuhkan karena beda dari `Equalizer.getBandLevel()` (baca balik dari effect asli),
+    // `DynamicsProcessing.EqBand` TIDAK expose getter baca-balik gain per-band yang praktis
+    // dipanggil dari instance effect langsung (cuma ada lewat objek `Config`, jalur baca
+    // terpisah dari objek live `dynamicsProcessing` di atas) — cache ini SUMBER KEBENARAN
+    // buat `getEqualizerBandLevel()` versi fallback, PrefsHelper tetap sumber kebenaran
+    // lintas restart (sama seperti effect lain di file ini).
+    private val fallbackEqGainsMb = ShortArray(FALLBACK_EQ_BANDS_HZ.size)
 
     // @Volatile: listener control/enable-status Android TIDAK dijamin dipanggil di main
     // thread (beda dari lifecycle callback Service/BroadcastReceiver yang selalu main
@@ -423,18 +469,37 @@ class AudioEnhancerService : Service() {
     private fun attachDynamicsProcessing() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
+            equalizerFallbackActive = false // Batch 87: API<28 = tidak ada limiter MAUPUN fallback EQ, sama-sama UNAVAILABLE
             return
         }
+        // Batch 87 (roadmap.md Fase 0 #6, FASE 1): dievaluasi SEBELUM try-block karena
+        // `attachEqualizer()` SELALU dipanggil duluan (urutan tetap di `attachEffects()`/
+        // `retryControlAcquisition()`, TIDAK diubah) — `equalizerState` di titik ini SUDAH
+        // final (ENABLED = Equalizer legacy device ini sehat, biarkan apa adanya; UNAVAILABLE
+        // = device ini TIDAK expose Equalizer legacy sama sekali, baru di sini fallback coba
+        // diaktifkan). needsEqFallback FALSE di mayoritas device (Equalizer legacy normal) —
+        // jalur situ 100% identik kode lama, 0 perubahan perilaku.
+        val needsEqFallback = equalizerState == EffectState.UNAVAILABLE
         try {
             val config = DynamicsProcessing.Config.Builder(
-                DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini (0 band EQ/MBC dipakai)
-                2,        // channelCount (stereo, lihat catatan panjang di atas)
-                false, 0, // pre-EQ: tidak dipakai — EQ user tetap lewat `Equalizer` effect terpisah di atas
-                false, 0, // multi-band compressor: di luar scope "master limiter" murni batch ini
+                DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
+                2,                                                // channelCount (stereo, lihat catatan panjang di atas)
+                needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
+                false, 0, // multi-band compressor: di luar scope "master limiter"/"EQ fallback" batch ini
                 false, 0, // post-EQ: tidak dipakai
-                true      // limiter: SATU-SATUNYA stage yang dipakai effect ini
+                true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
             dynamicsProcessing = DynamicsProcessing(0, 0, config).apply {
+                // Batch 87: band count HARUS sama dengan preEqBandCount di Config di atas
+                // (kontrak `Eq`/constructor Config — dicek dokumentasi resmi sebelum ditulis).
+                // Gain awal 0 dB (netral) — nilai tersimpan (kalau ada) diterapkan belakangan
+                // lewat `restoreSavedSettings()`, SAMA seperti pola Equalizer asli, jangan
+                // duplikat logic restore di sini.
+                if (needsEqFallback) {
+                    FALLBACK_EQ_BANDS_HZ.forEachIndexed { index, freqHz ->
+                        setPreEqBandAllChannelsTo(index, DynamicsProcessing.EqBand(true, freqHz, 0f))
+                    }
+                }
                 setLimiterAllChannelsTo(
                     DynamicsProcessing.Limiter(
                         /* inUse        = */ true, // FIX (v133): constructor Limiter TIDAK punya param channelIndex —
@@ -450,19 +515,44 @@ class AudioEnhancerService : Service() {
                     )
                 )
                 enabled = true
+                // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
+                // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
+                // objek "EQ" adalah literal 1 instance yang sama di jalur fallback, jadi
+                // status kontrol/enable-nya memang SATU. Kalau fallback TIDAK aktif
+                // (mayoritas device), baris `if (needsEqFallback)` di bawah tidak pernah
+                // jalan — `equalizerState` 100% tidak disentuh dari sini, persis kode lama.
                 setControlStatusListener { _, granted ->
                     dynamicsState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                    if (needsEqFallback) equalizerState = dynamicsState
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (dynamicsState != EffectState.CONTROL_LOST) {
                         dynamicsState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
+                        if (needsEqFallback && equalizerState != EffectState.CONTROL_LOST) equalizerState = dynamicsState
                     }
                 }
             }
             dynamicsState = EffectState.ENABLED
+            equalizerFallbackActive = needsEqFallback
+            // Batch 87: "upgrade" equalizerState dari UNAVAILABLE -> ENABLED HANYA di jalur
+            // fallback (needsEqFallback true berarti equalizerState memang UNAVAILABLE tepat
+            // sebelum baris ini — lihat definisi needsEqFallback di atas) — TIDAK PERNAH
+            // menimpa status Equalizer legacy yang sudah sehat (jalur itu tidak lewat sini).
+            if (needsEqFallback) equalizerState = EffectState.ENABLED
         } catch (e: Exception) {
             dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
-            android.util.Log.e(TAG, "DynamicsProcessing (master limiter) tidak tersedia di device ini", e)
+            equalizerFallbackActive = false
+            // Batch 87: equalizerState SENGAJA TIDAK disentuh di sini kalau needsEqFallback
+            // true — sudah UNAVAILABLE dari attachEqualizer() sebelumnya (Equalizer legacy
+            // gagal), sekarang fallback-nya JUGA gagal (device ini API<28 pun sudah return
+            // duluan di atas, jadi exception di sini artinya construct DynamicsProcessing
+            // sendiri yang gagal) — hasil akhirnya tetap UNAVAILABLE, konsisten, bukan silent
+            // fallback ke state lain yang menyesatkan UI.
+            android.util.Log.e(
+                TAG,
+                "DynamicsProcessing (master limiter${if (needsEqFallback) " + EQ fallback" else ""}) tidak tersedia di device ini",
+                e
+            )
         }
     }
 
@@ -613,11 +703,17 @@ class AudioEnhancerService : Service() {
         setVirtualizerStrength(PrefsHelper.getVirtualizer(this).toShort())
         setLoudnessGain(PrefsHelper.getLoudness(this))
 
-        equalizer?.let { eq ->
+        // Batch 87: SEBELUMNYA baca `equalizer.numberOfBands` + tulis `eq.setBandLevel()`
+        // LANGSUNG di sini (duplikat logic dari `setEqualizerBand()` di bawah). Sekarang
+        // lewat `getEqualizerBandCount()`/`setEqualizerBand()` publik SUPAYA 1 sumber logic
+        // dipakai baik jalur Equalizer asli MAUPUN jalur fallback `DynamicsProcessing` PreEq
+        // (Batch 87, lihat `attachDynamicsProcessing()`) — device dengan Equalizer legacy
+        // normal 0 perubahan perilaku (persis kode lama, cuma dipindah lewat fungsi publik).
+        if (isEqualizerSupported()) {
             try {
-                for (band in 0 until eq.numberOfBands) {
+                for (band in 0 until getEqualizerBandCount()) {
                     val saved = PrefsHelper.getEqualizerBandLevel(this, band, 0)
-                    eq.setBandLevel(band.toShort(), saved.toShort())
+                    setEqualizerBand(band.toShort(), saved.toShort())
                 }
             } catch (_: Exception) { }
         }
@@ -635,6 +731,7 @@ class AudioEnhancerService : Service() {
         loudnessState = EffectState.UNAVAILABLE
         equalizerState = EffectState.UNAVAILABLE
         dynamicsState = EffectState.UNAVAILABLE // Batch 84
+        equalizerFallbackActive = false // Batch 87
     }
 
     /** Dipanggil dari notifikasi "Matikan" — reversible (beda dari releaseEffects yang
@@ -761,8 +858,27 @@ class AudioEnhancerService : Service() {
     }
 
     fun setEqualizerBand(band: Short, levelMb: Short) {
-        try { equalizer?.setBandLevel(band, levelMb) } catch (e: Exception) {
-            equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Equalizer band $band", e)
+        // Batch 87: dua rute — Equalizer legacy asli (mayoritas device, kode TIDAK berubah)
+        // ATAU fallback PreEq `DynamicsProcessing` (lihat `equalizerFallbackActive`,
+        // `attachDynamicsProcessing()`). `levelMb` (satuan lama, milliBel, konsisten
+        // `Equalizer.setBandLevel()`) dikonversi -> dB (`EqBand.gain`, satuan resmi API ini,
+        // dicek dokumentasi sebelum ditulis) dengan bagi 100 — 1 dB = 100 mB, konversi
+        // standar, BUKAN asumsi baru.
+        if (equalizerFallbackActive) {
+            try {
+                val bandIndex = band.toInt()
+                val gainDb = levelMb / 100f
+                dynamicsProcessing?.setPreEqBandAllChannelsTo(
+                    bandIndex, DynamicsProcessing.EqBand(true, FALLBACK_EQ_BANDS_HZ[bandIndex], gainDb)
+                )
+                fallbackEqGainsMb[bandIndex] = levelMb
+            } catch (e: Exception) {
+                equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set EQ fallback band $band", e)
+            }
+        } else {
+            try { equalizer?.setBandLevel(band, levelMb) } catch (e: Exception) {
+                equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Equalizer band $band", e)
+            }
         }
         PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
     }
@@ -786,21 +902,34 @@ class AudioEnhancerService : Service() {
         try { virtualizer?.roundedStrength ?: 0 } catch (_: Exception) { 0 }
 
     // ---- Equalizer per-band: dipakai UI untuk membangun slider per pita frekuensi ----
-    fun isEqualizerSupported(): Boolean = equalizer != null
+    // Batch 87: tiap fungsi di bawah sekarang cek `equalizerFallbackActive` dulu — device
+    // dengan Equalizer legacy normal (mayoritas, `equalizerFallbackActive == false`) lewat
+    // cabang `else`/fallback-default yang PERSIS logic lama, 0 perubahan. Cabang fallback
+    // BARU cuma kepakai di device yang SEBELUM batch ini `isEqualizerSupported()`-nya
+    // permanen false (roadmap.md Fase 0 #2/#6).
+    fun isEqualizerSupported(): Boolean = equalizer != null || equalizerFallbackActive
 
     fun getEqualizerBandCount(): Int =
-        try { equalizer?.numberOfBands?.toInt() ?: 0 } catch (_: Exception) { 0 }
+        if (equalizerFallbackActive) FALLBACK_EQ_BANDS_HZ.size
+        else try { equalizer?.numberOfBands?.toInt() ?: 0 } catch (_: Exception) { 0 }
 
     /** [min, max] dalam milliBel. */
     fun getEqualizerLevelRange(): ShortArray =
-        try { equalizer?.bandLevelRange ?: shortArrayOf(-1500, 1500) } catch (_: Exception) { shortArrayOf(-1500, 1500) }
+        if (equalizerFallbackActive) shortArrayOf((-FALLBACK_EQ_RANGE_MB).toShort(), FALLBACK_EQ_RANGE_MB)
+        else try { equalizer?.bandLevelRange ?: shortArrayOf(-1500, 1500) } catch (_: Exception) { shortArrayOf(-1500, 1500) }
 
-    /** Frekuensi tengah band dalam Hz (Android API mengembalikan milliHertz). */
+    /** Frekuensi band dalam Hz. Equalizer asli: frekuensi TENGAH (`getCenterFreq()`, API
+     *  mengembalikan milliHertz). Fallback (Batch 87): `cutoffFrequency` (frekuensi TERATAS
+     *  band itu, lihat komentar `FALLBACK_EQ_BANDS_HZ`) dipakai APA ADANYA sebagai label —
+     *  beda semantik dari center-freq asli, TAPI dampaknya cuma ke angka label slider UI,
+     *  bukan ke fungsi EQ itu sendiri. */
     fun getEqualizerBandCenterFreqHz(band: Int): Int =
-        try { (equalizer?.getCenterFreq(band.toShort()) ?: 0) / 1000 } catch (_: Exception) { 0 }
+        if (equalizerFallbackActive) FALLBACK_EQ_BANDS_HZ.getOrElse(band) { 0f }.toInt()
+        else try { (equalizer?.getCenterFreq(band.toShort()) ?: 0) / 1000 } catch (_: Exception) { 0 }
 
     fun getEqualizerBandLevel(band: Int): Short =
-        try { equalizer?.getBandLevel(band.toShort()) ?: 0 } catch (_: Exception) { 0 }
+        if (equalizerFallbackActive) fallbackEqGainsMb.getOrElse(band) { 0 }
+        else try { equalizer?.getBandLevel(band.toShort()) ?: 0 } catch (_: Exception) { 0 }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

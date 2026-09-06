@@ -140,13 +140,29 @@ user). Detail gap lengkap: lihat file audit asli yang di-upload user /
       class-nya sama sekali (tanpa guard ini berisiko crash total di device
       API 24-27, `NoClassDefFoundError` tidak tertangkap `catch(Exception)`).
       Detail lengkap: `CHANGELOG.md` Batch 84.
-- [ ] **6. Rebuild arsitektur session-0 ke API modern** — gap PALING besar &
-      PALING berisiko dari semua (audit Gap #1/#2). Legacy `AudioEffect(...,
-      0)` diasumsikan global session, deprecated & tidak portable lintas
-      device/ROM/HAL. Perlu strategi modern (`DynamicsProcessing`/post-
-      processing) sebagai fallback. **BUTUH testing device intensif lintas
-      OEM** — sandbox Claude TIDAK bisa validasi ini sendirian, effort besar,
-      JANGAN diinisiasi tanpa user paham & setuju trade-off/risikonya.
+- [~] **6. Rebuild arsitektur session-0 ke API modern** (Batch 87, FASE 1 dari
+      rebuild bertahap, SEBAGIAN — user eksplisit konfirmasi paham risiko
+      sebelum batch ini dimulai) — gap PALING besar & PALING berisiko dari
+      semua (audit Gap #1/#2). Legacy `AudioEffect(..., 0)` diasumsikan
+      global session, deprecated & tidak portable lintas device/ROM/HAL.
+      FASE 1: `DynamicsProcessing` (yang SUDAH dipasang buat limiter, Batch
+      84) SEKARANG JUGA dipasangi PreEq stage 5-band, aktif SEBAGAI FALLBACK
+      HANYA kalau `Equalizer` legacy device ini `UNAVAILABLE` total — device
+      dengan Equalizer legacy normal (mayoritas) 0 perubahan perilaku.
+      **BATASAN FUNDAMENTAL** (baca sebelum lanjut Fase 2+): TIDAK ADA API
+      publik Android buat app menentukan urutan insert effect di HAL chain
+      session-0 — ini berlaku baik untuk `AudioEffect` legacy MAUPUN
+      `DynamicsProcessing` (effect apa pun yang attach ke audioSession=0
+      cuma jadi 1 node independen di chain yang sama). Pipeline eksplisit
+      "Input→PreGain→EQ→Dynamics→Loudness→Output" yang diminta audit asli
+      SECARA HARFIAH tidak bisa dicapai 100% tanpa akses HAL vendor (di luar
+      kapasitas app pihak ketiga non-root) — FASE 1-3 project ini adalah
+      upaya PALING REALISTIS dalam batasan tsb: perkuat robustness &
+      fallback, BUKAN restrukturisasi urutan proses sinyal sungguhan.
+      Detail lengkap + kandidat Fase 2 (belum dikerjakan, tunggu arahan
+      user): `PENDING_Fase0_Item6_RebuildSessionZero.md`. **BUTUH testing
+      device intensif lintas OEM** tetap berlaku buat fase-fase berikutnya —
+      sandbox Claude TIDAK bisa validasi sendirian.
 - [x] **7. Preset lengkap termasuk EQ** (Batch 63 v1.98.0, SELESAI) —
       `PrefsHelper.CustomPreset` dapat field baru `eqBands: List<Int>` (default
       `emptyList()`, backward-compat penuh dengan preset lama). Simpan preset
@@ -299,7 +315,7 @@ user minta eksplisit:
 
 | Fase | Status |
 |---|---|
-| 0. Audio Engine Robustness (audit eksternal) | 🟡 4/9 selesai + 3/9 sebagian (#2, #3, #5) — Batch 57-63, 83-86 |
+| 0. Audio Engine Robustness (audit eksternal) | 🟡 4/9 selesai + 4/9 sebagian (#2, #3, #5, #6) — Batch 57-63, 83-87 |
 | 1. Runtime Validation Debt | 🔴 Belum mulai — backlog terbesar |
 | 2. Build & CI Maturity | 🟡 4/6 selesai, 2 sisa (di luar kendali sandbox / opsional) |
 | 3. Audit Polish (Medium/Low) | 🟡 1/7 item mulai (Batch 51, sebagian) |

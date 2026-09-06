@@ -67,19 +67,95 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 86 (1 file test baru —
-  `AudioEnhancerServiceStateTest.kt`). Menutup roadmap.md Fase 0 #8
-  "Automated audio-engine test": 13 test Robolectric, coverage path effect
-  creation failure → UNAVAILABLE, state reconciliation
-  `retryControlAcquisition()`, binder/companion smoke. `roadmap.md` #8
-  `[ ]` → `[x]`. Antrian SISA: #6 Rebuild session-0 (BLOKER, butuh
-  konfirmasi risiko user dulu), #9 UI/error-state lanjutan — Claude menunggu
-  instruksi eksplisit. BELUM divalidasi runtime (CI pasca-Batch 85/86 belum
-  jalan — Batch 85 hotfix seharusnya fix compile error run 133, tapi
-  konfirmasi hijau menunggu push batch ini).
+- **Batch terakhir**: Batch 87 (1 file kode — `AudioEnhancerService.kt`).
+  User eksplisit pilih & konfirmasi paham risiko roadmap.md Fase 0 #6
+  ("Rebuild arsitektur session-0") lewat opsi bertanda — dikerjakan FASE 1
+  dari rebuild bertahap (BUKAN seluruh item #6 sekaligus, terlalu besar 1
+  micro-batch): `DynamicsProcessing` (limiter, Batch 84) sekarang JUGA
+  dipasangi PreEq 5-band sebagai FALLBACK `Equalizer` kalau Equalizer legacy
+  device ini `UNAVAILABLE` total. `roadmap.md` #6 `[ ]` → `[~]`. Sisa
+  Fase 2+ + batasan fundamental platform (kenapa "rebuild penuh" secara
+  harfiah tidak mungkin lewat API publik) dicatat
+  `PENDING_Fase0_Item6_RebuildSessionZero.md`. Antrian SISA Fase 0: #9
+  UI/error-state lanjutan (masih menunggu instruksi eksplisit user) + Fase 2
+  item #6 (lihat PENDING file). BELUM divalidasi runtime SAMA SEKALI (jalur
+  fallback ini secara alami jarang ke-trigger — mayoritas device Equalizer
+  legacy-nya normal, lihat catatan device-testing di PENDING file).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🧪 **Batch 86 (terbaru, 1 file test baru — `AudioEnhancerServiceStateTest.kt`)**:
+- 🏗️ **Batch 87 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+  kirim ZIP Batch 86 + "Lanjut kerjakan next task!!" — antrian Fase 0 tersisa
+  cuma #6 (BLOKER) dan #9, dua-duanya butuh keputusan eksplisit user (bukan
+  cuma "lanjut" generik, lihat Batch 82/86). Claude tanya lewat pilihan
+  bertanda; user pilih **"#6 Rebuild session-0 (paham risikonya,
+  lanjutkan)"**.
+  Dikerjakan **FASE 1** dari rebuild bertahap (item #6 terlalu besar buat 1
+  micro-batch — Micro-Batch maks 3 file kode, dan tanpa compile-check/device
+  test, rewrite besar sekaligus melanggar STABILITY > Speed): `DynamicsProcessing`
+  (sebelumnya cuma limiter murni, Batch 84) sekarang JUGA bisa dipasangi
+  PreEq stage 5-band (`FALLBACK_EQ_BANDS_HZ` — 60/230/910/3600/14000 Hz, TIDAK
+  di-query dari device, pilihan tetap) — **HANYA aktif kalau `Equalizer`
+  legacy device ini `UNAVAILABLE` total** (`needsEqFallback` dihitung dari
+  `equalizerState` tepat setelah `attachEqualizer()` — urutan panggil TIDAK
+  diubah). Device dengan Equalizer legacy normal (mayoritas) melewati cabang
+  ini sepenuhnya — **0 perubahan perilaku** untuk kasus itu (diverifikasi
+  manual: setiap fungsi `getEqualizerBand*()`/`setEqualizerBand()`/
+  `isEqualizerSupported()` punya cabang `if (equalizerFallbackActive) ...
+  else <kode lama apa adanya>`).
+  Dicek dulu ke dokumentasi resmi `developer.android.com` (bukan tebak dari
+  memori — pelajaran langsung dari insiden Batch 85) sebelum nulis kode:
+  signature `DynamicsProcessing.Config.Builder(...)` (posisi param preEq),
+  `DynamicsProcessing.EqBand(enabled, cutoffFrequency, gain)` (constructor
+  3-argumen, `cutoffFrequency` = frekuensi TERATAS band bukan frekuensi
+  tengah), dan `setPreEqBandAllChannelsTo(band, EqBand)` ADA sebagai method
+  instance efek `DynamicsProcessing` itu sendiri (bukan cuma di `Config`,
+  dikonfirmasi lewat source AOSP) — konsisten pola `setLimiterAllChannelsTo`
+  yang sudah dipakai Batch 84.
+  Konversi satuan: `levelMb` (mB, satuan lama UI/`Equalizer`) → `gainDb` (dB,
+  satuan `EqBand.gain`) via bagi 100 — dicek 1 dB = 100 mB, bukan asumsi
+  baru. Rentang fallback `±12 dB` (`FALLBACK_EQ_RANGE_MB`) dipilih
+  konservatif (TIDAK ADA API resmi query gain range EqBand per-device, beda
+  dari `Equalizer.bandLevelRange`), limiter (Batch 84, tetap terpasang) di
+  effect yang SAMA jadi pengaman terakhir kalau user pukul rata semua band
+  fallback ke maksimal.
+  `restoreSavedSettings()` DIRAPIKAN sekalian (bukan scope terpisah — bagian
+  langsung dari wiring fallback ini): SEBELUMNYA baca `equalizer.numberOfBands`
+  + `eq.setBandLevel()` langsung, SEKARANG lewat `getEqualizerBandCount()`/
+  `setEqualizerBand()` publik supaya 1 sumber logic dipakai baik jalur asli
+  MAUPUN fallback — jalur asli 100% perilaku identik (fungsi publik itu
+  MEMANG cuma memanggil `equalizer?.setBandLevel()` yang sama persis di
+  cabang non-fallback).
+  Cek statis: balance kurung/kurawal/bracket SELURUH file (bukan cuma bagian
+  baru) via parser Python (regex strip komentar/string dulu) — 0 selisih
+  (291/291 `()`, 2/2 `[]`, 155/155 `{}`).
+  `roadmap.md` Fase 0 #6 `[ ]` → `[~]`, ditambah paragraf "BATASAN
+  FUNDAMENTAL" (kenapa "rebuild ke API modern" secara harfiah TIDAK BISA
+  100% lewat API publik non-root — TIDAK ADA API Android yang beri app
+  kontrol urutan insert effect di HAL chain session-0, berlaku untuk
+  `AudioEffect` legacy MAUPUN `DynamicsProcessing` sama-sama, keduanya cuma
+  node independen di chain yang sama). Progress ringkas Fase 0: 4 selesai +
+  4 sebagian (dari sebelumnya 4+3). File BARU `PENDING_Fase0_
+  Item6_RebuildSessionZero.md` (VIP-adjacent, isolated per aturan
+  Micro-Batch buat task oversized): catat kandidat Fase 2 (fallback
+  Bass/Virtualizer, validasi device Fase 1, opsi `AudioPlaybackCapture`
+  sebagai proyek TERPISAH kalau user mau — bukan bagian #6) + alasan
+  fundamental kenapa dipecah.
+  **File disentuh**: 1 file kode (`AudioEnhancerService.kt`) + `roadmap.md` +
+  1 file `.md` isolated baru + VIP docs (`PROJECT_STATE.md`, `CHANGELOG.md`)
+  — 0 file lain disentuh (`BoosterViewModel.kt`/`BoosterScreen.kt`/Manifest
+  100% apa adanya, TIDAK ada perubahan yang terlihat user di device yang
+  Equalizer legacy-nya normal — mayoritas), 0 bump versi manual.
+  **BELUM divalidasi runtime SAMA SEKALI** — kandidat curiga pertama: (1)
+  jalur fallback ini SECARA ALAMI jarang ke-trigger di device nyata manapun
+  (Equalizer legacy sudah sangat matang, jarang benar-benar `UNAVAILABLE`) —
+  device uji yang genuinely exercise kode baru ini mungkin tidak pernah ada
+  di tangan user, (2) apakah construct `DynamicsProcessing` dengan
+  `preEqBandCount=5` benar-benar sukses di device API 28+ manapun (variasi
+  HAL, sama kelas risiko capability lain di file ini), (3) apakah konversi
+  mB→dB & rentang ±12 dB terdengar wajar dibanding Equalizer asli (belum
+  diadu telinga langsung). Detail lengkap: CHANGELOG.md "Batch 87" +
+  `PENDING_Fase0_Item6_RebuildSessionZero.md`.
+- 🧪 **Batch 86 (1 file test baru — `AudioEnhancerServiceStateTest.kt`)**:
   User kirim ZIP Batch 85 + "Lanjut kerjakan next task!!" — item berikutnya
   dari antrian Fase 0 yang bisa dikerjakan tanpa konfirmasi user adalah #8
   (Automated audio-engine test; #6 masih BLOKER menunggu konfirmasi risiko).

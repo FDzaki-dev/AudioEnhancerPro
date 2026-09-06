@@ -131,7 +131,17 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
 - Sejak v1.11 preset aktif ikut tersimpan. Kalau masih hilang, cek app tidak di-"force stop" manual (force stop menghapus semua state in-memory dan bisa memicu re-read prefs yang aneh di sebagian custom ROM).
 
 **Equalizer manual tidak muncul**
-- Kartu "Equalizer Manual" hanya muncul kalau chipset HP mendukung `android.media.audiofx.Equalizer` dengan jumlah band > 0. Sebagian chipset budget tidak menyediakan equalizer per-band sama sekali — ini batasan hardware, bukan bug app.
+- Kartu "Equalizer Manual" muncul kalau chipset HP mendukung
+  `android.media.audiofx.Equalizer` dengan jumlah band > 0, **ATAU** (sejak
+  Batch 87, roadmap.md Fase 0 #6 Fase 1) lewat fallback 5-band berbasis
+  `DynamicsProcessing` kalau `Equalizer` asli tidak tersedia sama sekali di
+  chipset ini (butuh Android 9/API 28+ untuk fallback ini — di bawah itu,
+  atau kalau kedua jalur sama-sama gagal, kartu tetap tidak muncul, ini
+  batasan hardware, bukan bug app). Fallback ini BELUM diuji di device fisik
+  manapun (jarang ke-trigger karena mayoritas chipset punya Equalizer asli
+  yang berfungsi) — kalau kartu tetap tidak muncul di chipset yang memang
+  tidak punya Equalizer asli, laporkan model HP + versi Android supaya bisa
+  ditelusuri.
 
 **Banner "Update tersedia" tidak pernah muncul walau sudah ada Release baru**
 - Buka Pengaturan (ikon ⚙️ di layar utama) → "Cek Update Sekarang" buat trigger

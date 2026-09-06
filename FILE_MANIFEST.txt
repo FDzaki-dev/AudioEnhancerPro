@@ -2,6 +2,7 @@
 .gitignore
 CHANGELOG.md
 FILE_MANIFEST.txt
+PENDING_Fase0_Item6_RebuildSessionZero.md
 PROJECT_STATE.md
 README.md
 app/build.gradle.kts
@@ -55,6 +56,7 @@ app/src/main/res/values/themes.xml
 app/src/main/res/xml/file_paths.xml
 app/src/main/res/xml/shortcuts.xml
 app/src/main/res/xml/widget_booster_info.xml
+app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 build.gradle.kts
