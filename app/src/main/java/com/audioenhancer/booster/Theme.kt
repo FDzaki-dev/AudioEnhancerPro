@@ -669,11 +669,32 @@ private val NeumorphismDarkColors = darkColorScheme(
 )
 
 private val AppTypography = Typography(
+    // Batch 90 (roadmap.md Fase 7 Fase 2 opsi B, "Tipografi iOS"): dicek dulu
+    // ke spek resmi Apple HIG (bukan tebak dari memori) — Large Title asli
+    // iOS = 34pt, line-height ~41pt (rasio ~1.2x, sama seperti dipakai proyek
+    // ini sebelumnya di token ini). Weight SwiftUI default Font `.largeTitle`
+    // itu sendiri sebenarnya Regular, TAPI large-title yang benar-benar
+    // terlihat di UINavigationBar stok Apple (Settings/Mail/Messages — pola
+    // yang jadi acuan visual proyek ini, lihat "SkeuGroupDivider" ala
+    // Settings.app di Batch 88) SELALU tampil Bold — itu bar chrome bawaan,
+    // beda dari Font style abstrak. Dipilih Bold (bukan lagi ExtraBold 28sp
+    // lama, ad-hoc belum pernah dicocokkan ke spek manapun) — masih cukup
+    // tegas buat identitas brand "Boomly", tapi sekarang berbasis rasio iOS
+    // asli, bukan angka sembarang. `letterSpacing` DINAIKKAN (diketatkan
+    // dikit dari -0.3 ke -0.4) mengikuti prinsip umum "makin besar ukuran,
+    // makin rapat tracking" — TIDAK diklaim sebagai angka tracking SF Pro
+    // resmi (font sistem Android beda metrik total dari SF Pro, proyek ini
+    // sengaja TIDAK embed font baru, lihat roadmap.md), cuma pendekatan
+    // realistis sesuai instruksi awal user. Dipakai 2 tempat:
+    // `BoosterScreen.kt` (header "Boomly", target utama task ini) DAN
+    // `SettingsScreen.kt` (sebelum batch ini SAMA token, sekarang DIPISAH ke
+    // `titleMedium` di file itu — 34pt kegedean buat inline title di sebelah
+    // tombol back, lihat komentar di `SettingsScreen.kt`).
     headlineMedium = TextStyle(
-        fontWeight = FontWeight.ExtraBold,
-        fontSize = 28.sp,
-        lineHeight = 34.sp,
-        letterSpacing = (-0.3).sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 41.sp,
+        letterSpacing = (-0.4).sp
     ),
     headlineSmall = TextStyle(
         fontWeight = FontWeight.Bold,

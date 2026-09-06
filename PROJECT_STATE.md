@@ -67,27 +67,98 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 88 (2 file kode — `SkeuomorphicComponents.kt`,
-  `BoosterScreen.kt`). User upload screenshot app + minta eksplisit "rombak
-  total UI/UX jadi 100% iOS look, tanpa mengorbankan theme". Diklarifikasi:
-  PER FASE + HYBRID (struktur iOS di atas 4 varian tema yang ada, warna/
-  bevel/shadow tiap tema TIDAK diganti). roadmap.md Fase 7 (BARU) dibuat.
-  FASE 1: section "Kontrol" (Bass/Virtualizer/Loudness) — 3 `SkeuCard`
-  terpisah → 1 `SkeuCard` gabungan ala grouped-list iOS, `SkeuGroupDivider`
-  baru + pola `wrapInCard=false` (sudah lama dipakai `EqualizerSection`).
-  **Temuan penting**: efek "kartu bertumpuk" di screenshot user itu ciri
-  khas varian Neumorphism (`shadowLightTint`/`shadowDarkTint` cuma diisi di
-  varian itu, 3 lain sengaja Transparent) — rencana awal (lunakkan shadow)
-  DIBATALKAN, diganti pendekatan struktural yang orthogonal ke identitas
-  warna/shadow. `docs/preview/current.html` disinkronkan. Ketemu sekalian &
-  diperbaiki item lama Fase 6 (paragraf "Arah desain UI aktif" belum sebut
-  4 varian). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan
-  eksplisit user) + Fase 7 kandidat Fase 2+ (SettingsScreen grouped-list,
-  tipografi iOS, dll — lihat roadmap.md). **BELUM divalidasi visual/device
-  SAMA SEKALI** — Claude tidak punya preview render, butuh screenshot user.
+- **Batch terakhir**: Batch 90 (2 file kode — `Theme.kt`, `SettingsScreen.kt`).
+  User pilih opsi **B (Tipografi iOS)** dari 6 kandidat Fase 7 Fase 2 yang
+  ditanya Batch 89. `headlineMedium` (`AppTypography`, shared 4 varian tema)
+  dinaikkan dari 28sp ExtraBold ad-hoc → **34sp Bold** (skala Large Title
+  iOS asli, dicek ke referensi resmi dulu — bukan tebak), `lineHeight`
+  34→41sp, `letterSpacing` -0.3→-0.4sp. Berlaku ke judul "Boomly"
+  (`BoosterScreen.kt`, target utama) TANPA ubah kode file itu (baca token
+  otomatis). **Efek samping ketemu & diperbaiki sekalian**: `SettingsScreen.kt`
+  ternyata pakai token SAMA buat title inline di sebelah tombol back — kalau
+  dibiarkan bakal kegedean/gak muat 1 baris. Dipisah ke `titleMedium` (17sp
+  SemiBold, SUDAH ADA, 0 token baru) sesuai pola iOS asli (large title cuma
+  di root screen, pushed screen pakai inline title kecil). `headlineSmall`
+  (dipakai `OnboardingScreen.kt`, item Fase 2+ TERPISAH yang belum dipilih)
+  **SENGAJA TIDAK disentuh**. `docs/preview/current.html` (`h1` CSS)
+  disinkronkan ke angka baru. **BELUM divalidasi visual/device** — butuh
+  screenshot user lagi (khususnya cek muat/tidaknya "Boomly" 34sp Bold di
+  lebar layar sempit tanpa wrap, dan title Settings gak lagi kegedean).
+  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
+  user) + Fase 7 Fase 2+ SISA 5 kandidat (A/C/D/E/F, lihat roadmap.md).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🎨 **Batch 88 (terbaru, 2 file kode — `SkeuomorphicComponents.kt`,
+- 🔤 **Batch 90 (terbaru, 2 file kode — `Theme.kt`, `SettingsScreen.kt`)**:
+  User jawab BLOKER Batch 89 — pilih **"B: Tipografi iOS"** dari 6 kandidat
+  Fase 7 Fase 2 (`roadmap.md`).
+  **Dicek dulu ke referensi resmi Apple HIG** (bukan tebak dari memori,
+  pelajaran Batch 85) sebelum nulis kode: Large Title iOS = 34pt, dan meski
+  SwiftUI `Font.largeTitle` abstrak defaultnya Regular, large-title yang
+  BENERAN kelihatan di `UINavigationBar` stok Apple (Settings/Mail/Messages
+  — pola acuan visual proyek ini sejak Batch 88) selalu Bold (bar chrome
+  bawaan, beda dari Font-style abstrak).
+  **`Theme.kt`**: `headlineMedium` (`AppTypography`, 1 set shared ke SEMUA 4
+  varian tema — bukan per-tema kayak warna/shape) dinaikkan dari 28sp
+  ExtraBold/34 lineHeight/-0.3 letterSpacing (angka lama ad-hoc, gak pernah
+  dicocokkan ke spek manapun) → **34sp Bold/41 lineHeight/-0.4 letterSpacing**
+  (rasio line-height ~1.2x dipertahankan sama seperti sebelumnya). Weight
+  dipilih Bold (bukan ExtraBold lagi, tapi juga bukan Regular literal) —
+  masih cukup tegas buat brand "Boomly", sekarang berbasis rasio iOS asli.
+  `letterSpacing` -0.4 itu sendiri BUKAN klaim angka tracking resmi SF Pro
+  (font Android beda metrik total, proyek ini sengaja gak embed font baru
+  sesuai roadmap.md) — cuma pendekatan realistis "makin besar size, makin
+  rapat tracking".
+  **Efek samping ketemu & diperbaiki (bukan scope creep — konsekuensi
+  langsung ubah token shared)**: `SettingsScreen.kt` ternyata pakai
+  `headlineMedium` yang SAMA buat title INLINE di sebelah tombol back —
+  kalau dibiarkan, 34sp bakal kegedean/berpotensi wrap 2 baris di layar
+  sempit. Pola iOS asli: Large Title cuma di ROOT screen, layar yang
+  di-push pakai title inline kecil (17pt Semibold) di navigation bar — jadi
+  `SettingsScreen.kt` dipindah ke `titleMedium` (17sp SemiBold, SUDAH ADA
+  sejak lama, 0 token baru ditambah).
+  **SENGAJA TIDAK disentuh**: `headlineSmall` (dipakai `OnboardingScreen.kt`
+  — audit onboarding itu kandidat Fase 2+ TERPISAH/E, belum dipilih user;
+  nilainya 22sp Bold kebetulan SUDAH cocok skala iOS "Title 2" 22pt, jadi
+  memang gak butuh diubah kalaupun nanti diaudit). `titleMedium`/`bodyLarge`/
+  `bodyMedium`/`bodySmall` juga tidak disentuh — scope batch ini spesifik
+  "Large Title header", bukan re-tuning seluruh skala tipografi sekaligus
+  (STABILITY > Speed, satu perubahan terukur per batch).
+  **Dokumentasi**: `docs/preview/current.html` (`h1` CSS, 2 varian glass)
+  disinkronkan ke 34px/700/41px-lineheight/-.4px, mirror `Theme.kt`.
+  Cek statis: balance kurung/kurawal kedua file kode (regex strip
+  komentar/string dulu) — 0 selisih di keduanya.
+  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user
+  lagi. Kandidat curiga: (1) "Boomly" 34sp Bold mungkin mepet/wrap di
+  device layar sempit (proyek ini belum pernah setest lebar teks di ukuran
+  ini), (2) title "Pengaturan" di `SettingsScreen.kt` (sekarang 17sp,
+  turun drastis dari 34sp sebelumnya) perlu dicek proporsinya di sebelah
+  ikon back beneran pas atau malah kekecilan.
+- ✅ **Batch 89 (0 file kode — dok-only, validasi)**: User upload
+  screenshot device asli (`349736.jpg`) sebagai respons permintaan validasi
+  Batch 88 ("Butuh screenshot user sebelum lanjut Fase 2"). Dicek detail:
+  **tema Neumorphism terkonfirmasi** (shadow bertumpuk terlihat jelas di
+  badge status DAN kartu Kontrol — persis sama seperti temuan investigasi
+  Batch 88, bukan salah satu varian glass). Section "Kontrol" sekarang
+  benar 1 kartu gabungan: `SkeuGroupDivider` (inset ~50dp, alpha rendah,
+  mulai persis setelah posisi icon-box) tampak jelas sebagai garis tipis di
+  antara baris Bass Boost dan Virtualizer, TIDAK jadi garis penuh lebar
+  Android-style. Shadow tactile Neumorphism (1x panggilan `SkeuCard` untuk
+  3 baris, bukan 3x seperti sebelum Batch 88) proporsinya terlihat wajar,
+  tidak "gepeng"/hilang seperti dikhawatirkan di catatan Batch 88. Spacing
+  internal antar baris (14dp+14dp divider) juga tidak terlihat sempit atau
+  berantakan. **Kesimpulan: Fase 7 Fase 1 SELESAI PENUH** (kode + visual),
+  0 revisi diperlukan — `roadmap.md` diubah `[~]` → `[x]`.
+  **BLOKER (bukan dikerjakan asal tebak)**: antrian Fase 2+ ada 6 kandidat
+  independen (lihat roadmap.md: grouped-list `SettingsScreen.kt`, tipografi
+  iOS, styling pill preset, nav bar large-title collapsing, audit
+  `OnboardingScreen.kt`, icon SF-Symbols-style) TANPA urutan prioritas
+  eksplisit dari user — roadmap.md bilang "tunggu screenshot + arahan
+  user", screenshot-nya sudah ada sekarang tapi arahan URUTAN mana duluan
+  belum. Konsisten pola BLOKER Batch 82/86/87 (Fase 0 #6/#9 dulu), Claude
+  tanya balik lewat opsi bertanda di chat, bukan menebak prioritas sendiri.
+  0 file kode disentuh batch ini — VIP docs saja (`PROJECT_STATE.md`,
+  `roadmap.md`, `CHANGELOG.md`) di-sync sesuai ATURAN PERMANEN.
+- 🎨 **Batch 88 (2 file kode — `SkeuomorphicComponents.kt`,
   `BoosterScreen.kt`)**: User upload screenshot app (tema Neumorphism
   kemungkinan besar, lihat temuan di bawah) + minta eksplisit "Rombak total
   UI/UX aplikasi jadi 100% iOS look. Tanpa mengorbankan theme yang telah ada

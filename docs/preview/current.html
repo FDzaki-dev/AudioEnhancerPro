@@ -63,7 +63,11 @@
   .statusbar{ height:48px; }
   .content{ padding:22px; }
 
-  h1{ font-size:28px; font-weight:800; margin:0; letter-spacing:-.3px; color:var(--text); }
+  /* Batch 90: mirror Theme.kt headlineMedium (Fase 7 Fase 2 opsi B, "Tipografi
+     iOS") — dinaikkan dari 28px/800/-.3px lama ke skala Large Title iOS asli
+     34px, line-height 41px (~1.2x, dicek ke spek resmi Apple HIG), weight
+     700/Bold (bukan 800/ExtraBold lagi) + letter-spacing -.4px. */
+  h1{ font-size:34px; line-height:41px; font-weight:700; margin:0; letter-spacing:-.4px; color:var(--text); }
   .subtitle{ font-size:13.5px; font-weight:500; color:var(--muted); margin-top:6px; }
 
   /* Kartu struktural — glass genuine: base gradient 4-stop + sheen kaca

@@ -328,26 +328,38 @@ Navy+Brass, Studio Equalizer neon-lime) — semua fase di bawah murni soal
 STRUKTUR/POLA INTERAKSI (grouping, tipografi, bentuk komponen), BUKAN re-skin
 warna.
 
-- [~] **Fase 1 (Batch 88, SELESAI dari sisi kode, BELUM divalidasi
-      visual/device oleh user)**: Section "Kontrol" (`BoosterScreen.kt`) —
-      Bass Boost/Virtualizer/Loudness SEBELUMNYA 3 `SkeuCard` terpisah,
-      SEKARANG 1 `SkeuCard` gabungan ala grouped-list iOS (Settings.app: 1
-      kotak, N baris, garis pemisah tipis inset) lewat `SkeuGroupDivider`
-      baru (`SkeuomorphicComponents.kt`) + pola `wrapInCard=false` (sudah
-      lama dipakai `EqualizerSection` buat band-band-nya, sekarang dipakai
-      juga di sini). 0 token warna baru ditambah ke `SkeuTokens` — identitas
-      visual tiap tema (termasuk shadow tactile khas Neumorphism) 100% tidak
-      tersentuh. `docs/preview/current.html` disinkronkan sekalian (2 varian
-      glass yang dicover mockup ini).
-- [ ] **Kandidat Fase 2+ (belum dikerjakan, urutan BELUM final, tunggu
-      screenshot + arahan user atas hasil Fase 1 dulu)**:
+- [x] **Fase 1 (Batch 88 kode + Batch 89 validasi, SELESAI PENUH)**:
+      Section "Kontrol" (`BoosterScreen.kt`) — Bass Boost/Virtualizer/
+      Loudness SEBELUMNYA 3 `SkeuCard` terpisah, SEKARANG 1 `SkeuCard`
+      gabungan ala grouped-list iOS (Settings.app: 1 kotak, N baris, garis
+      pemisah tipis inset) lewat `SkeuGroupDivider` baru
+      (`SkeuomorphicComponents.kt`) + pola `wrapInCard=false` (sudah lama
+      dipakai `EqualizerSection` buat band-band-nya, sekarang dipakai juga
+      di sini). 0 token warna baru ditambah ke `SkeuTokens` — identitas
+      visual tiap tema (termasuk shadow tactile khas Neumorphism) 100%
+      tidak tersentuh. `docs/preview/current.html` disinkronkan sekalian (2
+      varian glass yang dicover mockup ini). **Divalidasi Batch 89** lewat
+      screenshot device asli user (`349736.jpg`, tema Neumorphism
+      terkonfirmasi): divider tipis inset terlihat jelas antara baris,
+      shadow tactile 1x panggilan `SkeuCard` proporsinya wajar, spacing
+      tidak sempit — 0 bug visual, 0 revisi diperlukan.
+- [x] **Tipografi ala iOS — Large Title header "Boomly"** (Batch 90,
+      SELESAI dari sisi kode, BELUM divalidasi visual/device): `headlineMedium`
+      dinaikkan 28sp ExtraBold → **34sp Bold** (skala Large Title iOS asli,
+      dicek ke referensi resmi), `lineHeight` 34→41sp, `letterSpacing`
+      -0.3→-0.4sp. Efek samping `SettingsScreen.kt` (title inline sekarang
+      `titleMedium`, bukan lagi `headlineMedium`) ditangani sekalian.
+      `headlineSmall` (`OnboardingScreen.kt`) SENGAJA tidak disentuh — sudah
+      dekat skala iOS Title 2 (22pt), dan audit onboarding itu kandidat
+      terpisah (lihat item "Audit `OnboardingScreen.kt`" di bawah). Detail
+      lengkap: `CHANGELOG.md` Batch 90.
+- [ ] **Kandidat Fase 2+ SISA (5 kandidat, urutan BELUM final — screenshot
+      validasi Fase 1 sudah ada Batch 89, tipografi Large Title sudah
+      Batch 90, tinggal tunggu arahan user PILIH urutan mana duluan dari
+      sisa di bawah)**:
       - Terapkan pola grouped-list yang sama ke `SettingsScreen.kt` (belum
         diaudit dari sisi ini — kemungkinan sudah dekat pola iOS Settings,
         perlu dicek ulang dulu sebelum ubah apa pun).
-      - Tipografi ala iOS (Large Title utk header "Boomly", skala size/
-        weight lebih dekat SF Pro — Android gak punya font SF Pro asli,
-        pendekatan realistis: tuning size/weight/letter-spacing font system
-        yang sudah dipakai, BUKAN embed font baru tanpa lisensi jelas).
       - Preset row ("Preset Cepat"): **TETAP horizontal-scroll**, BUKAN
         diganti segmented control literal — sudah dicek `BoosterScreen.kt`,
         daftar preset BISA diperpanjang user (custom preset, unbounded),
@@ -380,7 +392,7 @@ warna.
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |
-| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1/N selesai — Batch 88 |
+| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1 selesai+tervalidasi (88-89), Tipografi Large Title selesai kode/belum tervalidasi (90), 5 kandidat Fase 2+ sisa |
 
 **Estimasi kasar menuju 100%** (bobot ke fungsi real, bukan jumlah baris
 kode): app **fungsional ~95%** (fitur lengkap, dipakai harian tanpa

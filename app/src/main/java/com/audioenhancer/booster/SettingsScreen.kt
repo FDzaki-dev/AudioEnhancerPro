@@ -65,9 +65,18 @@ fun SettingsScreen(
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
             }
             Spacer(modifier = Modifier.width(4.dp))
+            // Batch 90: SEBELUMNYA pakai headlineMedium (sama token dengan judul
+            // "Boomly" di BoosterScreen.kt) — sejak token itu dinaikkan ke skala
+            // iOS Large Title asli (34sp, roadmap.md Fase 7 Fase 2 opsi B), title
+            // di sini jadi kegedean buat muat 1 baris di sebelah tombol back.
+            // Pola iOS asli: layar yang di-push (bukan root) pakai title INLINE
+            // kecil di navigation bar (17pt Semibold), Large Title cuma dipakai
+            // root screen — persis kasus di sini (SettingsScreen dibuka dari
+            // ikon ⚙️ BoosterScreen, bukan root). `titleMedium` (17sp SemiBold,
+            // SUDAH ADA, tidak berubah) pas persis buat pola ini, 0 token baru.
             Text(
                 stringResource(R.string.settings_title),
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onBackground
             )
         }
