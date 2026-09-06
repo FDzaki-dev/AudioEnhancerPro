@@ -67,28 +67,65 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 91 (3 file kode — `SettingsScreen.kt`,
-  `values/strings.xml`, `values-en/strings.xml`). User pilih opsi **A
-  (Grouped-list SettingsScreen.kt)** dari sisa 5 kandidat Fase 7 Fase 2.
-  **Diaudit dulu** (sesuai catatan roadmap "perlu dicek ulang dulu sebelum
-  ubah apa pun"): ternyata screen ini CUMA 1 SkeuCard berisi 1 blok
-  campuran (teks versi + tombol full-width nempel tanpa pemisah) — BUKAN
-  banyak baris sejajar kayak "Kontrol" Fase 1, jadi treatment-nya beda:
-  dipecah jadi 2 GROUP dalam 1 kartu (bukan N baris) — (1) baris info versi
-  ala iOS "Version   17.2" (label kiri/value kanan, string baru
-  `settings_app_version_row_label` gantiin `settings_app_version_label`
-  lama yang DIHAPUS dari kedua file strings.xml), (2) blok aksi cek-update
-  (tombol+status/notes/download, TIDAK direstruktur — 1 alur aksi tunggal,
-  bukan beberapa baris sejajar). Disambung `SkeuGroupDivider` yang SAMA
-  dipakai Fase 1, 0 komponen baru. Cek statis: balance kurung/kurawal OK,
-  XML valid, 0 referensi tersisa ke key string lama (`grep` whole-project).
-  **BELUM divalidasi visual/device** — butuh screenshot user. Antrian SISA:
-  Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit user) + Fase 7
-  Fase 2+ SISA 4 kandidat (C/D/E/F, lihat roadmap.md) + validasi visual
-  Batch 90 (Large Title) yang JUGA belum ada screenshot.
+- **Batch terakhir**: Batch 92 (1 file kode — `SettingsScreen.kt`, fix
+  bug hasil validasi). User kirim 2 screenshot (`349771.jpg` header utama,
+  `349772.jpg` layar Settings) buat validasi Batch 90+91.
+  **Batch 90 (Large Title "Boomly") VALID 0 bug**: 34sp Bold jelas lebih
+  besar/tegas dari sebelumnya, 1 baris (gak wrap), gear icon gak
+  ketabrak. **Batch 91 (grouped-list Settings) SEBAGIAN valid**: row
+  "Versi Aplikasi | 139" render benar (label kiri/value kanan), TAPI
+  `SkeuGroupDivider()` di bawahnya kelihatan mulai jauh ke kanan dari teks
+  "Versi Aplikasi" — bukan flush, nyasar. Akar masalah: `startIndent=50.dp`
+  default divider itu dirancang buat skip icon-box 40dp+spacing 10dp di
+  `FeatureControl` (Fase 1, Kontrol), sedangkan baris versi di Settings TIDAK
+  punya icon — jadi 50dp itu jadi indent tanpa referensi apa pun. Fixed:
+  `SkeuGroupDivider(startIndent = 0.dp)` khusus di baris ini. Title inline
+  "Pengaturan" (17sp) juga dicek — proporsinya OK di sebelah tombol back,
+  gak kekecilan. **Fase 7 Fase 1 + Fase 2 opsi A/B sekarang SEMUA
+  tervalidasi visual PENUH** (setelah fix ini — belum ada screenshot ULANG
+  post-fix, tapi perubahannya cuma 1 parameter startIndent, low-risk).
+  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
+  user) + Fase 7 Fase 2+ SISA 4 kandidat (C/D/E/F, lihat roadmap.md).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 📋 **Batch 91 (terbaru, 3 file kode — `SettingsScreen.kt`,
+- 🐛 **Batch 92 (terbaru, 1 file kode — `SettingsScreen.kt`, fix bug hasil
+  validasi screenshot)**: User kirim 2 screenshot (`349771.jpg` = header
+  utama "Boomly", `349772.jpg` = layar Settings) buat validasi Batch 90
+  (Large Title) + Batch 91 (grouped-list Settings) yang dua-duanya masih
+  "BELUM divalidasi visual" di log sebelumnya.
+  **Batch 90 VALID, 0 bug**: "Boomly" di `349771.jpg` jelas lebih besar/
+  tegas (34sp Bold) dibanding screenshot lama (`349736.jpg`, 28sp
+  ExtraBold), tetap 1 baris (gak wrap ke 2 baris meski font lebih besar),
+  gear icon ⚙️ pojok kanan atas gak ketabrak/kegeser.
+  **Batch 91 SEBAGIAN valid, 1 bug ketemu & di-fix**: di `349772.jpg`, row
+  "Versi Aplikasi | 139" render PERSIS sesuai desain (label kiri, value
+  kanan warna muted). Title inline "Pengaturan" (17sp SemiBold, hasil fix
+  Batch 90) juga proporsinya OK di sebelah tombol back. TAPI
+  `SkeuGroupDivider()` di bawah row versi kelihatan mulai jauh ke kanan
+  dari teks "Versi Aplikasi" — bukan flush rata kiri, nyasar ke tengah
+  tanpa alasan visual.
+  **Akar masalah** (dicek ke kode, bukan tebak): `SkeuGroupDivider`
+  (`SkeuomorphicComponents.kt`) defaultnya `startIndent=50.dp` — angka itu
+  SENGAJA dirancang Fase 1 (Batch 88) buat nge-skip lebar icon-box 40dp +
+  spacing `Row` 10dp di `FeatureControl`, biar divider align ke BAWAH TEKS
+  JUDUL (bukan bawah icon) di baris-baris "Kontrol" (Bass/Virtualizer/
+  Loudness — SEMUA row itu PUNYA icon). Baris "Versi Aplikasi" di
+  `SettingsScreen.kt` (Batch 91) TIDAK punya icon sama sekali — teks
+  langsung mulai dari padding Column 16dp, TANPA offset icon-box apa pun.
+  Warisi default 50dp itu jadinya SALAH KONTEKS: bukan nge-skip apa-apa,
+  cuma jadi indent sembarang yang gak align ke elemen manapun di atasnya.
+  **Fix**: `SkeuGroupDivider(startIndent = 0.dp)` khusus dipanggil di baris
+  ini (override eksplisit, BUKAN ubah default function-nya — default 50dp
+  masih benar buat semua caller lain yang PUNYA icon, ubah default bakal
+  balik nge-break Fase 1). 1 baris kode diubah, cek statis balance kurung
+  `SettingsScreen.kt` — 0 selisih.
+  **Kesimpulan**: Fase 7 Fase 1 (Batch 88) + Fase 2 opsi B/Large-Title
+  (Batch 90) + opsi A/grouped-Settings (Batch 91, minus bug ini) sekarang
+  SEMUA tervalidasi visual dari screenshot device asli. Fix divider INI
+  SENDIRI belum ada screenshot ulang pasca-fix (risiko rendah — cuma ubah
+  1 parameter numerik, bukan struktur), tapi kalau user mau lebih yakin
+  boleh minta screenshot lagi sebelum lanjut Fase 2+ berikutnya.
+- 📋 **Batch 91 (3 file kode — `SettingsScreen.kt`,
   `values/strings.xml`, `values-en/strings.xml`)**: User jawab BLOKER
   sisa Batch 90 — pilih **"A: Grouped-list SettingsScreen.kt"** dari 5
   kandidat sisa Fase 7 Fase 2 (`roadmap.md`).

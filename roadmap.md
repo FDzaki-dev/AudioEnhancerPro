@@ -343,22 +343,24 @@ warna.
       terkonfirmasi): divider tipis inset terlihat jelas antara baris,
       shadow tactile 1x panggilan `SkeuCard` proporsinya wajar, spacing
       tidak sempit — 0 bug visual, 0 revisi diperlukan.
-- [x] **Tipografi ala iOS — Large Title header "Boomly"** (Batch 90,
-      SELESAI dari sisi kode, BELUM divalidasi visual/device): `headlineMedium`
+- [x] **Tipografi ala iOS — Large Title header "Boomly"** (Batch 90 kode +
+      Batch 92 validasi, SELESAI PENUH): `headlineMedium`
       dinaikkan 28sp ExtraBold → **34sp Bold** (skala Large Title iOS asli,
       dicek ke referensi resmi), `lineHeight` 34→41sp, `letterSpacing`
       -0.3→-0.4sp. Efek samping `SettingsScreen.kt` (title inline sekarang
       `titleMedium`, bukan lagi `headlineMedium`) ditangani sekalian.
       `headlineSmall` (`OnboardingScreen.kt`) SENGAJA tidak disentuh — sudah
       dekat skala iOS Title 2 (22pt), dan audit onboarding itu kandidat
-      terpisah (lihat item "Audit `OnboardingScreen.kt`" di bawah). Detail
-      lengkap: `CHANGELOG.md` Batch 90.
+      terpisah (lihat item "Audit `OnboardingScreen.kt`" di bawah).
+      **Divalidasi Batch 92** lewat screenshot device (`349771.jpg`): jelas
+      lebih besar/tegas dari sebelumnya, tetap 1 baris (gak wrap), gear
+      icon gak ketabrak — 0 bug. Detail lengkap: `CHANGELOG.md` Batch 90.
 - [ ] **Kandidat Fase 2+ SISA (5 kandidat, urutan BELUM final — screenshot
       validasi Fase 1 sudah ada Batch 89, tipografi Large Title sudah
       Batch 90, tinggal tunggu arahan user PILIH urutan mana duluan dari
       sisa di bawah)**:
-      - [x] **Grouped-list `SettingsScreen.kt`** (Batch 91, SELESAI dari
-        sisi kode, BELUM divalidasi visual): diaudit dulu — ternyata BUKAN
+      - [x] **Grouped-list `SettingsScreen.kt`** (Batch 91 kode + Batch 92
+        validasi & fix, SELESAI PENUH): diaudit dulu — ternyata BUKAN
         kasus N-baris-sejajar kayak "Kontrol" Fase 1, cuma 1 blok campuran
         (info versi + aksi cek-update). Dipecah jadi 2 GROUP (bukan N baris)
         disambung `SkeuGroupDivider` yang sama: (1) baris info versi ala
@@ -366,7 +368,13 @@ warna.
         `settings_app_version_row_label` baru gantiin `settings_app_version_label`
         lama yang dihapus), (2) blok aksi cek-update — TIDAK direstruktur
         isinya (1 alur aksi tunggal, bukan beberapa baris independen).
-        Detail lengkap: `CHANGELOG.md` Batch 91.
+        **Divalidasi Batch 92** lewat screenshot device (`349772.jpg`): row
+        versi render persis sesuai desain, TAPI divider ketemu bug —
+        `startIndent=50.dp` default (dirancang buat skip icon-box
+        `FeatureControl`) jadi nyasar di baris TANPA icon ini. Fixed jadi
+        `SkeuGroupDivider(startIndent = 0.dp)` di baris ini SAJA (default
+        function tidak diubah, caller lain masih pakai 50dp). Detail
+        lengkap: `CHANGELOG.md` Batch 91 & 92.
       - Preset row ("Preset Cepat"): **TETAP horizontal-scroll**, BUKAN
         diganti segmented control literal — sudah dicek `BoosterScreen.kt`,
         daftar preset BISA diperpanjang user (custom preset, unbounded),
@@ -399,7 +407,7 @@ warna.
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |
-| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1 selesai+tervalidasi (88-89); Tipografi (90) & Grouped-list Settings (91) selesai kode/belum tervalidasi; 4 kandidat Fase 2+ sisa |
+| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟢 Fase 1 + Fase 2 opsi A/B SELESAI PENUH & tervalidasi (88-92); 4 kandidat Fase 2+ sisa |
 
 **Estimasi kasar menuju 100%** (bobot ke fungsi real, bukan jumlah baris
 kode): app **fungsional ~95%** (fitur lengkap, dipakai harian tanpa

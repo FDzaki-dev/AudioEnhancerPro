@@ -119,7 +119,17 @@ fun SettingsScreen(
                     )
                 }
 
-                SkeuGroupDivider()
+                // Batch 92 (fix validasi screenshot 349772.jpg): `SkeuGroupDivider()`
+                // default `startIndent=50.dp` DIRANCANG buat skip lebar icon-box 40dp +
+                // spacing Row 10dp di `FeatureControl` (biar divider align ke bawah TEKS
+                // judul, bukan ke bawah icon — lihat komentar `SkeuGroupDivider` di
+                // `SkeuomorphicComponents.kt`). Baris "Versi Aplikasi" di sini TIDAK
+                // punya icon sama sekali, jadi 50dp default itu jadi indent NYASAR yang
+                // gak align ke elemen apa pun di atasnya (screenshot user nunjukin garis
+                // mulai jauh di kanan dari teks "Versi Aplikasi", padahal harusnya flush).
+                // `startIndent=0.dp` biar align rata sama teks di atasnya, bukan ngikut
+                // asumsi icon-box yang gak ada di baris ini.
+                SkeuGroupDivider(startIndent = 0.dp)
 
                 val isChecking = manualUpdateCheckState == BoosterViewModel.ManualUpdateCheckState.CHECKING
                 OutlinedButton(

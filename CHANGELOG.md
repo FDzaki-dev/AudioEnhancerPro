@@ -1,5 +1,51 @@
 # Changelog
 
+## Batch 92: Validasi screenshot Batch 90+91 — fix bug divider SettingsScreen.kt
+
+User kirim 2 screenshot device asli (`349771.jpg` header utama, `349772.jpg`
+layar Settings) buat validasi Batch 90 (Large Title) + Batch 91
+(grouped-list Settings), dua-duanya masih "belum divalidasi" sebelumnya.
+
+**Batch 90 (Large Title "Boomly") — VALID, 0 bug**:
+
+- "Boomly" jelas lebih besar/tegas (34sp Bold) dibanding screenshot lama
+  sebelum Batch 90 (28sp ExtraBold).
+- Tetap 1 baris, tidak wrap ke 2 baris meski font dinaikkan.
+- Gear icon ⚙️ pojok kanan atas tidak ketabrak/tergeser.
+
+**Batch 91 (grouped-list Settings) — sebagian valid, 1 bug ditemukan & di-fix**:
+
+- Row "Versi Aplikasi | 139" render PERSIS sesuai desain (label kiri, value
+  kanan warna muted).
+- Title inline "Pengaturan" (17sp SemiBold, hasil fix Batch 90) proporsinya
+  OK di sebelah tombol back.
+- **Bug**: `SkeuGroupDivider()` di bawah row versi mulai jauh ke kanan dari
+  teks "Versi Aplikasi" alih-alih flush rata kiri.
+
+**Akar masalah** (dicek ke kode, bukan tebak): `SkeuGroupDivider`
+(`SkeuomorphicComponents.kt`) defaultnya `startIndent=50.dp` — angka itu
+sengaja dirancang Batch 88 (Fase 1) buat nge-skip lebar icon-box 40dp +
+spacing `Row` 10dp di `FeatureControl`, biar divider align ke bawah teks
+judul (bukan bawah icon) di baris-baris "Kontrol" — yang SEMUA barisnya
+punya icon. Baris "Versi Aplikasi" (Batch 91) tidak punya icon sama sekali,
+jadi warisan default 50dp itu jadi indent tanpa referensi visual apa pun.
+
+**File disentuh (1 file kode)**:
+
+- **`SettingsScreen.kt`**: `SkeuGroupDivider()` → `SkeuGroupDivider(startIndent
+  = 0.dp)` khusus di baris versi (override eksplisit, default function
+  TIDAK diubah — 50dp masih benar buat semua caller lain yang punya icon,
+  contoh "Kontrol" Fase 1; mengubah default akan balik nge-break Fase 1).
+
+Cek statis: balance kurung/kurawal — 0 selisih.
+
+**Kesimpulan**: Fase 7 Fase 1 (Batch 88) + Fase 2 opsi B/Large-Title (Batch
+90) + opsi A/grouped-Settings (Batch 91, minus bug ini) sekarang **semua
+tervalidasi visual** dari screenshot device asli. Fix divider ini sendiri
+belum ada screenshot ulang pasca-fix — risiko rendah (1 parameter numerik,
+bukan perubahan struktur) — tapi terbuka untuk divalidasi lagi kalau user
+mau lebih yakin sebelum lanjut ke Fase 2+ berikutnya.
+
 ## Batch 91: Grouped-list SettingsScreen.kt (roadmap.md Fase 7 Fase 2 opsi A)
 
 User pilih **"A: Grouped-list SettingsScreen.kt"** dari 5 opsi Fase 2+ sisa
