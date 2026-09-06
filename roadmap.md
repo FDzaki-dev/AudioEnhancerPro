@@ -299,15 +299,73 @@ user minta eksplisit:
 
 ## Fase 6 — Dokumentasi & Housekeeping
 
-- [ ] Sinkronkan paragraf "Arah desain UI aktif" di `PROJECT_STATE.md` —
-      catatan sendiri di file itu bilang belum di-update lengkap ke "4
-      varian" sejak Batch 43 (Studio Equalizer).
+- [x] Sinkronkan paragraf "Arah desain UI aktif" di `PROJECT_STATE.md` —
+      **Fixed Batch 88** (ketemu & diperbaiki sekalian pas kerjakan Fase 7):
+      paragraf sekarang sudah sebut "4 varian" lengkap (Midnight Glass/Aurora
+      Glass/Neumorphism/Studio Equalizer).
 - [ ] `docs/preview/current.html` — pastikan tetap ground-truth utk 2 varian
       glass (Midnight/Aurora); Neumorphism & Studio Eq TIDAK punya mockup
       HTML terpisah (disengaja, dicatat di Batch 38/43/46) — kalau mau
       lengkap 100%, ini bisa ditambahkan (Low priority, kosmetik dev-tool).
 - [ ] `PrefsHelperTest.kt` — cek apakah test coverage masih relevan setelah
       berbagai perubahan state sejak Batch 17 (ekstraksi ke ViewModel).
+
+## Fase 7 — iOS Look Hybrid Rombak (UI/UX, inisiatif user Batch 88)
+
+User eksplisit minta "rombak total UI/UX jadi 100% iOS look, tanpa
+mengorbankan theme yang telah ada sebelumnya" (Batch 88). Diklarifikasi user:
+dikerjakan **PER FASE** + metode **HYBRID** (pola struktur/interaksi ala iOS
+ditambahkan DI ATAS sistem 4-varian tema yang sudah ada — Midnight Glass/
+Aurora Glass/Neumorphism/Studio Equalizer — **TANPA** mengganti warna/bevel/
+shadow "ciri khas utama" tiap varian). Claude **TIDAK PUNYA preview visual**
+di sandbox — tiap fase idealnya divalidasi lewat `docs/preview/current.html`
+(cepat, tapi cuma cover 2 varian glass) DAN/ATAU screenshot device asli dari
+user (pola sama seperti redesign glassmorphism Batch 32-56 dulu).
+
+**PENTING**: TIDAK ADA rencana mengganti sistem 4-varian tema atau warna
+signature masing-masing (Midnight Blue glass, Aurora vivid, Neumorphism Deep
+Navy+Brass, Studio Equalizer neon-lime) — semua fase di bawah murni soal
+STRUKTUR/POLA INTERAKSI (grouping, tipografi, bentuk komponen), BUKAN re-skin
+warna.
+
+- [~] **Fase 1 (Batch 88, SELESAI dari sisi kode, BELUM divalidasi
+      visual/device oleh user)**: Section "Kontrol" (`BoosterScreen.kt`) —
+      Bass Boost/Virtualizer/Loudness SEBELUMNYA 3 `SkeuCard` terpisah,
+      SEKARANG 1 `SkeuCard` gabungan ala grouped-list iOS (Settings.app: 1
+      kotak, N baris, garis pemisah tipis inset) lewat `SkeuGroupDivider`
+      baru (`SkeuomorphicComponents.kt`) + pola `wrapInCard=false` (sudah
+      lama dipakai `EqualizerSection` buat band-band-nya, sekarang dipakai
+      juga di sini). 0 token warna baru ditambah ke `SkeuTokens` — identitas
+      visual tiap tema (termasuk shadow tactile khas Neumorphism) 100% tidak
+      tersentuh. `docs/preview/current.html` disinkronkan sekalian (2 varian
+      glass yang dicover mockup ini).
+- [ ] **Kandidat Fase 2+ (belum dikerjakan, urutan BELUM final, tunggu
+      screenshot + arahan user atas hasil Fase 1 dulu)**:
+      - Terapkan pola grouped-list yang sama ke `SettingsScreen.kt` (belum
+        diaudit dari sisi ini — kemungkinan sudah dekat pola iOS Settings,
+        perlu dicek ulang dulu sebelum ubah apa pun).
+      - Tipografi ala iOS (Large Title utk header "Boomly", skala size/
+        weight lebih dekat SF Pro — Android gak punya font SF Pro asli,
+        pendekatan realistis: tuning size/weight/letter-spacing font system
+        yang sudah dipakai, BUKAN embed font baru tanpa lisensi jelas).
+      - Preset row ("Preset Cepat"): **TETAP horizontal-scroll**, BUKAN
+        diganti segmented control literal — sudah dicek `BoosterScreen.kt`,
+        daftar preset BISA diperpanjang user (custom preset, unbounded),
+        segmented control iOS asli cuma cocok pilihan TETAP & sedikit (2-5
+        opsi, tidak scroll) — kalau dipaksa jadi segmented, preset custom ke-6
+        dst ga ada tempat. Kandidat yang masih relevan: styling pill lebih
+        capsule-shaped + selected-state lebih tegas ala iOS (filled solid vs
+        outline-only), TANPA ubah struktur scroll-nya.
+      - Nav bar/header pattern (large title collapsing saat scroll) — lebih
+        invasif (butuh koordinasi state scroll dgn `LazyColumn`/`Column`
+        yang ada), kandidat batch terpisah, BUKAN quick win.
+      - `OnboardingScreen.kt` belum diaudit sama sekali dari sisi inisiatif
+        ini.
+      - SF Symbols-style icon treatment — Compose gak punya SF Symbols asli
+        (proprietary Apple), `Material Icons Extended` yang dipakai sekarang
+        beda visual weight; belum ada keputusan ganti ke icon set apa (kalau
+        ada sama sekali), risiko besar kalau ganti semua icon sekaligus
+        (banyak `Icons.Filled.*` dipakai lintas file).
 
 ---
 
@@ -322,6 +380,7 @@ user minta eksplisit:
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |
+| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1/N selesai — Batch 88 |
 
 **Estimasi kasar menuju 100%** (bobot ke fungsi real, bukan jumlah baris
 kode): app **fungsional ~95%** (fitur lengkap, dipakai harian tanpa

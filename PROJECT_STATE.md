@@ -67,23 +67,92 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 87 (1 file kode — `AudioEnhancerService.kt`).
-  User eksplisit pilih & konfirmasi paham risiko roadmap.md Fase 0 #6
-  ("Rebuild arsitektur session-0") lewat opsi bertanda — dikerjakan FASE 1
-  dari rebuild bertahap (BUKAN seluruh item #6 sekaligus, terlalu besar 1
-  micro-batch): `DynamicsProcessing` (limiter, Batch 84) sekarang JUGA
-  dipasangi PreEq 5-band sebagai FALLBACK `Equalizer` kalau Equalizer legacy
-  device ini `UNAVAILABLE` total. `roadmap.md` #6 `[ ]` → `[~]`. Sisa
-  Fase 2+ + batasan fundamental platform (kenapa "rebuild penuh" secara
-  harfiah tidak mungkin lewat API publik) dicatat
-  `PENDING_Fase0_Item6_RebuildSessionZero.md`. Antrian SISA Fase 0: #9
-  UI/error-state lanjutan (masih menunggu instruksi eksplisit user) + Fase 2
-  item #6 (lihat PENDING file). BELUM divalidasi runtime SAMA SEKALI (jalur
-  fallback ini secara alami jarang ke-trigger — mayoritas device Equalizer
-  legacy-nya normal, lihat catatan device-testing di PENDING file).
+- **Batch terakhir**: Batch 88 (2 file kode — `SkeuomorphicComponents.kt`,
+  `BoosterScreen.kt`). User upload screenshot app + minta eksplisit "rombak
+  total UI/UX jadi 100% iOS look, tanpa mengorbankan theme". Diklarifikasi:
+  PER FASE + HYBRID (struktur iOS di atas 4 varian tema yang ada, warna/
+  bevel/shadow tiap tema TIDAK diganti). roadmap.md Fase 7 (BARU) dibuat.
+  FASE 1: section "Kontrol" (Bass/Virtualizer/Loudness) — 3 `SkeuCard`
+  terpisah → 1 `SkeuCard` gabungan ala grouped-list iOS, `SkeuGroupDivider`
+  baru + pola `wrapInCard=false` (sudah lama dipakai `EqualizerSection`).
+  **Temuan penting**: efek "kartu bertumpuk" di screenshot user itu ciri
+  khas varian Neumorphism (`shadowLightTint`/`shadowDarkTint` cuma diisi di
+  varian itu, 3 lain sengaja Transparent) — rencana awal (lunakkan shadow)
+  DIBATALKAN, diganti pendekatan struktural yang orthogonal ke identitas
+  warna/shadow. `docs/preview/current.html` disinkronkan. Ketemu sekalian &
+  diperbaiki item lama Fase 6 (paragraf "Arah desain UI aktif" belum sebut
+  4 varian). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan
+  eksplisit user) + Fase 7 kandidat Fase 2+ (SettingsScreen grouped-list,
+  tipografi iOS, dll — lihat roadmap.md). **BELUM divalidasi visual/device
+  SAMA SEKALI** — Claude tidak punya preview render, butuh screenshot user.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🏗️ **Batch 87 (terbaru, 1 file kode — `AudioEnhancerService.kt`)**: User
+- 🎨 **Batch 88 (terbaru, 2 file kode — `SkeuomorphicComponents.kt`,
+  `BoosterScreen.kt`)**: User upload screenshot app (tema Neumorphism
+  kemungkinan besar, lihat temuan di bawah) + minta eksplisit "Rombak total
+  UI/UX aplikasi jadi 100% iOS look. Tanpa mengorbankan theme yang telah ada
+  sebelumnya!!". Claude tawarkan 4 opsi prioritas Fase 1 lewat pilihan
+  bertanda; user jawab bebas (bukan pilih salah satu opsi): **"intinya: per
+  fase, dan terapkan metode hybrid tanpa mengorbankan ciri khas utama dari
+  theme nya masing-masing"** — jadi Claude yang tentukan titik mulai
+  konkret, LEWAT INVESTIGASI KODE DULU (`Theme.kt` 791 baris + 4 varian,
+  `SkeuomorphicComponents.kt` 601 baris dibaca lengkap), bukan tebak dari
+  screenshot doang.
+  **Temuan penting yang mengubah rencana**: efek "kartu bertumpuk" yang
+  kentara di screenshot user cuma render kalau `shadowLightTint`/
+  `shadowDarkTint` (`SkeuTokens`) BUKAN `Color.Transparent` — dan itu CUMA
+  diisi warna asli di varian ke-3 **"Neumorphism"**; 3 varian lain
+  (Midnight Glass default, Aurora Glass, Studio Equalizer) sengaja
+  `Transparent` ("kartu glass visually quiet", prinsip restraint Batch 34).
+  Artinya efek itu kemungkinan besar CIRI KHAS UTAMA varian Neumorphism itu
+  sendiri (bukan sesuatu yang perlu "diperbaiki" jadi lebih halus) — rencana
+  awal Claude (melunakkan `SkeuDualDirectionalShadow`) DIBATALKAN setelah
+  temuan ini, konsisten sama instruksi eksplisit user "jangan korbankan ciri
+  khas". Diganti pendekatan struktural yang genuinely orthogonal ke
+  identitas warna/shadow tiap tema.
+  **FASE 1 dikerjakan**: section "Kontrol" (`BoosterScreen.kt`) —
+  Bass Boost/Virtualizer/Loudness SEBELUMNYA 3 `SkeuCard` terpisah
+  (`wrapInCard=true` default tiap `FeatureControl`), SEKARANG 1 `SkeuCard`
+  gabungan ala **grouped-list iOS** (Settings.app: 1 kotak, N baris, garis
+  pemisah tipis inset) — pakai `SkeuGroupDivider` (komposabel baru,
+  `SkeuomorphicComponents.kt`) + pola `wrapInCard=false` yang **BUKAN baru**
+  (sudah lama dipakai `EqualizerSection` buat band-bandnya, di sini dipakai
+  pertama kali buat baris atas). Divider pakai `tokens.mutedText` yang
+  SUDAH ADA di ke-4 varian (0 token warna baru ke `SkeuTokens` — nambah
+  field baru wajib diisi ulang ke SEMUA 4 varian, risiko lupa 1), alpha
+  rendah (0.16) biar tetap "quiet", inset 50dp (lewati icon-box 40dp +
+  gap 10dp) meniru divider iOS asli (bukan garis full-width Android biasa).
+  Warna/border/shadow `SkeuCard` itu sendiri 100% TIDAK disentuh — cuma
+  JUMLAH pemanggilannya (3→1) yang berubah, jadi identitas visual tiap tema
+  (termasuk shadow tactile Neumorphism) tidak tersentuh sama sekali.
+  Cek statis: balance kurung/kurawal/bracket kedua file (regex strip
+  komentar/string dulu) — 0 selisih di keduanya.
+  **Dokumentasi**: `docs/preview/current.html` (mockup ground-truth 2 varian
+  glass) disinkronkan — section Kontrol jadi 1 `.card` + `.card-divider`
+  CSS baru (mirror `SkeuGroupDivider`), konsisten praktik lama project ini.
+  `roadmap.md` **Fase 7 — iOS Look Hybrid Rombak** baru dibuat (inisiatif
+  user, di luar audit eksternal Fase 0) — Fase 1 `[~]`, kandidat Fase 2+
+  dicatat (grouped-list `SettingsScreen.kt`, tipografi iOS, preset row TETAP
+  horizontal-scroll karena custom preset unbounded — segmented control
+  literal dicoba dipikirkan lalu SENGAJA tidak dipilih, nav bar large-title,
+  `OnboardingScreen.kt` belum diaudit, icon SF-Symbols-style belum
+  diputuskan). **Ketemu & diperbaiki sekalian** item lama Fase 6 roadmap.md:
+  paragraf "Arah desain UI aktif" di file ini belum pernah di-update sebut
+  "4 varian" sejak Batch 43 — sekarang lengkap + ditambah paragraf baru
+  yang eksplisit bedakan lapisan "Arah desain" (warna/material, lama) vs
+  "iOS Look Hybrid Rombak" (struktur/pola, baru Batch 88).
+  **File disentuh**: 2 file kode + `docs/preview/current.html` + `roadmap.md`
+  + VIP docs. 0 file lain (`Theme.kt` 0 token baru, `SettingsScreen.kt`,
+  `OnboardingScreen.kt`, semua test, Manifest 100% apa adanya). 0 bump versi.
+  **BELUM divalidasi visual/device SAMA SEKALI** — Claude tidak punya
+  preview render di sandbox. Kandidat curiga: (1) spacing internal grup
+  (14dp+14dp divider) vs spacing 3-card lama mungkin terasa beda dari
+  ekspektasi begitu dilihat di device, (2) di Neumorphism (kemungkinan tema
+  screenshot user), `SkeuCard` shadow tactile sekarang cuma 1x panggilan
+  (bukan 3x) buat 3 baris — proporsi visual belum diverifikasi. Butuh
+  screenshot user sebelum lanjut Fase 2 (2 varian glass bisa dicek duluan
+  lewat `docs/preview/current.html`). Detail lengkap: CHANGELOG.md "Batch 88".
+- 🏗️ **Batch 87 (1 file kode — `AudioEnhancerService.kt`)**: User
   kirim ZIP Batch 86 + "Lanjut kerjakan next task!!" — antrian Fase 0 tersisa
   cuma #6 (BLOKER) dan #9, dua-duanya butuh keputusan eksplisit user (bukan
   cuma "lanjut" generik, lihat Batch 82/86). Claude tanya lewat pilihan
@@ -2272,27 +2341,27 @@ eksplisit user.
   Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
   atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
   JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif (Batch 37, v1.76.0 + Batch 38, v1.77.0, ARAH SEKARANG)**:
+- **Arah desain UI aktif (Batch 37-38, ARAH DASAR; Batch 88 tambah lapisan
+  HYBRID di atasnya — lihat paragraf setelah ini)**:
   "iOS Glassmorphism + Midnight-Blue dominan", WAJIB dark-mode. Kartu struktural =
   genuine frosted-glass (4-stop gradient + layer sheen kedua), border gradient
   highlight->transparan, radius besar ala iOS, background layar gradient
-  Midnight-Blue->nyaris-hitam, kontras teks dinaikkan (readability-first). **3
+  Midnight-Blue->nyaris-hitam, kontras teks dinaikkan (readability-first). **4
   varian** tersedia via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle`
-  dari Batch 36 dipertahankan & diperluas Batch 38): default "Midnight Glass"
-  (restrained), "Aurora Glass" (lebih vivid/saturated, DUA-DUANYA genuine glass),
-  dan varian ke-3 — **UPDATE Batch 46**: sekarang "Neumorphism" ultra
-  realistic+immersive (BUKAN lagi "Skeuomorphism" bevel-hard Batch 38-39) — soft-UI
-  genuine, shadow sehue base panel, aksen Platinum (metalik luas) + Ruby
-  (glow/primary), radius/shape tetap 100% otonom (sekarang 22dp/15dp rounded,
-  bukan 14dp/10dp sudut tegas), bahasa desain sengaja berbeda total dari 2 varian
-  glass. Nama toggle/persistence key di kode TETAP "Skeuomorphism"/
-  `APP_THEME_SKEUOMORPHISM` (Protected Asset, lihat Batch 46 di atas), cuma label
-  user-facing & isi visual yang berubah. (Ada juga varian ke-4 "Studio Equalizer",
-  Batch 43, neumorphism juga tapi palet studio abu-abu+lime — lihat entry Batch 43
-  di bawah, paragraf ini belum di-update lengkap ke "4 varian" sejak Batch 43).
-  1 pilihan tunggal (bukan kombinasi). Warna aksen per-fitur
+  dari Batch 36 dipertahankan & diperluas Batch 38/43): (1) default "Midnight
+  Glass" (restrained, genuine glass), (2) "Aurora Glass" (lebih vivid/saturated,
+  genuine glass juga), (3) "Neumorphism" (Batch 46: ultra realistic+immersive,
+  BUKAN lagi "Skeuomorphism" bevel-hard Batch 38-39 — soft-UI genuine, shadow
+  sehue base panel, aksen Platinum+Ruby, radius 22dp/15dp; nama toggle/
+  persistence key di kode TETAP "Skeuomorphism"/`APP_THEME_SKEUOMORPHISM`,
+  Protected Asset, cuma label user-facing & isi visual yang berubah), (4)
+  "Studio Equalizer" (Batch 43: neumorphism juga, palet studio abu-abu + aksen
+  neon-lime, low-contrast/subtle by design — beda dari varian 3 yang "ultra
+  realistic"). **[Fixed Batch 88, item lama Fase 6 roadmap.md: paragraf ini
+  sebelumnya belum di-update ke "4 varian" sejak Batch 43]**. 1 pilihan tunggal
+  (bukan kombinasi). Warna aksen per-fitur
   (Bass/Virtualizer/Loudness/Equalizer) TETAP dipertahankan (bukan sumber keluhan,
-  independen dari 3 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.
+  independen dari 4 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.
   **Riwayat sebelum Batch 37** (biar gak nyoba ulang): "Skeuomorphism-lite (Tactile
   UI)" (Batch 31-36, v1.70-v1.75.1) — kartu flat/minimal + tactile HANYA di power
   button/slider — DICABUT TOTAL di Batch 37 atas permintaan eksplisit user (bukan
@@ -2302,6 +2371,16 @@ eksplisit user.
   kartu flat + tactile micro di 2 komponen saja; Batch 38 = 1 varian tema penuh
   dengan bevel-extrusion di SEMUA kartu, dipilih eksplisit lewat toggle, hidup
   berdampingan dengan 2 varian glass, bukan menggantikannya).
+- **Lapisan "iOS Look Hybrid Rombak" (Batch 88, inisiatif BARU user, roadmap.md
+  Fase 7)**: user eksplisit minta "rombak total UI/UX jadi 100% iOS look, tanpa
+  mengorbankan theme yang telah ada sebelumnya" — diklarifikasi: PER FASE +
+  HYBRID (pola struktur/interaksi iOS ala Settings.app ditambahkan DI ATAS 4
+  varian tema di atas, TANPA mengganti warna/bevel/shadow "ciri khas" tiap
+  varian). BEDA dari "Arah desain UI aktif" di atas (yang soal WARNA/MATERIAL
+  kartu) — lapisan ini soal STRUKTUR/POLA (grouping list, tipografi, bentuk
+  komponen). Fase 1 (Batch 88, lihat CHANGELOG.md):
+  grouped-list Bass/Virtualizer/Loudness. Detail & kandidat Fase 2+:
+  `roadmap.md` Fase 7.
 - **Preview visual live**: `docs/preview/current.html` — render via
   https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
   SELALU update file ini bareng perubahan Kotlin yang visual-related,

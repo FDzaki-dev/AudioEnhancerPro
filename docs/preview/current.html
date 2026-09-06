@@ -3,9 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — iOS Glassmorphism + Midnight-Blue Dominan (v5.0, dark-mode wajib, sudah di-port ke Kotlin)</title>
+<title>Preview — iOS Glassmorphism + Midnight-Blue Dominan (v5.1, dark-mode wajib, sudah di-port ke Kotlin)</title>
 <style>
   /* ============================================================
+     BATCH 88 — "Rombak iOS look" (inisiatif eksplisit user, dikerjakan PER
+     FASE + HYBRID: pola struktur iOS ditambahkan TANPA ganti warna/bevel/
+     shadow "ciri khas" tiap varian tema). FASE 1: section "Kontrol"
+     (Bass/Virtualizer/Loudness) — SEBELUMNYA 3 kartu `.card` terpisah,
+     SEKARANG 1 kartu gabungan ala grouped-list iOS (Settings.app) dengan
+     `.card-divider` (garis tipis inset) di antara tiap baris — persis pola
+     `SkeuGroupDivider`/`wrapInCard=false` di Kotlin (SkeuomorphicComponents.kt/
+     BoosterScreen.kt). 0 token warna baru.
+     ------------------------------------------------------------
      DESIGN LANGUAGE BATCH 37 — REWRITE TOTAL sektor UI/UX (diminta user
      eksplisit): "iOS-style Glassmorphism" jadi bahasa desain DOMINAN,
      Midnight-Blue sekarang hint yang KENTARA (bukan subtle 6% era Batch
@@ -116,6 +125,12 @@
 
   .feature-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
   .feature-id{ display:flex; align-items:center; gap:12px; }
+
+  /* Batch 88: garis pemisah tipis ala grouped-list iOS (Settings.app), dipakai
+     GABUNGKAN beberapa baris feature (Bass/Virtualizer/Loudness) ke DALAM 1 `.card`
+     — persis `SkeuGroupDivider` di Kotlin. Inset 52px = lebar icon-orb (40px) + gap
+     `.feature-id` (12px), align ke bawah teks judul baris, BUKAN garis full-width. */
+  .card-divider{ height:1px; margin:14px 0 14px 52px; background:var(--border); opacity:.6; }
   .icon-orb{
     width:40px; height:40px; border-radius:16px; background:var(--surface);
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
@@ -186,40 +201,46 @@
 
       <div class="section-label">Kontrol</div>
 
-      <div class="card" style="--accent:var(--bass);">
-        <div class="feature-top">
-          <div class="feature-id">
-            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div>
-            <span class="name">Bass Boost</span>
+      <div class="card">
+        <div style="--accent:var(--bass);">
+          <div class="feature-top">
+            <div class="feature-id">
+              <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--bass)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></div>
+              <span class="name">Bass Boost</span>
+            </div>
+            <div class="feature-value" style="color:var(--bass);">900</div>
           </div>
-          <div class="feature-value">900</div>
+          <div class="help">Menguatkan nada rendah supaya musik terasa lebih "nendang".</div>
+          <div class="slider-track"><div class="slider-fill" style="width:90%; background:var(--bass);"></div><div class="slider-thumb" style="left:calc(90% - 11px); box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--bass);"></div></div>
         </div>
-        <div class="help">Menguatkan nada rendah supaya musik terasa lebih "nendang".</div>
-        <div class="slider-track"><div class="slider-fill" style="width:90%"></div><div class="slider-thumb" style="left:calc(90% - 11px)"></div></div>
-      </div>
 
-      <div class="card" style="--accent:var(--virt);">
-        <div class="feature-top">
-          <div class="feature-id">
-            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--virt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r=".8" fill="var(--virt)"/></svg></div>
-            <span class="name">Virtualizer</span>
-          </div>
-          <div class="feature-value">300</div>
-        </div>
-        <div class="help">Suara terasa lebih lebar, paling terasa pakai earphone.</div>
-        <div class="slider-track"><div class="slider-fill" style="width:30%; background:var(--virt);"></div><div class="slider-thumb" style="left:calc(30% - 11px); box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--virt);"></div></div>
-      </div>
+        <div class="card-divider"></div>
 
-      <div class="card" style="--accent:var(--loud);">
-        <div class="feature-top">
-          <div class="feature-id">
-            <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--loud)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h4l5-4v10l-5-4H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
-            <span class="name">Loudness Gain</span>
+        <div style="--accent:var(--virt);">
+          <div class="feature-top">
+            <div class="feature-id">
+              <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--virt)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12a4 4 0 0 1 8 0"/><circle cx="12" cy="12" r=".8" fill="var(--virt)"/></svg></div>
+              <span class="name">Virtualizer</span>
+            </div>
+            <div class="feature-value" style="color:var(--virt);">300</div>
           </div>
-          <div class="feature-value">500 mB</div>
+          <div class="help">Suara terasa lebih lebar, paling terasa pakai earphone.</div>
+          <div class="slider-track"><div class="slider-fill" style="width:30%; background:var(--virt);"></div><div class="slider-thumb" style="left:calc(30% - 11px); box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--virt);"></div></div>
         </div>
-        <div class="help">Boost volume tambahan di atas batas normal HP.</div>
-        <div class="slider-track"><div class="slider-fill" style="width:50%; background:var(--loud);"></div><div class="slider-thumb" style="left:calc(50% - 11px); box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--loud);"></div></div>
+
+        <div class="card-divider"></div>
+
+        <div style="--accent:var(--loud);">
+          <div class="feature-top">
+            <div class="feature-id">
+              <div class="icon-orb"><svg viewBox="0 0 24 24" fill="none" stroke="var(--loud)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11h4l5-4v10l-5-4H3z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
+              <span class="name">Loudness Gain</span>
+            </div>
+            <div class="feature-value" style="color:var(--loud);">500 mB</div>
+          </div>
+          <div class="help">Boost volume tambahan di atas batas normal HP.</div>
+          <div class="slider-track"><div class="slider-fill" style="width:50%; background:var(--loud);"></div><div class="slider-thumb" style="left:calc(50% - 11px); box-shadow:0 3px 6px rgba(0,0,0,.5), 0 0 0 2px var(--loud);"></div></div>
+        </div>
       </div>
 
       <div class="card" style="--accent:var(--eq); margin-bottom:0;">
@@ -242,7 +263,7 @@
         </div>
       </div>
     </div>
-    <div class="footer-note">v3.0 — iOS Glassmorphism + Midnight-Blue dominan, dark-mode wajib, readability-first. Varian ke-2 "Aurora Glass", varian ke-3 "Neumorphism" ultra realistic+immersive (Batch 46, aksen Platinum+Ruby, soft-UI sehue-shadow — lihat Theme.kt token `Neumo*`, ganti dari Skeuomorphism bevel-hard lama) & varian ke-4 "Studio Equalizer" dipilih via switch Settings, sudah live di app. Mockup HTML ini TETAP cuma representasi Midnight Glass — 3 varian lain belum ada mockup terpisah di sini.</div>
+    <div class="footer-note">v3.1 (Batch 88) — iOS Glassmorphism + Midnight-Blue dominan, dark-mode wajib, readability-first. Section "Kontrol" sekarang 1 kartu gabungan ala grouped-list iOS (Fase 1 rombak iOS look) — Bass/Virtualizer/Loudness dipisah `.card-divider` tipis, bukan 3 kartu terpisah lagi. Varian ke-2 "Aurora Glass", varian ke-3 "Neumorphism" ultra realistic+immersive (Batch 46, aksen Platinum+Ruby, soft-UI sehue-shadow — lihat Theme.kt token `Neumo*`, ganti dari Skeuomorphism bevel-hard lama) & varian ke-4 "Studio Equalizer" dipilih via switch Settings, sudah live di app. Mockup HTML ini TETAP cuma representasi Midnight Glass — 3 varian lain belum ada mockup terpisah di sini.</div>
   </div>
 </body>
 </html>

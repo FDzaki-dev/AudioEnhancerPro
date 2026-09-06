@@ -515,6 +515,30 @@ internal fun FeatureControl(
     }
 }
 
+/** Batch 88 (user eksplisit minta "rombak total iOS look" — dikerjakan bertahap per
+ *  fase, metode HYBRID: pola struktur iOS ditambahkan TANPA ubah warna/bevel/shadow
+ *  tiap tema, "ciri khas utama" masing-masing varian TETAP dari `LocalSkeuTokens`
+ *  seperti sebelumnya, 0 token baru ditambah ke `SkeuTokens` — kalau nambah field baru
+ *  di sana WAJIB diisi ulang ke SEMUA 4 varian, Theme.kt, risiko lupa 1 varian).
+ *  FASE 1: garis pemisah tipis ala grouped-list iOS (Settings.app) — dipakai BoosterScreen
+ *  buat gabung beberapa `FeatureControl(wrapInCard = false)` ke DALAM 1 `SkeuCard`
+ *  (pola `wrapInCard=false` ITU SENDIRI bukan baru — sudah dipakai `EqualizerSection`
+ *  sejak lama buat multi-band, di sini dipakai pertama kali buat baris Bass/Virtualizer/
+ *  Loudness). Warna pakai `tokens.mutedText` yang SUDAH ada di ke-4 varian (bukan warna
+ *  baru) alpha rendah — sengaja TETAP "quiet" (prinsip restraint Batch 34), supaya
+ *  garisnya cuma penanda struktur, BUKAN elemen dekoratif baru yang bisa geser
+ *  identitas visual tiap tema. `startIndent` default nge-align ke bawah teks judul row
+ *  (lewati lebar icon-box 40dp + spacing Row 10dp = 50dp) — inset divider ala iOS asli,
+ *  BUKAN garis full-width gaya list Android Material biasa. */
+@Composable
+internal fun SkeuGroupDivider(startIndent: Dp = 50.dp) {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = startIndent, top = 14.dp, bottom = 14.dp),
+        thickness = 0.6.dp,
+        color = LocalSkeuTokens.current.mutedText.copy(alpha = 0.16f)
+    )
+}
+
 /** Batch 32: toggle/switch tactile — guide §7 "Toggles / Switches" eksplisit minta
  *  physical indentation (bukan pill Material3 default polos yang dipakai sebelumnya,
  *  0 treatment tactile sama sekali). 3 state wajib guide, semua diimplementasi:

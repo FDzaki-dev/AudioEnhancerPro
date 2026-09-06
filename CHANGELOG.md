@@ -1,5 +1,86 @@
 # Changelog
 
+## Batch 88: roadmap.md Fase 7 (BARU, FASE 1) — iOS Look Hybrid Rombak: grouped-list "Kontrol"
+
+User upload screenshot app + minta eksplisit "Rombak total UI/UX aplikasi
+jadi 100% iOS look. Tanpa mengorbankan theme yang telah ada sebelumnya!!".
+Claude tanya prioritas Fase 1 lewat opsi bertanda; user jawab bebas:
+**"intinya: per fase, dan terapkan metode hybrid tanpa mengorbankan ciri
+khas utama dari theme nya masing-masing"** — jadi Claude yang pilih titik
+mulai konkret, dengan investigasi kode dulu (bukan tebak dari screenshot
+saja): `Theme.kt` (791 baris, 4 varian tema) + `SkeuomorphicComponents.kt`
+(601 baris) dibaca lengkap sebelum nulis kode apa pun.
+
+**Temuan penting dari investigasi** (kenapa rencana awal berubah): efek
+"kartu bertumpuk" di screenshot user cuma render kalau `shadowLightTint`/
+`shadowDarkTint` (`SkeuTokens`) BUKAN `Color.Transparent` — dan itu **CUMA
+diisi warna asli di varian ke-3 "Neumorphism"**, 3 varian lain (`Midnight
+Glass` default, `Aurora Glass`, `Studio Equalizer`) sengaja `Transparent`
+("kartu glass visually quiet", prinsip Batch 34). Artinya screenshot user
+kemungkinan besar diambil di tema **Neumorphism**, dan efek shadow bertumpuk
+itu memang **"ciri khas utama"** varian itu (bukan bug/kelebihan yang perlu
+dikurangi) — konsisten sama instruksi user "jangan korbankan ciri khas".
+Rencana awal (melunakkan shadow) DIBATALKAN setelah temuan ini, diganti
+pendekatan yang genuinely orthogonal ke identitas warna/shadow tiap tema.
+
+**File disentuh (2 file kode)**:
+
+- **`SkeuomorphicComponents.kt`**: `SkeuGroupDivider(startIndent: Dp = 50.dp)`
+  baru — garis pemisah tipis ala grouped-list iOS (Settings.app), dipakai
+  gabungkan beberapa `FeatureControl(wrapInCard = false)` ke dalam 1
+  `SkeuCard`. Pakai `tokens.mutedText` yang **SUDAH ADA** di ke-4 varian
+  (bukan token warna baru — nambah field baru ke `SkeuTokens` wajib diisi
+  ulang ke SEMUA 4 varian, risiko lupa 1), alpha rendah (0.16) supaya tetap
+  "quiet" (prinsip restraint Batch 34) — garis cuma penanda struktur, bukan
+  elemen dekoratif baru yang bisa geser identitas visual tiap tema.
+- **`BoosterScreen.kt`**: Section "Kontrol" — SEBELUMNYA `FeatureControl`
+  Bass/Virtualizer/Loudness masing-masing `SkeuCard` (`wrapInCard=true`
+  default) TERPISAH. SEKARANG 1 `SkeuCard` gabungan, isinya 3
+  `FeatureControl(wrapInCard = false)` dipisah `SkeuGroupDivider()` — pola
+  `wrapInCard=false` ITU SENDIRI **bukan baru**, sudah dipakai
+  `EqualizerSection` buat band-bandnya sejak lama; di sini dipakai pertama
+  kali buat baris Bass/Virtualizer/Loudness. Warna/border/shadow kartu 100%
+  dari `SkeuCard` yang sama seperti sebelumnya — 0 logic tema baru, cuma
+  jumlah `SkeuCard` yang dipanggil (dari 3 jadi 1) yang berubah.
+
+**Dokumentasi disinkronkan**:
+
+- `docs/preview/current.html` (mockup ground-truth 2 varian glass) —
+  section "Kontrol" diubah jadi 1 `.card` gabungan + `.card-divider` baru
+  (mirror CSS dari `SkeuGroupDivider`), konsisten praktik lama project ini
+  ("update mockup HTML bareng perubahan Kotlin visual-related, sebelum
+  kirim APK — lebih murah dari build+install+screenshot").
+- `roadmap.md`: **Fase 7 — iOS Look Hybrid Rombak** baru ditambahkan (item
+  ini di luar audit eksternal Fase 0, inisiatif user Batch 88) — Fase 1
+  `[~]`, kandidat Fase 2+ dicatat (grouped-list `SettingsScreen.kt`,
+  tipografi iOS, styling pill preset — TAPI preset row TETAP horizontal-
+  scroll karena custom preset user unbounded, segmented control literal
+  gak cocok, nav bar large-title, `OnboardingScreen.kt` belum diaudit, SF
+  Symbols-style icon belum diputuskan). Progress ringkas: +1 baris Fase 7.
+- **Ketemu & diperbaiki sekalian**: item lama Fase 6 roadmap.md ("paragraf
+  'Arah desain UI aktif' di `PROJECT_STATE.md` belum di-update ke 4 varian
+  sejak Batch 43") — sudah `[x]`, paragraf itu sekarang lengkap sebut ke-4
+  varian + ditambah paragraf baru soal lapisan "iOS Look Hybrid Rombak"
+  Batch 88 (dibedakan eksplisit dari paragraf lama: yang lama soal WARNA/
+  MATERIAL kartu, yang baru soal STRUKTUR/POLA interaksi).
+
+**Scope**: 2 file kode (`SkeuomorphicComponents.kt`, `BoosterScreen.kt`) +
+`docs/preview/current.html` + `roadmap.md` + VIP docs (`PROJECT_STATE.md`,
+`CHANGELOG.md` ini). 0 file lain disentuh — `Theme.kt` (0 token baru),
+`SettingsScreen.kt`, `OnboardingScreen.kt`, seluruh test, Manifest 100% apa
+adanya. 0 bump versi manual.
+
+**BELUM divalidasi visual/device SAMA SEKALI** — Claude tidak punya preview
+render di sandbox ini. Kandidat curiga pertama: (1) spacing internal grup
+(divider 14dp+14dp) vs spacing antar-card lama (16dp luar + 2x16dp padding)
+mungkin terasa beda dari ekspektasi setelah benar-benar dilihat di device,
+(2) di tema Neumorphism (kemungkinan tema screenshot user), shadow tactile
+`SkeuCard` yang sekarang cuma dipanggil 1x (bukan 3x) untuk 3 baris —
+belum diverifikasi apakah proporsi shadow-nya masih terasa "benar" secara
+visual dibanding sebelumnya. Butuh screenshot user (2 varian glass bisa
+dicek dulu lewat `docs/preview/current.html`, Neumorphism/Studio Eq wajib
+device asli) sebelum lanjut Fase 2.
+
 ## Batch 87: roadmap.md Fase 0 #6 (FASE 1) — Equalizer fallback via `DynamicsProcessing` PreEq
 
 User eksplisit pilih & konfirmasi paham risiko item roadmap.md Fase 0 #6

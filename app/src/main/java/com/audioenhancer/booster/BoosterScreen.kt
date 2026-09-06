@@ -881,70 +881,90 @@ fun BoosterScreen(
         // sebelumnya kartu Bass/Virtualizer/Loudness langsung tampil tanpa header section.
         SectionLabel(stringResource(R.string.controls_title))
 
-        FeatureControl(
-            title = stringResource(R.string.feature_bass_title),
-            icon = Icons.Filled.VolumeUp,
-            accentColor = BassAccent,
-            accentColor2 = BassAccent2,
-            helpText = when {
-                !bassSupported -> stringResource(R.string.feature_help_unsupported)
-                // Batch 58: CONTROL_LOST/FAILED (Batch 57) diprioritaskan di atas cek
-                // strength_unsupported — dua-duanya soal "effect ada tapi lagi
-                // bermasalah", bukan soal chipset gak punya fitur kontrol granular.
-                bassEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
-                    stringResource(R.string.feature_help_control_lost)
-                bassEffectState == AudioEnhancerService.EffectState.FAILED ->
-                    stringResource(R.string.feature_help_failed)
-                !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
-                else -> stringResource(R.string.feature_bass_help_normal)
-            },
-            value = bass,
-            valueLabel = bass.toInt().toString(),
-            onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
-            valueRange = 0f..1000f,
-            enabled = bassSupported && bassStrengthSupported
-        )
+        // Batch 88 (rombak iOS look, Fase 1, hybrid — lihat komentar panjang
+        // `SkeuGroupDivider` di SkeuomorphicComponents.kt): SEBELUMNYA Bass/Virtualizer/
+        // Loudness 3 `SkeuCard` TERPISAH (wrapInCard=true default) — SEKARANG 1 `SkeuCard`
+        // gabungan ala grouped-list iOS (Settings.app: 1 kotak, N baris, garis tipis
+        // pemisah), pola `wrapInCard=false` yang SAMA PERSIS yang sudah dipakai
+        // `EqualizerSection` buat band-band-nya. Warna/border/shadow kartu 100% dari
+        // `SkeuCard` yang SAMA seperti sebelumnya (`LocalSkeuTokens.current` per varian
+        // tema) — TIDAK ADA logic tema baru di sini, cuma jumlah `SkeuCard` yang
+        // dipanggil (dari 3 jadi 1) yang berubah.
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp)) {
+                FeatureControl(
+                    title = stringResource(R.string.feature_bass_title),
+                    icon = Icons.Filled.VolumeUp,
+                    accentColor = BassAccent,
+                    accentColor2 = BassAccent2,
+                    helpText = when {
+                        !bassSupported -> stringResource(R.string.feature_help_unsupported)
+                        // Batch 58: CONTROL_LOST/FAILED (Batch 57) diprioritaskan di atas cek
+                        // strength_unsupported — dua-duanya soal "effect ada tapi lagi
+                        // bermasalah", bukan soal chipset gak punya fitur kontrol granular.
+                        bassEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        bassEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        !bassStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                        else -> stringResource(R.string.feature_bass_help_normal)
+                    },
+                    value = bass,
+                    valueLabel = bass.toInt().toString(),
+                    onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
+                    valueRange = 0f..1000f,
+                    enabled = bassSupported && bassStrengthSupported,
+                    wrapInCard = false
+                )
 
-        FeatureControl(
-            title = stringResource(R.string.feature_virtualizer_title),
-            icon = Icons.Filled.SurroundSound,
-            accentColor = VirtualizerAccent,
-            accentColor2 = VirtualizerAccent2,
-            helpText = when {
-                !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
-                virtualizerEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
-                    stringResource(R.string.feature_help_control_lost)
-                virtualizerEffectState == AudioEnhancerService.EffectState.FAILED ->
-                    stringResource(R.string.feature_help_failed)
-                !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
-                else -> stringResource(R.string.feature_virtualizer_help_normal)
-            },
-            value = virtualizer,
-            valueLabel = virtualizer.toInt().toString(),
-            onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
-            valueRange = 0f..1000f,
-            enabled = virtualizerSupported && virtualizerStrengthSupported
-        )
+                SkeuGroupDivider()
 
-        FeatureControl(
-            title = stringResource(R.string.feature_loudness_title),
-            icon = Icons.Filled.Campaign,
-            accentColor = LoudnessAccent,
-            accentColor2 = LoudnessAccent2,
-            helpText = when {
-                !loudnessSupported -> stringResource(R.string.feature_help_unsupported)
-                loudnessEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
-                    stringResource(R.string.feature_help_control_lost)
-                loudnessEffectState == AudioEnhancerService.EffectState.FAILED ->
-                    stringResource(R.string.feature_help_failed)
-                else -> stringResource(R.string.feature_loudness_help_normal)
-            },
-            value = loudness,
-            valueLabel = "${loudness.toInt()} mB",
-            onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
-            valueRange = 0f..3000f,
-            enabled = loudnessSupported
-        )
+                FeatureControl(
+                    title = stringResource(R.string.feature_virtualizer_title),
+                    icon = Icons.Filled.SurroundSound,
+                    accentColor = VirtualizerAccent,
+                    accentColor2 = VirtualizerAccent2,
+                    helpText = when {
+                        !virtualizerSupported -> stringResource(R.string.feature_help_unsupported)
+                        virtualizerEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        virtualizerEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        !virtualizerStrengthSupported -> stringResource(R.string.feature_help_strength_unsupported)
+                        else -> stringResource(R.string.feature_virtualizer_help_normal)
+                    },
+                    value = virtualizer,
+                    valueLabel = virtualizer.toInt().toString(),
+                    onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
+                    valueRange = 0f..1000f,
+                    enabled = virtualizerSupported && virtualizerStrengthSupported,
+                    wrapInCard = false
+                )
+
+                SkeuGroupDivider()
+
+                FeatureControl(
+                    title = stringResource(R.string.feature_loudness_title),
+                    icon = Icons.Filled.Campaign,
+                    accentColor = LoudnessAccent,
+                    accentColor2 = LoudnessAccent2,
+                    helpText = when {
+                        !loudnessSupported -> stringResource(R.string.feature_help_unsupported)
+                        loudnessEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        loudnessEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        else -> stringResource(R.string.feature_loudness_help_normal)
+                    },
+                    value = loudness,
+                    valueLabel = "${loudness.toInt()} mB",
+                    onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
+                    valueRange = 0f..3000f,
+                    enabled = loudnessSupported,
+                    wrapInCard = false
+                )
+            }
+        }
 
         if (equalizerSupported && equalizerBandCount > 0) {
             EqualizerSection(
