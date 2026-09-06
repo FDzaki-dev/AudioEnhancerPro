@@ -357,9 +357,16 @@ warna.
       validasi Fase 1 sudah ada Batch 89, tipografi Large Title sudah
       Batch 90, tinggal tunggu arahan user PILIH urutan mana duluan dari
       sisa di bawah)**:
-      - Terapkan pola grouped-list yang sama ke `SettingsScreen.kt` (belum
-        diaudit dari sisi ini — kemungkinan sudah dekat pola iOS Settings,
-        perlu dicek ulang dulu sebelum ubah apa pun).
+      - [x] **Grouped-list `SettingsScreen.kt`** (Batch 91, SELESAI dari
+        sisi kode, BELUM divalidasi visual): diaudit dulu — ternyata BUKAN
+        kasus N-baris-sejajar kayak "Kontrol" Fase 1, cuma 1 blok campuran
+        (info versi + aksi cek-update). Dipecah jadi 2 GROUP (bukan N baris)
+        disambung `SkeuGroupDivider` yang sama: (1) baris info versi ala
+        row iOS "Version 17.2" (label kiri/value kanan, string
+        `settings_app_version_row_label` baru gantiin `settings_app_version_label`
+        lama yang dihapus), (2) blok aksi cek-update — TIDAK direstruktur
+        isinya (1 alur aksi tunggal, bukan beberapa baris independen).
+        Detail lengkap: `CHANGELOG.md` Batch 91.
       - Preset row ("Preset Cepat"): **TETAP horizontal-scroll**, BUKAN
         diganti segmented control literal — sudah dicek `BoosterScreen.kt`,
         daftar preset BISA diperpanjang user (custom preset, unbounded),
@@ -392,7 +399,7 @@ warna.
 | 4. Kompatibilitas Device | ⚪ Sengaja ditunda user |
 | 5. Feature Backlog | ⚪ Sengaja ditunda (maintenance mode) |
 | 6. Dokumentasi & Housekeeping | 🟡 Sebagian kecil |
-| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1 selesai+tervalidasi (88-89), Tipografi Large Title selesai kode/belum tervalidasi (90), 5 kandidat Fase 2+ sisa |
+| 7. iOS Look Hybrid Rombak (inisiatif user, UI/UX) | 🟡 Fase 1 selesai+tervalidasi (88-89); Tipografi (90) & Grouped-list Settings (91) selesai kode/belum tervalidasi; 4 kandidat Fase 2+ sisa |
 
 **Estimasi kasar menuju 100%** (bobot ke fungsi real, bukan jumlah baris
 kode): app **fungsional ~95%** (fitur lengkap, dipakai harian tanpa

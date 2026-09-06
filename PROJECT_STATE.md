@@ -67,28 +67,68 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 90 (2 file kode — `Theme.kt`, `SettingsScreen.kt`).
-  User pilih opsi **B (Tipografi iOS)** dari 6 kandidat Fase 7 Fase 2 yang
-  ditanya Batch 89. `headlineMedium` (`AppTypography`, shared 4 varian tema)
-  dinaikkan dari 28sp ExtraBold ad-hoc → **34sp Bold** (skala Large Title
-  iOS asli, dicek ke referensi resmi dulu — bukan tebak), `lineHeight`
-  34→41sp, `letterSpacing` -0.3→-0.4sp. Berlaku ke judul "Boomly"
-  (`BoosterScreen.kt`, target utama) TANPA ubah kode file itu (baca token
-  otomatis). **Efek samping ketemu & diperbaiki sekalian**: `SettingsScreen.kt`
-  ternyata pakai token SAMA buat title inline di sebelah tombol back — kalau
-  dibiarkan bakal kegedean/gak muat 1 baris. Dipisah ke `titleMedium` (17sp
-  SemiBold, SUDAH ADA, 0 token baru) sesuai pola iOS asli (large title cuma
-  di root screen, pushed screen pakai inline title kecil). `headlineSmall`
-  (dipakai `OnboardingScreen.kt`, item Fase 2+ TERPISAH yang belum dipilih)
-  **SENGAJA TIDAK disentuh**. `docs/preview/current.html` (`h1` CSS)
-  disinkronkan ke angka baru. **BELUM divalidasi visual/device** — butuh
-  screenshot user lagi (khususnya cek muat/tidaknya "Boomly" 34sp Bold di
-  lebar layar sempit tanpa wrap, dan title Settings gak lagi kegedean).
-  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
-  user) + Fase 7 Fase 2+ SISA 5 kandidat (A/C/D/E/F, lihat roadmap.md).
+- **Batch terakhir**: Batch 91 (3 file kode — `SettingsScreen.kt`,
+  `values/strings.xml`, `values-en/strings.xml`). User pilih opsi **A
+  (Grouped-list SettingsScreen.kt)** dari sisa 5 kandidat Fase 7 Fase 2.
+  **Diaudit dulu** (sesuai catatan roadmap "perlu dicek ulang dulu sebelum
+  ubah apa pun"): ternyata screen ini CUMA 1 SkeuCard berisi 1 blok
+  campuran (teks versi + tombol full-width nempel tanpa pemisah) — BUKAN
+  banyak baris sejajar kayak "Kontrol" Fase 1, jadi treatment-nya beda:
+  dipecah jadi 2 GROUP dalam 1 kartu (bukan N baris) — (1) baris info versi
+  ala iOS "Version   17.2" (label kiri/value kanan, string baru
+  `settings_app_version_row_label` gantiin `settings_app_version_label`
+  lama yang DIHAPUS dari kedua file strings.xml), (2) blok aksi cek-update
+  (tombol+status/notes/download, TIDAK direstruktur — 1 alur aksi tunggal,
+  bukan beberapa baris sejajar). Disambung `SkeuGroupDivider` yang SAMA
+  dipakai Fase 1, 0 komponen baru. Cek statis: balance kurung/kurawal OK,
+  XML valid, 0 referensi tersisa ke key string lama (`grep` whole-project).
+  **BELUM divalidasi visual/device** — butuh screenshot user. Antrian SISA:
+  Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit user) + Fase 7
+  Fase 2+ SISA 4 kandidat (C/D/E/F, lihat roadmap.md) + validasi visual
+  Batch 90 (Large Title) yang JUGA belum ada screenshot.
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🔤 **Batch 90 (terbaru, 2 file kode — `Theme.kt`, `SettingsScreen.kt`)**:
+- 📋 **Batch 91 (terbaru, 3 file kode — `SettingsScreen.kt`,
+  `values/strings.xml`, `values-en/strings.xml`)**: User jawab BLOKER
+  sisa Batch 90 — pilih **"A: Grouped-list SettingsScreen.kt"** dari 5
+  kandidat sisa Fase 7 Fase 2 (`roadmap.md`).
+  **Diaudit dulu sebelum ubah apa pun** (persis instruksi roadmap.md
+  "kemungkinan sudah dekat pola iOS Settings, perlu dicek ulang dulu"):
+  dibaca `SettingsScreen.kt` full — ternyata BUKAN kasus yang sama dengan
+  "Kontrol" Fase 1 (3 baris FeatureControl sejajar: Bass/Virtualizer/
+  Loudness). Screen ini cuma 1 `SkeuCard` berisi 1 blok CAMPURAN: teks versi
+  app polos ("Versi aplikasi: X") lalu tombol full-width "Cek Update
+  Sekarang" nempel PERSIS di bawahnya cuma dipisah `Spacer(12dp)` — 0
+  pemisah visual antara "info" dan "aksi", beda dari pola iOS Settings asli
+  (contoh nyata: Settings > General > About — baris "Version" [label
+  kiri, value kanan] TERPISAH garis tipis dari baris aksi di bawahnya).
+  **Treatment yang diterapkan** (BUKAN copy-paste pola Fase 1 mentah-mentah,
+  karena strukturnya beda — N baris sejajar vs 1 alur aksi tunggal):
+  dipecah jadi 2 GROUP dalam 1 kartu, disambung `SkeuGroupDivider` (SAMA
+  komponen dipakai Fase 1, 0 komponen baru):
+  1. Baris info versi ala row iOS ("Version   17.2" — label kiri, value
+     kanan, BUKAN 1 baris teks gabung lagi). String lama
+     `settings_app_version_label` (format gabungan "Versi aplikasi: %1$s")
+     **DIHAPUS** dari `values/strings.xml` DAN `values-en/strings.xml`
+     (dicek dulu 0 referensi lain ke key itu di seluruh project via
+     `grep -rn "R.string.settings_app_version_label"` — bersih), diganti
+     `settings_app_version_row_label` (label polos, 0 placeholder) di
+     KEDUA file locale.
+  2. Blok aksi cek-update (tombol + status/notes/download conditional
+     Batch 73/81) — **TIDAK direstruktur isinya**, itu 1 alur aksi
+     tunggal (bukan beberapa baris sejajar independen), jadi dipecah lebih
+     jauh lagi jadi row-row terpisah justru bakal maksa-maksain pola yang
+     gak cocok (ZERO-REFACTOR bagian yang gak relevan ke task).
+  Cek statis: balance kurung/kurawal `SettingsScreen.kt` (regex strip
+  komentar/string dulu) — 0 selisih. Kedua `strings.xml` divalidasi XML
+  well-formed (`xml.dom.minidom`). 0 referensi tersisa ke
+  `R.string.settings_app_version_label` di seluruh project (grep).
+  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
+  Kandidat curiga: (1) spacing baris versi vs divider vs tombol di bawahnya
+  — belum pernah dites proporsinya di layar asli, (2) label "Versi Aplikasi"
+  + value trailing mungkin kepanjangan buat 1 baris di layar sempit
+  (belum ada wrap handling eksplisit).
+- 🔤 **Batch 90 (2 file kode — `Theme.kt`, `SettingsScreen.kt`)**:
   User jawab BLOKER Batch 89 — pilih **"B: Tipografi iOS"** dari 6 kandidat
   Fase 7 Fase 2 (`roadmap.md`).
   **Dicek dulu ke referensi resmi Apple HIG** (bukan tebak dari memori,

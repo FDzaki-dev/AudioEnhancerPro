@@ -13,6 +13,7 @@ package com.audioenhancer.booster
 // UpdateBanner — UpdateBanner tetap muncul juga kalau user balik ke layar utama
 // (state `updateInfo` dibagi bareng), cuma sekarang bukan satu-satunya jalan lagi.
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -84,14 +85,41 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         SectionLabel(text = stringResource(R.string.settings_title))
+        // Batch 91 (roadmap.md Fase 7 Fase 2 opsi A, "Grouped-list SettingsScreen.kt"):
+        // diaudit dulu sebelum ubah apa pun (bukan langsung refactor) — screen ini
+        // SEBELUMNYA render versi-app sebagai 1 baris teks gabung ("Versi aplikasi: X")
+        // lalu tombol full-width nempel persis di bawahnya TANPA pemisah visual antara
+        // "info" dan "aksi" — beda dari pola iOS Settings asli (Settings > General >
+        // About: baris "Version" [label kiri, value kanan] TERPISAH dari baris aksi di
+        // bawahnya lewat garis tipis grouped-list). Konten LAIN di card ini (tombol cek
+        // update + status/notes/download conditional Batch 73/81) TIDAK direstruktur —
+        // itu 1 alur aksi tunggal, bukan beberapa baris sejajar kayak Bass/Virtualizer/
+        // Loudness, jadi TIDAK butuh dipecah lagi jadi row-row terpisah (ZERO-REFACTOR
+        // bagian yang gak relevan ke task).
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.settings_app_version_label, appVersionName),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                // Baris versi: label kiri + value kanan, pola row iOS asli ("Version  17.2"),
+                // BUKAN 1 baris gabung "Versi aplikasi: 17.2" lagi. String lama
+                // `settings_app_version_label` (format gabungan) sudah tidak dipakai di sini,
+                // ganti `settings_app_version_row_label` (label polos, 0 placeholder).
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        stringResource(R.string.settings_app_version_row_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        appVersionName,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+
+                SkeuGroupDivider()
 
                 val isChecking = manualUpdateCheckState == BoosterViewModel.ManualUpdateCheckState.CHECKING
                 OutlinedButton(

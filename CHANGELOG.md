@@ -1,5 +1,62 @@
 # Changelog
 
+## Batch 91: Grouped-list SettingsScreen.kt (roadmap.md Fase 7 Fase 2 opsi A)
+
+User pilih **"A: Grouped-list SettingsScreen.kt"** dari 5 opsi Fase 2+ sisa
+yang ditanya Batch 90.
+
+**Diaudit dulu sebelum ubah apa pun** (persis catatan roadmap.md
+"kemungkinan sudah dekat pola iOS Settings, perlu dicek ulang dulu"):
+dibaca `SettingsScreen.kt` full. Ternyata screen ini **bukan kasus yang
+sama** dengan "Kontrol" Fase 1 (Batch 88) — Fase 1 punya 3 baris
+`FeatureControl` SEJAJAR (Bass/Virtualizer/Loudness, masing-masing punya
+icon+title+value+slider sendiri). `SettingsScreen.kt` cuma 1 `SkeuCard`
+berisi **1 blok campuran**: teks versi app polos ("Versi aplikasi: X") lalu
+tombol full-width "Cek Update Sekarang" nempel persis di bawahnya, cuma
+dipisah `Spacer(12dp)` — 0 pemisah visual antara "info" dan "aksi". Beda
+dari pola iOS Settings asli (contoh nyata: Settings > General > About —
+baris "Version" [label kiri, value kanan] TERPISAH garis tipis dari baris
+aksi di bawahnya).
+
+**Treatment yang diterapkan** (bukan copy-paste pola Fase 1 mentah-mentah,
+karena strukturnya beda — N baris sejajar vs 1 alur aksi tunggal): dipecah
+jadi **2 GROUP** dalam 1 kartu, disambung `SkeuGroupDivider` (komponen SAMA
+dipakai Fase 1, 0 komponen baru ditambah).
+
+**File disentuh (3 file kode)**:
+
+- **`SettingsScreen.kt`**:
+  1. Baris info versi diubah jadi row ala iOS ("Version   17.2" — label
+     kiri `Row(Arrangement.SpaceBetween)`, value kanan berwarna
+     `LocalSkeuTokens.current.mutedText`), BUKAN 1 baris teks gabung lagi.
+  2. `SkeuGroupDivider()` ditambah setelah baris versi.
+  3. Blok aksi cek-update (tombol + status/notes/download conditional,
+     Batch 73/81) **TIDAK direstruktur isinya** — itu 1 alur aksi tunggal,
+     bukan beberapa baris independen, jadi dipecah lebih jauh lagi
+     justru maksa-maksain pola yang gak cocok ke situ.
+  4. Import `Arrangement` ditambah (dipakai `SpaceBetween` baris versi).
+- **`values/strings.xml`** & **`values-en/strings.xml`**: string lama
+  `settings_app_version_label` (format gabungan "Versi aplikasi: %1$s" /
+  "App version: %1$s") **DIHAPUS** dari kedua file (dicek dulu 0 referensi
+  lain ke key itu di seluruh project — bersih), diganti
+  `settings_app_version_row_label` (label polos, 0 placeholder: "Versi
+  Aplikasi" / "App Version").
+
+**Cek statis**: balance kurung/kurawal `SettingsScreen.kt` (regex strip
+komentar/string dulu) — 0 selisih. Kedua `strings.xml` divalidasi XML
+well-formed. 0 referensi tersisa ke `R.string.settings_app_version_label`
+di seluruh project (grep whole-project).
+
+`docs/preview/current.html` **TIDAK disentuh** — mockup itu cuma cover
+`BoosterScreen.kt` (2 varian glass), gak ada markup Settings screen sama
+sekali (dicek via grep dulu, bukan diasumsikan).
+
+**BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
+Kandidat curiga: (1) spacing baris versi vs divider vs tombol di bawahnya
+belum pernah dites proporsinya di layar asli, (2) label "Versi Aplikasi" +
+value trailing mungkin kepanjangan buat 1 baris di layar sempit (belum ada
+wrap handling eksplisit).
+
 ## Batch 90: Tipografi iOS — Large Title header "Boomly" (roadmap.md Fase 7 Fase 2 opsi B)
 
 User pilih **"B: Tipografi iOS"** dari 6 opsi Fase 2+ yang ditanya Batch 89.

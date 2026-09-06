@@ -167,7 +167,7 @@
     <string name="cd_settings">Pengaturan</string>
     <string name="cd_back">Kembali</string>
     <string name="settings_title">Pengaturan</string>
-    <string name="settings_app_version_label">Versi aplikasi: %1$s</string>
+    <string name="settings_app_version_row_label">Versi Aplikasi</string>
     <string name="settings_check_update_button">Cek Update Sekarang</string>
     <string name="settings_checking_update">Mengecek update…</string>
     <string name="settings_up_to_date">Sudah pakai versi terbaru</string>
