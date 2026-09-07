@@ -1,5 +1,69 @@
 # Changelog
 
+## Batch 95: Fix tab-bar kepotong (ScrollableTabRow → TabRow) + panah tombol bantuan jadi Icon
+
+Fix bug, disertai 3 screenshot user (`349907.jpg`/`349908.jpg`/`349909.jpg`,
+masing-masing tab "Kontrol"/"Tampilan"/"Bantuan" aktif) yang memvalidasi —
+dan mengonfirmasi sebagai bug nyata — risiko "belum divalidasi visual" #1
+yang sudah dicatat di entry Batch 94 di bawah. Keluhan user: "Bagus sih.
+Cuman kurang fleksibel dan banyak truncated nya."
+
+**Bug #1 — label tab kepotong gantian tergantung tab aktif**: di
+`349907.jpg` (tab "Kontrol" aktif) label "Bantuan" kepotong jadi "Bantu"
+di ujung kanan layar; di `349909.jpg` (tab "Bantuan" aktif) label
+"Kontrol" kepotong jadi "ntrol" di ujung kiri. **Akar masalah**:
+`ScrollableTabRow` (Batch 94) memberi tiap `Tab` `minWidth` bawaan
+Material3 90.dp — untuk 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan")
+total lebar tab tetap lebih lebar dari layar sempit, sehingga perilaku
+auto-scroll bawaan `ScrollableTabRow` (menggeser baris supaya tab aktif
+selalu penuh terlihat) justru memotong tab di ujung yang berlawanan.
+
+**Fix #1**: `ScrollableTabRow` diganti `TabRow` (Material3, non-scrollable,
+lebar dibagi rata ke semua tab sekaligus) — aman dipakai karena jumlah tab
+tetap fix di 3 (bukan kandidat bertambah). Parameter (`selectedTabIndex`,
+`containerColor`, `divider`) dan isi `Tab` di dalamnya tidak diubah sama
+sekali, cuma nama Composable pembungkusnya — API kompatibel 1:1.
+
+**Bug #2 — panah tombol "Lihat penjelasan lengkap" kepotong**: masih di
+`349909.jpg`, tombol "Lihat penjelasan lengkap tiap fitur →" wrap ke 2
+baris di layar sempit, dan baris kedua yang seharusnya cuma berisi panah
+"→" malah tampil sebagai glyph nyaris tak terbaca ("'n"). **Akar
+masalah**: karakter Unicode "→" menempel sebagai 1 karakter di ekor
+string `see_full_explanation` — begitu string perlu wrap, karakter ini
+bisa terisolasi sendirian ke baris baru dan renderingnya tidak konsisten.
+
+**Fix #2**: panah dipisah dari string, diganti `Icon` Compose asli
+(`Icons.AutoMirrored.Filled.ArrowForward`, 16.dp, mengikuti pola
+automirrored yang sudah dipakai `HelpOutline` di file yang sama) yang
+ditambahkan sebagai elemen terakhir `TextButton` (memanfaatkan
+`RowScope` bawaan `TextButton`). String `see_full_explanation` (ID+EN)
+dilucuti ekor panahnya — 0 string baru/dihapus, parity tetap 125/125.
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` — import
+`Icons.AutoMirrored.Filled.ArrowForward` ditambah, `ScrollableTabRow`
+digantikan `TabRow`, `TextButton` "Lihat penjelasan lengkap" dapat
+`Icon` tambahan.
+
+**Resource (2 file, tidak dihitung micro-batch — bukan kode)**:
+`values/strings.xml` + `values-en/strings.xml`, isi `see_full_explanation`
+diedit (bukan ditambah/dihapus) — parity ID/EN tetap 125/125.
+
+**Cek statis**: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
+tutup (kurawal), 786 buka/786 tutup (kurung biasa), 0 selisih. Grep
+konfirmasi 0 sisa pemanggilan `ScrollableTabRow` di kode aktif (2 sisa
+referensi cuma di komentar historis Batch 94/95, sengaja dibiarkan
+sebagai riwayat).
+
+**Tidak disentuh (di luar scope keluhan user)**: risiko Batch 94 #2
+(transisi tap-vs-swipe antar-tab) dan #3 (`HorizontalPager` pakai
+`Modifier.weight(1f)` tanpa `.fillMaxSize()` eksplisit) — 0 laporan
+masalah soal keduanya sejauh ini. `docs/preview/current.html` MASIH
+belum disinkronkan ke struktur tab (lihat `PENDING_Batch94_SyncPreviewHTML.md`,
+tidak tersentuh batch ini).
+
+**Belum divalidasi ulang** — 3 screenshot di atas adalah bukti bug
+SEBELUM fix ini; belum ada screenshot pasca-fix dari device nyata.
+
 ## Batch 94: Navigasi tab horizontal (Kontrol/Tampilan/Bantuan) menggantikan 1 scroll vertikal raksasa
 
 Request eksplisit user, disertai 2 screenshot layar utama (kartu Kontrol

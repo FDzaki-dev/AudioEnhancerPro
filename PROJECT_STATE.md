@@ -71,27 +71,78 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 94 (1 file kode — `BoosterScreen.kt`). Request
-  eksplisit user (bukan dari roadmap): layar utama SEBELUMNYA 1 Column
-  raksasa `.verticalScroll()` membungkus SEMUA section (Preset → Kontrol →
-  Equalizer Manual → 4 toggle tema → kartu baterai/autostart → tombol
-  bantuan) — SEKARANG dipecah jadi 3 tab horizontal (**Kontrol** / **Tampilan**
-  / **Bantuan**) via `ScrollableTabRow` + `HorizontalPager` (Foundation,
-  SUDAH dipakai `OnboardingScreen.kt`, 0 dependency baru). Isi tiap
-  kartu/logic TIDAK diubah — cuma dikelompokkan ulang. Header/power-toggle/
-  waveform/badge status/SEMUA banner TETAP di luar tab (selalu terlihat).
-  Tiap tab scroll independen. 2 string baru (`tab_display_label`,
-  `tab_help_label`), parity ID/EN 125/125 — tab "Kontrol" reuse
-  `controls_title` lama. Cek statis: balance kurung/kurawal `BoosterScreen.kt`
-  OK (mini-lexer sadar string-interpolation & komentar, 0 error). **BELUM
-  divalidasi visual/device** — butuh screenshot user. `docs/preview/
-  current.html` SENGAJA belum disinkron ke struktur tab baru — lihat
-  `PENDING_Batch94_SyncPreviewHTML.md`. Antrian SISA: Fase 0 #9 + Fase 0
-  #6 Fase 2 (masih tunggu arahan eksplisit user) + Fase 7 Fase 2+ SISA 3
-  kandidat (D/E/F, lihat roadmap.md).
+- **Batch terakhir**: Batch 95 (1 file kode — `BoosterScreen.kt`). Fix bug
+  dari 3 screenshot user, KONFIRMASI risiko "belum divalidasi visual" #1
+  yang dicatat di Batch 94 ternyata NYATA: tab-bar (**Kontrol**/**Tampilan**/
+  **Bantuan**) pakai `ScrollableTabRow` — `minWidth` 90.dp per-Tab bawaan
+  Material3 bikin baris SELALU lebih lebar dari layar walau cuma 3 label
+  pendek, jadi auto-scroll-ke-tab-aktif malah nge-clip tab di UJUNG LAIN
+  ("Bantuan" kepotong pas "Kontrol" dipilih, "Kontrol" kepotong pas
+  "Bantuan" dipilih). **Fix**: ganti `TabRow` biasa (evenly-divided,
+  non-scrollable — aman karena jumlah tab TETAP 3) — 3 label SELALU utuh
+  kelihatan bareng, tab apa pun yang aktif. Sekalian fix 1 truncation lain
+  yang kepotret di screenshot ke-3: tombol "Lihat penjelasan lengkap tiap
+  fitur →" (tab Bantuan) — panah Unicode di ekor string ke-isolasi sendirian
+  ke baris ke-2 pas wrap, render nyaris gak terbaca; diganti
+  `Icon(Icons.AutoMirrored.Filled.ArrowForward)` asli, string
+  `see_full_explanation` (ID+EN) dilucuti ekor panahnya (0 string baru/
+  dihapus, parity tetap 125/125). Risiko Batch 94 #2 (transisi tap-vs-swipe)
+  & #3 (`weight(1f)` tanpa `.fillMaxSize()`) masih BELUM ditest eksplisit —
+  0 laporan masalah soal itu sejauh ini. `docs/preview/current.html` MASIH
+  belum disinkron ke struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`,
+  tidak tersentuh batch ini). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2
+  (masih tunggu arahan eksplisit user) + Fase 7 Fase 2+ SISA 3 kandidat
+  (D/E/F, lihat roadmap.md).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 💊 **Batch 94 (terbaru, 1 file kode — `BoosterScreen.kt`)**: Request
+- 🐛 **Batch 95 (terbaru, 1 file kode — `BoosterScreen.kt`, fix bug hasil
+  validasi screenshot)**: User kirim 3 screenshot tab bar (`349907.jpg` =
+  tab "Kontrol" aktif, `349908.jpg` = tab "Tampilan" aktif, `349909.jpg` =
+  tab "Bantuan" aktif) dengan keluhan singkat: "Bagus sih. Cuman kurang
+  fleksibel dan banyak truncated nya".
+  **Bug #1 (tab-bar)**: di `349907.jpg` label "Bantuan" kepotong jadi
+  "Bantu" di ujung kanan; di `349909.jpg` label "Kontrol" kepotong jadi
+  "ntrol" di ujung kiri. **Akar masalah** (dicek ke kode, bukan tebak):
+  `ScrollableTabRow` (Batch 94) kasih tiap `Tab` `minWidth` bawaan
+  Material3 90.dp — buat cuma 3 label pendek ("Kontrol"/"Tampilan"/
+  "Bantuan") total lebar tab masih SELALU lebih lebar dari layar sempit,
+  jadi `ScrollableTabRow` auto-scroll internal ke tab yang lagi aktif
+  (perilaku bawaan M3 biar tab terpilih kelihatan penuh) — efek sampingnya,
+  tab di UJUNG LAIN (yang lagi tidak aktif) ke-geser sebagian keluar layar
+  dan kepotong. Ini PERSIS risiko "belum divalidasi visual" #1 yang sudah
+  dicatat di Batch 94 sebelumnya, sekarang terbukti nyata.
+  **Fix**: `ScrollableTabRow` diganti `TabRow` biasa (evenly-divided,
+  non-scrollable) — untuk jumlah tab yang FIXED di 3 (bukan kandidat
+  nambah tab lagi ke depan), `TabRow` bagi rata lebar layar ke semua tab
+  sekaligus, jadi ke-3 label SELALU utuh kelihatan bareng, gak peduli tab
+  mana yang aktif. 1 baris nama Composable diubah (`selectedTabIndex`/
+  `containerColor`/`divider`/isi tetap sama persis, API kompatibel).
+  **Bug #2 (tombol bantuan)**: masih di `349909.jpg`, tombol "Lihat
+  penjelasan lengkap tiap fitur →" render 2 baris — baris kedua cuma
+  nampilin glyph nyaris tak terbaca ("'n"), bukan panah "→" yang
+  dimaksud. **Akar masalah**: karakter Unicode "→" nempel jadi 1 karakter
+  di ekor string `see_full_explanation` — begitu teks perlu wrap 2 baris
+  (layar sempit/lebar kolom terbatas), panah ke-isolasi sendirian jadi
+  baris ke-2 & rendering-nya jadi aneh. **Fix**: panah dipisah dari string,
+  diganti `Icon(Icons.AutoMirrored.Filled.ArrowForward, modifier =
+  Modifier.size(16.dp))` asli di `TextButton` (Compose vector icon, bukan
+  glyph font) — otomatis ikut alur `Row` internal `TextButton`, dan
+  auto-mirror kalau RTL suatu saat didukung (belum di-scope). String
+  `see_full_explanation` (`values/strings.xml` + `values-en/strings.xml`)
+  dilucuti ekor " →"/" →"-nya — 0 string baru/dihapus, parity tetap
+  ID/EN 125/125 (resource, TIDAK dihitung micro-batch, bukan kode).
+  Cek statis: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
+  tutup, 786 buka/786 tutup untuk kurung biasa, 0 selisih. Grep konfirmasi
+  0 sisa pemanggilan `ScrollableTabRow` di kode aktif (cuma 2 referensi
+  historis di komentar Batch 94/95 yang sengaja dibiarkan sebagai riwayat).
+  **Belum divalidasi ulang** — screenshot di atas adalah BUKTI bug SEBELUM
+  fix ini, belum ada screenshot pasca-fix. Risiko Batch 94 #2 (transisi
+  tap-vs-swipe antar-tab) & #3 (`HorizontalPager` pakai `weight(1f)` tanpa
+  `.fillMaxSize()` eksplisit) masih berdiri, TIDAK disentuh batch ini
+  (di luar scope — user cuma laporin truncation, bukan masalah transisi/
+  layout pager). `docs/preview/current.html` TETAP belum disinkron ke
+  struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`, tidak tersentuh).
+- 💊 **Batch 94 (1 file kode — `BoosterScreen.kt`)**: Request
   eksplisit user, disertai 2 screenshot layar utama (kartu Kontrol penuh +
   lanjutan scroll sampai Studio Equalizer/kartu baterai) yang nunjukkin
   masalah: 1 scroll vertikal panjang buat sampai ke kartu paling bawah.

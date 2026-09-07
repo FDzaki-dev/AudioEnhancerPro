@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
@@ -696,7 +697,8 @@ fun BoosterScreen(
         // SkeuCard vertikal panjang dalam 1 scroll raksasa (user harus scroll jauh buat
         // sampai ke kartu baterai/autostart di paling bawah). SEKARANG dipecah jadi 3 tab
         // horizontal-scrollable ("Kontrol" [reuse controls_title, 0 string baru] /
-        // "Tampilan" / "Bantuan") via ScrollableTabRow + HorizontalPager (Foundation,
+        // "Tampilan" / "Bantuan") via ScrollableTabRow [DIGANTI TabRow biasa di Batch
+        // 95, lihat komentar Batch 95 di bawah] + HorizontalPager (Foundation,
         // SUDAH dipakai OnboardingScreen.kt — 0 dependency baru). Isi tiap tab (kartu,
         // logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan ulang: tab
         // "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness + Equalizer Manual
@@ -710,8 +712,19 @@ fun BoosterScreen(
             stringResource(R.string.tab_display_label),
             stringResource(R.string.tab_help_label)
         )
+        // Batch 95 (keluhan user, 3 screenshot: label "Kontrol"/"Bantuan" kepotong
+        // gantian tergantung tab mana yang aktif): SEBELUMNYA ScrollableTabRow — buat
+        // cuma 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan"), lebar wajib-scroll
+        // Material3 per-Tab (minWidth 90.dp) bikin baris ini SELALU lebih lebar dari
+        // layar, jadi auto-scroll-ke-tab-aktif justru bikin tab LAIN kepotong di ujung
+        // (tab pertama kepotong pas tab ke-3 dipilih, tab ke-3 kepotong pas tab pertama
+        // dipilih — persis 2 dari 3 screenshot user). TabRow biasa (non-scrollable)
+        // bagi lebar layar rata ke SEMUA tab sekaligus, jadi 3 label selalu utuh
+        // kelihatan bareng, gak pernah kepotong apa pun tab yang aktif — cocok karena
+        // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
+        // scroll sungguhan).
         val pagerState = rememberPagerState(pageCount = { tabLabels.size })
-        ScrollableTabRow(
+        TabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
             divider = {}
@@ -1235,8 +1248,24 @@ fun BoosterScreen(
             }
         }
 
+        // Batch 95 (screenshot ke-3 user: baris ini kepotong jadi "'n" doang di layar
+        // sempit): SEBELUMNYA panah "→" nempel jadi 1 karakter di ekor string —
+        // begitu teks bungkus 2 baris (label + panah gak muat 1 baris di layar
+        // sempit/font besar), panah ke-isolasi sendirian di baris ke-2 dan
+        // ke-render aneh/nyaris tak terbaca. SEKARANG panah dipisah jadi Icon Compose
+        // asli (bukan karakter Unicode dalam string) — ikut wrap SEBAGAI SATU unit
+        // bareng ikonnya sendiri (gak bakal kepisah sendirian di baris baru), dan
+        // otomatis mirror RTL kalau suatu saat RTL didukung (belum di-scope, lihat
+        // PROJECT_STATE.md TODO). String `see_full_explanation` (ID+EN) dilucuti
+        // ekor " →"-nya — lihat strings.xml/values-en/strings.xml.
         TextButton(onClick = onOpenHelp) {
             Text(stringResource(R.string.see_full_explanation))
+            Spacer(modifier = Modifier.width(6.dp))
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
         }
         }
         }
