@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package com.audioenhancer.booster
 
 // Batch 16: dipecah dari MainActivity.kt (God Activity split, audit High-priority item).
