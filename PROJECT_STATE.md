@@ -71,31 +71,117 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 95 (1 file kode — `BoosterScreen.kt`). Fix bug
-  dari 3 screenshot user, KONFIRMASI risiko "belum divalidasi visual" #1
-  yang dicatat di Batch 94 ternyata NYATA: tab-bar (**Kontrol**/**Tampilan**/
-  **Bantuan**) pakai `ScrollableTabRow` — `minWidth` 90.dp per-Tab bawaan
-  Material3 bikin baris SELALU lebih lebar dari layar walau cuma 3 label
-  pendek, jadi auto-scroll-ke-tab-aktif malah nge-clip tab di UJUNG LAIN
-  ("Bantuan" kepotong pas "Kontrol" dipilih, "Kontrol" kepotong pas
-  "Bantuan" dipilih). **Fix**: ganti `TabRow` biasa (evenly-divided,
-  non-scrollable — aman karena jumlah tab TETAP 3) — 3 label SELALU utuh
-  kelihatan bareng, tab apa pun yang aktif. Sekalian fix 1 truncation lain
-  yang kepotret di screenshot ke-3: tombol "Lihat penjelasan lengkap tiap
-  fitur →" (tab Bantuan) — panah Unicode di ekor string ke-isolasi sendirian
-  ke baris ke-2 pas wrap, render nyaris gak terbaca; diganti
-  `Icon(Icons.AutoMirrored.Filled.ArrowForward)` asli, string
-  `see_full_explanation` (ID+EN) dilucuti ekor panahnya (0 string baru/
-  dihapus, parity tetap 125/125). Risiko Batch 94 #2 (transisi tap-vs-swipe)
-  & #3 (`weight(1f)` tanpa `.fillMaxSize()`) masih BELUM ditest eksplisit —
-  0 laporan masalah soal itu sejauh ini. `docs/preview/current.html` MASIH
-  belum disinkron ke struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`,
-  tidak tersentuh batch ini). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2
-  (masih tunggu arahan eksplisit user) + Fase 7 Fase 2+ SISA 3 kandidat
-  (D/E/F, lihat roadmap.md).
+- **Batch terakhir**: Batch 96 (1 file kode — `BoosterScreen.kt`). Request
+  eksplisit user: "tambahkan inset/semacamnya pada semua tab!!". **Akar
+  masalah**: `enableEdgeToEdge()` (`MainActivity.kt`) sudah aktif sejak awal
+  project, tapi 0 padding insets di sisi Compose — dicek eksplisit, grep
+  `WindowInsets`/`*BarsPadding()` nihil di `BoosterScreen.kt` sebelum batch
+  ini. Konten ujung bawah tiap tab (mis. tombol "Lihat penjelasan lengkap"
+  di tab Bantuan) berisiko ketutup sebagian gesture bar/nav bar 3-tombol
+  saat di-scroll sampai akhir, terutama device dengan nav bar lebih tinggi
+  dari padding statis `22.dp` yang ada di `Column` pembungkus terluar.
+  **Fix**: `.navigationBarsPadding()` (Compose Foundation, sudah tersedia
+  BOM `2024.06.00` yang dipakai, 0 dependency baru) ditambah ke `Column`
+  BERSAMA di dalam `HorizontalPager` (Batch 94/95) — karena `Column` ini
+  dipakai ketiga tab (**Kontrol**/**Tampilan**/**Bantuan**) lewat 1 titik
+  render yang sama (`when (page)`), 1 baris ini otomatis berlaku ke SEMUA
+  tab sekaligus, bukan 3 edit terpisah. Ditaruh SETELAH `.verticalScroll()`
+  supaya inset jadi bagian area yang ikut discroll (ruang ekstra di ujung
+  bawah), bukan motong ukuran `Column` statis dari awal. **Sengaja TIDAK
+  disentuh**: inset status bar buat header (judul app + ikon ⚙️/❓, di ATAS
+  `TabRow`) — user spesifik minta "semua tab", header bukan bagian tab
+  manapun; tinggal 1 baris `.statusBarsPadding()` terpisah kalau user mau
+  itu juga nanti. **Belum divalidasi runtime** — TIDAK ADA
+  kotlinc/Gradle/Android SDK di sandbox (lihat catatan lama di bawah), jadi
+  belum bisa compile-check; belum ada screenshot before/after device nyata.
+  Risiko Batch 94 #2 (transisi tap-vs-swipe) & #3 (`weight(1f)` tanpa
+  `.fillMaxSize()`) masih BELUM ditest eksplisit — 0 laporan masalah soal
+  itu sejauh ini. `docs/preview/current.html` MASIH belum disinkron ke
+  struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`, tidak tersentuh batch
+  ini). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan
+  eksplisit user) + Fase 7 Fase 2+ SISA 3 kandidat (D/E/F, lihat
+  roadmap.md).
+
+## ⚠️ Temuan validasi ZIP upload (Batch 96, BUKAN bloker task insets — info transparansi)
+Sebelum mulai kerja, ZIP upload user (`Boomly_v96.zip`) di-cross-check ke
+`FILE_MANIFEST.txt` (rutin "Validasi" tiap sesi baca ZIP) — ketemu **2 file
+hilang**: `.gitignore` dan `.github/workflows/build.yml` (dicek dobel,
+`unzip -l` pada ZIP asli juga konfirmasi nihil, BUKAN cuma gagal extract di
+sandbox Claude). 0 file lain yang beda dari manifest (65/67 cocok persis).
+Pola persis sama kelas bug insiden lama "v1.46" (CHANGELOG.md) — dotfile/
+dotdir ke-strip pas proses packaging ZIP di suatu titik SEBELUM upload ke
+Claude (bukan di sesi ini — Claude cuma baca ZIP yang sudah ada, tidak ikut
+proses packaging upload). **TIDAK diperbaiki/dikarang ulang isinya**
+(Zero-Hallucination — Claude tidak tahu isi asli `build.yml`/`.gitignore`
+project ini persis apa, ngarang berisiko lebih besar dari membiarkan
+kosong). **Analisis risiko praktis**: kemungkinan besar AMAN buat alur
+`DAILY UPDATE` Termux (skrip `find ... ! -name '.*' ... -exec rm -rf`
+SUDAH mengecualikan SEMUA dotfile/dotdir dari langkah hapus, bukan cuma
+`.git` — jadi `.github/`/`.gitignore` versi lokal yang sudah ada dari
+histori commit sebelumnya TIDAK ikut terhapus oleh `rm -rf` itu, dan
+`unzip -o` ZIP baru ini juga tidak akan MENIMPA apa pun karena 2 file itu
+memang tidak ada isinya di ZIP — jadi versi lokal lama tetap bertahan apa
+adanya). **Tetap perlu dicek user**: (1) apakah `.gitignore`/
+`.github/workflows/build.yml` di GitHub repo (`AudioEnhancerPro`) MASIH ada
+sekarang (cek langsung di web GitHub) — kalau MASIH ada di sana, ini
+murni kosmetik/tidak berbahaya; (2) kalau user pakai flow **BOX A (Initial
+Setup, project baru dari nol)**, bukan Daily Update, 2 file ini AKAN
+hilang beneran (BOX A bikin folder proyek BARU, tidak ada histori lokal
+buat "diselamatkan") — kalau memang lagi setup ulang dari nol, WAJIB
+tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
+`.gitignore` standar Android + `build.yml` baru (belum diinisiasi sesi
+ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🐛 **Batch 95 (terbaru, 1 file kode — `BoosterScreen.kt`, fix bug hasil
+- 📐 **Batch 96 (terbaru, 1 file kode — `BoosterScreen.kt`)**: Request
+  eksplisit user: "tambahkan inset/semacamnya pada semua tab!!".
+  **Investigasi**: dicek `MainActivity.kt` — `enableEdgeToEdge()` sudah
+  aktif sejak awal project (baris 104), tapi grep `WindowInsets`/
+  `*BarsPadding()` di `BoosterScreen.kt` NIHIL sebelum batch ini — 0
+  padding insets di sisi Compose sama sekali. Karena app draw edge-to-edge,
+  ini artinya konten bisa ketutup status bar (atas)/nav bar (bawah) tanpa
+  kompensasi apa pun selain padding statis `22.dp` di `Column` pembungkus
+  terluar yang tidak dinamis mengikuti tinggi system bar device masing-
+  masing (gesture nav ~24dp vs 3-tombol ~48dp, beda-beda per device/OEM).
+  **Struktur relevan** (post Batch 94/95): `TabRow` + `HorizontalPager` —
+  KETIGA tab (**Kontrol**/**Tampilan**/**Bantuan**) render lewat 1 `Column`
+  yang SAMA di dalam `HorizontalPager` (`when (page) { 0/1/2 -> ... }`),
+  masing-masing scroll independen (`verticalScroll` per-page). Titik paling
+  berisiko ketutup: KONTEN PALING BAWAH tiap tab pas discroll sampai akhir
+  (mis. tombol "Lihat penjelasan lengkap" di tab Bantuan) — bisa ketutup
+  gesture bar/nav bar 3-tombol.
+  **Fix**: `.navigationBarsPadding()` (Compose Foundation, BOM `2024.06.00`
+  yang sudah dipakai project — dicek dulu, 0 dependency baru/bump
+  diperlukan) ditambah SETELAH `.verticalScroll()` di `Column` bersama itu.
+  Karena 1 titik render dipakai ketiga tab, 1 baris ini otomatis cover
+  SEMUA tab sekaligus (bukan 3 edit file/lokasi terpisah — tetap 1 file
+  kode, jauh di bawah limit micro-batch). Urutan modifier SENGAJA setelah
+  `.verticalScroll()` (bukan sebelum `.fillMaxSize()`) supaya inset jadi
+  ruang ekstra di UJUNG scroll (ikut ke-scroll, cuma nampak pas discroll
+  sampai akhir) — BUKAN motong tinggi `Column` secara statis dari awal
+  layar (yang buang ruang layar permanen walau nav bar-nya tipis/gesture,
+  device-independent).
+  **Sengaja di luar scope**: inset status bar buat header (judul "Boomly" +
+  ikon ⚙️ Settings/❓ Help, di ATAS `TabRow`) — permintaan user spesifik
+  "semua tab", dan header itu sendiri render SEBELUM `TabRow`/`HorizontalPager`
+  (bukan bagian salah satu tab). Kalau user mau itu juga: 1 baris tambahan
+  `.statusBarsPadding()` di `Column` header (lokasi terpisah, `Column` lain
+  dari yang disentuh batch ini) — belum diinisiasi, tunggu user minta.
+  **Cek statis**: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
+  tutup (kurawal, TIDAK berubah dari Batch 95, cuma nambah 1 modifier +
+  komentar), 797 buka/797 tutup (kurung biasa, naik dari 786 murni karena
+  teks komentar + 1 pasang kurung `navigationBarsPadding()`), 0 selisih.
+  Import: 0 baris baru — `navigationBarsPadding()` sudah tercakup wildcard
+  `import androidx.compose.foundation.layout.*` yang sudah ada sejak file
+  ini dibuat (Batch 16).
+  **Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
+  sandbox Claude manapun (lihat catatan lama di bawah), jadi belum bisa
+  compile-check. Belum ada screenshot before/after device nyata yang
+  konfirmasi gesture bar/nav bar 3-tombol memang sudah tidak menutup
+  konten ujung bawah tiap tab — kalau masih kerasa kurang (mis. jarak
+  terasa kurang di device nav bar sangat tinggi, atau user sebenarnya
+  minta juga inset header/status bar), laporkan balik, gampang di-adjust.
+- 🐛 **Batch 95 (1 file kode — `BoosterScreen.kt`, fix bug hasil
   validasi screenshot)**: User kirim 3 screenshot tab bar (`349907.jpg` =
   tab "Kontrol" aktif, `349908.jpg` = tab "Tampilan" aktif, `349909.jpg` =
   tab "Bantuan" aktif) dengan keluhan singkat: "Bagus sih. Cuman kurang

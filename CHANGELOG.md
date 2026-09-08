@@ -1,5 +1,50 @@
 # Changelog
 
+## Batch 96: Insets navigation bar buat semua tab (Kontrol/Tampilan/Bantuan)
+
+Request eksplisit user: "tambahkan inset/semacamnya pada semua tab!!".
+
+**Konteks**: `MainActivity.kt` sudah pakai `enableEdgeToEdge()` sejak awal,
+tapi TIDAK ADA satu pun padding insets di sisi Compose (`BoosterScreen.kt`)
+sebelum batch ini — dicek eksplisit, 0 hit `WindowInsets`/`*BarsPadding()`
+di seluruh file. Efeknya: konten paling bawah tiap tab (mis. tombol
+"Lihat penjelasan lengkap" di tab Bantuan) bisa ketutup sebagian gesture
+bar/nav bar 3-tombol saat di-scroll sampai akhir, terutama di device yang
+tinggi nav bar-nya melebihi padding statis `22.dp` yang ada di `Column`
+pembungkus terluar.
+
+**Fix**: `.navigationBarsPadding()` (Compose Foundation, sudah tersedia di
+BOM `2024.06.00` yang dipakai project ini — 0 dependency baru) ditambah ke
+`Column` di dalam `HorizontalPager` (Batch 94/95). Karena `Column` ini
+DIPAKAI BARENG oleh ketiga tab lewat 1 titik render yang sama
+(`when (page) { 0 -> ...; 1 -> ...; 2 -> ... }`), 1 baris ini otomatis
+berlaku ke SEMUA tab sekaligus — bukan cuma 1 tab, dan bukan 3 edit
+terpisah. Ditaruh SETELAH `.verticalScroll()` (bukan sebelum) supaya inset
+jadi bagian dari area yang ikut discroll (ruang ekstra nampak di ujung
+scroll paling bawah), bukan motong ukuran `Column` secara statis dari awal
+layar (yang bakal buang ruang layar walau nav bar-nya tipis/gesture).
+
+**Di luar scope batch ini (sengaja tidak disentuh)**: inset status bar buat
+header (judul app + ikon ⚙️/❓) di atas `TabRow` — user secara spesifik minta
+"semua tab", dan header itu sendiri bukan bagian dari salah satu tab. Kalau
+user mau itu juga ditambahkan, tinggal minta di sesi berikutnya (1 baris
+tambahan `.statusBarsPadding()` di `Column` header, lokasi terpisah).
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` — 1 modifier ditambah,
+0 import baru (`navigationBarsPadding()` sudah tercakup wildcard import
+`androidx.compose.foundation.layout.*` yang sudah ada sejak awal file ini).
+
+**Cek statis**: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
+tutup (kurawal, TIDAK berubah dari Batch 95), 797 buka/797 tutup (kurung
+biasa, naik dari 786 murni karena teks komentar baru + 1 pasang kurung
+`navigationBarsPadding()`), 0 selisih.
+
+**Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
+sandbox Claude manapun (lihat PROJECT_STATE.md), jadi belum bisa
+compile-check. Belum ada screenshot before/after dari device nyata yang
+konfirmasi gesture bar/nav bar 3-tombol benar-benar sudah tidak menutup
+konten di ujung bawah tiap tab.
+
 ## Batch 95: Fix tab-bar kepotong (ScrollableTabRow → TabRow) + panah tombol bantuan jadi Icon
 
 Fix bug, disertai 3 screenshot user (`349907.jpg`/`349908.jpg`/`349909.jpg`,

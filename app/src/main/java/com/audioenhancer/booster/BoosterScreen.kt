@@ -755,7 +755,20 @@ fun BoosterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                // Batch 96 (user: "tambahkan inset/semacamnya pada semua tab"): 1 Column
+                // ini dipakai bareng oleh KETIGA tab (Kontrol/Tampilan/Bantuan, lihat
+                // `when (page)` di bawah) — jadi navigationBarsPadding() di sini otomatis
+                // berlaku ke semua tab sekaligus, bukan cuma 1. Sebelumnya HANYA
+                // enableEdgeToEdge() (MainActivity.kt) yang aktif TANPA ada padding insets
+                // sama sekali di sisi Compose — konten paling bawah tiap tab (mis. tombol
+                // "Lihat penjelasan lengkap" di tab Bantuan) ketutup sebagian gesture
+                // bar/nav bar 3-tombol saat di-scroll sampai akhir, terutama di device
+                // dengan nav bar lebih tinggi dari padding statis 22.dp yang ada di Column
+                // pembungkus terluar. Ditaruh SETELAH .verticalScroll() (bukan sebelum)
+                // supaya insets jadi bagian dari area yang ikut discroll (ruang ekstra di
+                // ujung bawah), bukan cuma motong ukuran Column secara statis dari awal.
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
         when (page) {
