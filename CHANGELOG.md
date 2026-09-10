@@ -1,5 +1,55 @@
 # Changelog
 
+## Batch 98: Fix build gagal (CI run #146) — import salah `weight` di SettingsScreen.kt
+
+**Input sesi ini**: `Boomly_v97.zip` (source, hasil push Batch 97) +
+`log_fail_v146-debug-run146.zip` (log gagal GitHub Actions run #146).
+
+**Konteks**: Build APK debug gagal total di tahap `:app:compileDebugKotlin` —
+0 APK dihasilkan sejak Batch 97 di-push. Error compiler dari log:
+
+```
+e: .../SettingsScreen.kt:24:43 Cannot access 'weight': it is internal in
+'androidx.compose.foundation.layout'
+```
+
+**Root cause**: baris 24 `SettingsScreen.kt` (ditambahkan Batch 97 saat toggle
+"Mode Tab Horizontal" ditulis) berisi `import androidx.compose.foundation.layout.weight`
+— import ini salah sasaran. `Modifier.weight(1f)` yang dipakai di baris 274
+(`Column(modifier = Modifier.weight(1f))`, di dalam `Row` toggle baris 258-273)
+BUKAN top-level function di package itu, melainkan MEMBER extension function
+milik interface `RowScope`/`ColumnScope` (`fun Modifier.weight(...)` dideklarasi
+DI DALAM interface itu sendiri) — otomatis resolve dari receiver scope
+`Row { }`/`Column { }`, TIDAK PERNAH butuh import eksplisit. Package
+`androidx.compose.foundation.layout` ternyata punya symbol top-level lain
+bernama sama `weight` yang `internal` (detail implementasi library, bukan API
+publik) — import yang salah tulis ini menabrak symbol internal tsb, bukan
+member extension publik yang dimaksud, sehingga compiler menolak akses.
+
+**Verifikasi pola benar**: `BoosterScreen.kt` sudah pakai `Modifier.weight(1f)`
+di 9 lokasi (baris 96/210/285/335/883/924/961/997/1287) TANPA import `weight`
+sama sekali — file itu compile sukses (tidak ada di daftar error), konfirmasi
+pola member-extension-tanpa-import memang benar & konsisten di seluruh
+project ini. Kemungkinan besar baris 24 adalah sisa auto-import IDE yang
+salah pilih kandidat saat `SettingsScreen.kt` ditulis ulang di Batch 97.
+
+**Fix**: hapus 1 baris `import androidx.compose.foundation.layout.weight` di
+`SettingsScreen.kt` (baris 24). 0 baris lain diubah — `Modifier.weight(1f)`
+di baris 274 tetap sama persis, sekarang resolve otomatis lewat `RowScope`
+dari `Row { }` pembungkusnya, identik pola `BoosterScreen.kt`.
+
+**File disentuh (1 file kode)**: `SettingsScreen.kt`.
+
+**Cek statis**: brace/paren count sebelum vs sesudah fix — 24/24 kurawal,
+141/141 kurung (SAMA PERSIS, sesuai ekspektasi karena cuma 1 baris import
+dihapus, 0 logic/struktur lain tersentuh).
+
+**Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
+sandbox Claude, fix ini murni berdasarkan pembacaan pesan compiler CI
+(`log_fail_v146-debug-run146.zip`) + cross-check pola import di
+`BoosterScreen.kt`. Perlu konfirmasi run CI berikutnya hijau
+(`:app:compileDebugKotlin` sukses, APK ter-generate) sebelum ditutup.
+
 ## Batch 97: Revert layout utama horizontal → vertikal (mode tab jadi opsi custom di Settings)
 
 Request eksplisit user: "revert total layout utama dari yang horizontal -> vertikal

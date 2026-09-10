@@ -88,12 +88,28 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Validasi ZIP upload sesi ini**: `AudioEnhancerPro-145-run34222552550.zip`
-  di-cross-check ke `FILE_MANIFEST.txt` — **67/67 file cocok persis**, 0
-  hilang (beda dari insiden Batch 96 yang sempat kehilangan `.gitignore`/
-  `.github/workflows/build.yml` — 2 file itu SEKARANG ada lagi di ZIP ini,
-  kemungkinan besar sudah diperbaiki user di sisi packaging-nya).
-- **Batch terakhir**: Batch 97 (3 file kode, PAS di limit —
+- **Validasi ZIP upload sesi ini**: `Boomly_v97.zip` (source) +
+  `log_fail_v146-debug-run146.zip` (log gagal CI run #146) — Batch 97 yang
+  dipush sesi sebelumnya **GAGAL BUILD TOTAL**, 0 APK dihasilkan.
+- **Batch terakhir**: Batch 98 (1 file kode — `SettingsScreen.kt`), FIX build
+  gagal run #146. **Root cause**: `import androidx.compose.foundation.layout.weight`
+  (baris 24, ditambahkan Batch 97) salah sasaran — `Modifier.weight(1f)` yang
+  dipakai baris 274 adalah MEMBER extension function milik `RowScope`/
+  `ColumnScope` (resolve otomatis dari receiver `Row { }`, TIDAK PERNAH butuh
+  import eksplisit), BUKAN top-level function. Package
+  `androidx.compose.foundation.layout` ternyata punya symbol top-level lain
+  bernama `weight` yang `internal` (detail implementasi library) — import
+  salah itu menabrak symbol internal ini → `e: Cannot access 'weight': it is
+  internal in 'androidx.compose.foundation.layout'` →
+  `:app:compileDebugKotlin` FAILED. Diverifikasi silang ke `BoosterScreen.kt`
+  (9 pemakaian `Modifier.weight(1f)`, 0 import `weight`, compile sukses) —
+  pola member-extension-tanpa-import memang konsisten di seluruh project.
+  **Fix**: hapus 1 baris import itu, 0 baris lain diubah. Brace/paren
+  `SettingsScreen.kt` SAMA PERSIS sebelum/sesudah (24/24 kurawal, 141/141
+  kurung) — konfirmasi 0 struktur/logic tersentuh. Detail lengkap:
+  `CHANGELOG.md` entry "Batch 98". **Belum divalidasi runtime** — perlu
+  konfirmasi run CI berikutnya hijau sebelum ditutup.
+- **Batch 97** (3 file kode, PAS di limit —
   `BoosterScreen.kt`/`SettingsScreen.kt`/`PrefsHelper.kt`; `MainActivity.kt`
   SENGAJA tidak disentuh). Request eksplisit user: "revert total layout
   utama dari yang horizontal -> vertikal (jadikan mode horizontal sebagai
@@ -162,7 +178,37 @@ tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
 ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 📐 **Batch 96 (terbaru, 1 file kode — `BoosterScreen.kt`)**: Request
+- 🛠️ **Batch 98 (terbaru, 1 file kode — `SettingsScreen.kt`)**: FIX build
+  gagal — input sesi ini `Boomly_v97.zip` + `log_fail_v146-debug-run146.zip`
+  (log CI run #146). Compiler error: `e: SettingsScreen.kt:24:43 Cannot
+  access 'weight': it is internal in 'androidx.compose.foundation.layout'`
+  → `:app:compileDebugKotlin` FAILED, 0 APK. **Root cause**: baris 24
+  (ditambahkan Batch 97) `import androidx.compose.foundation.layout.weight`
+  salah sasaran — `Modifier.weight(1f)` (dipakai baris 274, di dalam `Row`
+  toggle "Mode Tab Horizontal") adalah member extension function milik
+  `RowScope`/`ColumnScope` (`fun Modifier.weight(...)` di dalam interface
+  itu sendiri) yang resolve OTOMATIS dari receiver scope `Row { }` — TIDAK
+  PERNAH butuh import eksplisit. Package itu ternyata juga punya symbol
+  top-level lain bernama sama `weight` yang `internal` (detail implementasi
+  Compose, bukan API publik) — import yang salah tulis ini menabrak symbol
+  internal tsb, bukan member extension publik yang dimaksud. Diverifikasi
+  silang: `BoosterScreen.kt` pakai `Modifier.weight(1f)` di 9 lokasi (baris
+  96/210/285/335/883/924/961/997/1287) TANPA import `weight` sama sekali,
+  dan file itu TIDAK ada di daftar error — konfirmasi pola
+  member-extension-tanpa-import sudah konsisten dipakai di seluruh project,
+  cuma `SettingsScreen.kt` yang kena salah import (kemungkinan sisa
+  auto-import IDE yang salah pilih kandidat saat Batch 97 ditulis). **Fix**:
+  hapus 1 baris import itu (baris 24), 0 baris lain disentuh. Static check:
+  brace/paren `SettingsScreen.kt` SAMA PERSIS sebelum vs sesudah (24/24
+  kurawal, 141/141 kurung) — konfirmasi fix murni penghapusan import, 0
+  logic/struktur ikut berubah. **File disentuh**: 1 (`SettingsScreen.kt`),
+  jauh di bawah limit 3. Detail lengkap: `CHANGELOG.md` entry "Batch 98".
+  **Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
+  sandbox Claude (lihat catatan di bawah), fix ini murni berdasarkan
+  pembacaan pesan compiler dari log CI + cross-check pola import lintas
+  file. WAJIB tunggu konfirmasi run CI berikutnya hijau (`:app:compileDebugKotlin`
+  sukses + APK ter-generate) sebelum dianggap tuntas.
+- 📐 **Batch 96 (1 file kode — `BoosterScreen.kt`)**: Request
   eksplisit user: "tambahkan inset/semacamnya pada semua tab!!".
   **Investigasi**: dicek `MainActivity.kt` — `enableEdgeToEdge()` sudah
   aktif sejak awal project (baris 104), tapi grep `WindowInsets`/
