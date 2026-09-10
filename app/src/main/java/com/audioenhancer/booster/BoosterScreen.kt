@@ -1363,7 +1363,30 @@ fun BoosterScreen(
                 // supaya shadow bleed (spread yang masih keliatan jelas ~15dp buat
                 // elevation 13dp terbesar, lihat SkeuDualDirectionalShadow) tetap di
                 // DALAM batas clip pager, gak ketabrak garis potongnya.
-                .padding(horizontal = 16.dp)
+                //
+                // Batch 101 (laporan user + screenshot, mode horizontal, scroll mentok
+                // bawah): sumbu VERTIKAL Column halaman ini (baris `.verticalScroll` di
+                // bawah) TERNYATA kena bug SEJENIS Batch 99 tapi belum kebahas — Batch 99
+                // cuma nambal sumbu horizontal. Root cause: Column ini sendiri punya
+                // `.verticalScroll` INTERNAL (independen per tab), dibungkus `HorizontalPager`
+                // bertinggi TETAP (`pagerHeight`, Batch 100) — scroll internal ini clip
+                // kontennya ke batas atas/bawah KOTAK PAGER itu sendiri (bukan cuma ke tepi
+                // layar sungguhan, yang diisi Column pembungkus utama di luar). Sebelum fix:
+                // 0 padding vertikal di Column ini, jadi kartu pertama nempel PERSIS ke tepi
+                // atas kotak pager (persis di bawah `ScrollableTabRow`) & kartu terakhir
+                // nempel PERSIS ke tepi bawahnya saat discroll penuh -> shadow bleed
+                // kartu-kartu itu kepotong rata DUA KALI: 1x oleh scroll layar utama (WAJAR,
+                // sama seperti header ikut ke-scroll ke atas dekat status bar) DAN 1x lagi
+                // oleh clip internal pager ini (TIDAK wajar — nested/double clipping yang
+                // dilaporkan user, munculnya persis di bawah tab title). Fix: `padding` diubah
+                // dari `horizontal` saja jadi UNIFORM 16dp (nilai sama, sudah terbukti cukup
+                // di Batch 99) — sekarang berlaku juga di atas/bawah, jadi kartu pertama &
+                // terakhir tiap tab punya jarak aman dari 2 tepi kotak pager, shadow-nya tidak
+                // lagi ketabrak clip internal ini di posisi scroll mana pun. Clip di tepi layar
+                // sungguhan (dekat notifikasi device, dari scroll Column pembungkus utama)
+                // TETAP ada seperti biasa — itu memang satu-satunya clip yang seharusnya
+                // kelihatan.
+                .padding(16.dp)
                 // Batch 96 punya `.navigationBarsPadding()` di sini (1 Column ini dipakai
                 // bareng KETIGA tab, jadi insetnya otomatis berlaku ke semua tab
                 // sekaligus) — DIPINDAH ke Column pembungkus utama di Batch 100 (lihat

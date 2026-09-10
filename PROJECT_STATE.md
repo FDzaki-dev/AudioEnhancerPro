@@ -88,11 +88,29 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Validasi ZIP upload sesi ini**: `Boomly_v99.zip` — user beri feedback teks
-  singkat ("bagus, tapi keterbatasan scrolling/tampilan ruang tab masih jelas
-  terasa!!"), TANPA screenshot/log baru. Root cause ditelusuri dari kode
-  (bukan tebak), lihat entry Batch 100 di LOG HARIAN di bawah.
-- **Batch terakhir**: Batch 100 (1 file kode — `BoosterScreen.kt`) — fix
+- **Validasi ZIP upload sesi ini**: `Boomly_v100.zip` — user kirim screenshot
+  device asli (mode horizontal, scroll mentok bawah): shadow kartu
+  `ServiceStatusBadge` kelihatan kepotong nested/double, bukan cuma 1 clip
+  wajar dekat notifikasi device. Root cause ditelusuri dari kode (bukan
+  tebak), lihat entry Batch 101 di LOG HARIAN di bawah.
+- **Batch terakhir**: Batch 101 (1 file kode — `BoosterScreen.kt`) — fix
+  laporan user (screenshot) soal nested/double clipping shadow kartu di Mode
+  Tab Horizontal saat scroll mentok bawah. Root cause: bug SEJENIS Batch 99
+  tapi di sumbu VERTIKAL (Batch 99 cuma nambal horizontal) — Column
+  per-halaman `HorizontalPager` punya `.verticalScroll` internal sendiri
+  (independen per tab) TANPA padding vertikal, dibungkus pager bertinggi
+  TETAP (`pagerHeight`, Batch 100) — kartu pertama/terakhir tiap tab nempel
+  persis ke tepi atas/bawah kotak pager, shadow bleed-nya kepotong DUA KALI
+  (1x wajar oleh scroll layar utama, 1x lagi TIDAK wajar oleh clip internal
+  pager). Fix: `padding(horizontal = 16.dp)` → `padding(16.dp)` (nilai sama
+  yang sudah terbukti cukup di Batch 99, sekarang berlaku ke 4 sisi) — clip
+  yang terlihat sekarang cuma 1, di tepi layar sungguhan dekat notifikasi
+  device (dari scroll Column pembungkus utama), sesuai ekspektasi user. Mode
+  vertikal (default) 0 perubahan. Detail lengkap: `CHANGELOG.md` entry
+  "Batch 101". **Belum divalidasi runtime/visual** — perlu build+install APK
+  baru & coba toggle "Mode Tab Horizontal", scroll tiap tab sampai mentok
+  bawah/atas.
+- **Batch 100** (1 file kode — `BoosterScreen.kt`) — fix
   keluhan "ruang tab masih terasa terbatas" pasca-Batch 99 (bug BEDA, bukan
   regresi 2 fix Batch 99). Root cause: Column pembungkus utama mode horizontal
   sengaja TANPA scroll sejak Batch 97 (biar `HorizontalPager` `weight(1f)`
@@ -103,9 +121,7 @@ PERMANEN.
   layar (`LocalConfiguration`, dikunci 360–640dp) bukan `weight(1f)` lagi —
   tab sekarang dapat ruang tampil besar & konsisten, tidak lagi tergantung
   jumlah banner aktif. Mode vertikal (default) 0 perubahan. Detail lengkap:
-  `CHANGELOG.md` entry "Batch 100". **Belum divalidasi runtime/visual** —
-  perlu build+install APK baru & coba toggle "Mode Tab Horizontal" idealnya
-  saat beberapa banner sedang aktif sekaligus.
+  `CHANGELOG.md` entry "Batch 100".
 - **Batch 99** (1 file kode — `BoosterScreen.kt`), fix 2 laporan
   user di Mode Tab Horizontal (opt-in, Batch 97): (1) `TabRow` evenly-divided
   gak fleksibel buat banyak tab → `ScrollableTabRow` + `edgePadding = 0.dp`
@@ -204,7 +220,46 @@ tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
 ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 📐🩺 **Batch 100 (terbaru, 1 file kode — `BoosterScreen.kt`)**: user validasi
+- 📐🩺 **Batch 101 (terbaru, 1 file kode — `BoosterScreen.kt`)**: user kirim
+  screenshot device asli, Mode Tab Horizontal, scroll mentok bawah — shadow
+  kartu `ServiceStatusBadge` (dan kartu tab lain yang nempel tepi pager)
+  kepotong nested/double, bukan cuma 1 clip wajar dekat notifikasi device.
+  User tegaskan: clip yang wajar/diharap HANYA di bagian paling atas dekat
+  notifikasi device (scroll layar biasa) — bukan clip tambahan di bawah judul
+  tab/header.
+  **Root cause** (ditelusuri ke kode, bukan tebak): bug SEJENIS Batch 99 tapi
+  di sumbu VERTIKAL — Batch 99 cuma nambal sumbu horizontal Column per-halaman
+  `HorizontalPager` (`.padding(horizontal = 16.dp)`, biar shadow dual-
+  directional custom `SkeuDualDirectionalShadow` punya ruang bleed sebelum
+  ketabrak clip built-in `HorizontalPager` di sumbu scroll-nya). Yang belum
+  kebahas: Column per-halaman itu SENDIRI punya `.verticalScroll` internal
+  (independen per tab, Batch 94, memang disengaja biar posisi scroll tiap tab
+  gak saling pengaruh) — dan sejak Batch 100, Column ini dibungkus
+  `HorizontalPager` bertinggi TETAP (`pagerHeight`, bukan lagi `weight(1f)`).
+  Kombinasi scroll internal + kotak bertinggi tetap = clip vertikal SENDIRI di
+  tepi atas/bawah kotak pager (independen dari clip scroll layar utama). Tanpa
+  padding vertikal, kartu pertama nempel persis ke tepi atas kotak (persis di
+  bawah `ScrollableTabRow`) & kartu terakhir nempel persis ke tepi bawahnya
+  saat tab discroll penuh — shadow-nya kepotong DUA KALI: 1x wajar (scroll
+  layar utama, sama seperti header ikut ke-scroll ke atas), 1x lagi TIDAK
+  wajar (clip internal pager) — inilah "nested/double kliping" yang
+  dilaporkan, munculnya persis di bawah judul tab.
+  **Fix**: `padding(horizontal = 16.dp)` pada Column per-halaman
+  `HorizontalPager` diubah jadi `padding(16.dp)` (nilai SAMA yang sudah
+  terbukti cukup di Batch 99 buat elevation 13dp terbesar — dipakai ulang,
+  bukan angka baru/tebakan) — sekarang berlaku di 4 sisi, bukan cuma
+  kiri-kanan. Kartu pertama & terakhir tiap tab sekarang punya jarak aman
+  16dp dari tepi atas/bawah kotak pager di posisi scroll mana pun, shadow
+  bleed-nya tidak lagi ketabrak clip internal ini. Clip yang tersisa cuma 1 —
+  di tepi layar sungguhan dekat notifikasi device (dari scroll Column
+  pembungkus utama) — sesuai ekspektasi user. 1 baris kode diubah
+  (`.padding(horizontal = 16.dp)` → `.padding(16.dp)`), sisanya komentar
+  dokumentasi. Mode vertikal (default) 0 perubahan (Column ini cuma dipakai
+  di blok `if (useHorizontalLayout)`). Detail lengkap di `CHANGELOG.md` entry
+  "Batch 101". **Belum divalidasi runtime/visual** — perlu build+install APK
+  baru & scroll tiap tab (Kontrol/Tampilan/Bantuan) sampai benar-benar mentok
+  atas & bawah buat konfirmasi shadow gak lagi kepotong nested.
+- 📐🩺 **Batch 100 (1 file kode — `BoosterScreen.kt`)**: user validasi
   Batch 99 ("bagus, tapi keterbatasan scrolling/tampilan ruang tab masih jelas
   terasa!!") — BUKAN regresi Batch 99 (2 fix Batch 99 soal lebar tab-bar &
   shadow terpotong TETAP valid/tidak disentuh), ini bug LAIN yang baru

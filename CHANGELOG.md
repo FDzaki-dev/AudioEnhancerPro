@@ -1,5 +1,74 @@
 # Changelog
 
+## Batch 101: Mode Tab Horizontal — shadow kartu nested/double kepotong saat scroll mentok bawah (sumbu vertikal, lanjutan Batch 99)
+
+Laporan user kali ini disertai screenshot device asli (bukan cuma teks): di Mode
+Tab Horizontal, saat scroll mentok bawah, shadow kartu `ServiceStatusBadge`
+(dan kartu tab lain yang posisinya nempel tepi pager) terlihat kepotong
+nested/double — bukan 1 garis clip wajar, tapi seperti 2 lapis. User tegaskan
+ekspektasi: satu-satunya clip yang seharusnya kelihatan adalah di bagian PALING
+ATAS layar, dekat notifikasi/status bar device (efek scroll biasa, header ikut
+ter-scroll ke atas) — BUKAN clip tambahan yang muncul di bawah judul tab/header.
+
+**Root cause** (ditelusuri ke kode `BoosterScreen.kt` + `SkeuomorphicComponents.kt`,
+bukan tebak dari screenshot saja): bug ini SEJENIS dengan 1 dari 2 fix Batch 99,
+tapi di SUMBU YANG BEDA. Batch 99 menambal shadow dual-directional custom
+(`SkeuDualDirectionalShadow`, bleed diagonal keluar bentuk kartu, token elevation
+tertinggi 13dp) yang kepotong di sumbu HORIZONTAL — root cause-nya waktu itu:
+`HorizontalPager` (Compose Foundation) clip konten ke batas kotaknya sendiri di
+sumbu scroll (horizontal), dan Column per-halaman pager tidak punya padding
+horizontal sendiri, jadi kartu nempel persis ke tepi pager. Fix Batch 99:
+`padding(horizontal = 16.dp)` di Column per-halaman.
+
+Yang TIDAK kebahas Batch 99: Column per-halaman itu SENDIRI juga punya
+`.verticalScroll(rememberScrollState())` internal (independen per tab — disengaja
+sejak Batch 94, supaya posisi scroll 1 tab tidak ikut mempengaruhi tab lain). Sejak
+Batch 100, Column per-halaman ini dibungkus `HorizontalPager` bertinggi TETAP
+(`pagerHeight`, 62% tinggi layar dikunci 360–640dp) — sebelumnya (`weight(1f)`,
+Batch 94-99) juga bertinggi terbatas tapi PROPORSIONAL ke sisa layar, bukan
+angka pasti. Kombinasi "scroll vertikal internal" + "kotak pembungkus bertinggi
+tetap" menghasilkan clip vertikal SENDIRI di tepi atas & bawah kotak pager —
+independen dari clip scroll Column pembungkus utama (yang clip di tepi layar
+sungguhan). Karena Column per-halaman ini 0 padding vertikal sebelum batch ini,
+kartu PERTAMA di tiap tab nempel PERSIS ke tepi atas kotak pager (persis di bawah
+`ScrollableTabRow`), dan kartu TERAKHIR nempel PERSIS ke tepi bawahnya begitu tab
+discroll penuh ke bawah. Shadow bleed kartu-kartu di posisi itu kepotong DUA KALI:
+1x oleh scroll Column pembungkus utama (WAJAR — sama seperti header/banner ikut
+ter-scroll ke atas mendekati status bar, ini yang diharapkan user), dan 1x LAGI
+oleh clip internal `HorizontalPager` ini (TIDAK wajar — inilah "nested/double
+kliping" yang dilaporkan, dan kenapa munculnya spesifik di area bawah judul tab).
+
+**Fix**: 1 baris di `BoosterScreen.kt`, Column per-halaman `HorizontalPager` —
+`.padding(horizontal = 16.dp)` diubah jadi `.padding(16.dp)`. Nilai 16dp DIPAKAI
+ULANG persis dari Batch 99 (sudah terbukti cukup menampung shadow bleed ~15dp
+untuk `cardElevation` 13dp terbesar, lihat `SkeuDualDirectionalShadow`), sekarang
+berlaku di 4 sisi (kiri/kanan/atas/bawah), bukan cuma kiri-kanan. Efeknya: kartu
+pertama & terakhir tiap tab sekarang selalu punya jarak aman 16dp dari tepi
+atas/bawah kotak pager, di posisi scroll mana pun (termasuk scroll mentok penuh)
+— shadow bleed-nya tidak lagi ketabrak clip internal pager. Clip yang terlihat
+user sekarang tinggal 1: di tepi layar sungguhan dekat notifikasi device, dari
+scroll Column pembungkus utama — persis sesuai ekspektasi yang diminta user.
+
+**Kenapa TIDAK direstrukturisasi lebih jauh**: sempat dipertimbangkan menghapus
+`.verticalScroll` internal per-halaman (biar cuma ada 1 scrollport, bukan 2
+bersarang) — DIBATALKAN, karena itu fitur disengaja sejak Batch 94 (posisi scroll
+independen per tab) dan `pagerHeight` (Batch 100) bersifat TETAP/terbatas — kalau
+scroll internal dihapus, konten tab yang lebih tinggi dari `pagerHeight` jadi
+TIDAK BISA DIAKSES sama sekali (bukan cuma soal shadow lagi, tapi regresi
+fungsional). Padding uniform adalah fix paling kecil yang menghilangkan gejala
+(shadow ketabrak clip) tanpa menyentuh arsitektur scroll 2-lapis yang memang
+disengaja.
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` — 1 baris kode diubah
+(`.padding(horizontal = 16.dp)` → `.padding(16.dp)`) + komentar dokumentasi
+Batch 101 ditambahkan tepat di atasnya (pola sama seperti komentar Batch 99 di
+sekitarnya). 0 baris lain tersentuh, 0 import baru, 0 file lain diubah.
+Mode vertikal (default) 0 perubahan perilaku — Column ini cuma dipakai di dalam
+blok `if (useHorizontalLayout)`. **Belum divalidasi runtime/visual** — perlu
+build+install APK baru, toggle "Mode Tab Horizontal", lalu scroll tiap tab
+(Kontrol/Tampilan/Bantuan) sampai benar-benar mentok atas & bawah untuk
+konfirmasi shadow tidak lagi kepotong nested.
+
 ## Batch 100: Mode Tab Horizontal — ruang tampil tab masih terasa terbatas pasca-Batch 99
 
 Feedback singkat user pasca-Batch 99: "bagus, tapi keterbatasan scrolling/tampilan
