@@ -1,5 +1,124 @@
 # Changelog
 
+## Batch 100: Mode Tab Horizontal — ruang tampil tab masih terasa terbatas pasca-Batch 99
+
+Feedback singkat user pasca-Batch 99: "bagus, tapi keterbatasan scrolling/tampilan
+ruang tab masih jelas terasa!!". Ditegaskan dulu ini BUKAN regresi dari 2 fix
+Batch 99 (lebar tab-bar `ScrollableTabRow` & shadow tema yang kepotong clip pager
+— dua-duanya TETAP valid, tidak disentuh/tidak diubah batch ini). Ini kelas bug
+BEDA yang baru kelihatan setelah 2 bug sebelumnya beres: soal TINGGI/ruang tampil
+keseluruhan area tab, bukan lebar tab-bar atau shadow kartu.
+
+**Root cause** (ditelusuri ke kode `BoosterScreen.kt`, bukan tebak dari 1 kalimat
+laporan tanpa screenshot): `Column` pembungkus utama layar (yang membungkus
+header, `PowerToggleRow`, motif waveform, semua banner kondisional, DAN seluruh
+blok tab) sejak Batch 97 SENGAJA TIDAK diberi `.verticalScroll()` saat mode
+horizontal aktif — alasan waktu itu valid: `HorizontalPager` di bawahnya pakai
+`Modifier.weight(1f)`, dan `weight()` di Compose butuh parent dengan tinggi
+TERBATAS (bounded) supaya bisa menghitung "sisa ruang" yang harus diisi. Kalau
+parent-nya `.verticalScroll()`, constraint tinggi yang diteruskan ke children jadi
+TAK TERHINGGA (`Constraints.Infinity`, biar isi scrollable bisa setinggi apa pun),
+dan `weight()` di situ akan CRASH runtime ("Vertically scrollable component was
+measured with an infinity maximum height constraints..."). Jadi keputusan Batch 97
+itu sendiri BENAR untuk mencegah crash — tapi konsekuensi sampingnya baru
+kelihatan sekarang: tinggi `HorizontalPager` = **SISA layar SETELAH dikurangi
+SEMUA elemen fixed di atasnya** (header + `PowerToggleRow` + waveform +
+`ServiceStatusBadge` + `CrashBanner` + `ControlRecoveryBanner` + `UpdateBanner` +
+banner status koneksi + banner izin notifikasi + banner unsupported-effect — daftar
+lengkap di `BoosterScreen()`, SEMUA sengaja tetap di luar tab sejak keputusan
+Batch 94, bukan sumber masalah & tidak diubah batch ini). Di device mana pun yang
+kebetulan sedang menampilkan beberapa banner ini sekaligus (skenario yang cukup
+umum — mis. baru pertama pasang & izin notifikasi belum diberikan, ATAU koneksi ke
+service lagi error), sisa tinggi layar buat pager bisa jadi SANGAT SEMPIT — user
+harus scroll di dalam jendela yang kecil untuk melihat kartu-kartu di dalam tab,
+padahal mekanisme scroll internal per-tab itu sendiri (Batch 94, `rememberScrollState`
+per halaman) sudah benar secara fungsi. Inilah akar keluhan "ruang tab terasa
+terbatas" — bukan soal scroll yang rusak, tapi soal JENDELA tampil yang terlalu
+kecil & tidak konsisten (bergantung state banner yang berubah-ubah).
+
+**Fix**: 2 perubahan berpasangan di `BoosterScreen.kt`, keduanya di dalam blok
+`if (useHorizontalLayout)` beserta 1 titik di Column pembungkus utama (di luar
+blok itu, karena Column ini dipakai bersama kedua mode):
+1. Modifier `Column` pembungkus utama — `.then(if (!useHorizontalLayout)
+   Modifier.verticalScroll(...).navigationBarsPadding() else Modifier)` diganti
+   jadi TANPA kondisi — `.verticalScroll(rememberScrollState()).navigationBarsPadding()`
+   berlaku di KEDUA mode. Mode vertikal (default) **0 perubahan perilaku** (sudah
+   persis begini sejak Batch 97). Mode horizontal SEKARANG jadi scrollable juga —
+   header/banner TIDAK hilang, cuma sekarang bisa di-scroll-lewati kalau perlu,
+   TIDAK LAGI memaksa `HorizontalPager` mengecil untuk memberi ruang ke mereka.
+2. `HorizontalPager` — `Modifier.weight(1f)` (yang sekarang TIDAK valid lagi karena
+   parent-nya scrollable, akan crash kalau dibiarkan) diganti
+   `Modifier.fillMaxWidth().height(pagerHeight)`, dengan `pagerHeight` dihitung
+   responsif: `(LocalConfiguration.current.screenHeightDp * 0.62f).coerceIn(360f,
+   640f).dp` — 62% tinggi layar device (import baru: `androidx.compose.ui.platform.
+   LocalConfiguration`, API Compose UI standar, sudah lama stabil), dikunci ke
+   rentang [360dp, 640dp] via `coerceIn` supaya tidak absurd di 2 ekstrem: device
+   sangat pendek (62% tetap dijamin minimal 360dp — cukup untuk lihat beberapa
+   kartu tanpa langsung mentok scroll internal) atau device/tablet sangat tinggi
+   (dibatasi maksimal 640dp, sisa layar biar user scroll wajar ke bawah, bukan 1
+   pager raksasa yang kebanyakan kosong). Konten tab yang lebih tinggi dari
+   `pagerHeight` TETAP bisa dilihat penuh lewat `verticalScroll` internal
+   per-halaman (Batch 94, tidak diubah) — angka ini murni "jendela tampil" pager,
+   bukan pembatas konten.
+
+**Efek samping yang ikut disesuaikan (bukan bug baru, konsekuensi langsung dari
+fix di atas)**: `.navigationBarsPadding()` yang sebelumnya nempel di `Column`
+per-halaman `HorizontalPager` (ditambahkan Batch 96, alasan waktu itu: "1 Column
+ini dipakai bareng KETIGA tab, otomatis cover semua tab sekaligus, dan Column ini
+adalah scrollport yang mentok ke tepi bawah layar") — SEKARANG DIPINDAH ke Column
+pembungkus utama, BUKAN dihapus. Alasan pindah: sejak fix #2 di atas, Column
+per-halaman pager cuma jadi "jendela" setinggi `pagerHeight` yang biasanya
+berhenti di TENGAH layar (bukan lagi mentok ke tepi bawah layar sungguhan) — nav
+bar sistem ada di tepi bawah LAYAR, jadi inset di situ sudah salah posisi/tidak
+relevan lagi sejak fix ini. Column pembungkus utama (yang sekarang jadi scrollport
+SEBENARNYA yang mentok ke tepi bawah layar di KEDUA mode, sama seperti mode
+vertikal sejak awal) adalah tempat yang sekarang benar secara posisi untuk inset
+ini.
+
+**Kenapa TIDAK direstrukturisasi lebih jauh (menghindari over-analyzing/side-quest
+di luar masalah yang dilaporkan)**: sempat dipertimbangkan memindahkan sebagian
+konten (mis. banner) ke DALAM tab supaya lebih banyak ruang tersisa untuk pager —
+DIBATALKAN, karena ini justru melanggar keputusan sadar Batch 94 yang eksplisit:
+header/status/banner harus tetap di luar tab supaya "gak boleh hilang di balik
+navigasi swipe". Fix yang dipilih (beri pager tinggi eksplisit yang konsisten,
+biarkan sisanya di-scroll) menyelesaikan keluhan TANPA menyentuh keputusan
+arsitektur itu.
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` — 4 titik edit: (a) 1 baris
+import baru (`LocalConfiguration`), (b) modifier `Column` pembungkus utama (hapus
+kondisi `if/else`, verticalScroll+navigationBarsPadding jadi unconditional), (c)
+2 baris baru (`screenHeightDp` + `pagerHeight`) ditambah modifier `HorizontalPager`
+diganti dari `weight(1f)` ke `fillMaxWidth().height(pagerHeight)`, (d) `Column`
+per-halaman pager: `.navigationBarsPadding()` dihapus dari situ (dipindah ke (b),
+lihat penjelasan di atas). `SkeuomorphicComponents.kt`, `SettingsScreen.kt`,
+`PrefsHelper.kt` — TIDAK disentuh (Zero-Refactor, root cause & fix 100% di
+`BoosterScreen.kt`).
+
+**Cek statis**: mini-lexer Python (sadar string-interpolasi/komentar/literal,
+sama alat yang dipakai batch-batch sebelumnya) — brace 246/246, paren 670/670,
+bracket 2/2, PERSIS SAMA dengan hitungan sebelum edit (0 selisih neto meski ada
+baris ditambah & dihapus). Tambahan pengecekan struktural: depth brace dilacak
+per-karakter sepanjang file, tidak pernah negatif & berakhir tepat di 0 — sanity
+check tambahan bahwa nesting tetap valid, bukan cuma total buka/tutup yang
+kebetulan sama.
+
+**Belum divalidasi runtime/visual** — sandbox Claude tidak punya kotlinc/Gradle/
+Android SDK (batasan lama, lihat catatan di `PROJECT_STATE.md`), jadi fix ini
+murni berdasarkan pembacaan semantik Compose layout (constraint propagation
+`Box(fillMaxSize)` → `Column` → `weight()`/`verticalScroll()`, dan perilaku
+default nested-scroll Compose: child mengonsumsi delta dulu, sisa diteruskan ke
+parent) — BUKAN hasil compile/run sungguhan. Perlu build+install APK baru & coba
+toggle "Mode Tab Horizontal" di Settings, idealnya sambil memicu beberapa banner
+sekaligus aktif (skenario paling jelas menunjukkan bedanya dari sebelum fix).
+Kandidat curiga kalau user lapor masih kurang lapang di device tertentu: (1)
+angka fraksi 62% & batas [360dp, 640dp] adalah estimasi awal (bukan hasil ukur di
+device asli), gampang di-tune naik/turun; (2) nested vertical-scroll (Column
+pembungkus utama + `verticalScroll` internal per-halaman pager Batch 94) belum
+pernah dites gesture-nya di layar sentuh fisik — secara teori bekerja benar sesuai
+protokol nested-scroll standar Compose, tapi ini kombinasi yang PERTAMA KALI
+dipakai di file ini (2 level `verticalScroll` vertikal bersarang, dipisahkan oleh
+1 `HorizontalPager` bertinggi tetap di antaranya).
+
 ## Batch 99: Mode Tab Horizontal — TabRow gak fleksibel + shadow tema kepotong clip pager
 
 Request eksplisit user, 2 laporan digabung 1 sesi (fitur "Mode Tab Horizontal",

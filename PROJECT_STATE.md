@@ -88,10 +88,25 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Validasi ZIP upload sesi ini**: `Boomly_v97.zip` (source) +
-  `log_fail_v146-debug-run146.zip` (log gagal CI run #146) — Batch 97 yang
-  dipush sesi sebelumnya **GAGAL BUILD TOTAL**, 0 APK dihasilkan.
-- **Batch terakhir**: Batch 99 (1 file kode — `BoosterScreen.kt`), fix 2 laporan
+- **Validasi ZIP upload sesi ini**: `Boomly_v99.zip` — user beri feedback teks
+  singkat ("bagus, tapi keterbatasan scrolling/tampilan ruang tab masih jelas
+  terasa!!"), TANPA screenshot/log baru. Root cause ditelusuri dari kode
+  (bukan tebak), lihat entry Batch 100 di LOG HARIAN di bawah.
+- **Batch terakhir**: Batch 100 (1 file kode — `BoosterScreen.kt`) — fix
+  keluhan "ruang tab masih terasa terbatas" pasca-Batch 99 (bug BEDA, bukan
+  regresi 2 fix Batch 99). Root cause: Column pembungkus utama mode horizontal
+  sengaja TANPA scroll sejak Batch 97 (biar `HorizontalPager` `weight(1f)`
+  bisa dapat tinggi terbatas dari parent) — konsekuensinya tinggi pager =
+  SISA layar setelah header+banner (yang sengaja tetap di luar tab, Batch 94),
+  bisa sangat sempit kalau banyak banner aktif. Fix: Column pembungkus utama
+  sekarang scroll di kedua mode, `HorizontalPager` pakai tinggi eksplisit 62%
+  layar (`LocalConfiguration`, dikunci 360–640dp) bukan `weight(1f)` lagi —
+  tab sekarang dapat ruang tampil besar & konsisten, tidak lagi tergantung
+  jumlah banner aktif. Mode vertikal (default) 0 perubahan. Detail lengkap:
+  `CHANGELOG.md` entry "Batch 100". **Belum divalidasi runtime/visual** —
+  perlu build+install APK baru & coba toggle "Mode Tab Horizontal" idealnya
+  saat beberapa banner sedang aktif sekaligus.
+- **Batch 99** (1 file kode — `BoosterScreen.kt`), fix 2 laporan
   user di Mode Tab Horizontal (opt-in, Batch 97): (1) `TabRow` evenly-divided
   gak fleksibel buat banyak tab → `ScrollableTabRow` + `edgePadding = 0.dp`
   (bug lama Batch 95 TIDAK balik karena akarnya — edgePadding berlebih — sudah
@@ -189,7 +204,65 @@ tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
 ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 📐🎨 **Batch 99 (terbaru, 1 file kode — `BoosterScreen.kt`)**: 2 laporan user
+- 📐🩺 **Batch 100 (terbaru, 1 file kode — `BoosterScreen.kt`)**: user validasi
+  Batch 99 ("bagus, tapi keterbatasan scrolling/tampilan ruang tab masih jelas
+  terasa!!") — BUKAN regresi Batch 99 (2 fix Batch 99 soal lebar tab-bar &
+  shadow terpotong TETAP valid/tidak disentuh), ini bug LAIN yang baru
+  kelihatan setelah 2 bug itu beres: soal TINGGI/ruang tampil area tab, bukan
+  lebar tab-bar atau shadow.
+  **Root cause** (ditelusuri ke kode, bukan tebak dari 1 kalimat laporan):
+  Column pembungkus utama (Batch 97) SENGAJA TIDAK diberi scroll saat mode
+  horizontal — alasan waktu itu: `HorizontalPager` di bawahnya pakai
+  `Modifier.weight(1f)`, yang butuh parent dengan tinggi TERBATAS (parent
+  scrollable akan memberi constraint tinggi TAK TERHINGGA ke children, bikin
+  weight() crash runtime). Konsekuensi tersembunyi dari keputusan itu: tinggi
+  `HorizontalPager` = SISA layar SETELAH dikurangi header + `PowerToggleRow` +
+  motif waveform + SEMUA banner kondisional (status/crash/recovery/update/
+  koneksi/izin notifikasi/unsupported) — yang semuanya SENGAJA tetap di luar
+  tab (keputusan Batch 94, TIDAK diubah batch ini, bukan sumber masalah).
+  Di device mana pun yang lagi menampilkan beberapa banner sekaligus (mis.
+  gagal koneksi + izin notifikasi belum diizinkan), sisa ruang buat pager bisa
+  jadi SANGAT SEMPIT — user harus scroll dalam jendela kecil untuk lihat kartu
+  di dalam tab, padahal scroll internal per-tab (Batch 94) sendiri sudah benar
+  secara fungsi. Ini akar "ruang tab terasa terbatas" yang dilaporkan.
+  **Fix**: Column pembungkus utama SEKARANG scroll di KEDUA mode (dulu cuma
+  mode vertikal) — `HorizontalPager` TIDAK lagi pakai `weight(1f)`, diganti
+  tinggi eksplisit `(screenHeightDp * 0.62f).coerceIn(360f, 640f).dp` (via
+  `LocalConfiguration.current.screenHeightDp`, import baru) — 62% tinggi layar
+  supaya tab SELALU dapat ruang tampil besar & KONSISTEN, tidak lagi bergantung
+  jumlah banner yang aktif; dikunci ke [360dp, 640dp] biar tidak absurd di 2
+  ekstrem (device sangat pendek/sangat tinggi). Header/banner TIDAK hilang dari
+  mode horizontal (tetap ada, tinggal discroll ke atas untuk lihat) — TIDAK
+  ada isi yang dipindah ke dalam/keluar tab (Zero-Refactor, keputusan Batch 94
+  soal apa yang di dalam vs di luar tab tetap utuh). `.navigationBarsPadding()`
+  yang sebelumnya nempel di Column per-halaman pager (Batch 96) DIPINDAH ke
+  Column pembungkus utama (yang sekarang jadi scrollport SEBENARNYA yang mentok
+  ke tepi bawah layar di kedua mode) — bukan dihapus, cuma dipindah ke tempat
+  yang sekarang benar secara posisi (Column per-halaman pager sekarang cuma
+  "jendela" 62%-layar di tengah, bukan lagi scrollport yang mentok ke tepi
+  bawah layar sungguhan, jadi inset di situ sudah tidak relevan/salah posisi).
+  Mode vertikal (default) **0 perubahan perilaku** — sudah pakai
+  `verticalScroll()`+`navigationBarsPadding()` sama persis sejak Batch 97,
+  tidak disentuh batch ini.
+  **File disentuh**: 1 file kode (`BoosterScreen.kt`, 4 titik edit — import
+  `LocalConfiguration`, modifier Column pembungkus utama, deklarasi
+  `pagerHeight` + modifier `HorizontalPager`, modifier Column per-halaman
+  pager) + VIP docs (`PROJECT_STATE.md`, `CHANGELOG.md`). Cek statis: mini-lexer
+  Python (sadar string-interpolasi/komentar/literal) — brace 246/246, paren
+  670/670, bracket 2/2 (0 selisih dari sebelum edit), depth brace tidak pernah
+  negatif & berakhir di 0 (re-check struktural tambahan, bukan cuma hitung
+  total).
+  **Belum divalidasi runtime/visual** — perlu build+install APK baru & coba
+  toggle "Mode Tab Horizontal" di Settings dengan BEBERAPA banner aktif
+  sekaligus (skenario paling jelas menunjukkan bedanya) untuk konfirmasi tab
+  sekarang terasa lapang. Kandidat curiga kalau MASIH kurang lapang di device
+  tertentu: (1) fraksi 62% & batas [360dp,640dp] adalah estimasi awal, bukan
+  angka final — gampang di-tune naik/turun kalau user lapor balik, (2) nested
+  vertical-scroll (outer Column + verticalScroll internal per-halaman pager,
+  Batch 94) belum pernah dites gesture-nya di device fisik — SECARA TEORI
+  bekerja benar (Compose nested scroll standar: child konsumsi dulu, sisa
+  delta diteruskan ke parent), tapi belum ada konfirmasi runtime.
+- 📐🎨 **Batch 99 (1 file kode — `BoosterScreen.kt`)**: 2 laporan user
   digabung 1 sesi, keduanya soal "Mode Tab Horizontal" (opt-in, Batch 97): (1)
   "touch screen nya sempit alias gak fleksibel untuk menampilkan banyak menu
   dalam suatu tab", (2) "efek theme yang offside dari card (stacked card effect
@@ -3125,7 +3198,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 
 ## Struktur proyek singkat
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 (komponen tab row-nya sendiri diganti Batch 99, lihat bawah), tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal"). Batch 99: `TabRow`→`ScrollableTabRow` (`edgePadding=0.dp`, fleksibel ke jumlah tab tanpa balik ke bug Batch 95) + `Column` per-halaman pager dapat `.padding(horizontal=16.dp)` (cegah shadow tema kepotong clip horizontal `HorizontalPager`).
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 (komponen tab row-nya sendiri diganti Batch 99, lihat bawah), tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal"). Batch 99: `TabRow`→`ScrollableTabRow` (`edgePadding=0.dp`, fleksibel ke jumlah tab tanpa balik ke bug Batch 95) + `Column` per-halaman pager dapat `.padding(horizontal=16.dp)` (cegah shadow tema kepotong clip horizontal `HorizontalPager`). Batch 100: Column pembungkus utama sekarang scroll di KEDUA mode (dulu cuma vertikal) — `HorizontalPager` tidak lagi `weight(1f)`, sekarang tinggi eksplisit 62% tinggi layar (`LocalConfiguration`, dikunci 360–640dp) supaya ruang tampil tab tidak lagi tergantung berapa banyak banner di atasnya sedang aktif; `.navigationBarsPadding()` yang dulu di Column per-halaman pager (Batch 96) pindah ke Column pembungkus utama (sekarang scrollport sebenarnya).
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`. Batch 84 (roadmap.md Fase 0 #5): effect BARU `DynamicsProcessing` (master limiter murni, hardcoded threshold -1dBFS/ratio 20:1) sebagai ceiling tambahan — diikutkan penuh ke `retryControlAcquisition()`/`releaseEffects()`/`disableEffects()`/`enableEffects()`, tidak merestrukturisasi urutan pipeline (itu scope #6).
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.

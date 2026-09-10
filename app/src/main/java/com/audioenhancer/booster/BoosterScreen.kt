@@ -54,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -1066,11 +1067,33 @@ fun BoosterScreen(
                 .fillMaxWidth()
                 .widthIn(max = 600.dp)
                 .padding(22.dp)
-                .then(
-                    if (!useHorizontalLayout)
-                        Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding()
-                    else Modifier
-                ),
+                // Batch 100 (laporan user: "keterbatasan scrolling/tampilan ruang tab
+                // masih jelas terasa" — SETELAH fix tab-bar & shadow Batch 99, jadi bug
+                // BEDA, bukan regresi Batch 99). Root cause: Column ini SEBELUMNYA
+                // (Batch 97) SENGAJA TIDAK diberi scroll saat mode horizontal, karena
+                // HorizontalPager di bawah pakai Modifier.weight(1f) — weight BUTUH
+                // parent dengan tinggi TERBATAS (bukan scrollable, yang akan memberi
+                // constraint tinggi TAK TERHINGGA ke children & bikin crash runtime
+                // "measured with an infinity maximum height constraints" kalau
+                // dipertahankan begitu saja). Konsekuensinya: tinggi HorizontalPager =
+                // SISA layar SETELAH dikurangi header + PowerToggleRow + waveform +
+                // SEMUA banner kondisional (status/crash/recovery/update/koneksi/izin
+                // notifikasi/unsupported) — yang SEMUANYA tetap sengaja di luar tab
+                // (keputusan Batch 94, TIDAK diubah batch ini). Saat beberapa banner
+                // aktif bersamaan, sisa ruang buat pager bisa jadi sangat sempit — ini
+                // akar "ruang tab terasa terbatas", beda dari 2 bug Batch 99 (lebar
+                // tab-bar & shadow terpotong).
+                // Fix: Column ini SEKARANG scroll di KEDUA mode (dulu cuma mode
+                // vertikal) — HorizontalPager TIDAK lagi pakai weight(1f) (lihat
+                // komentar di deklarasinya), diganti tinggi eksplisit proporsional
+                // tinggi layar, supaya tab SELALU dapat ruang tampil besar & KONSISTEN,
+                // tidak lagi tergantung berapa banyak banner yang sedang aktif. Header/
+                // banner TIDAK hilang (tetap ada, tinggal discroll ke atas), cuma
+                // sekarang tidak lagi memaksa pager mengecil. Mode vertikal (default)
+                // 0 perubahan perilaku — sudah pakai verticalScroll+navigationBarsPadding
+                // sama persis sejak Batch 97.
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
         Row(
@@ -1258,6 +1281,18 @@ fun BoosterScreen(
         // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
         // scroll sungguhan).
         val pagerState = rememberPagerState(pageCount = { tabLabels.size })
+        // Batch 100: tinggi pager SEKARANG eksplisit (bukan lagi weight(1f) — lihat
+        // komentar panjang di Column pembungkus utama di atas soal kenapa). 62% tinggi
+        // layar dipilih supaya area tab SELALU lapang di device manapun, TAPI dikunci ke
+        // rentang [360dp, 640dp] (coerceIn) biar tidak absurd di 2 ekstrem: device sangat
+        // pendek (62% masih cukup buat lihat beberapa kartu tanpa scroll internal
+        // langsung) atau device/tablet sangat tinggi (dibatasi 640dp, sisanya biar user
+        // scroll turun dikit ke tab berikutnya/konten lain, bukan 1 pager raksasa kosong).
+        // Konten tiap tab yang lebih tinggi dari angka ini TETAP bisa dilihat penuh lewat
+        // verticalScroll internal per-halaman (Batch 94, tidak disentuh) — angka ini cuma
+        // "jendela tampil" pager, bukan batas konten.
+        val screenHeightDp = LocalConfiguration.current.screenHeightDp
+        val pagerHeight = (screenHeightDp * 0.62f).coerceIn(360f, 640f).dp
         // Batch 99 (2 laporan user, 1 sesi):
         // (1) "touch screen sempit/gak fleksibel buat banyak menu dalam tab" — TabRow
         // biasa (Batch 95) BAGI RATA lebar layar ke SEMUA tab sekaligus, jadi kalau
@@ -1303,7 +1338,10 @@ fun BoosterScreen(
 
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.weight(1f)
+            // Batch 100: weight(1f) DIHAPUS (lihat 2 komentar panjang di atas — Column
+            // pembungkus utama & deklarasi pagerHeight) — parent-nya sekarang scrollable,
+            // weight() di situ akan crash runtime ("infinity maximum height constraints").
+            modifier = Modifier.fillMaxWidth().height(pagerHeight)
         ) { page ->
         Column(
             modifier = Modifier
@@ -1326,20 +1364,18 @@ fun BoosterScreen(
                 // elevation 13dp terbesar, lihat SkeuDualDirectionalShadow) tetap di
                 // DALAM batas clip pager, gak ketabrak garis potongnya.
                 .padding(horizontal = 16.dp)
-                .verticalScroll(rememberScrollState())
-                // Batch 96 (user: "tambahkan inset/semacamnya pada semua tab"): 1 Column
-                // ini dipakai bareng oleh KETIGA tab (Kontrol/Tampilan/Bantuan, lihat
-                // `when (page)` di bawah) — jadi navigationBarsPadding() di sini otomatis
-                // berlaku ke semua tab sekaligus, bukan cuma 1. Sebelumnya HANYA
-                // enableEdgeToEdge() (MainActivity.kt) yang aktif TANPA ada padding insets
-                // sama sekali di sisi Compose — konten paling bawah tiap tab (mis. tombol
-                // "Lihat penjelasan lengkap" di tab Bantuan) ketutup sebagian gesture
-                // bar/nav bar 3-tombol saat di-scroll sampai akhir, terutama di device
-                // dengan nav bar lebih tinggi dari padding statis 22.dp yang ada di Column
-                // pembungkus terluar. Ditaruh SETELAH .verticalScroll() (bukan sebelum)
-                // supaya insets jadi bagian dari area yang ikut discroll (ruang ekstra di
-                // ujung bawah), bukan cuma motong ukuran Column secara statis dari awal.
-                .navigationBarsPadding(),
+                // Batch 96 punya `.navigationBarsPadding()` di sini (1 Column ini dipakai
+                // bareng KETIGA tab, jadi insetnya otomatis berlaku ke semua tab
+                // sekaligus) — DIPINDAH ke Column pembungkus utama di Batch 100 (lihat
+                // komentar panjang di sana), BUKAN dihapus tanpa pengganti. Alasan pindah:
+                // Column ini sekarang cuma "jendela" setinggi `pagerHeight` (Batch 100, di
+                // tengah layar), BUKAN lagi scrollport yang mentok ke tepi bawah layar
+                // sungguhan — nav bar sistem ada di tepi bawah LAYAR, bukan di tepi bawah
+                // kotak pager ini, jadi inset di sini sekarang salah posisi/tidak relevan.
+                // Column pembungkus utama (scrollport SEBENARNYA yang mentok ke bawah
+                // layar di kedua mode sejak Batch 100) adalah tempat yang benar buat
+                // inset ini sekarang.
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
         TabPageContent(page)
