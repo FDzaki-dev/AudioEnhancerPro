@@ -91,7 +91,18 @@ PERMANEN.
 - **Validasi ZIP upload sesi ini**: `Boomly_v97.zip` (source) +
   `log_fail_v146-debug-run146.zip` (log gagal CI run #146) — Batch 97 yang
   dipush sesi sebelumnya **GAGAL BUILD TOTAL**, 0 APK dihasilkan.
-- **Batch terakhir**: Batch 98 (1 file kode — `SettingsScreen.kt`), FIX build
+- **Batch terakhir**: Batch 99 (1 file kode — `BoosterScreen.kt`), fix 2 laporan
+  user di Mode Tab Horizontal (opt-in, Batch 97): (1) `TabRow` evenly-divided
+  gak fleksibel buat banyak tab → `ScrollableTabRow` + `edgePadding = 0.dp`
+  (bug lama Batch 95 TIDAK balik karena akarnya — edgePadding berlebih — sudah
+  dihilangkan, bukan komponennya). (2) shadow dual-directional tema (paling
+  kentara Neumorphism, elevation 13dp) kepotong rata di `HorizontalPager`
+  (clip built-in library di sumbu scroll) → `Column` per-halaman pager dikasih
+  `.padding(horizontal = 16.dp)` supaya shadow bleed punya ruang sebelum ketabrak
+  garis clip. Mode vertikal (default) 0 kepengaruh kedua fix ini. Detail
+  lengkap: `CHANGELOG.md` entry "Batch 99". **Belum divalidasi runtime/visual**
+  — perlu build+install APK baru & coba toggle "Mode Tab Horizontal".
+- **Batch 98** (1 file kode — `SettingsScreen.kt`), FIX build
   gagal run #146. **Root cause**: `import androidx.compose.foundation.layout.weight`
   (baris 24, ditambahkan Batch 97) salah sasaran — `Modifier.weight(1f)` yang
   dipakai baris 274 adalah MEMBER extension function milik `RowScope`/
@@ -178,7 +189,45 @@ tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
 ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🛠️ **Batch 98 (terbaru, 1 file kode — `SettingsScreen.kt`)**: FIX build
+- 📐🎨 **Batch 99 (terbaru, 1 file kode — `BoosterScreen.kt`)**: 2 laporan user
+  digabung 1 sesi, keduanya soal "Mode Tab Horizontal" (opt-in, Batch 97): (1)
+  "touch screen nya sempit alias gak fleksibel untuk menampilkan banyak menu
+  dalam suatu tab", (2) "efek theme yang offside dari card (stacked card effect
+  Neumorphism) mengalami potongan saat mode scroll horizontal".
+  **Bug #1**: `TabRow` evenly-divided (dipasang Batch 95) bagi rata lebar layar
+  ke SEMUA tab tanpa peduli jumlahnya — makin banyak tab, makin sempit tiap
+  satu, 0 cara scale. Ditinjau ulang: root cause bug Batch 95 (label kepotong,
+  alasan waktu itu ganti dari `ScrollableTabRow`) TERNYATA bukan salah
+  komponennya, tapi `edgePadding` default M3 yang bikin 3 tab pendek overflow
+  PADAHAL harusnya muat, memicu auto-scroll motong tab di ujung. **Fix**:
+  balik ke `ScrollableTabRow` + `edgePadding = 0.dp` eksplisit — 3 tab sekarang
+  muat penuh tanpa scroll (0 regresi bug lama, akarnya sudah hilang), DAN kalau
+  nanti tab bertambah banyak, otomatis scrollable dengan lebar tab natural
+  (bukan makin mengecil) — inilah yang bikin "fleksibel untuk banyak menu".
+  **Bug #2**: shadow dual-directional manual (`SkeuDualDirectionalShadow`,
+  `SkeuomorphicComponents.kt`, bleed keluar bentuk kartu, paling kentara
+  Neumorphism elevation 13dp) kepotong rata HANYA di mode horizontal. Root
+  cause: `HorizontalPager` clip konten ke batas kotaknya sendiri di sumbu
+  scroll (built-in library, bukan bug kode, 0 API publik buat matikan) —
+  `Column` per-halaman pager 0 padding horizontal sendiri, kartu nempel persis
+  ke tepi pager, shadow 0 ruang bleed sebelum ketabrak clip. Mode vertikal
+  tidak kena karena 0 `HorizontalPager` di situ (Column vertikal tidak
+  meng-clip horizontal). **Fix**: `.padding(horizontal = 16.dp)` ditambah di
+  `Column` per-halaman pager (sebelum `.verticalScroll()`) — 16dp cukup nampung
+  falloff shadow yang masih keliatan jelas (~15dp buat elevation 13dp
+  terbesar). Trade-off disadari: kartu mode horizontal jadi sedikit lebih
+  sempit dari mode vertikal (38dp vs 22dp inset per sisi) — SENGAJA cuma
+  berlaku di dalam pager, 0 perubahan ke mode vertikal/Column pembungkus
+  terluar.
+  **File disentuh**: 1 file kode (`BoosterScreen.kt`, 2 titik edit di blok
+  `if (useHorizontalLayout)` yang sama) + VIP docs (`PROJECT_STATE.md`,
+  `CHANGELOG.md`). `SkeuomorphicComponents.kt` TIDAK disentuh (root cause ada
+  di sisi caller/pager, bukan teknik shadow itu sendiri). Cek statis: brace
+  246/246, paren 670/670, bracket 2/2 (0 selisih dari sebelum edit). **Belum
+  divalidasi runtime/visual** — perlu build+install APK baru & coba toggle
+  "Mode Tab Horizontal" di Settings buat konfirmasi kedua fix ini beneran
+  kelihatan benar di device. Detail lengkap: `CHANGELOG.md` entry "Batch 99".
+- 🛠️ **Batch 98 (1 file kode — `SettingsScreen.kt`)**: FIX build
   gagal — input sesi ini `Boomly_v97.zip` + `log_fail_v146-debug-run146.zip`
   (log CI run #146). Compiler error: `e: SettingsScreen.kt:24:43 Cannot
   access 'weight': it is internal in 'androidx.compose.foundation.layout'`
@@ -3076,7 +3125,7 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 
 ## Struktur proyek singkat
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 APA ADANYA, tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal").
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 (komponen tab row-nya sendiri diganti Batch 99, lihat bawah), tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal"). Batch 99: `TabRow`→`ScrollableTabRow` (`edgePadding=0.dp`, fleksibel ke jumlah tab tanpa balik ke bug Batch 95) + `Column` per-halaman pager dapat `.padding(horizontal=16.dp)` (cegah shadow tema kepotong clip horizontal `HorizontalPager`).
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`. Batch 84 (roadmap.md Fase 0 #5): effect BARU `DynamicsProcessing` (master limiter murni, hardcoded threshold -1dBFS/ratio 20:1) sebagai ceiling tambahan — diikutkan penuh ke `retryControlAcquisition()`/`releaseEffects()`/`disableEffects()`/`enableEffects()`, tidak merestrukturisasi urutan pipeline (itu scope #6).
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.

@@ -1258,9 +1258,28 @@ fun BoosterScreen(
         // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
         // scroll sungguhan).
         val pagerState = rememberPagerState(pageCount = { tabLabels.size })
-        TabRow(
+        // Batch 99 (2 laporan user, 1 sesi):
+        // (1) "touch screen sempit/gak fleksibel buat banyak menu dalam tab" — TabRow
+        // biasa (Batch 95) BAGI RATA lebar layar ke SEMUA tab sekaligus, jadi kalau
+        // suatu saat nambah tab (menu) baru, tiap tab otomatis MENGECIL (touch target
+        // makin sempit, gak scale ke jumlah tab). Ganti ScrollableTabRow (M3, sudah
+        // kepakai sejak BOM 2024.06.00 — 0 dependency baru) supaya lebar tiap Tab
+        // NATURAL sesuai isi labelnya (gak dipaksa mengecil), dan kalau suatu saat tab
+        // bertambah banyak sampai melebihi lebar layar, otomatis jadi scrollable
+        // (bukan makin sempit). `edgePadding = 0.dp` (default M3 nyisain ruang di kedua
+        // ujung buat indikasi "bisa discroll") SENGAJA di-nolkan — root cause bug Batch
+        // 95 (label "Kontrol"/"Bantuan" kepotong) BUKAN dari ScrollableTabRow itu
+        // sendiri, tapi dari edgePadding bawaan yang bikin total lebar 3 tab PENDEK ini
+        // (Kontrol/Tampilan/Bantuan) jadi melebihi lebar layar PADAHAL harusnya muat —
+        // itu yang memicu auto-scroll-ke-tab-aktif nyembunyiin tab di ujung lain. Tanpa
+        // edgePadding, 3 tab pendek ini muat penuh tanpa perlu scroll sama sekali
+        // (perilaku identik TabRow evenly-divided buat kasus SEKARANG), tapi begitu
+        // nanti nambah tab baru & melebihi lebar layar, scroll aktif natural — TIDAK
+        // ada lagi cara auto-scroll motong tab di ujung.
+        ScrollableTabRow(
             selectedTabIndex = pagerState.currentPage,
             containerColor = Color.Transparent,
+            edgePadding = 0.dp,
             divider = {}
         ) {
             tabLabels.forEachIndexed { index, label ->
@@ -1289,6 +1308,24 @@ fun BoosterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Batch 99 (laporan ke-2 user, sesi sama): efek shadow tema (dual-shadow
+                // manual `SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt — bleed
+                // diagonal KELUAR bentuk kartu, paling kentara di Neumorphism, token
+                // elevation tertinggi 13dp) KEPOTONG RATA di tepi kartu HANYA saat mode
+                // horizontal. Root cause: `HorizontalPager` (Compose Foundation) clip
+                // konten ke batas kotak PAGER-nya sendiri di sumbu scroll (horizontal) —
+                // perilaku built-in library, bukan bug kode kita, 0 API publik buat
+                // matikan ini. Sebelum fix: Column halaman ini 0 padding horizontal
+                // sendiri, kartu isinya nempel PERSIS ke tepi pager -> shadow yang
+                // harusnya bleed keluar kartu gak punya ruang sama sekali, kepotong rata
+                // di garis clip. Mode vertikal TIDAK kena (Column vertikal biasa TIDAK
+                // clip horizontal, shadow bebas bleed ke zona padding 22dp Column
+                // pembungkus terluar). Fix: kasih ruang ekstra 16dp DI DALAM AREA PAGER
+                // (bukan nambah padding Column terluar, biar mode vertikal 0 kepengaruh)
+                // supaya shadow bleed (spread yang masih keliatan jelas ~15dp buat
+                // elevation 13dp terbesar, lihat SkeuDualDirectionalShadow) tetap di
+                // DALAM batas clip pager, gak ketabrak garis potongnya.
+                .padding(horizontal = 16.dp)
                 .verticalScroll(rememberScrollState())
                 // Batch 96 (user: "tambahkan inset/semacamnya pada semua tab"): 1 Column
                 // ini dipakai bareng oleh KETIGA tab (Kontrol/Tampilan/Bantuan, lihat

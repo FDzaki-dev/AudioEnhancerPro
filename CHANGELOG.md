@@ -1,5 +1,93 @@
 # Changelog
 
+## Batch 99: Mode Tab Horizontal — TabRow gak fleksibel + shadow tema kepotong clip pager
+
+Request eksplisit user, 2 laporan digabung 1 sesi (fitur "Mode Tab Horizontal",
+`PrefsHelper.getUseHorizontalTabLayout`, opt-in sejak Batch 97): (1) "touch screen
+nya sempit alias gak fleksibel untuk menampilkan banyak menu dalam suatu tab", (2)
+"efek theme yang offside dari card (contoh: stacked card effect Neumorphism)
+mengalami potongan saat mode scroll horizontal".
+
+**Bug #1 — TabRow evenly-divided gak scale ke jumlah tab**: `TabRow` biasa (dipasang
+Batch 95, gantiin `ScrollableTabRow` yang waktu itu bug — lihat komentar Batch 95 di
+`BoosterScreen.kt`) BAGI RATA lebar layar ke SEMUA tab sekaligus tanpa peduli jumlah
+tab. Untuk 3 tab pendek (Kontrol/Tampilan/Bantuan) ini masih nyaman, tapi
+arsitekturnya secara desain TIDAK BISA scale — begitu jumlah "menu" (tab) nambah,
+tiap tab otomatis MENGECIL (lebar layar dibagi makin banyak), touch target makin
+sempit tanpa batas bawah yang wajar. Ini akar dari keluhan "gak fleksibel untuk
+banyak menu".
+
+**Root cause bug Batch 95 (ditinjau ulang, TERNYATA bukan salah `ScrollableTabRow`)**:
+`ScrollableTabRow` M3 punya `edgePadding` default (ruang kosong di kedua ujung buat
+indikasi visual "bisa discroll") yang bikin total lebar konten (3 tab pendek +
+2x edgePadding) jadi melebihi lebar layar PADAHAL 3 tab itu sendiri harusnya muat
+nyaman tanpa scroll — kelebihan lebar inilah yang memicu auto-scroll-ke-tab-aktif
+(perilaku default M3, nge-geser tab terpilih supaya penuh terlihat) yang efek
+sampingnya nge-geser tab di UJUNG LAIN sebagian keluar layar (persis 2 dari 3
+screenshot user Batch 95: label "Bantuan"/"Kontrol" kepotong gantian). Batch 95
+waktu itu "memperbaiki" ini dengan mengganti komponennya total (ke `TabRow`
+evenly-divided) — padahal cukup nolkan `edgePadding`.
+
+**Fix #1**: `TabRow` → `ScrollableTabRow` (M3, sudah tersedia sejak BOM
+`2024.06.00` yang project ini sudah pakai — 0 dependency baru/bump), dengan
+`edgePadding = 0.dp` eksplisit. Efeknya: (a) untuk 3 tab pendek SEKARANG (kasus
+aktif), total lebar pas muat tanpa scroll sama sekali — perilaku visual identik
+`TabRow` lama, 0 regresi bug Batch 95 (karena akar masalahnya — edgePadding
+berlebih — sudah dihilangkan); (b) begitu nanti jumlah tab bertambah sampai
+melebihi lebar layar, `ScrollableTabRow` otomatis jadi scrollable dengan tiap Tab
+tetap lebar NATURAL (bukan dipaksa mengecil terus) — flexible ke jumlah tab
+berapa pun, sesuai yang diminta user.
+
+**Bug #2 — shadow tema kepotong HANYA di mode horizontal**: dual-shadow manual tiap
+kartu (`SkeuDualDirectionalShadow`, `SkeuomorphicComponents.kt` — bleed diagonal
+KELUAR bentuk kartu via `translate()`+`drawPath`, paling kentara di varian
+Neumorphism yang `cardElevation` token-nya tertinggi, 13dp) terpotong rata tepat di
+tepi kartu, TAPI CUMA saat toggle "Mode Tab Horizontal" aktif — mode vertikal
+(default) normal, shadow bleed penuh sesuai desain.
+
+**Root cause**: `HorizontalPager` (Compose Foundation) clip konten ke batas kotak
+PAGER-nya sendiri di sumbu scroll (horizontal) — ini perilaku BUILT-IN library
+(mencegah halaman lain "bocor" kelihatan saat swipe), bukan bug kode project ini,
+dan TIDAK ADA API publik buat mematikannya. `Column` per-halaman (di dalam
+`HorizontalPager`) sebelumnya 0 padding horizontal sendiri — kartu isinya nempel
+PERSIS ke tepi pager, jadi shadow yang seharusnya bleed keluar kartu 0 punya ruang
+sama sekali sebelum ketabrak garis clip pager. Mode vertikal TIDAK kena karena di
+sana TIDAK ADA `HorizontalPager` sama sekali — `Column` vertikal biasa TIDAK
+meng-clip horizontal, shadow bebas bleed ke zona padding 22dp `Column`
+pembungkus terluar yang sudah ada dari awal.
+
+**Fix #2**: tambah `.padding(horizontal = 16.dp)` di `Column` per-halaman
+`HorizontalPager` (ditaruh SEBELUM `.verticalScroll()`, supaya insetnya benar-benar
+mengurangi lebar area konten, bukan cuma jadi margin kosong yang ikut ke-scroll).
+16dp dipilih karena falloff shadow (`SkeuDualDirectionalShadow`, `maxSpread =
+elevation * 1.6f`) buat elevation TERBESAR (13dp Neumorphism) masih keliatan jelas
+di kisaran ~15dp dari tepi kartu sebelum alpha-nya turun ke nyaris nol — 16dp sudah
+cukup nampung tanpa perlu nilai custom baru (dan tetap konsisten skala spacing
+16dp yang sudah dipakai luas di file ini). Trade-off yang disadari: kartu di mode
+horizontal jadi sedikit lebih sempit dari mode vertikal (22dp+16dp=38dp inset per
+sisi, vs 22dp polos di vertikal) — perbedaan lebar ini SENGAJA cuma berlaku di
+dalam `HorizontalPager` (mode horizontal saja), 0 perubahan ke `Column`
+pembungkus terluar/mode vertikal.
+
+**File disentuh (1 file kode)**: `BoosterScreen.kt` (2 titik edit, keduanya di
+blok `if (useHorizontalLayout)` yang sama — komponen `TabRow`→`ScrollableTabRow`
++ tambah 1 baris `.padding(horizontal = 16.dp)`). `SkeuomorphicComponents.kt`
+(sumber `SkeuDualDirectionalShadow`) TIDAK disentuh — root cause ada di sisi
+CALLER (Column per-halaman pager), bukan di teknik shadow-nya sendiri, jadi fix
+di situ tidak relevan/tidak perlu (ZERO-REFACTOR).
+
+**Cek statis**: brace 246/246, paren 670/670, bracket 2/2 (`BoosterScreen.kt`,
+dihitung ulang setelah edit via mini-lexer Python sadar string/komentar — 0
+selisih dari sebelum edit, sesuai ekspektasi karena murni ganti nama komposabel +
+tambah 1 parameter + tambah 1 modifier chain, 0 struktur logic lain diubah).
+
+**Belum divalidasi runtime/visual** — TIDAK ADA kotlinc/Gradle/Android SDK/device
+di sandbox Claude. `ScrollableTabRow` & parameter `edgePadding` adalah API M3
+standar (bukan reka-reka), tapi hasil visual akhir (3 tab beneran muat tanpa
+scroll, shadow beneran gak kepotong lagi di device Neumorphism) baru bisa
+dikonfirmasi setelah build+install APK baru & coba toggle "Mode Tab Horizontal"
+di Settings.
+
 ## Batch 98: Fix build gagal (CI run #146) — import salah `weight` di SettingsScreen.kt
 
 **Input sesi ini**: `Boomly_v97.zip` (source, hasil push Batch 97) +
