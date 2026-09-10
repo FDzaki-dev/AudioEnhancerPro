@@ -178,4 +178,9 @@
     <string name="settings_update_found">Update found: v%1$s → v%2$s</string>
     <string name="settings_check_update_failed">Failed to check for update, please try again later</string>
     <string name="settings_whats_new_label">What\'s new:</string>
+
+    <!-- Batch 97: custom main-screen navigation option (default vertical, Batch 94 revert) -->
+    <string name="settings_layout_section_title">Main Screen Navigation</string>
+    <string name="settings_horizontal_layout_title">Horizontal Tab Mode</string>
+    <string name="settings_horizontal_layout_desc">Group Controls/Display/Help into 3 swipeable tabs. Off = single vertical scroll (default).</string>
 </resources>

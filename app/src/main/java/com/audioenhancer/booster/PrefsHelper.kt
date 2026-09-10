@@ -16,6 +16,12 @@ object PrefsHelper {
     private const val KEY_LAST_SEEN_CRASH = "last_seen_crash_ts"
     private const val KEY_USER_WANTS_RUNNING = "user_wants_running"
     private const val KEY_APP_THEME_STYLE = "app_theme_style"
+    // Batch 97: revert eksplisit user — layar utama BALIK ke 1 Column vertikal (pra-Batch
+    // 94) sebagai DEFAULT. Struktur tab horizontal (TabRow+HorizontalPager, Batch 94-96)
+    // TETAP ADA di kode (tidak dihapus), sekarang jadi opsi custom opt-in di SettingsScreen.kt.
+    // Default false = vertikal, supaya user existing (upgrade dari Batch 96) otomatis balik
+    // ke vertikal tanpa migrasi apa pun — key baru, absen = false, sesuai semantik "revert total".
+    private const val KEY_HORIZONTAL_TAB_LAYOUT = "use_horizontal_tab_layout"
 
     /** 0 = ikut sistem, 1 = terang, 2 = gelap. */
     const val THEME_MODE_SYSTEM = 0
@@ -97,6 +103,18 @@ object PrefsHelper {
     fun setAppThemeStyle(context: Context, style: String) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putString(KEY_APP_THEME_STYLE, style).apply()
+    }
+
+    // --- Batch 97: mode navigasi layar utama (BoosterScreen.kt) — opsi custom di
+    // SettingsScreen.kt. false (default) = 1 scroll vertikal (revert ke pra-Batch 94),
+    // true = 3 tab horizontal-scrollable (Kontrol/Tampilan/Bantuan, TabRow+HorizontalPager,
+    // implementasi Batch 94-96 dipertahankan 1:1 di baliknya). ---
+    fun getUseHorizontalTabLayout(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_HORIZONTAL_TAB_LAYOUT, false)
+
+    fun setUseHorizontalTabLayout(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_HORIZONTAL_TAB_LAYOUT, enabled).apply()
     }
 
     // --- Equalizer per-band: tiap pita frekuensi disimpan terpisah, dipulihkan tiap service dibuat ulang ---

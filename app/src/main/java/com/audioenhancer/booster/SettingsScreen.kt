@@ -21,9 +21,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,9 +37,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -51,6 +62,18 @@ fun SettingsScreen(
     onDownloadAndInstall: () -> Unit,
     onBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+    // Batch 97: dibaca+ditulis LANGSUNG di sini (pola sama seperti `customPresets` di
+    // BoosterScreen.kt) — SENGAJA TIDAK di-hoist ke MainActivity.kt (0 param/callback baru
+    // di SettingsScreen/BoosterScreen buat ini). Aman karena MainActivity.kt me-render
+    // BoosterScreen/SettingsScreen lewat percabangan if/else-if/else yang SALING EKSKLUSIF
+    // (lihat showSettings) — pindah balik ke BoosterScreen selalu berarti composable itu
+    // masuk ulang dari awal (state lama dibuang), jadi `remember` di BoosterScreen otomatis
+    // baca nilai TERBARU dari PrefsHelper begitu user tekan tombol kembali di sini, tanpa
+    // butuh state di-hoist sama sekali.
+    var useHorizontalLayout by remember { mutableStateOf(PrefsHelper.getUseHorizontalTabLayout(context)) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,6 +245,45 @@ fun SettingsScreen(
                         )
                     }
                 }
+            }
+        }
+
+        // Batch 97: request eksplisit user — revert layar utama dari tab horizontal
+        // (Batch 94-96) balik ke 1 scroll vertikal SEBAGAI DEFAULT, mode tab horizontal
+        // TETAP ADA tapi dipindah jadi opsi custom opt-in di sini (BUKAN dihapus — 0
+        // logic BoosterScreen.kt dibuang, cuma di-gate di balik toggle ini).
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_layout_section_title))
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = useHorizontalLayout,
+                        onValueChange = {
+                            useHorizontalLayout = it
+                            PrefsHelper.setUseHorizontalTabLayout(context, it)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_horizontal_layout_title),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        stringResource(R.string.settings_horizontal_layout_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = useHorizontalLayout, onCheckedChange = null)
             }
         }
     }

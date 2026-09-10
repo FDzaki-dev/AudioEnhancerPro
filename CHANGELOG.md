@@ -1,5 +1,77 @@
 # Changelog
 
+## Batch 97: Revert layout utama horizontal → vertikal (mode tab jadi opsi custom di Settings)
+
+Request eksplisit user: "revert total layout utama dari yang horizontal -> vertikal
+(jadikan mode horizontal sebagai opsi pilihan custom di tab setelan)".
+
+**Konteks**: Batch 94 mengubah layar utama dari 1 `Column` raksasa `.verticalScroll()`
+jadi 3 tab horizontal-scrollable (Kontrol/Tampilan/Bantuan, `TabRow`+`HorizontalPager`,
+disempurnakan Batch 95-96). User sekarang minta itu di-revert jadi vertikal lagi SEBAGAI
+DEFAULT — tapi mode tab TIDAK dihapus, cuma dipindah jadi opsi custom opt-in.
+
+**Yang diubah**:
+
+- **`PrefsHelper.kt`**: key persistence baru `use_horizontal_tab_layout` +
+  `getUseHorizontalTabLayout()`/`setUseHorizontalTabLayout()`. Default `false` (vertikal)
+  — key BARU (bukan migrasi key lama), jadi user existing (upgrade dari Batch 96)
+  otomatis balik ke vertikal tanpa tindakan apa pun, sesuai semantik "revert total".
+- **`BoosterScreen.kt`**: isi 3 tab (`when(page) { 0/1/2 -> ... }` yang sebelumnya inline
+  langsung di dalam `HorizontalPager`) diekstrak 1:1 (0 baris logic diubah, murni
+  cut-paste terverifikasi via script Python line-exact — bukan retype manual, supaya 0
+  resiko salah ketik mengingat sandbox ini TIDAK punya compiler buat cek balik) jadi
+  fungsi lokal `TabPageContent(page: Int)`. State baru
+  `useHorizontalLayout` dibaca sekali dari `PrefsHelper` (pola sama seperti
+  `customPresets`, TIDAK di-hoist ke `MainActivity.kt`). Percabangan baru:
+  - `useHorizontalLayout == true` → struktur Batch 94-96 APA ADANYA (tabLabels/
+    `pagerState`/`TabRow`/`HorizontalPager`, 100% tidak diubah), cuma sekarang manggil
+    `TabPageContent(page)` alih-alih `when(page)` inline.
+  - `useHorizontalLayout == false` (DEFAULT) → `TabPageContent(0)`,
+    `TabPageContent(1)`, `TabPageContent(2)` dipanggil BERURUTAN flat — persis susunan
+    pra-Batch 94 (Preset Cepat+Bass/Virtualizer/Loudness+Equalizer Manual → 4 toggle
+    tema → kartu baterai/autostart+tombol bantuan), 1 scroll gabungan.
+  - Modifier `Column` pembungkus utama sekarang kondisional: `.verticalScroll()` +
+    `.navigationBarsPadding()` (inset Batch 96 tetap dipertahankan) HANYA aktif saat
+    vertikal — saat horizontal, TETAP tanpa scroll di situ (biar `HorizontalPager`
+    `Modifier.weight(1f)` jalan seperti sebelumnya, tidak breaking).
+- **`SettingsScreen.kt`**: section baru "Navigasi Layar Utama" — 1 `SkeuCard` + toggle
+  `SkeuSwitch` ("Mode Tab Horizontal"), baca/tulis `PrefsHelper` LANGSUNG di sini (0
+  param/callback baru ke `MainActivity.kt` — aman karena `BoosterScreen`/`SettingsScreen`
+  dirender lewat percabangan if/else-if/else yang saling eksklusif, pindah balik ke
+  `BoosterScreen` selalu re-entry composable dari awal, jadi `remember` di sana otomatis
+  baca nilai terbaru).
+
+**File disentuh (3 file kode, PAS di limit)**: `BoosterScreen.kt`, `SettingsScreen.kt`,
+`PrefsHelper.kt`. `MainActivity.kt` SENGAJA TIDAK disentuh (0 wiring baru dibutuhkan,
+lihat pola self-contained-read di atas).
+
+**Resource (2 file, tidak dihitung — bukan kode)**: `values/strings.xml` +
+`values-en/strings.xml`, 3 string baru (`settings_layout_section_title`,
+`settings_horizontal_layout_title`, `settings_horizontal_layout_desc`). Parity ID/EN
+128/128 (naik dari 125/125).
+
+**Cek statis**: balance kurung/kurawal dicek dengan mini-lexer Python (sadar string-
+interpolasi `${...}`, komentar `//` & `/* */`, char/string literal) di `BoosterScreen.kt`
+HASIL AKHIR (bukan cuma potongan) — 249 buka/249 tutup kurawal, 669 buka/669 tutup
+kurung, 0 selisih. `PrefsHelper.kt` 26/26 kurawal, 186/186 kurung. `SettingsScreen.kt`
+24/24 kurawal, 141/141 kurung. Grep konfirmasi: `when (page) {` cuma 1 sisa di kode aktif
+(dalam `TabPageContent`, bukan lagi inline di `HorizontalPager`), `TabRow(`/
+`HorizontalPager(` masing-masing tetap cuma 1 (tidak terduplikasi). Ekstraksi
+`TabPageContent` dilakukan via slicing baris Python by-index (bukan retype manual) —
+tervalidasi byte-exact terhadap file asli sebelum ditulis ulang.
+
+**Sengaja tidak disentuh (di luar scope)**: `docs/preview/current.html` (masih belum
+disinkronkan ke struktur tab sejak Batch 94, catatan lama di
+`PENDING_Batch94_SyncPreviewHTML.md` — sekarang malah makin rendah urgensinya karena
+vertikal balik jadi default, tab cuma opsi custom).
+
+**Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di sandbox Claude
+manapun (lihat PROJECT_STATE.md), jadi belum bisa compile-check. Belum ada screenshot
+device nyata yang konfirmasi: (1) mode vertikal (default baru) tampil identik susunan
+pra-Batch 94, (2) toggle di Settings benar-benar switch balik ke horizontal tanpa
+crash/state hilang, (3) `navigationBarsPadding()` di mode vertikal tetap efektif seperti
+di mode horizontal (Batch 96).
+
 ## Batch 96: Insets navigation bar buat semua tab (Kontrol/Tampilan/Bantuan)
 
 Request eksplisit user: "tambahkan inset/semacamnya pada semua tab!!".

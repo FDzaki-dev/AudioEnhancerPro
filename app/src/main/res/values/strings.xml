@@ -178,4 +178,9 @@
     <string name="settings_update_found">Update ditemukan: v%1$s → v%2$s</string>
     <string name="settings_check_update_failed">Gagal mengecek update, coba lagi nanti</string>
     <string name="settings_whats_new_label">Yang baru:</string>
+
+    <!-- Batch 97: opsi custom navigasi layar utama (default vertikal, revert Batch 94) -->
+    <string name="settings_layout_section_title">Navigasi Layar Utama</string>
+    <string name="settings_horizontal_layout_title">Mode Tab Horizontal</string>
+    <string name="settings_horizontal_layout_desc">Kelompokkan Kontrol/Tampilan/Bantuan jadi 3 tab geser. Nonaktif = 1 scroll vertikal (bawaan).</string>
 </resources>

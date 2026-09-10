@@ -528,249 +528,21 @@ fun BoosterScreen(
         }
     }
 
-    // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
-    // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
-    // tetap sama seperti sebelumnya (full width).
-    Box(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 600.dp)
-                .padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
-                // kontras maksimum, konsisten di dark & light theme.
-                Text(
-                    stringResource(R.string.app_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                }
-                IconButton(onClick = onOpenHelp) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
-                }
-            }
-        }
+    // Batch 97: request eksplisit user — revert TOTAL layout utama dari horizontal (tab+
+    // HorizontalPager, Batch 94-96) balik ke vertikal (1 scroll gabungan, struktur pra-
+    // Batch 94) SEBAGAI DEFAULT. Mode horizontal TIDAK dihapus — isinya (TabRow+
+    // HorizontalPager di bawah, 100% tidak diubah dari Batch 96) sekarang jadi opsi
+    // custom opt-in lewat toggle baru "Mode Tab Horizontal" di SettingsScreen.kt
+    // (PrefsHelper.getUseHorizontalTabLayout, default false = vertikal — user existing
+    // otomatis balik ke vertikal tanpa migrasi apa pun). `TabPageContent(page)` di bawah
+    // adalah ekstraksi 1:1 (0 baris logic diubah) dari `when(page)` yang SEBELUMNYA inline
+    // langsung di dalam HorizontalPager — dijadikan fungsi lokal supaya bisa dipanggil
+    // ulang dari 2 tempat (horizontal: per-halaman pager; vertikal: 3x berurutan flat)
+    // tanpa duplikasi kode sama sekali.
+    var useHorizontalLayout by remember { mutableStateOf(PrefsHelper.getUseHorizontalTabLayout(context)) }
 
-        // Batch 13: power toggle "Aktif/Nonaktif". Ditaruh persis di posisi yang sama
-        // seperti mockup: tepat di bawah header, sebelum status card service.
-        PowerToggleRow()
-
-        // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
-        Row(
-            modifier = Modifier.height(24.dp).padding(start = 4.dp),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(3.dp)
-        ) {
-            val waveHeights = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
-            waveHeights.forEach { h ->
-                Box(
-                    modifier = Modifier
-                        .width(4.dp)
-                        .fillMaxHeight(h)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Brush.verticalGradient(listOf(DynamicColorAccent2, DynamicColorAccent)))
-                )
-            }
-        }
-
-        ServiceStatusBadge(onRestartService = onRestartService)
-        CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
-        ControlRecoveryBanner(
-            states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState),
-            onRetryControl = onRetryControl,
-            onRetryAttempted = { showSnackbar(context.getString(R.string.control_recovery_snackbar)) }
-        )
-        UpdateBanner(
-            updateInfo = updateInfo,
-            downloadProgress = updateDownloadProgress,
-            hasDownloadedUpdate = hasDownloadedUpdate,
-            onDownload = onDownloadUpdate,
-            onReinstall = onReinstallUpdate
-        )
-
-        when (connectionState) {
-            BoosterViewModel.ConnectionState.CONNECTING -> {
-                SkeuCard {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Text(stringResource(R.string.connection_loading), style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-            }
-            BoosterViewModel.ConnectionState.ERROR -> {
-                SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                            Text(
-                                stringResource(R.string.connection_error_title),
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
-                        Text(
-                            stringResource(R.string.connection_error_body),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                        )
-                        CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                            Button(onClick = {
-                                onRetryConnection()
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }) {
-                                Text(stringResource(R.string.connection_retry))
-                            }
-                        }
-                    }
-                }
-            }
-            BoosterViewModel.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
-        }
-
-        if (!notificationPermissionGranted) {
-            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-                        Text(
-                            stringResource(R.string.notif_perm_title),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.notif_perm_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
-                    )
-                    CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                        Button(onClick = {
-                            onOpenNotificationSettings()
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        }) {
-                            Text(stringResource(R.string.notif_perm_button))
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
-            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
-                Text(
-                    stringResource(R.string.unsupported_banner),
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
-            SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
-                Text(
-                    stringResource(R.string.strength_unsupported_banner),
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-        }
-
-        // Batch 94: SEBELUMNYA Kontrol/Equalizer Manual/Tampilan/Bantuan adalah sederet
-        // SkeuCard vertikal panjang dalam 1 scroll raksasa (user harus scroll jauh buat
-        // sampai ke kartu baterai/autostart di paling bawah). SEKARANG dipecah jadi 3 tab
-        // horizontal-scrollable ("Kontrol" [reuse controls_title, 0 string baru] /
-        // "Tampilan" / "Bantuan") via ScrollableTabRow [DIGANTI TabRow biasa di Batch
-        // 95, lihat komentar Batch 95 di bawah] + HorizontalPager (Foundation,
-        // SUDAH dipakai OnboardingScreen.kt — 0 dependency baru). Isi tiap tab (kartu,
-        // logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan ulang: tab
-        // "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness + Equalizer Manual
-        // (persis susunan lama paling atas); tab "Tampilan" = 4 toggle tema (dynamic
-        // color/Aurora Glass/Skeuomorphism/Studio Equalizer); tab "Bantuan" = kartu
-        // baterai&autostart + tombol "Lihat penjelasan lengkap". Tiap tab scroll vertikal
-        // independen (rememberScrollState per-page, otomatis lewat slot HorizontalPager)
-        // — bukan lagi 1 scroll gabungan semua kartu.
-        val tabLabels = listOf(
-            stringResource(R.string.controls_title),
-            stringResource(R.string.tab_display_label),
-            stringResource(R.string.tab_help_label)
-        )
-        // Batch 95 (keluhan user, 3 screenshot: label "Kontrol"/"Bantuan" kepotong
-        // gantian tergantung tab mana yang aktif): SEBELUMNYA ScrollableTabRow — buat
-        // cuma 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan"), lebar wajib-scroll
-        // Material3 per-Tab (minWidth 90.dp) bikin baris ini SELALU lebih lebar dari
-        // layar, jadi auto-scroll-ke-tab-aktif justru bikin tab LAIN kepotong di ujung
-        // (tab pertama kepotong pas tab ke-3 dipilih, tab ke-3 kepotong pas tab pertama
-        // dipilih — persis 2 dari 3 screenshot user). TabRow biasa (non-scrollable)
-        // bagi lebar layar rata ke SEMUA tab sekaligus, jadi 3 label selalu utuh
-        // kelihatan bareng, gak pernah kepotong apa pun tab yang aktif — cocok karena
-        // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
-        // scroll sungguhan).
-        val pagerState = rememberPagerState(pageCount = { tabLabels.size })
-        TabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = Color.Transparent,
-            divider = {}
-        ) {
-            tabLabels.forEachIndexed { index, label ->
-                Tab(
-                    selected = pagerState.currentPage == index,
-                    onClick = {
-                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    },
-                    selectedContentColor = MaterialTheme.colorScheme.primary,
-                    unselectedContentColor = LocalSkeuTokens.current.mutedText,
-                    text = {
-                        Text(
-                            label,
-                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                )
-            }
-        }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f)
-        ) { page ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                // Batch 96 (user: "tambahkan inset/semacamnya pada semua tab"): 1 Column
-                // ini dipakai bareng oleh KETIGA tab (Kontrol/Tampilan/Bantuan, lihat
-                // `when (page)` di bawah) — jadi navigationBarsPadding() di sini otomatis
-                // berlaku ke semua tab sekaligus, bukan cuma 1. Sebelumnya HANYA
-                // enableEdgeToEdge() (MainActivity.kt) yang aktif TANPA ada padding insets
-                // sama sekali di sisi Compose — konten paling bawah tiap tab (mis. tombol
-                // "Lihat penjelasan lengkap" di tab Bantuan) ketutup sebagian gesture
-                // bar/nav bar 3-tombol saat di-scroll sampai akhir, terutama di device
-                // dengan nav bar lebih tinggi dari padding statis 22.dp yang ada di Column
-                // pembungkus terluar. Ditaruh SETELAH .verticalScroll() (bukan sebelum)
-                // supaya insets jadi bagian dari area yang ikut discroll (ruang ekstra di
-                // ujung bawah), bukan cuma motong ukuran Column secara statis dari awal.
-                .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+    @Composable
+    fun TabPageContent(page: Int) {
         when (page) {
         0 -> {
         Column {
@@ -1282,7 +1054,264 @@ fun BoosterScreen(
         }
         }
         }
+    }
+
+    // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
+    // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
+    // tetap sama seperti sebelumnya (full width).
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 600.dp)
+                .padding(22.dp)
+                .then(
+                    if (!useHorizontalLayout)
+                        Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding()
+                    else Modifier
+                ),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
+                // kontras maksimum, konsisten di dark & light theme.
+                Text(
+                    stringResource(R.string.app_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
+                }
+                IconButton(onClick = onOpenHelp) {
+                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
+                }
+            }
         }
+
+        // Batch 13: power toggle "Aktif/Nonaktif". Ditaruh persis di posisi yang sama
+        // seperti mockup: tepat di bawah header, sebelum status card service.
+        PowerToggleRow()
+
+        // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
+        Row(
+            modifier = Modifier.height(24.dp).padding(start = 4.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            val waveHeights = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
+            waveHeights.forEach { h ->
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .fillMaxHeight(h)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Brush.verticalGradient(listOf(DynamicColorAccent2, DynamicColorAccent)))
+                )
+            }
+        }
+
+        ServiceStatusBadge(onRestartService = onRestartService)
+        CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
+        ControlRecoveryBanner(
+            states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState),
+            onRetryControl = onRetryControl,
+            onRetryAttempted = { showSnackbar(context.getString(R.string.control_recovery_snackbar)) }
+        )
+        UpdateBanner(
+            updateInfo = updateInfo,
+            downloadProgress = updateDownloadProgress,
+            hasDownloadedUpdate = hasDownloadedUpdate,
+            onDownload = onDownloadUpdate,
+            onReinstall = onReinstallUpdate
+        )
+
+        when (connectionState) {
+            BoosterViewModel.ConnectionState.CONNECTING -> {
+                SkeuCard {
+                    Row(
+                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.connection_loading), style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            BoosterViewModel.ConnectionState.ERROR -> {
+                SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.connection_error_title),
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.connection_error_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        )
+                        CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                            Button(onClick = {
+                                onRetryConnection()
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }) {
+                                Text(stringResource(R.string.connection_retry))
+                            }
+                        }
+                    }
+                }
+            }
+            BoosterViewModel.ConnectionState.CONNECTED -> { /* tidak perlu tampilkan apa-apa */ }
+        }
+
+        if (!notificationPermissionGranted) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Text(
+                            stringResource(R.string.notif_perm_title),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.notif_perm_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                    )
+                    CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                        Button(onClick = {
+                            onOpenNotificationSettings()
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }) {
+                            Text(stringResource(R.string.notif_perm_button))
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!bassSupported || !virtualizerSupported || !loudnessSupported) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
+                Text(
+                    stringResource(R.string.unsupported_banner),
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        } else if ((bassSupported && !bassStrengthSupported) || (virtualizerSupported && !virtualizerStrengthSupported)) {
+            SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
+                Text(
+                    stringResource(R.string.strength_unsupported_banner),
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        // Batch 94: SEBELUMNYA Kontrol/Equalizer Manual/Tampilan/Bantuan adalah sederet
+        // SkeuCard vertikal panjang dalam 1 scroll raksasa (user harus scroll jauh buat
+        // sampai ke kartu baterai/autostart di paling bawah). SEKARANG dipecah jadi 3 tab
+        // horizontal-scrollable ("Kontrol" [reuse controls_title, 0 string baru] /
+        // "Tampilan" / "Bantuan") via ScrollableTabRow [DIGANTI TabRow biasa di Batch
+        // 95, lihat komentar Batch 95 di bawah] + HorizontalPager (Foundation,
+        // SUDAH dipakai OnboardingScreen.kt — 0 dependency baru). Isi tiap tab (kartu,
+        // logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan ulang: tab
+        // "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness + Equalizer Manual
+        // (persis susunan lama paling atas); tab "Tampilan" = 4 toggle tema (dynamic
+        // color/Aurora Glass/Skeuomorphism/Studio Equalizer); tab "Bantuan" = kartu
+        // baterai&autostart + tombol "Lihat penjelasan lengkap". Tiap tab scroll vertikal
+        // independen (rememberScrollState per-page, otomatis lewat slot HorizontalPager)
+        // — bukan lagi 1 scroll gabungan semua kartu.
+        if (useHorizontalLayout) {
+        val tabLabels = listOf(
+            stringResource(R.string.controls_title),
+            stringResource(R.string.tab_display_label),
+            stringResource(R.string.tab_help_label)
+        )
+        // Batch 95 (keluhan user, 3 screenshot: label "Kontrol"/"Bantuan" kepotong
+        // gantian tergantung tab mana yang aktif): SEBELUMNYA ScrollableTabRow — buat
+        // cuma 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan"), lebar wajib-scroll
+        // Material3 per-Tab (minWidth 90.dp) bikin baris ini SELALU lebih lebar dari
+        // layar, jadi auto-scroll-ke-tab-aktif justru bikin tab LAIN kepotong di ujung
+        // (tab pertama kepotong pas tab ke-3 dipilih, tab ke-3 kepotong pas tab pertama
+        // dipilih — persis 2 dari 3 screenshot user). TabRow biasa (non-scrollable)
+        // bagi lebar layar rata ke SEMUA tab sekaligus, jadi 3 label selalu utuh
+        // kelihatan bareng, gak pernah kepotong apa pun tab yang aktif — cocok karena
+        // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
+        // scroll sungguhan).
+        val pagerState = rememberPagerState(pageCount = { tabLabels.size })
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
+            containerColor = Color.Transparent,
+            divider = {}
+        ) {
+            tabLabels.forEachIndexed { index, label ->
+                Tab(
+                    selected = pagerState.currentPage == index,
+                    onClick = {
+                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    selectedContentColor = MaterialTheme.colorScheme.primary,
+                    unselectedContentColor = LocalSkeuTokens.current.mutedText,
+                    text = {
+                        Text(
+                            label,
+                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                )
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f)
+        ) { page ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                // Batch 96 (user: "tambahkan inset/semacamnya pada semua tab"): 1 Column
+                // ini dipakai bareng oleh KETIGA tab (Kontrol/Tampilan/Bantuan, lihat
+                // `when (page)` di bawah) — jadi navigationBarsPadding() di sini otomatis
+                // berlaku ke semua tab sekaligus, bukan cuma 1. Sebelumnya HANYA
+                // enableEdgeToEdge() (MainActivity.kt) yang aktif TANPA ada padding insets
+                // sama sekali di sisi Compose — konten paling bawah tiap tab (mis. tombol
+                // "Lihat penjelasan lengkap" di tab Bantuan) ketutup sebagian gesture
+                // bar/nav bar 3-tombol saat di-scroll sampai akhir, terutama di device
+                // dengan nav bar lebih tinggi dari padding statis 22.dp yang ada di Column
+                // pembungkus terluar. Ditaruh SETELAH .verticalScroll() (bukan sebelum)
+                // supaya insets jadi bagian dari area yang ikut discroll (ruang ekstra di
+                // ujung bawah), bukan cuma motong ukuran Column secara statis dari awal.
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+        TabPageContent(page)
+        }
+        }
+        } else {
+        TabPageContent(0)
+        TabPageContent(1)
+        TabPageContent(2)
         }
         }
         }

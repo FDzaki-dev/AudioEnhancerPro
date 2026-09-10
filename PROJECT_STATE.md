@@ -47,6 +47,15 @@ Index Core Protocol (detail lengkap di instruksi custom user):
     `CrashLogger.APP_FOLDER` (ganti = fragmentasi log lama user). Repo
     GitHub/folder Termux TETAP "AudioEnhancerPro" — jangan ganti tanpa user
     minta eksplisit.
+  - **DILARANG KERAS (hard lock, pelanggaran Batch 97)**: "Boomly" HANYA
+    boleh dipakai untuk nama ZIP artifact & string user-facing di atas.
+    `PROJ_DIR`/`find ~/projects ... -iname` di SEMUA skrip Termux (Box A,
+    Box B, Daily Update) WAJIB tetap `-iname "AudioEnhancerPro"` — BUKAN
+    "Boomly" — karena folder project asli di Termux & repo GitHub masih
+    `~/projects/AudioEnhancerPro`. Glob `LATEST_ZIP` BOLEH `Boomly_v*.zip`
+    (nama file unduhan memang "Boomly"), tapi `PROJ_DIR` HARUS tetap cari
+    folder "AudioEnhancerPro". 2 hal ini SERING KETUKAR — cek ulang tiap
+    generate skrip baru.
 - **`MODIFY_AUDIO_SETTINGS`**: tak terpakai di kode (grep nihil) tapi TIDAK
   dihapus — sebagian OEM/chipset dilaporkan butuh ini agar efek session-0
   nempel, tak bisa diverifikasi tanpa device fisik.
@@ -59,6 +68,14 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 - **Preset custom (v1.33)**: TIDAK reset equalizer manual saat diterapkan
   (beda dari 4 preset bawaan) — cuma simpan bass/virtualizer/loudness, bukan
   state EQ.
+- **Layout layar utama (Batch 97)**: DEFAULT = vertikal (1 `Column`
+  `.verticalScroll()` flat, struktur pra-Batch 94). Mode tab horizontal
+  (`TabRow`+`HorizontalPager`, Batch 94-96) TETAP ADA di kode (fungsi lokal
+  `TabPageContent` di `BoosterScreen.kt`, 0 dihapus) tapi HANYA opsi custom
+  opt-in lewat toggle "Mode Tab Horizontal" di `SettingsScreen.kt`
+  (`PrefsHelper.getUseHorizontalTabLayout`, default `false`). JANGAN balikin
+  default ke horizontal tanpa instruksi eksplisit baru dari user — ini
+  kebalikan arah dari keputusan Batch 94, sengaja diminta user sendiri.
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru di
@@ -71,36 +88,48 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 96 (1 file kode — `BoosterScreen.kt`). Request
-  eksplisit user: "tambahkan inset/semacamnya pada semua tab!!". **Akar
-  masalah**: `enableEdgeToEdge()` (`MainActivity.kt`) sudah aktif sejak awal
-  project, tapi 0 padding insets di sisi Compose — dicek eksplisit, grep
-  `WindowInsets`/`*BarsPadding()` nihil di `BoosterScreen.kt` sebelum batch
-  ini. Konten ujung bawah tiap tab (mis. tombol "Lihat penjelasan lengkap"
-  di tab Bantuan) berisiko ketutup sebagian gesture bar/nav bar 3-tombol
-  saat di-scroll sampai akhir, terutama device dengan nav bar lebih tinggi
-  dari padding statis `22.dp` yang ada di `Column` pembungkus terluar.
-  **Fix**: `.navigationBarsPadding()` (Compose Foundation, sudah tersedia
-  BOM `2024.06.00` yang dipakai, 0 dependency baru) ditambah ke `Column`
-  BERSAMA di dalam `HorizontalPager` (Batch 94/95) — karena `Column` ini
-  dipakai ketiga tab (**Kontrol**/**Tampilan**/**Bantuan**) lewat 1 titik
-  render yang sama (`when (page)`), 1 baris ini otomatis berlaku ke SEMUA
-  tab sekaligus, bukan 3 edit terpisah. Ditaruh SETELAH `.verticalScroll()`
-  supaya inset jadi bagian area yang ikut discroll (ruang ekstra di ujung
-  bawah), bukan motong ukuran `Column` statis dari awal. **Sengaja TIDAK
-  disentuh**: inset status bar buat header (judul app + ikon ⚙️/❓, di ATAS
-  `TabRow`) — user spesifik minta "semua tab", header bukan bagian tab
-  manapun; tinggal 1 baris `.statusBarsPadding()` terpisah kalau user mau
-  itu juga nanti. **Belum divalidasi runtime** — TIDAK ADA
-  kotlinc/Gradle/Android SDK di sandbox (lihat catatan lama di bawah), jadi
-  belum bisa compile-check; belum ada screenshot before/after device nyata.
-  Risiko Batch 94 #2 (transisi tap-vs-swipe) & #3 (`weight(1f)` tanpa
-  `.fillMaxSize()`) masih BELUM ditest eksplisit — 0 laporan masalah soal
-  itu sejauh ini. `docs/preview/current.html` MASIH belum disinkron ke
-  struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`, tidak tersentuh batch
-  ini). Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan
-  eksplisit user) + Fase 7 Fase 2+ SISA 3 kandidat (D/E/F, lihat
-  roadmap.md).
+- **Validasi ZIP upload sesi ini**: `AudioEnhancerPro-145-run34222552550.zip`
+  di-cross-check ke `FILE_MANIFEST.txt` — **67/67 file cocok persis**, 0
+  hilang (beda dari insiden Batch 96 yang sempat kehilangan `.gitignore`/
+  `.github/workflows/build.yml` — 2 file itu SEKARANG ada lagi di ZIP ini,
+  kemungkinan besar sudah diperbaiki user di sisi packaging-nya).
+- **Batch terakhir**: Batch 97 (3 file kode, PAS di limit —
+  `BoosterScreen.kt`/`SettingsScreen.kt`/`PrefsHelper.kt`; `MainActivity.kt`
+  SENGAJA tidak disentuh). Request eksplisit user: "revert total layout
+  utama dari yang horizontal -> vertikal (jadikan mode horizontal sebagai
+  opsi pilihan custom di tab setelan)" — kebalikan arah dari Batch 94.
+  **Yang diubah**: layar utama BALIK ke 1 `Column` `.verticalScroll()`
+  flat (Preset Cepat+Bass/Virtualizer/Loudness+Equalizer Manual → 4 toggle
+  tema → kartu baterai/autostart+tombol bantuan) SEBAGAI DEFAULT baru
+  (`PrefsHelper.getUseHorizontalTabLayout()` default `false`, key BARU jadi
+  user existing otomatis ke-revert tanpa migrasi). Struktur tab Batch 94-96
+  (`TabRow`+`HorizontalPager`, termasuk fix Batch 95 & inset Batch 96) SAMA
+  SEKALI TIDAK DIHAPUS — diekstrak 1:1 (0 baris logic diubah, via slicing
+  Python by-index supaya 0 resiko salah ketik manual, bukan retype) jadi
+  fungsi lokal `TabPageContent(page: Int)` di `BoosterScreen.kt`, sekarang
+  jadi opsi custom opt-in lewat toggle baru "Mode Tab Horizontal" di
+  `SettingsScreen.kt` (section baru, baca/tulis `PrefsHelper` LANGSUNG di
+  situ, 0 wiring baru ke `MainActivity.kt` — pola self-contained-read sama
+  seperti `customPresets` di `BoosterScreen.kt`, aman karena
+  `BoosterScreen`/`SettingsScreen` saling eksklusif lewat if/else-if/else
+  `MainActivity.kt`, jadi `remember` selalu re-entry baca nilai terbaru
+  begitu user kembali dari Settings). Modifier `Column` pembungkus utama
+  sekarang kondisional: `.verticalScroll()`+`.navigationBarsPadding()`
+  (inset Batch 96 dipertahankan) HANYA aktif saat vertikal, supaya mode
+  horizontal (saat dipilih) tetap jalan identik seperti sebelumnya
+  (`HorizontalPager` `Modifier.weight(1f)` butuh parent TANPA scroll).
+  **Cek statis**: mini-lexer Python (sadar string-interpolasi/komentar/
+  literal) — `BoosterScreen.kt` 249/249 kurawal, 669/669 kurung, 0 selisih;
+  `PrefsHelper.kt` 26/26 kurawal; `SettingsScreen.kt` 24/24 kurawal. Detail
+  lengkap: `CHANGELOG.md` entry "Batch 97". **Belum divalidasi runtime** —
+  TIDAK ADA kotlinc/Gradle/Android SDK di sandbox (lihat catatan di bawah),
+  jadi belum bisa compile-check; belum ada screenshot before/after device
+  nyata (baik mode vertikal defaultnya, maupun toggle balik ke horizontal).
+  `docs/preview/current.html` MASIH belum disinkron ke struktur tab
+  (`PENDING_Batch94_SyncPreviewHTML.md`) — urgensinya makin turun sekarang
+  karena vertikal (yang SUDAH sesuai preview lama) balik jadi default.
+  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
+  user) + Fase 7 Fase 2+ SISA 3 kandidat (D/E/F, lihat roadmap.md).
 
 ## ⚠️ Temuan validasi ZIP upload (Batch 96, BUKAN bloker task insets — info transparansi)
 Sebelum mulai kerja, ZIP upload user (`Boomly_v96.zip`) di-cross-check ke
@@ -3001,11 +3030,11 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
 
 ## Struktur proyek singkat
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`.
+- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 APA ADANYA, tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal").
 - `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
 - `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`. Batch 84 (roadmap.md Fase 0 #5): effect BARU `DynamicsProcessing` (master limiter murni, hardcoded threshold -1dBFS/ratio 20:1) sebagai ceiling tambahan — diikutkan penuh ke `retryControlAcquisition()`/`releaseEffects()`/`disableEffects()`/`enableEffects()`, tidak merestrukturisasi urutan pipeline (itu scope #6).
 - `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama).
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama). Batch 97: `getUseHorizontalTabLayout()`/`setUseHorizontalTabLayout()` baru — key `use_horizontal_tab_layout`, default `false` (layar utama vertikal), dibaca `BoosterScreen.kt` & `SettingsScreen.kt`.
 - `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
 - `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
 - `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.
@@ -3034,7 +3063,10 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   (`updateDownloadProgress`/`updateDownloadFailed`) & fungsi
   (`downloadAndInstallUpdate()`) yang sudah ada di `BoosterViewModel`, sama
   yang dipakai `UpdateBanner` (`BoosterScreen.kt`, TETAP ada apa adanya, bukan
-  satu-satunya jalan unduh lagi).
+  satu-satunya jalan unduh lagi). Batch 97: section baru "Navigasi Layar Utama"
+  — toggle `SkeuSwitch` "Mode Tab Horizontal" (`PrefsHelper.getUseHorizontalTabLayout`/
+  `setUseHorizontalTabLayout`, baca-tulis LANGSUNG di sini, 0 param/callback baru
+  ke `MainActivity.kt`).
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
 ## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
