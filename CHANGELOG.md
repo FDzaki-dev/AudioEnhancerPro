@@ -1,5 +1,51 @@
 # Changelog
 
+## Batch 104: Kembalikan swipe-antar-tab — auto-height pager, 0 regresi clip ganda
+
+Instruksi baru eksplisit user: kembalikan gesture swipe (dihapus Batch 103)
+TANPA mengubah behavior Batch 103 yang sudah berjalan (1 scrollport, 0 clip
+ganda). Ini eksekusi opsi "auto-height pager custom measurement" yang
+sempat disebut sebagai alternatif di Batch 102/103 tapi belum dipilih saat
+itu — sekarang diimplementasikan karena user secara eksplisit minta swipe
+balik.
+
+**Perubahan** (1 file — `BoosterScreen.kt`, semua di dalam Mode Tab
+Horizontal):
+
+- `HorizontalPager` + `rememberPagerState` dipasang lagi (import balik).
+  Beda dari versi Batch 94-100: pager SEKARANG wrap-content
+  (`pagerHeightPx`, diukur ulang tiap page yang sedang tampil via
+  `Modifier.onSizeChanged`), BUKAN tinggi tetap 62% layar (`pagerHeight`
+  lama, sumber clip ganda Batch 99-101) — tinggi tetap TIDAK dipakai lagi.
+- `TabPageContent(page)` dipanggil apa adanya, 0 diubah dari Batch 103
+  (masih murni `Column` tanpa `.verticalScroll` sendiri) — jadi 0 lagi
+  scroll bersarang per-halaman meski pager balik. Pager dirender sebagai
+  child biasa Column pembungkus utama (baris ~1093), yang tetap
+  satu-satunya scrollport di kedua mode.
+- Sumber kebenaran tab aktif pindah dari `selectedTabIndex` polos (Batch
+  103) ke `pagerState.currentPage`, di-seed dari `savedTabIndex`
+  (`rememberSaveable`, disinkron via `LaunchedEffect`) — index tab tetap
+  survive rotasi/rekonfigurasi.
+- `ScrollableTabRow`/`Tab` (Batch 95/99) sendiri 0 disentuh — cuma
+  `onClick` ganti dari set-index-langsung ke
+  `coroutineScope.launch { pagerState.animateScrollToPage(index) }`
+  (`coroutineScope` reuse yang sudah ada, 0 import baru untuk ini) supaya
+  tap-tab & swipe selalu 1 sumber kebenaran yang sama.
+- Import baru: `HorizontalPager`, `rememberPagerState`
+  (`androidx.compose.foundation.pager`), `onSizeChanged`
+  (`androidx.compose.ui.layout`), `LocalDensity`
+  (`androidx.compose.ui.platform`). 0 dependency baru — semua transitif
+  lewat Compose BOM yang sudah dipakai.
+- Mode vertikal (default) 0 perubahan.
+
+**Validasi**: brace/paren/bracket seimbang, diff full-file vs Batch 103
+dikonfirmasi cuma 4 hunk (2 blok import + 2 blok di area Mode Tab
+Horizontal). 0 referensi lama `selectedTabIndex` sebagai variabel tersisa.
+**Belum divalidasi runtime/visual** — user wajib build & coba swipe
+kiri/kanan + tap tab-bar + rotasi device + scroll konten panjang/pendek
+per-tab, khususnya konfirmasi TIDAK ada clip shadow ganda balik seperti
+Batch 99-101.
+
 ## Batch 103: Hapus swipe-antar-tab — 1 clip fisik sisa (bukan lagi disembunyikan)
 
 Eksekusi keputusan user dari 2 opsi arsitektur yang ditawarkan Batch 102

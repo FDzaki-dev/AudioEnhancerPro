@@ -88,7 +88,46 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 103 (1 file kode — `BoosterScreen.kt`). User
+- **Batch terakhir**: Batch 104 (1 file kode — `BoosterScreen.kt`). Instruksi
+  baru eksplisit user: kembalikan gesture swipe-antar-tab (dihapus Batch 103)
+  **TANPA** mengubah behavior Batch 103 yang sudah berjalan (1 scrollport, 0
+  clip ganda). `HorizontalPager`+`rememberPagerState` DIPASANG LAGI (import
+  balik), tapi `TabPageContent(page)` dipanggil APA ADANYA (0 diubah dari
+  Batch 103 — masih murni `Column` tanpa `.verticalScroll` sendiri), jadi 0
+  lagi scroll bersarang per-halaman meski pager balik. Beda krusial dari
+  pager lama (Batch 94-100): pager SEKARANG wrap-content (`pagerHeightPx`,
+  diukur ulang tiap page aktif via `Modifier.onSizeChanged` pada
+  `Box(wrapContentHeight(unbounded=true))` pembungkus `TabPageContent`),
+  BUKAN tinggi tetap 62% layar (`pagerHeight`, Batch 100) — tinggi tetap
+  itu akar clip ganda lama (konten pendek nyisa kosong, konten panjang
+  kepotong perlu scroll internal lagi). Pager dirender sebagai child biasa
+  Column pembungkus utama (baris ~1093, tanpa `weight`/tinggi maks sendiri)
+  — Column itu TETAP satu-satunya scrollport di kedua mode, persis Batch
+  103. Sumber kebenaran tab aktif pindah dari `selectedTabIndex` polos ke
+  `pagerState.currentPage` (state pager sendiri sudah otomatis Saveable),
+  di-seed dari `savedTabIndex` (`rememberSaveable`, disinkron via
+  `LaunchedEffect(pagerState.currentPage)`) supaya index tab TETAP survive
+  rotasi/rekonfigurasi — guard state/lifecycle setara Batch 103. Tab-bar
+  (`ScrollableTabRow`/`Tab`, `edgePadding=0.dp`) 0 disentuh — cuma
+  `onClick` ganti dari set-index-langsung ke
+  `coroutineScope.launch { pagerState.animateScrollToPage(index) }` (pakai
+  `coroutineScope` yang sudah ada di scope composable, 0 import baru untuk
+  ini) supaya tap-tab & swipe selalu 1 sumber kebenaran yang sama. Import
+  ditambah: `HorizontalPager`, `rememberPagerState`
+  (`androidx.compose.foundation.pager`), `onSizeChanged`
+  (`androidx.compose.ui.layout`), `LocalDensity`
+  (`androidx.compose.ui.platform`) — 0 dependency baru, semua transitif
+  lewat Compose BOM yang sudah dipakai. Mode vertikal (default) 0
+  perubahan. Validasi statis: brace/paren/bracket seimbang, diff full-file
+  vs Batch 103 dikonfirmasi cuma 4 hunk (2 blok import + 2 blok di area
+  Mode Tab Horizontal, baris ~1257-1360), 0 referensi lama
+  `selectedTabIndex` sebagai variabel tersisa (cuma named-parameter
+  `ScrollableTabRow` & komentar historis). **Belum divalidasi
+  runtime/visual** (sandbox tanpa compiler/emulator — user WAJIB build &
+  coba swipe kiri/kanan antar tab + tap tab-bar + rotasi device + scroll
+  konten panjang/pendek per-tab sungguhan, khususnya cek TIDAK ada clip
+  shadow ganda balik seperti Batch 99-101).
+- **Batch 103** (1 file kode — `BoosterScreen.kt`). User
   eksplisit pilih 1 dari 2 opsi arsitektur yang ditawarkan Batch 102 (lewat
   tappable option, BUKAN dok-only lagi): **hapus swipe-antar-tab**. `HorizontalPager`
   + `rememberPagerState` DIHAPUS TOTAL dari Mode Tab Horizontal (0 lagi
