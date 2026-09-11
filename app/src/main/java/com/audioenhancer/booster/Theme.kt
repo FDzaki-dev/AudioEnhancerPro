@@ -6,6 +6,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -537,7 +538,7 @@ val SereneIconBoxRadius = 12.dp
  *  shape asli varian manapun (selalu bikin `RoundedCornerShape` sendiri dari radius
  *  Dp), jadi cut-corner ini 0% ke-render di kartu manapun. 1 sumber kebenaran shape,
  *  bukan didefinisikan dobel beda tempat. */
-val SereneCardShape: Shape = CutCornerShape(
+val SereneCardShape: CornerBasedShape = CutCornerShape(
     topEnd = 20.dp,
     topStart = SereneCardRadius,
     bottomStart = SereneCardRadius,

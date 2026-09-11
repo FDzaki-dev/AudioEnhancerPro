@@ -1,5 +1,51 @@
 # Changelog
 
+## Batch 113: Fix build gagal (CI run #161) — tipe `SereneCardShape` di Theme.kt
+
+**Input sesi ini**: `Boomly_v112.zip` (source, hasil push Batch 112) +
+`log_fail_v161-debug-run161.zip` (log gagal GitHub Actions run #161).
+
+**Konteks**: Build APK debug gagal total di tahap `:app:compileDebugKotlin` —
+0 APK dihasilkan sejak Batch 112 di-push. Error compiler dari log:
+
+```
+e: .../Theme.kt:1074:13 Type mismatch: inferred type is Shape but
+CornerBasedShape was expected
+```
+
+**Root cause**: Batch 112 mendefinisikan `val SereneCardShape: Shape =
+CutCornerShape(...)` (top-level, public) supaya bisa direuse di 2 tempat —
+`SereneSkeuTokens.cardShape` (field custom `SkeuTokens`, dideklarasi bertipe
+`Shape` generik) DAN `SereneShapes.large` (field bawaan `androidx.compose
+.material3.Shapes`, dideklarasi bertipe `CornerBasedShape`, subtype lebih
+sempit dari `Shape`). Deklarasi `SereneCardShape` sengaja/tidak sengaja
+dipilih bertipe `Shape` supaya "generik" cocok ke kedua tempat — tapi Kotlin
+type-check pakai tipe DEKLARASI (compile-time), bukan tipe objek runtime.
+Objek asli di baliknya (`CutCornerShape`) SEBENARNYA sudah `CornerBasedShape`
+(sama seperti `RoundedCornerShape` yang dipakai literal di semua field
+`Shapes.large` lain), tapi karena val-nya "dibungkus" turun ke `Shape` duluan,
+compiler menolak upcast balik ke `CornerBasedShape` saat diisikan ke `large`.
+
+**Fix**: perketat deklarasi `SereneCardShape` dari `Shape` ke `CornerBasedShape`
+(1 baris) + tambah 1 import `androidx.compose.foundation.shape.CornerBasedShape`
+yang sebelumnya belum ada. 0 nilai/parameter `CutCornerShape(...)` diubah — objek
+yang dihasilkan identik persis. Assignment ke `SereneSkeuTokens.cardShape: Shape`
+(Batch 112) tetap valid tanpa perubahan (upcast `CornerBasedShape`→`Shape` selalu
+aman, arah sebaliknya yang butuh downcast eksplisit). Assignment ke
+`SereneShapes.large: CornerBasedShape` sekarang tipe-cocok persis, 0 lagi
+type mismatch.
+
+**File disentuh (1 file kode)**: `Theme.kt`.
+
+**Cek statis**: brace/paren count sebelum vs sesudah fix — balance 0/0 kurawal
+dan 0/0 kurung (SAMA PERSIS sebelum-sesudah, sesuai ekspektasi karena cuma 1
+kata tipe diganti + 1 baris import ditambah, 0 struktur/logic lain tersentuh).
+
+**Belum divalidasi runtime/CI** — TIDAK ADA kotlinc/Gradle/Android SDK di
+sandbox Claude, fix ini murni berdasarkan pembacaan pesan compiler CI
+(`log_fail_v161-debug-run161.zip`). Perlu konfirmasi run CI berikutnya hijau
+(`:app:compileDebugKotlin` sukses, APK ter-generate) sebelum ditutup.
+
 ## Batch 112: Fix Serene M3 — cut-corner shape akhirnya kepakai di kartu asli
 
 Komplain user eksplisit (screenshot APK Batch 111): toggle "Serene M3" aktif,

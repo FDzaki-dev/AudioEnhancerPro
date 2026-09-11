@@ -90,9 +90,9 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 110 (Neumorphism dual-shadow ambient — tint navy independen
-  diganti turunan Misty Pine, fix komplain user "aksen kalah dominan dari warna
-  gak diminta" — belum tervalidasi visual).
+- **Batch terakhir**: 113 (hotfix compile error `Theme.kt:1074` dari Batch 112 —
+  `SereneCardShape` tipe `Shape`→`CornerBasedShape`; APK gagal generate total
+  sejak push Batch 112 sampai fix ini, belum tervalidasi CI hijau).
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -124,6 +124,16 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 113** (`Theme.kt`, hotfix build, input: `log_fail_v161-debug-run161.zip`):
+  fix compile error `:app:compileDebugKotlin` (`Theme.kt:1074`, "Type mismatch:
+  inferred type is Shape but CornerBasedShape was expected") — regresi dari
+  Batch 112. Root cause: `SereneCardShape` dideklarasi tipe `Shape` (interface
+  umum) walau objek runtime (`CutCornerShape`) sebenarnya sudah `CornerBasedShape`
+  — cocok buat field `SkeuTokens.cardShape: Shape` tapi TIDAK cocok buat
+  `Shapes.large` (M3) yang butuh tipe persis `CornerBasedShape`. Fix: deklarasi
+  diperketat ke `CornerBasedShape` + 1 import baru, 0 nilai/logic diubah (upcast
+  ke `cardShape: Shape` tetap valid). Belum tervalidasi CI (perlu run hijau
+  berikutnya).
 - **Batch 112** (`Theme.kt`+`SkeuomorphicComponents.kt`): fix komplain user
   eksplisit (screenshot) — kartu Serene M3 masih rounded biasa, cut-corner
   shape "unique" TIDAK kepakai sama sekali. Root cause: `SkeuCard`/
