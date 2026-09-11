@@ -90,8 +90,9 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 109 (Neumorphism aksen Aurora → Misty Pine Forest,
-  scope aksen warna saja — belum tervalidasi visual).
+- **Batch terakhir**: 110 (Neumorphism dual-shadow ambient — tint navy independen
+  diganti turunan Misty Pine, fix komplain user "aksen kalah dominan dari warna
+  gak diminta" — belum tervalidasi visual).
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -99,10 +100,10 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
   ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
 - **Tema**: 4 varian aktif via switch Settings — Midnight Glass (default),
   Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism",
-  shape/typography "Blade Runner" ala dari Batch 108, aksen warna sekarang
-  "Misty Pine Forest" sejak Batch 109 — lihat "Riwayat pivot arah desain"
-  poin 9+10), Studio Equalizer. Lihat "Riwayat pivot arah desain" untuk
-  detail tiap varian.
+  shape/typography "Blade Runner" ala dari Batch 108, aksen warna "Misty
+  Pine Forest" sejak Batch 109, dual-shadow ambient ikut pine-tinted sejak
+  Batch 110 — lihat "Riwayat pivot arah desain" poin 9-11), Studio
+  Equalizer. Lihat "Riwayat pivot arah desain" untuk detail tiap varian.
 - **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema di
   atas): grouped-list Kontrol + Settings selesai+tervalidasi, tipografi
   Large Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
@@ -123,6 +124,16 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 110** (`Theme.kt`): komplain user eksplisit — aksen "Misty Pine
+  Forest" (Batch 109) kalah dominan dari tint navy independen di
+  `SkeuDualDirectionalShadow` (`NeumoEdgeHighlight`/`NeumoEdgeShadow`), yang
+  ke-render BERULANG tiap kartu/banner (root cause: warna shadow ambient
+  paling sering diulang di layar, bukan cuma di 1 elemen aksen). Fix:
+  `NeumoEdgeHighlight` diturunkan dari `NeumoMistyPine` (lerp ke White 0.30f),
+  `NeumoEdgeShadow` dapat tint pine 15% (lerp dari `NeumoPanelRecessed`).
+  Alpha 0.72f/0.97f (Batch 56) TIDAK diubah. Base palette Deep Navy (fill
+  kartu sendiri) TIDAK disentuh — cuma tint shadow ambient. Belum
+  tervalidasi visual (sandbox tanpa render).
 - **Batch 109** (`Theme.kt`+strings ID/EN): aksen varian "Neumorphism" DIGANTI
   (instruksi eksplisit user) — Aurora→"Misty Pine Forest", `NeumoAurora`/
   `NeumoAuroraDeep` DIHAPUS ganti `NeumoMistyPine`(`0xFF80A891`)/
@@ -471,6 +482,13 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
    `onPrimary` tetap aman tanpa re-tune). Base palette Deep Navy & shape/
    typography Blade Runner TIDAK disentuh. Detail lengkap: `CHANGELOG.md`
    Batch 109, komentar blok `Theme.kt`.
+11. **Neumorphism dual-shadow ambient → pine-tinted** (Batch 110, fix
+   komplain user pasca-Batch 109) — `NeumoEdgeHighlight`/`NeumoEdgeShadow`
+   (tint `SkeuDualDirectionalShadow`, sebelumnya navy independen `0x4A6690`)
+   diturunkan dari `NeumoMistyPine` supaya efek stack-shadow berulang di
+   tiap kartu ikut kebaca pine, bukan biru. Base palette Deep Navy (fill
+   kartu) & alpha depth Batch 56 TIDAK disentuh. Detail: `CHANGELOG.md`
+   Batch 110.
 
 **Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
 bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
@@ -665,14 +683,18 @@ user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
 detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
 - 4 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer) —
   cek visual tiap varian di Settings; kandidat bug: glow/sheen gak muncul,
-  radius salah, kontras teks kurang. **Neumorphism (Batch 108-109, baru)**:
+  radius salah, kontras teks kurang. **Neumorphism (Batch 108-110, baru)**:
   cek KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah di device
   fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi), 6 style
   typography baru (`NeumorphismTypography`) render proporsional (bukan
   overflow/kepotong — letterSpacing lebih lebar dari `AppTypography` global),
   aksen Misty Pine Forest (`NeumoMistyPine`, Batch 109) kontras cukup di
   atas Deep Navy (WCAG, terutama `onPrimary` teks di atas tombol/switch
-  aktif).
+  aktif), dual-shadow ambient pine-tinted (`NeumoEdgeHighlight`/
+  `NeumoEdgeShadow`, Batch 110) kebaca sebagai "pine subtle" bukan "biru
+  masih dominan" di device fisik (fix ini FIX PERSEPSI VISUAL user, kandidat
+  gagal: pine 15%/30% blend terlalu tipis buat device tertentu, kalau
+  disinggung lagi cek dulu apa perlu naikkan persentase blend).
 - `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
   `Cannot create an instance of BoosterViewModel`.
 - `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab

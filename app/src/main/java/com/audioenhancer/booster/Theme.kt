@@ -339,15 +339,26 @@ val NeumoMistyPine = Color(0xFF80A891)
 val NeumoMistyPineDeep: Color = lerp(NeumoMistyPine, NeumoPanelRecessed, 0.45f)
 
 /** Tint dual-shadow terarah (`SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt)
- *  — SEHUE navy (bukan brass — brass dijaga cuma buat state-aktif, bukan
- *  ambient shadow di SEMUA kartu, itu yang bakal bikin brass overuse). Batch
- *  56 (diminta user, "push lebih dalam lagi" setelah konfirmasi Batch 53/54
- *  render benar di device): alpha dinaikkan LAGI (0.55/0.92 -> 0.72/0.97) +
- *  tint terang dibikin lebih terang/biru (bukan cuma pudar dari panel) —
- *  kontras pasangan terang/gelap makin tegas, 2 sumber cahaya makin jelas
- *  kebaca beda arah (bukan 1 shadow abu-abu datar lagi). */
-val NeumoEdgeHighlight = Color(0xFF4A6690).copy(alpha = 0.72f)
-val NeumoEdgeShadow = NeumoPanelRecessed.copy(alpha = 0.97f)
+ *  — Batch 110 (instruksi eksplisit user, "Misty Pine Forest kalah dominan dari
+ *  warna yang gak diminta"): SEBELUMNYA sehue navy independen (`0xFF4A6690`,
+ *  keputusan Batch 52/108 "brass/aurora dijaga cuma buat state-aktif, bukan
+ *  ambient shadow"). Root cause komplain user: `SkeuDualDirectionalShadow` re-draw
+ *  outline shape ini BERULANG (loop `steps downTo 1`, `SkeuTintedCard` steps+1dp
+ *  dibanding `SkeuCard`) di SETIAP kartu/banner dengan spread makin lebar — visual
+ *  effect "stack kartu berlapis" yang KELIHATAN di 2 banner (Service berjalan/
+ *  Output audio berubah) MAYORITAS warnanya justru dari tint SEHUE NAVY ini
+ *  (bukan `NeumoMistyPine`), jadi kebaca "masih biru" walau accent asli (tombol
+ *  power, tab, teks status) sudah pine — literally warna paling dominan di layar
+ *  karena diulang di SETIAP kartu. Fix: tint highlight sekarang DITURUNKAN dari
+ *  `NeumoMistyPine` (bukan hex navy independen), shadow gelap dapat tint pine
+ *  tipis juga (15% campur) — base Deep Navy (`NeumoBackground`/`NeumoPanel`/
+ *  `NeumoBorder`, dipakai base surface/border kartu ITU SENDIRI, BUKAN shadow-nya)
+ *  TETAP TIDAK disentuh (scope user "aksen warna", bukan base palette). Alpha
+ *  0.72f/0.97f TIDAK diubah (kontras depth Batch 56 dipertahankan, cuma hue yang
+ *  ganti) — behavior/parameter lain `SkeuDualDirectionalShadow` (steps, spread
+ *  multiplier 1.6f, falloff) 0 disentuh. */
+val NeumoEdgeHighlight: Color = lerp(NeumoMistyPine, Color.White, 0.30f).copy(alpha = 0.72f)
+val NeumoEdgeShadow: Color = lerp(NeumoPanelRecessed, NeumoMistyPine, 0.15f).copy(alpha = 0.97f)
 
 /** FLAT — inti fix "eksplisit" Batch 52. Neumorphism genuine: permukaan 1
  *  warna solid, kedalaman 100% dari `SkeuDualDirectionalShadow` (native

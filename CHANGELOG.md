@@ -1,5 +1,47 @@
 # Changelog
 
+## Batch 110: Neumorphism dual-shadow ambient — navy independen jadi pine-tinted
+
+Instruksi eksplisit user (feedback screenshot APK): "warna Misty Pine Forest
+(Batch 109) masih kalah dominan dari warna yang gak diminta, perbaiki".
+
+**Root cause**: `SkeuDualDirectionalShadow` (dipakai `SkeuCard`/`SkeuTintedCard`,
+SkeuomorphicComponents.kt) menggambar shape kartu BERULANG dalam loop
+(`for (step in steps downTo 1)`) dengan offset makin lebar & alpha makin
+turun, memakai `tokens.shadowLightTint`/`shadowDarkTint` — untuk Neumorphism
+ini `NeumoEdgeHighlight`/`NeumoEdgeShadow`, SEBELUM batch ini masih hex navy
+independen `0xFF4A6690` (keputusan sadar lama Batch 52/108: "brass/aurora
+dijaga cuma buat state-aktif, bukan ambient shadow supaya gak overuse").
+Efek stack berulang ini ke-render di SETIAP kartu/banner di layar (2 banner
+"Service berjalan"+"Output audio berubah" di screenshot user paling
+kentara, radius `SkeuTintedCard` malah +1dp dibanding `SkeuCard` biasa) —
+karena diulang di semua kartu, tint navy ini justru jadi warna PALING
+DOMINAN di layar, mengalahkan `NeumoMistyPine` (Batch 109) yang cuma
+dipakai di elemen state-aktif (tombol power, tab terpilih, teks status,
+ikon+tombol "Oke" banner primary). User benar: aksen yang diminta kalah
+dominan dari warna yang gak pernah diminta berubah.
+
+**Fix**: `NeumoEdgeHighlight` diturunkan dari `NeumoMistyPine`
+(`lerp(NeumoMistyPine, Color.White, 0.30f)`, alpha 0.72f tidak berubah).
+`NeumoEdgeShadow` dapat tint pine 15% (`lerp(NeumoPanelRecessed,
+NeumoMistyPine, 0.15f)`, alpha 0.97f tidak berubah) — sisi gelap tetap
+nyaris hitam (readability tepi terjaga) tapi ikut condong pine, bukan
+navy murni. Parameter lain `SkeuDualDirectionalShadow` (jumlah steps,
+spread multiplier 1.6f, falloff alpha, kontras depth Batch 56) 0 disentuh
+— murni ganti HUE tint, bukan teknik/intensitas shadow.
+
+**Scope guard**: base palette Deep Navy (`NeumoBackground`/`NeumoPanel`/
+`NeumoBorder` — fill kartu itu sendiri, BUKAN shadow di belakangnya) TETAP
+TIDAK disentuh, konsisten precedent Batch 108/109 ("aksen warna" bukan
+"base palette"). `SkeuomorphicComponents.kt` 0 disentuh — perubahan murni
+di value token `Theme.kt`, 0 risiko regresi ke 3 varian tema lain (masing-
+masing punya `shadowLightTint`/`shadowDarkTint` sendiri, tidak share value
+dengan Neumorphism).
+
+**File disentuh (1)**: `Theme.kt`. Belum tervalidasi visual (sandbox tanpa
+compiler/render) — kandidat gagal kalau blend 15%/30% masih dirasa kurang
+kentara di device fisik, lihat catatan di `PROJECT_STATE.md` Fase 1.
+
 ## Batch 109: Neumorphism — aksen Aurora diganti "Misty Pine Forest"
 
 Instruksi eksplisit user: ubah aksen warna theme Neumorphism yang sekarang
