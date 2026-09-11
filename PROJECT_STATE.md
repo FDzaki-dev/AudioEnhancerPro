@@ -1,13 +1,11 @@
 # 🧠 PROJECT_STATE.md — baca PALING PERTAMA
 
-Untuk Claude, bukan manusia. Padat & actionable, bukan riwayat penuh (itu di
-CHANGELOG.md). 2 lapis (JANGAN dicampur, Batch 72):
-1. 🔒 ATURAN PERMANEN & HIERARKI — jarang berubah, WAJIB dibaca duluan.
-2. 📅 LOG UPDATE HARIAN — naratif per-batch, descending, BUKAN permanen.
+Untuk Claude, bukan manusia. Padat & actionable. 2 lapis:
+1. 🔒 ATURAN PERMANEN — jarang berubah, WAJIB dibaca duluan.
+2. 📅 LOG BATCH — riwayat ringkas per-batch, descending, BUKAN permanen.
 
-Urutan sesi baru: ATURAN PERMANEN → Status Terkini + 2-3 entry teratas LOG
-HARIAN → 2-3 entry teratas CHANGELOG.md → mulai kerja. Jangan ulang
-pertanyaan yang jawabannya sudah ada di sini.
+Urutan sesi baru: ATURAN PERMANEN → Status Terkini → 5-10 entry teratas LOG
+BATCH → mulai kerja. Jangan ulang pertanyaan yang jawabannya sudah ada di sini.
 
 ---
 
@@ -21,3496 +19,535 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 - Micro-Batch: maks 3 file KODE/batch. Dokumen VIP (file ini, README.md,
   CHANGELOG.md) kebal limit, WAJIB sync tiap sesi ada perubahan.
 - Versioning Lock: versionCode DAN versionName otomatis dari
-  `GITHUB_RUN_NUMBER` (sejak Batch 76; sebelumnya hanya versionCode).
-  DILARANG bump manual.
+  `GITHUB_RUN_NUMBER` (sejak Batch 76). DILARANG bump manual.
 - Format chat: status 1-2 baris + 1 ZIP + skrip Termux utuh. Narasi/analisis
-  panjang → LOG HARIAN, bukan chat.
+  panjang → LOG BATCH (ringkas), bukan chat.
 - Skrip Termux Immutable: isi placeholder `[Nama...]` saja. DILARANG ubah
   logika Bash atau gabung Box A & B.
+- **Dokumentasi WAJIB padat**: 1 entry LOG BATCH = maks 3-5 baris (file
+  disentuh, apa yang berubah, status validasi). DILARANG tulis ulang
+  root-cause/diff/rasional panjang di sini — itu tempatnya di komentar
+  inline kode atau `CHANGELOG.md`. Kalau sebuah lesson masih actionable
+  untuk sesi depan, taruh 1 baris di "Batasan sandbox" atau "Keputusan
+  sadar" di bawah, bukan diulang di tiap entry log.
 
 ### Keputusan sadar (JANGAN diubah tanpa alasan baru dari user)
-- **Brand kosmetik/user-facing = "Boomly"** (Batch 68, bukan
-  AudioEnhancerPro/AudioBooster).
-  - ZIP output: `Boomly_v<N>.zip` (direvisi Batch 94 — Core Protocol user
-    minta pola generik `<NamaApp>_v<Batch>.zip`, dikonfirmasi eksplisit
-    user "Y". Histori pola sebelumnya: `Boomly_<versi>-<batch>.zip` [pin
-    Batch 70] → `Boomly_batch<N>.zip` [revisi Batch 76, versionName belum
-    ke-assign GitHub saat packaging] → `Boomly_v<N>.zip` [revisi Batch 94]).
-    Glob Termux TETAP `Boomly*.zip` — wildcard cocok ke semua pola di atas,
-    0 perubahan skrip Termux diperlukan.
-  - String user-facing app (ID+EN): `app_name`, `app_title`, `notif_title`,
-    `notif_channel_name`, `qs_tile_label`, `status_running`,
-    `notif_perm_body`, `ob1_title` = "Boomly". String baru yang sebut nama
-    app WAJIB "Boomly".
+- **Brand kosmetik/user-facing = "Boomly"** (Batch 68). ZIP output:
+  `Boomly_v<N>.zip`. String user-facing app (ID+EN): `app_name`,
+  `app_title`, `notif_title`, `notif_channel_name`, `qs_tile_label`,
+  `status_running`, `notif_perm_body`, `ob1_title` = "Boomly". String baru
+  yang sebut nama app WAJIB "Boomly".
   - TETAP TIDAK ikut rebrand (vital/fungsional): `applicationId`/`namespace`,
     `rootProject.name`, nama workflow (`build.yml`), nama APK/artifact CI,
     `CrashLogger.APP_FOLDER` (ganti = fragmentasi log lama user). Repo
-    GitHub/folder Termux TETAP "AudioEnhancerPro" — jangan ganti tanpa user
-    minta eksplisit.
-  - **DILARANG KERAS (hard lock, pelanggaran Batch 97)**: "Boomly" HANYA
-    boleh dipakai untuk nama ZIP artifact & string user-facing di atas.
-    `PROJ_DIR`/`find ~/projects ... -iname` di SEMUA skrip Termux (Box A,
-    Box B, Daily Update) WAJIB tetap `-iname "AudioEnhancerPro"` — BUKAN
-    "Boomly" — karena folder project asli di Termux & repo GitHub masih
-    `~/projects/AudioEnhancerPro`. Glob `LATEST_ZIP` BOLEH `Boomly_v*.zip`
-    (nama file unduhan memang "Boomly"), tapi `PROJ_DIR` HARUS tetap cari
-    folder "AudioEnhancerPro". 2 hal ini SERING KETUKAR — cek ulang tiap
-    generate skrip baru.
+    GitHub/folder Termux TETAP "AudioEnhancerPro".
+  - **HARD LOCK (pelanggaran pernah terjadi di Batch 97)**: `PROJ_DIR`/
+    `find ~/projects ... -iname` di SEMUA skrip Termux (Box A, Box B, Daily
+    Update) WAJIB tetap `-iname "AudioEnhancerPro"` — BUKAN "Boomly".
+    Glob `LATEST_ZIP` BOLEH `Boomly_v*.zip`, tapi `PROJ_DIR` HARUS tetap cari
+    folder "AudioEnhancerPro". Cek ulang tiap generate skrip baru.
 - **`MODIFY_AUDIO_SETTINGS`**: tak terpakai di kode (grep nihil) tapi TIDAK
   dihapus — sebagian OEM/chipset dilaporkan butuh ini agar efek session-0
   nempel, tak bisa diverifikasi tanpa device fisik.
 - **`FOREGROUND_SERVICE_MEDIA_PLAYBACK`**: dipertahankan meski bukan media
   player asli — user tak berniat publish Play Store.
-- **Dynamic color (Material You)**: default OFF, opt-in — palet custom app
-  tak ketiban wallpaper user paksa.
+- **Dynamic color (Material You)**: default OFF, opt-in.
 - **Equalizer band individual**: `wrapInCard=false` — sudah di card
   "Equalizer Manual", hindari kaca-di-atas-kaca.
 - **Preset custom (v1.33)**: TIDAK reset equalizer manual saat diterapkan
-  (beda dari 4 preset bawaan) — cuma simpan bass/virtualizer/loudness, bukan
-  state EQ.
+  (beda dari 4 preset bawaan) — cuma simpan bass/virtualizer/loudness.
 - **Layout layar utama (Batch 97)**: DEFAULT = vertikal (1 `Column`
-  `.verticalScroll()` flat, struktur pra-Batch 94). Mode tab horizontal
-  (`TabRow`+`HorizontalPager`, Batch 94-96) TETAP ADA di kode (fungsi lokal
-  `TabPageContent` di `BoosterScreen.kt`, 0 dihapus) tapi HANYA opsi custom
-  opt-in lewat toggle "Mode Tab Horizontal" di `SettingsScreen.kt`
-  (`PrefsHelper.getUseHorizontalTabLayout`, default `false`). JANGAN balikin
-  default ke horizontal tanpa instruksi eksplisit baru dari user — ini
-  kebalikan arah dari keputusan Batch 94, sengaja diminta user sendiri.
+  `.verticalScroll()` flat). Mode tab horizontal (`TabRow`+`HorizontalPager`)
+  TETAP ADA di kode (`TabPageContent` di `BoosterScreen.kt`) tapi HANYA opsi
+  custom opt-in via toggle "Mode Tab Horizontal" di `SettingsScreen.kt`
+  (default `false`). JANGAN balikin default ke horizontal tanpa instruksi
+  eksplisit baru dari user.
+- **Swipe-antar-tab dalam Mode Tab Horizontal (Batch 103-105)**: DIHAPUS,
+  ganti tap-tab biasa (`selectedTabIndex`, `rememberSaveable`) — 1
+  scrollport, 0 clip ganda, TERVALIDASI stabil. Percobaan mengembalikan
+  swipe via auto-height pager (Batch 104) TERBUKTI regresi UI parah di
+  device fisik (klip & distorsi), sudah direvert total (Batch 105). JANGAN
+  coba pendekatan auto-height/`onSizeChanged` dinamis-per-page lagi.
+  Kandidat lebih stabil kalau swipe diminta lagi: pager tinggi tetap =
+  tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
+  dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
 
 ### Cara update file ini
-Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru di
-LOG HARIAN (paling atas); (2) update Status Terkini (versi + 1-2 baris); (3)
-update Keputusan Sadar kalau relevan. JANGAN taruh narasi panjang di ATURAN
-PERMANEN.
+Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
+di LOG BATCH (paling atas, maks 3-5 baris); (2) update Status Terkini
+(state akhir, bukan histori); (3) update Keputusan Sadar kalau relevan.
+JANGAN taruh root-cause/diff/rasional panjang di mana pun di file ini.
 
-### Kebijakan dokumentasi (PIN — Batch 106, instruksi eksplisit user)
+### Kebijakan dokumentasi (PIN — Batch 106)
 HANYA 4 dokumen resmi diakui: konstitusi/SOP (di luar repo, instruksi custom
-user), `PROJECT_STATE.md` (RAM instan — file ini), `README.md` (wajah
-proyek), `CHANGELOG.md` (arsip append-only rilis publik, BUKAN acuan
-konteks utama). Dokumen lain yang PERNAH ADA (`roadmap.md`, 2x
-`PENDING_*.md`) sudah dikonsolidasikan isinya ke `PROJECT_STATE.md` (lihat
-"TODO / ROADMAP" di bawah) lalu file sumbernya dipindah ke `/archive`
-(BUKAN dihapus — riwayat tetap ada di git). `FILE_MANIFEST.txt`
-DIKECUALIKAN dari kebijakan ini (bukan dokumentasi, manifest teknis daftar
-file — tetap di root, instruksi eksplisit user Batch 106). Kalau ke
-depan ada kebutuhan dokumen backlog terpisah lagi (karena file ini
-kepanjangan): TANYA user dulu sebelum bikin file baru, jangan pecah lagi
-secara sepihak.
+user), `PROJECT_STATE.md` (RAM instan — file ini, PADAT), `README.md`
+(wajah proyek), `CHANGELOG.md` (arsip append-only rilis publik, BUKAN
+acuan konteks utama). `FILE_MANIFEST.txt` DIKECUALIKAN (manifest teknis,
+bukan dokumentasi — tetap di root). Kebutuhan dokumen backlog terpisah
+baru: TANYA user dulu, jangan pecah lagi sepihak.
 
-## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
-- **Versi**: versionCode DAN versionName SEKARANG SAMA-SAMA otomatis dari
-  `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
-  lagi label semantik manual macam "1.99.0", `versionName` = angka run number
-  polos (String), sama nilainya dengan `versionCode` (Int).
-- **Batch terakhir**: Batch 104 (1 file kode — `BoosterScreen.kt`). Instruksi
-  baru eksplisit user: kembalikan gesture swipe-antar-tab (dihapus Batch 103)
-  **TANPA** mengubah behavior Batch 103 yang sudah berjalan (1 scrollport, 0
-  clip ganda). `HorizontalPager`+`rememberPagerState` DIPASANG LAGI (import
-  balik), tapi `TabPageContent(page)` dipanggil APA ADANYA (0 diubah dari
-  Batch 103 — masih murni `Column` tanpa `.verticalScroll` sendiri), jadi 0
-  lagi scroll bersarang per-halaman meski pager balik. Beda krusial dari
-  pager lama (Batch 94-100): pager SEKARANG wrap-content (`pagerHeightPx`,
-  diukur ulang tiap page aktif via `Modifier.onSizeChanged` pada
-  `Box(wrapContentHeight(unbounded=true))` pembungkus `TabPageContent`),
-  BUKAN tinggi tetap 62% layar (`pagerHeight`, Batch 100) — tinggi tetap
-  itu akar clip ganda lama (konten pendek nyisa kosong, konten panjang
-  kepotong perlu scroll internal lagi). Pager dirender sebagai child biasa
-  Column pembungkus utama (baris ~1093, tanpa `weight`/tinggi maks sendiri)
-  — Column itu TETAP satu-satunya scrollport di kedua mode, persis Batch
-  103. Sumber kebenaran tab aktif pindah dari `selectedTabIndex` polos ke
-  `pagerState.currentPage` (state pager sendiri sudah otomatis Saveable),
-  di-seed dari `savedTabIndex` (`rememberSaveable`, disinkron via
-  `LaunchedEffect(pagerState.currentPage)`) supaya index tab TETAP survive
-  rotasi/rekonfigurasi — guard state/lifecycle setara Batch 103. Tab-bar
-  (`ScrollableTabRow`/`Tab`, `edgePadding=0.dp`) 0 disentuh — cuma
-  `onClick` ganti dari set-index-langsung ke
-  `coroutineScope.launch { pagerState.animateScrollToPage(index) }` (pakai
-  `coroutineScope` yang sudah ada di scope composable, 0 import baru untuk
-  ini) supaya tap-tab & swipe selalu 1 sumber kebenaran yang sama. Import
-  ditambah: `HorizontalPager`, `rememberPagerState`
-  (`androidx.compose.foundation.pager`), `onSizeChanged`
-  (`androidx.compose.ui.layout`), `LocalDensity`
-  (`androidx.compose.ui.platform`) — 0 dependency baru, semua transitif
-  lewat Compose BOM yang sudah dipakai. Mode vertikal (default) 0
-  perubahan. Validasi statis: brace/paren/bracket seimbang, diff full-file
-  vs Batch 103 dikonfirmasi cuma 4 hunk (2 blok import + 2 blok di area
-  Mode Tab Horizontal, baris ~1257-1360), 0 referensi lama
-  `selectedTabIndex` sebagai variabel tersisa (cuma named-parameter
-  `ScrollableTabRow` & komentar historis). **Belum divalidasi
-  runtime/visual** (sandbox tanpa compiler/emulator — user WAJIB build &
-  coba swipe kiri/kanan antar tab + tap tab-bar + rotasi device + scroll
-  konten panjang/pendek per-tab sungguhan, khususnya cek TIDAK ada clip
-  shadow ganda balik seperti Batch 99-101).
-- **Batch 105** (1 file kode — `BoosterScreen.kt`, REVERT): user laporkan
-  regresi UI parah setelah Batch 104 (klip & distorsi di mana-mana, build
-  sungguhan) — Batch 104 (auto-height pager via `onSizeChanged`) DIREVERT
-  TOTAL, file kembali 100% identik byte-per-byte ke Batch 103 (diverifikasi
-  `diff` kosong). Root cause paling mungkin: pengukuran tinggi
-  `onSizeChanged` di dalam `HorizontalPager` competing dengan pager itu
-  sendiri yang butuh constraint tinggi definitif dari awal — siklus
-  ukur-lalu-set-tinggi menimbulkan layout pass tidak stabil (kemungkinan
-  re-layout loop/flicker antar page saat swipe, konsisten dengan laporan
-  "distorsi di mana-mana") — TIDAK bisa dipastikan tanpa emulator/device
-  fisik (sandbox tanpa compiler/emulator, sudah diperingatkan eksplisit di
-  entry Batch 104 sebagai "belum divalidasi runtime/visual"). **Keputusan**:
-  swipe-antar-tab TIDAK dikembalikan lagi lewat pendekatan wrap-content
-  pager — pendekatan itu TERBUKTI gagal di runtime sungguhan, JANGAN dicoba
-  ulang dengan cara yang sama tanpa perubahan strategi mendasar. Opsi kalau
-  user mau swipe lagi ke depan: (a) pager tinggi TETAP eksplisit ala Batch
-  100 tapi dikombinasi ulang dengan padding fix Batch 101 (risiko clip
-  balik, sudah pernah gagal sebelumnya) — TIDAK direkomendasikan; (b) pager
-  tinggi tetap = tinggi konten TERPANJANG dari ke-3 tab (dihitung sekali di
-  awal, bukan per-page dinamis, jadi tidak ada re-layout saat swipe) —
-  kandidat paling stabil kalau diminta lagi; (c) tetap tap-tab saja (state
-  Batch 103/105 sekarang, TERBUKTI stabil). Status sekarang: Mode Tab
-  Horizontal balik ke behavior Batch 103 (tap-tab, 1 scrollport, 0 clip
-  ganda, 0 swipe). Mode vertikal (default) 0 perubahan sepanjang Batch
-  104-105.
-- **Batch 104** (1 file kode — `BoosterScreen.kt`, DIREVERT di Batch 105 —
-  lihat entry di atas): instruksi eksplisit user kembalikan swipe-antar-tab
-  via auto-height pager. TERBUKTI regresi di runtime sungguhan (klip &
-  distorsi), JANGAN diulang dengan cara yang sama. Detail lengkap (yang
-  gagal): `CHANGELOG.md`.
-- **Batch 103** (1 file kode — `BoosterScreen.kt`). User
-  eksplisit pilih 1 dari 2 opsi arsitektur yang ditawarkan Batch 102 (lewat
-  tappable option, BUKAN dok-only lagi): **hapus swipe-antar-tab**. `HorizontalPager`
-  + `rememberPagerState` DIHAPUS TOTAL dari Mode Tab Horizontal (0 lagi
-  dipakai file ini, import-nya ikut dihapus, `LocalConfiguration`/
-  `screenHeightDp`/`pagerHeight` ikut dihapus krn cuma dipakai buat tinggi
-  pager). Tab switch sekarang klik biasa: `selectedTabIndex` (`rememberSaveable`
-  — WAJIB survive rotasi, guard state/lifecycle) gantikan `pagerState.currentPage`
-  sebagai sumber kebenaran tab aktif; `ScrollableTabRow`/`Tab` (komponen UI-nya
-  sendiri) TIDAK disentuh, cuma binding-nya. Konten tab terpilih
-  (`TabPageContent(selectedTabIndex)`) sekarang dirender LANGSUNG sebagai child
-  Column pembungkus utama (pola identik mode vertikal) — 0 lagi Column/scroll
-  bersarang per-halaman, jadi cuma 1 scrollport di KEDUA mode. **Hasil**: 1
-  clip fisik SISA (tepi layar sungguhan dekat notifikasi device, WAJAR/sama
-  seperti header ikut ter-scroll) — 2 clip fisik dari nested pager (Batch
-  99/101) SUDAH TIDAK ADA lagi sama sekali (bukan cuma disembunyikan kayak
-  Batch 101). **Trade-off disadari**: gesture swipe-antar-tab hilang, ganti tap
-  label. **Efek samping menguntungkan** (bukan tuning terpisah): inset
-  horizontal kartu mode horizontal sekarang 22dp, sama dengan mode vertikal
-  (sebelumnya 38dp = 22+16, dicatat Batch 99). Import dihapus: `HorizontalPager`,
-  `rememberPagerState`, `LocalConfiguration`. Import ditambah: `rememberSaveable`
-  (`androidx.compose.runtime.saveable`, sudah transitif lewat Compose BOM yang
-  sudah dipakai — 0 dependency baru). Validasi statis: brace/paren/bracket
-  seimbang, diff full-file dikonfirmasi cuma nyentuh 3 region (2 blok import +
-  1 blok Mode Tab Horizontal), 0 sisa referensi `pagerState`/`HorizontalPager`
-  di luar komentar historis. **Belum divalidasi runtime/visual** (sandbox tanpa
-  compiler/emulator — user WAJIB build & coba tab-switch + rotasi device
-  sungguhan). Detail penuh: `CHANGELOG.md`.
-- **Batch 102** (0 file kode — dok-only): user push back ke fix Batch 101
-  (clip KELIHATAN sudah 1, tapi 2 clip FISIK masih ada, cuma disembunyikan) —
-  dijawab lewat 2 opsi arsitektur (auto-height pager / hapus swipe), 0 dipilih
-  sesi itu. Batch 103 di atas eksekusi salah satu opsinya.
-- **Batch 101** (1 file kode — `BoosterScreen.kt`) — fix
-  laporan user (screenshot) soal nested/double clipping shadow kartu di Mode
-  Tab Horizontal saat scroll mentok bawah. Root cause: bug SEJENIS Batch 99
-  tapi di sumbu VERTIKAL (Batch 99 cuma nambal horizontal) — Column
-  per-halaman `HorizontalPager` punya `.verticalScroll` internal sendiri
-  (independen per tab) TANPA padding vertikal, dibungkus pager bertinggi
-  TETAP (`pagerHeight`, Batch 100) — kartu pertama/terakhir tiap tab nempel
-  persis ke tepi atas/bawah kotak pager, shadow bleed-nya kepotong DUA KALI
-  (1x wajar oleh scroll layar utama, 1x lagi TIDAK wajar oleh clip internal
-  pager). Fix: `padding(horizontal = 16.dp)` → `padding(16.dp)` (nilai sama
-  yang sudah terbukti cukup di Batch 99, sekarang berlaku ke 4 sisi) — clip
-  yang terlihat sekarang cuma 1, di tepi layar sungguhan dekat notifikasi
-  device (dari scroll Column pembungkus utama), sesuai ekspektasi user. Mode
-  vertikal (default) 0 perubahan. Detail lengkap: `CHANGELOG.md` entry
-  "Batch 101". **Belum divalidasi runtime/visual** — perlu build+install APK
-  baru & coba toggle "Mode Tab Horizontal", scroll tiap tab sampai mentok
-  bawah/atas.
-- **Batch 100** (1 file kode — `BoosterScreen.kt`) — fix
-  keluhan "ruang tab masih terasa terbatas" pasca-Batch 99 (bug BEDA, bukan
-  regresi 2 fix Batch 99). Root cause: Column pembungkus utama mode horizontal
-  sengaja TANPA scroll sejak Batch 97 (biar `HorizontalPager` `weight(1f)`
-  bisa dapat tinggi terbatas dari parent) — konsekuensinya tinggi pager =
-  SISA layar setelah header+banner (yang sengaja tetap di luar tab, Batch 94),
-  bisa sangat sempit kalau banyak banner aktif. Fix: Column pembungkus utama
-  sekarang scroll di kedua mode, `HorizontalPager` pakai tinggi eksplisit 62%
-  layar (`LocalConfiguration`, dikunci 360–640dp) bukan `weight(1f)` lagi —
-  tab sekarang dapat ruang tampil besar & konsisten, tidak lagi tergantung
-  jumlah banner aktif. Mode vertikal (default) 0 perubahan. Detail lengkap:
-  `CHANGELOG.md` entry "Batch 100".
-- **Batch 99** (1 file kode — `BoosterScreen.kt`), fix 2 laporan
-  user di Mode Tab Horizontal (opt-in, Batch 97): (1) `TabRow` evenly-divided
-  gak fleksibel buat banyak tab → `ScrollableTabRow` + `edgePadding = 0.dp`
-  (bug lama Batch 95 TIDAK balik karena akarnya — edgePadding berlebih — sudah
-  dihilangkan, bukan komponennya). (2) shadow dual-directional tema (paling
-  kentara Neumorphism, elevation 13dp) kepotong rata di `HorizontalPager`
-  (clip built-in library di sumbu scroll) → `Column` per-halaman pager dikasih
-  `.padding(horizontal = 16.dp)` supaya shadow bleed punya ruang sebelum ketabrak
-  garis clip. Mode vertikal (default) 0 kepengaruh kedua fix ini. Detail
-  lengkap: `CHANGELOG.md` entry "Batch 99". **Belum divalidasi runtime/visual**
-  — perlu build+install APK baru & coba toggle "Mode Tab Horizontal".
-- **Batch 98** (1 file kode — `SettingsScreen.kt`), FIX build
-  gagal run #146. **Root cause**: `import androidx.compose.foundation.layout.weight`
-  (baris 24, ditambahkan Batch 97) salah sasaran — `Modifier.weight(1f)` yang
-  dipakai baris 274 adalah MEMBER extension function milik `RowScope`/
-  `ColumnScope` (resolve otomatis dari receiver `Row { }`, TIDAK PERNAH butuh
-  import eksplisit), BUKAN top-level function. Package
-  `androidx.compose.foundation.layout` ternyata punya symbol top-level lain
-  bernama `weight` yang `internal` (detail implementasi library) — import
-  salah itu menabrak symbol internal ini → `e: Cannot access 'weight': it is
-  internal in 'androidx.compose.foundation.layout'` →
-  `:app:compileDebugKotlin` FAILED. Diverifikasi silang ke `BoosterScreen.kt`
-  (9 pemakaian `Modifier.weight(1f)`, 0 import `weight`, compile sukses) —
-  pola member-extension-tanpa-import memang konsisten di seluruh project.
-  **Fix**: hapus 1 baris import itu, 0 baris lain diubah. Brace/paren
-  `SettingsScreen.kt` SAMA PERSIS sebelum/sesudah (24/24 kurawal, 141/141
-  kurung) — konfirmasi 0 struktur/logic tersentuh. Detail lengkap:
-  `CHANGELOG.md` entry "Batch 98". **Belum divalidasi runtime** — perlu
-  konfirmasi run CI berikutnya hijau sebelum ditutup.
-- **Batch 97** (3 file kode, PAS di limit —
-  `BoosterScreen.kt`/`SettingsScreen.kt`/`PrefsHelper.kt`; `MainActivity.kt`
-  SENGAJA tidak disentuh). Request eksplisit user: "revert total layout
-  utama dari yang horizontal -> vertikal (jadikan mode horizontal sebagai
-  opsi pilihan custom di tab setelan)" — kebalikan arah dari Batch 94.
-  **Yang diubah**: layar utama BALIK ke 1 `Column` `.verticalScroll()`
-  flat (Preset Cepat+Bass/Virtualizer/Loudness+Equalizer Manual → 4 toggle
-  tema → kartu baterai/autostart+tombol bantuan) SEBAGAI DEFAULT baru
-  (`PrefsHelper.getUseHorizontalTabLayout()` default `false`, key BARU jadi
-  user existing otomatis ke-revert tanpa migrasi). Struktur tab Batch 94-96
-  (`TabRow`+`HorizontalPager`, termasuk fix Batch 95 & inset Batch 96) SAMA
-  SEKALI TIDAK DIHAPUS — diekstrak 1:1 (0 baris logic diubah, via slicing
-  Python by-index supaya 0 resiko salah ketik manual, bukan retype) jadi
-  fungsi lokal `TabPageContent(page: Int)` di `BoosterScreen.kt`, sekarang
-  jadi opsi custom opt-in lewat toggle baru "Mode Tab Horizontal" di
-  `SettingsScreen.kt` (section baru, baca/tulis `PrefsHelper` LANGSUNG di
-  situ, 0 wiring baru ke `MainActivity.kt` — pola self-contained-read sama
-  seperti `customPresets` di `BoosterScreen.kt`, aman karena
-  `BoosterScreen`/`SettingsScreen` saling eksklusif lewat if/else-if/else
-  `MainActivity.kt`, jadi `remember` selalu re-entry baca nilai terbaru
-  begitu user kembali dari Settings). Modifier `Column` pembungkus utama
-  sekarang kondisional: `.verticalScroll()`+`.navigationBarsPadding()`
-  (inset Batch 96 dipertahankan) HANYA aktif saat vertikal, supaya mode
-  horizontal (saat dipilih) tetap jalan identik seperti sebelumnya
-  (`HorizontalPager` `Modifier.weight(1f)` butuh parent TANPA scroll).
-  **Cek statis**: mini-lexer Python (sadar string-interpolasi/komentar/
-  literal) — `BoosterScreen.kt` 249/249 kurawal, 669/669 kurung, 0 selisih;
-  `PrefsHelper.kt` 26/26 kurawal; `SettingsScreen.kt` 24/24 kurawal. Detail
-  lengkap: `CHANGELOG.md` entry "Batch 97". **Belum divalidasi runtime** —
-  TIDAK ADA kotlinc/Gradle/Android SDK di sandbox (lihat catatan di bawah),
-  jadi belum bisa compile-check; belum ada screenshot before/after device
-  nyata (baik mode vertikal defaultnya, maupun toggle balik ke horizontal).
-  `docs/preview/current.html` MASIH belum disinkron ke struktur tab
-  (`PENDING_Batch94_SyncPreviewHTML.md`) — urgensinya makin turun sekarang
-  karena vertikal (yang SUDAH sesuai preview lama) balik jadi default.
-  Antrian SISA: Fase 0 #9 + Fase 0 #6 Fase 2 (masih tunggu arahan eksplisit
-  user) + Fase 7 Fase 2+ SISA 3 kandidat (D/E/F, lihat roadmap.md).
+---
 
-## ⚠️ Temuan validasi ZIP upload (Batch 96, BUKAN bloker task insets — info transparansi)
-Sebelum mulai kerja, ZIP upload user (`Boomly_v96.zip`) di-cross-check ke
-`FILE_MANIFEST.txt` (rutin "Validasi" tiap sesi baca ZIP) — ketemu **2 file
-hilang**: `.gitignore` dan `.github/workflows/build.yml` (dicek dobel,
-`unzip -l` pada ZIP asli juga konfirmasi nihil, BUKAN cuma gagal extract di
-sandbox Claude). 0 file lain yang beda dari manifest (65/67 cocok persis).
-Pola persis sama kelas bug insiden lama "v1.46" (CHANGELOG.md) — dotfile/
-dotdir ke-strip pas proses packaging ZIP di suatu titik SEBELUM upload ke
-Claude (bukan di sesi ini — Claude cuma baca ZIP yang sudah ada, tidak ikut
-proses packaging upload). **TIDAK diperbaiki/dikarang ulang isinya**
-(Zero-Hallucination — Claude tidak tahu isi asli `build.yml`/`.gitignore`
-project ini persis apa, ngarang berisiko lebih besar dari membiarkan
-kosong). **Analisis risiko praktis**: kemungkinan besar AMAN buat alur
-`DAILY UPDATE` Termux (skrip `find ... ! -name '.*' ... -exec rm -rf`
-SUDAH mengecualikan SEMUA dotfile/dotdir dari langkah hapus, bukan cuma
-`.git` — jadi `.github/`/`.gitignore` versi lokal yang sudah ada dari
-histori commit sebelumnya TIDAK ikut terhapus oleh `rm -rf` itu, dan
-`unzip -o` ZIP baru ini juga tidak akan MENIMPA apa pun karena 2 file itu
-memang tidak ada isinya di ZIP — jadi versi lokal lama tetap bertahan apa
-adanya). **Tetap perlu dicek user**: (1) apakah `.gitignore`/
-`.github/workflows/build.yml` di GitHub repo (`AudioEnhancerPro`) MASIH ada
-sekarang (cek langsung di web GitHub) — kalau MASIH ada di sana, ini
-murni kosmetik/tidak berbahaya; (2) kalau user pakai flow **BOX A (Initial
-Setup, project baru dari nol)**, bukan Daily Update, 2 file ini AKAN
-hilang beneran (BOX A bikin folder proyek BARU, tidak ada histori lokal
-buat "diselamatkan") — kalau memang lagi setup ulang dari nol, WAJIB
-tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
-`.gitignore` standar Android + `build.yml` baru (belum diinisiasi sesi
-ini — di luar scope task insets yang diminta).
+## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 🗑️📐 **Batch 103 (terbaru, 1 file kode — `BoosterScreen.kt`)**: eksekusi
-  keputusan user dari 2 opsi arsitektur Batch 102 (dipilih via tappable
-  option) — **hapus swipe-antar-tab**, bukan auto-height pager.
-  **Perubahan kode** (semua di dalam blok `if (useHorizontalLayout) { ... }
-  else { ... }`, `BoosterScreen.kt`):
-  - `val pagerState = rememberPagerState(...)` DIHAPUS.
-  - `val screenHeightDp = LocalConfiguration.current.screenHeightDp` +
-    `val pagerHeight = (...).coerceIn(360f, 640f).dp` DIHAPUS (cuma dipakai
-    buat tinggi `HorizontalPager`, sekarang tidak relevan).
-  - `ScrollableTabRow`/`Tab` (komponen UI-nya sendiri TIDAK diubah) —
-    `selectedTabIndex = pagerState.currentPage` → `selectedTabIndex =
-    selectedTabIndex` (state lokal baru); `onClick` SEBELUMNYA
-    `coroutineScope.launch { pagerState.animateScrollToPage(index) }` →
-    SEKARANG `selectedTabIndex = index` langsung (0 lagi butuh coroutine di
-    titik ini — `coroutineScope` var itu sendiri TETAP ada, masih dipakai
-    buat snackbar di tempat lain, TIDAK dihapus).
-  - Blok `HorizontalPager(state = pagerState, ...) { page -> Column(...) {
-    TabPageContent(page) } }` DIHAPUS TOTAL (termasuk Column per-halaman
-    dengan `.padding(16.dp)` [fix Batch 101] + `.verticalScroll(...)`
-    internal-nya) — diganti 1 baris: `TabPageContent(selectedTabIndex)`,
-    dipanggil LANGSUNG sebagai child Column pembungkus utama (pola IDENTIK
-    mode vertikal yang sudah ada, `TabPageContent(0)`/`(1)`/`(2)` flat).
-  - State baru: `var selectedTabIndex by rememberSaveable { mutableStateOf(0)
-    }` — pakai `rememberSaveable` (BUKAN `remember` polos) supaya WAJIB
-    bertahan dari rotasi/rekonfigurasi perangkat (guard state/lifecycle,
-    Int primitif → otomatis Saveable, 0 Saver custom).
-  **Import diubah**: dihapus `androidx.compose.foundation.pager.HorizontalPager`,
-  `androidx.compose.foundation.pager.rememberPagerState`,
-  `androidx.compose.ui.platform.LocalConfiguration` (dicek dulu 0 dipakai di
-  tempat lain manapun di file ini sebelum dihapus — grep, bukan asumsi).
-  Ditambah `androidx.compose.runtime.saveable.rememberSaveable` (API stabil
-  Jetpack Compose, artifact `runtime-saveable` SUDAH transitif lewat Compose
-  BOM yang project ini pakai — dikonfirmasi tidak langsung dari precedent
-  lokal krn belum pernah dipakai file lain di project ini, tapi merupakan
-  dependency transitif standar Foundation/Material3 — 0 entry baru perlu
-  ditambah ke `build.gradle.kts`).
-  **Kenapa (ringkas, detail penuh ada di komentar inline kode + `CHANGELOG.md`
-  entry Batch 103)**: Batch 101 (padding 16dp) cuma MENYEMBUNYIKAN 2 clip
-  shadow fisik — akarnya kombinasi `.verticalScroll` internal per-halaman +
-  `HorizontalPager` bertinggi tetap yang membungkusnya, SELALU menghasilkan
-  clip fisik selama kombinasi itu ada. User pilih hilangkan clip-nya secara
-  FISIK, bukan cuma sembunyikan — 1 dari 2 jalan yang mungkin (auto-height
-  pager custom measurement DITOLAK karena risiko lebih tinggi, belum pernah
-  dipakai project ini, 0 bisa dicompile-check di sandbox tanpa compiler).
-  **Hasil**: 0 lagi Column/scroll bersarang per-halaman → 1 clip fisik SISA
-  (tepi layar sungguhan dekat notifikasi device, WAJAR). **Trade-off
-  disadari**: gesture swipe HILANG, ganti tap label tab. **Efek samping
-  menguntungkan** (konsekuensi alami, bukan tuning terpisah): inset
-  horizontal kartu mode horizontal turun dari 38dp (22+16, Batch 99) jadi
-  22dp — SAMA dengan mode vertikal sekarang, krn Column per-halaman +
-  padding 16dp-nya sudah tidak ada.
-  **Validasi**: statis saja (0 compiler di sandbox, konsisten limitasi yang
-  sudah didokumentasikan project ini sejak awal) — brace/paren/bracket
-  file dikonfirmasi seimbang (243/243 `{}`, 658/658 `()`, 2/2 `[]`), diff
-  full-file vs ZIP upload dikonfirmasi HANYA menyentuh 3 region (2 blok
-  import + 1 blok Mode Tab Horizontal, 0 baris lain berubah), grep
-  dikonfirmasi 0 sisa referensi kode ke `pagerState`/`pagerHeight`/
-  `screenHeightDp`/`HorizontalPager`/`rememberPagerState`/`LocalConfiguration`
-  (yang tersisa cuma di komentar historis, sengaja DIPERTAHANKAN sebagai
-  jejak alasan Batch 94-101, bukan diedit ulang jadi seakan-akan tidak
-  pernah terjadi). **BELUM divalidasi runtime/visual sungguhan** — WAJIB
-  di-build & dicoba user: (1) tab-switch via klik di Mode Tab Horizontal,
-  (2) rotasi device saat 1 tab non-default aktif (pastikan `selectedTabIndex`
-  survive, tidak balik ke tab 0), (3) screenshot area shadow kartu (pastikan
-  emang cuma 1 clip fisik tersisa, bukan 2 lagi entah kenapa).
-- 📌🚫 **Batch 102 (0 file kode — dok-only, keputusan scope)**: user
-  push back terhadap fix Batch 101 — walau clip yang KELIHATAN sudah turun
-  jadi 1 (sesuai ekspektasi laporan sebelumnya), user tanya kenapa 2 clip
-  FISIKNYA gak dihilangkan total sekalian, bukan cuma disembunyikan lewat
-  padding.
-  **Dijawab dari struktur kode (bukan "akal-akalan kecil"), 2 clip fisik itu
-  ADA karena 2 alasan struktural BEDA, hilangin salah satu balik ke 2 bug yang
-  sudah pernah dibenerin**:
-  1. **Hapus scroll DALAM (`.verticalScroll` internal Column per-halaman
-     pager, per-tab, Batch 94)** → pager WAJIB auto-tinggi ke konten.
-     `HorizontalPager` TIDAK BISA auto-tinggi per-halaman secara native (tiap
-     tab beda panjang → animasi swipe jadi lompat-lompat tingginya). Kalau
-     tetap dipaksa tinggi tetap (`pagerHeight`, Batch 100) TANPA scroll
-     dalam, konten tab yang lebih panjang dari `pagerHeight` (mis. Equalizer
-     Manual dibuka) ke-clip PERMANEN, SAMA SEKALI TIDAK BISA DIAKSES — bukan
-     cuma soal shadow lagi, REGRESI FUNGSIONAL.
-  2. **Hapus scroll LUAR (balik Column pembungkus utama ke `weight(1f)`,
-     header/banner jadi statis di luar scroll)** → itu PERSIS struktur Batch
-     97, dan PERSIS root cause "ruang tab terasa terbatas" yang baru
-     dibenerin Batch 100. Balik ke sana = REGRESI keluhan lama.
-  Kesimpulan: 2 clip itu konsekuensi WAJIB dari kombinasi "pager swipe-able"
-  + "tinggi pager harus terbatas" — bukan bug arsitektur, cuma efek samping
-  (shadow ketabrak clip vertikal) yang SUDAH ditambal Batch 101 secara
-  visual. Padding 16dp (Batch 101) bikin clip TETAP ADA secara teknis, tapi
-  TIDAK LAGI KELIHATAN — user cuma lihat 1 clip (di tepi layar sungguhan),
-  persis sesuai yang diminta laporan Batch 101.
-  **Jalan buat 0 clip fisik ada, TAPI scope-nya lebih besar dari bugfix**:
-  auto-height pager (custom measurement, di luar API standar
-  `HorizontalPager`) atau buang swipe-antar-tab sama sekali (ganti klik
-  biasa) — KEDUANYA DITOLAK sesi ini (ubah arsitektur signifikan, di luar
-  scope task yang disetujui). Kalau user MAU salah satu dari 2 opsi itu ke
-  depan, itu Atomic Change terpisah yang butuh konfirmasi eksplisit dulu
-  (bukan bugfix kecil lagi).
-  **Keputusan final**: fix Batch 101 (`.padding(16.dp)`, 1 clip visible di
-  tepi layar) TETAP dipertahankan apa adanya — 0 perubahan kode lebih lanjut
-  batch ini. ZIP upload sesi ini (`Boomly_v101.zip`) dicek — sudah berisi fix
-  Batch 101 persis seperti didokumentasikan (`padding(16.dp)` di Column
-  per-halaman `HorizontalPager`, `BoosterScreen.kt` baris ~1389), 0 selisih
-  dari yang tercatat. **File disentuh**: 0 kode — cuma VIP docs
-  (`PROJECT_STATE.md`, `CHANGELOG.md`) buat mendokumentasikan alasan
-  penolakan scope ini (bukan basa-basi chat). Status "belum divalidasi
-  runtime/visual" dari Batch 101 TETAP berlaku — belum ada perubahan yang
-  mengubah itu.
-- 📐🩺 **Batch 101 (1 file kode — `BoosterScreen.kt`)**: user kirim
-  screenshot device asli, Mode Tab Horizontal, scroll mentok bawah — shadow
-  kartu `ServiceStatusBadge` (dan kartu tab lain yang nempel tepi pager)
-  kepotong nested/double, bukan cuma 1 clip wajar dekat notifikasi device.
-  User tegaskan: clip yang wajar/diharap HANYA di bagian paling atas dekat
-  notifikasi device (scroll layar biasa) — bukan clip tambahan di bawah judul
-  tab/header.
-  **Root cause** (ditelusuri ke kode, bukan tebak): bug SEJENIS Batch 99 tapi
-  di sumbu VERTIKAL — Batch 99 cuma nambal sumbu horizontal Column per-halaman
-  `HorizontalPager` (`.padding(horizontal = 16.dp)`, biar shadow dual-
-  directional custom `SkeuDualDirectionalShadow` punya ruang bleed sebelum
-  ketabrak clip built-in `HorizontalPager` di sumbu scroll-nya). Yang belum
-  kebahas: Column per-halaman itu SENDIRI punya `.verticalScroll` internal
-  (independen per tab, Batch 94, memang disengaja biar posisi scroll tiap tab
-  gak saling pengaruh) — dan sejak Batch 100, Column ini dibungkus
-  `HorizontalPager` bertinggi TETAP (`pagerHeight`, bukan lagi `weight(1f)`).
-  Kombinasi scroll internal + kotak bertinggi tetap = clip vertikal SENDIRI di
-  tepi atas/bawah kotak pager (independen dari clip scroll layar utama). Tanpa
-  padding vertikal, kartu pertama nempel persis ke tepi atas kotak (persis di
-  bawah `ScrollableTabRow`) & kartu terakhir nempel persis ke tepi bawahnya
-  saat tab discroll penuh — shadow-nya kepotong DUA KALI: 1x wajar (scroll
-  layar utama, sama seperti header ikut ke-scroll ke atas), 1x lagi TIDAK
-  wajar (clip internal pager) — inilah "nested/double kliping" yang
-  dilaporkan, munculnya persis di bawah judul tab.
-  **Fix**: `padding(horizontal = 16.dp)` pada Column per-halaman
-  `HorizontalPager` diubah jadi `padding(16.dp)` (nilai SAMA yang sudah
-  terbukti cukup di Batch 99 buat elevation 13dp terbesar — dipakai ulang,
-  bukan angka baru/tebakan) — sekarang berlaku di 4 sisi, bukan cuma
-  kiri-kanan. Kartu pertama & terakhir tiap tab sekarang punya jarak aman
-  16dp dari tepi atas/bawah kotak pager di posisi scroll mana pun, shadow
-  bleed-nya tidak lagi ketabrak clip internal ini. Clip yang tersisa cuma 1 —
-  di tepi layar sungguhan dekat notifikasi device (dari scroll Column
-  pembungkus utama) — sesuai ekspektasi user. 1 baris kode diubah
-  (`.padding(horizontal = 16.dp)` → `.padding(16.dp)`), sisanya komentar
-  dokumentasi. Mode vertikal (default) 0 perubahan (Column ini cuma dipakai
-  di blok `if (useHorizontalLayout)`). Detail lengkap di `CHANGELOG.md` entry
-  "Batch 101". **Belum divalidasi runtime/visual** — perlu build+install APK
-  baru & scroll tiap tab (Kontrol/Tampilan/Bantuan) sampai benar-benar mentok
-  atas & bawah buat konfirmasi shadow gak lagi kepotong nested.
-- 📐🩺 **Batch 100 (1 file kode — `BoosterScreen.kt`)**: user validasi
-  Batch 99 ("bagus, tapi keterbatasan scrolling/tampilan ruang tab masih jelas
-  terasa!!") — BUKAN regresi Batch 99 (2 fix Batch 99 soal lebar tab-bar &
-  shadow terpotong TETAP valid/tidak disentuh), ini bug LAIN yang baru
-  kelihatan setelah 2 bug itu beres: soal TINGGI/ruang tampil area tab, bukan
-  lebar tab-bar atau shadow.
-  **Root cause** (ditelusuri ke kode, bukan tebak dari 1 kalimat laporan):
-  Column pembungkus utama (Batch 97) SENGAJA TIDAK diberi scroll saat mode
-  horizontal — alasan waktu itu: `HorizontalPager` di bawahnya pakai
-  `Modifier.weight(1f)`, yang butuh parent dengan tinggi TERBATAS (parent
-  scrollable akan memberi constraint tinggi TAK TERHINGGA ke children, bikin
-  weight() crash runtime). Konsekuensi tersembunyi dari keputusan itu: tinggi
-  `HorizontalPager` = SISA layar SETELAH dikurangi header + `PowerToggleRow` +
-  motif waveform + SEMUA banner kondisional (status/crash/recovery/update/
-  koneksi/izin notifikasi/unsupported) — yang semuanya SENGAJA tetap di luar
-  tab (keputusan Batch 94, TIDAK diubah batch ini, bukan sumber masalah).
-  Di device mana pun yang lagi menampilkan beberapa banner sekaligus (mis.
-  gagal koneksi + izin notifikasi belum diizinkan), sisa ruang buat pager bisa
-  jadi SANGAT SEMPIT — user harus scroll dalam jendela kecil untuk lihat kartu
-  di dalam tab, padahal scroll internal per-tab (Batch 94) sendiri sudah benar
-  secara fungsi. Ini akar "ruang tab terasa terbatas" yang dilaporkan.
-  **Fix**: Column pembungkus utama SEKARANG scroll di KEDUA mode (dulu cuma
-  mode vertikal) — `HorizontalPager` TIDAK lagi pakai `weight(1f)`, diganti
-  tinggi eksplisit `(screenHeightDp * 0.62f).coerceIn(360f, 640f).dp` (via
-  `LocalConfiguration.current.screenHeightDp`, import baru) — 62% tinggi layar
-  supaya tab SELALU dapat ruang tampil besar & KONSISTEN, tidak lagi bergantung
-  jumlah banner yang aktif; dikunci ke [360dp, 640dp] biar tidak absurd di 2
-  ekstrem (device sangat pendek/sangat tinggi). Header/banner TIDAK hilang dari
-  mode horizontal (tetap ada, tinggal discroll ke atas untuk lihat) — TIDAK
-  ada isi yang dipindah ke dalam/keluar tab (Zero-Refactor, keputusan Batch 94
-  soal apa yang di dalam vs di luar tab tetap utuh). `.navigationBarsPadding()`
-  yang sebelumnya nempel di Column per-halaman pager (Batch 96) DIPINDAH ke
-  Column pembungkus utama (yang sekarang jadi scrollport SEBENARNYA yang mentok
-  ke tepi bawah layar di kedua mode) — bukan dihapus, cuma dipindah ke tempat
-  yang sekarang benar secara posisi (Column per-halaman pager sekarang cuma
-  "jendela" 62%-layar di tengah, bukan lagi scrollport yang mentok ke tepi
-  bawah layar sungguhan, jadi inset di situ sudah tidak relevan/salah posisi).
-  Mode vertikal (default) **0 perubahan perilaku** — sudah pakai
-  `verticalScroll()`+`navigationBarsPadding()` sama persis sejak Batch 97,
-  tidak disentuh batch ini.
-  **File disentuh**: 1 file kode (`BoosterScreen.kt`, 4 titik edit — import
-  `LocalConfiguration`, modifier Column pembungkus utama, deklarasi
-  `pagerHeight` + modifier `HorizontalPager`, modifier Column per-halaman
-  pager) + VIP docs (`PROJECT_STATE.md`, `CHANGELOG.md`). Cek statis: mini-lexer
-  Python (sadar string-interpolasi/komentar/literal) — brace 246/246, paren
-  670/670, bracket 2/2 (0 selisih dari sebelum edit), depth brace tidak pernah
-  negatif & berakhir di 0 (re-check struktural tambahan, bukan cuma hitung
-  total).
-  **Belum divalidasi runtime/visual** — perlu build+install APK baru & coba
-  toggle "Mode Tab Horizontal" di Settings dengan BEBERAPA banner aktif
-  sekaligus (skenario paling jelas menunjukkan bedanya) untuk konfirmasi tab
-  sekarang terasa lapang. Kandidat curiga kalau MASIH kurang lapang di device
-  tertentu: (1) fraksi 62% & batas [360dp,640dp] adalah estimasi awal, bukan
-  angka final — gampang di-tune naik/turun kalau user lapor balik, (2) nested
-  vertical-scroll (outer Column + verticalScroll internal per-halaman pager,
-  Batch 94) belum pernah dites gesture-nya di device fisik — SECARA TEORI
-  bekerja benar (Compose nested scroll standar: child konsumsi dulu, sisa
-  delta diteruskan ke parent), tapi belum ada konfirmasi runtime.
-- 📐🎨 **Batch 99 (1 file kode — `BoosterScreen.kt`)**: 2 laporan user
-  digabung 1 sesi, keduanya soal "Mode Tab Horizontal" (opt-in, Batch 97): (1)
-  "touch screen nya sempit alias gak fleksibel untuk menampilkan banyak menu
-  dalam suatu tab", (2) "efek theme yang offside dari card (stacked card effect
-  Neumorphism) mengalami potongan saat mode scroll horizontal".
-  **Bug #1**: `TabRow` evenly-divided (dipasang Batch 95) bagi rata lebar layar
-  ke SEMUA tab tanpa peduli jumlahnya — makin banyak tab, makin sempit tiap
-  satu, 0 cara scale. Ditinjau ulang: root cause bug Batch 95 (label kepotong,
-  alasan waktu itu ganti dari `ScrollableTabRow`) TERNYATA bukan salah
-  komponennya, tapi `edgePadding` default M3 yang bikin 3 tab pendek overflow
-  PADAHAL harusnya muat, memicu auto-scroll motong tab di ujung. **Fix**:
-  balik ke `ScrollableTabRow` + `edgePadding = 0.dp` eksplisit — 3 tab sekarang
-  muat penuh tanpa scroll (0 regresi bug lama, akarnya sudah hilang), DAN kalau
-  nanti tab bertambah banyak, otomatis scrollable dengan lebar tab natural
-  (bukan makin mengecil) — inilah yang bikin "fleksibel untuk banyak menu".
-  **Bug #2**: shadow dual-directional manual (`SkeuDualDirectionalShadow`,
-  `SkeuomorphicComponents.kt`, bleed keluar bentuk kartu, paling kentara
-  Neumorphism elevation 13dp) kepotong rata HANYA di mode horizontal. Root
-  cause: `HorizontalPager` clip konten ke batas kotaknya sendiri di sumbu
-  scroll (built-in library, bukan bug kode, 0 API publik buat matikan) —
-  `Column` per-halaman pager 0 padding horizontal sendiri, kartu nempel persis
-  ke tepi pager, shadow 0 ruang bleed sebelum ketabrak clip. Mode vertikal
-  tidak kena karena 0 `HorizontalPager` di situ (Column vertikal tidak
-  meng-clip horizontal). **Fix**: `.padding(horizontal = 16.dp)` ditambah di
-  `Column` per-halaman pager (sebelum `.verticalScroll()`) — 16dp cukup nampung
-  falloff shadow yang masih keliatan jelas (~15dp buat elevation 13dp
-  terbesar). Trade-off disadari: kartu mode horizontal jadi sedikit lebih
-  sempit dari mode vertikal (38dp vs 22dp inset per sisi) — SENGAJA cuma
-  berlaku di dalam pager, 0 perubahan ke mode vertikal/Column pembungkus
-  terluar.
-  **File disentuh**: 1 file kode (`BoosterScreen.kt`, 2 titik edit di blok
-  `if (useHorizontalLayout)` yang sama) + VIP docs (`PROJECT_STATE.md`,
-  `CHANGELOG.md`). `SkeuomorphicComponents.kt` TIDAK disentuh (root cause ada
-  di sisi caller/pager, bukan teknik shadow itu sendiri). Cek statis: brace
-  246/246, paren 670/670, bracket 2/2 (0 selisih dari sebelum edit). **Belum
-  divalidasi runtime/visual** — perlu build+install APK baru & coba toggle
-  "Mode Tab Horizontal" di Settings buat konfirmasi kedua fix ini beneran
-  kelihatan benar di device. Detail lengkap: `CHANGELOG.md` entry "Batch 99".
-- 🛠️ **Batch 98 (1 file kode — `SettingsScreen.kt`)**: FIX build
-  gagal — input sesi ini `Boomly_v97.zip` + `log_fail_v146-debug-run146.zip`
-  (log CI run #146). Compiler error: `e: SettingsScreen.kt:24:43 Cannot
-  access 'weight': it is internal in 'androidx.compose.foundation.layout'`
-  → `:app:compileDebugKotlin` FAILED, 0 APK. **Root cause**: baris 24
-  (ditambahkan Batch 97) `import androidx.compose.foundation.layout.weight`
-  salah sasaran — `Modifier.weight(1f)` (dipakai baris 274, di dalam `Row`
-  toggle "Mode Tab Horizontal") adalah member extension function milik
-  `RowScope`/`ColumnScope` (`fun Modifier.weight(...)` di dalam interface
-  itu sendiri) yang resolve OTOMATIS dari receiver scope `Row { }` — TIDAK
-  PERNAH butuh import eksplisit. Package itu ternyata juga punya symbol
-  top-level lain bernama sama `weight` yang `internal` (detail implementasi
-  Compose, bukan API publik) — import yang salah tulis ini menabrak symbol
-  internal tsb, bukan member extension publik yang dimaksud. Diverifikasi
-  silang: `BoosterScreen.kt` pakai `Modifier.weight(1f)` di 9 lokasi (baris
-  96/210/285/335/883/924/961/997/1287) TANPA import `weight` sama sekali,
-  dan file itu TIDAK ada di daftar error — konfirmasi pola
-  member-extension-tanpa-import sudah konsisten dipakai di seluruh project,
-  cuma `SettingsScreen.kt` yang kena salah import (kemungkinan sisa
-  auto-import IDE yang salah pilih kandidat saat Batch 97 ditulis). **Fix**:
-  hapus 1 baris import itu (baris 24), 0 baris lain disentuh. Static check:
-  brace/paren `SettingsScreen.kt` SAMA PERSIS sebelum vs sesudah (24/24
-  kurawal, 141/141 kurung) — konfirmasi fix murni penghapusan import, 0
-  logic/struktur ikut berubah. **File disentuh**: 1 (`SettingsScreen.kt`),
-  jauh di bawah limit 3. Detail lengkap: `CHANGELOG.md` entry "Batch 98".
-  **Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
-  sandbox Claude (lihat catatan di bawah), fix ini murni berdasarkan
-  pembacaan pesan compiler dari log CI + cross-check pola import lintas
-  file. WAJIB tunggu konfirmasi run CI berikutnya hijau (`:app:compileDebugKotlin`
-  sukses + APK ter-generate) sebelum dianggap tuntas.
-- 📐 **Batch 96 (1 file kode — `BoosterScreen.kt`)**: Request
-  eksplisit user: "tambahkan inset/semacamnya pada semua tab!!".
-  **Investigasi**: dicek `MainActivity.kt` — `enableEdgeToEdge()` sudah
-  aktif sejak awal project (baris 104), tapi grep `WindowInsets`/
-  `*BarsPadding()` di `BoosterScreen.kt` NIHIL sebelum batch ini — 0
-  padding insets di sisi Compose sama sekali. Karena app draw edge-to-edge,
-  ini artinya konten bisa ketutup status bar (atas)/nav bar (bawah) tanpa
-  kompensasi apa pun selain padding statis `22.dp` di `Column` pembungkus
-  terluar yang tidak dinamis mengikuti tinggi system bar device masing-
-  masing (gesture nav ~24dp vs 3-tombol ~48dp, beda-beda per device/OEM).
-  **Struktur relevan** (post Batch 94/95): `TabRow` + `HorizontalPager` —
-  KETIGA tab (**Kontrol**/**Tampilan**/**Bantuan**) render lewat 1 `Column`
-  yang SAMA di dalam `HorizontalPager` (`when (page) { 0/1/2 -> ... }`),
-  masing-masing scroll independen (`verticalScroll` per-page). Titik paling
-  berisiko ketutup: KONTEN PALING BAWAH tiap tab pas discroll sampai akhir
-  (mis. tombol "Lihat penjelasan lengkap" di tab Bantuan) — bisa ketutup
-  gesture bar/nav bar 3-tombol.
-  **Fix**: `.navigationBarsPadding()` (Compose Foundation, BOM `2024.06.00`
-  yang sudah dipakai project — dicek dulu, 0 dependency baru/bump
-  diperlukan) ditambah SETELAH `.verticalScroll()` di `Column` bersama itu.
-  Karena 1 titik render dipakai ketiga tab, 1 baris ini otomatis cover
-  SEMUA tab sekaligus (bukan 3 edit file/lokasi terpisah — tetap 1 file
-  kode, jauh di bawah limit micro-batch). Urutan modifier SENGAJA setelah
-  `.verticalScroll()` (bukan sebelum `.fillMaxSize()`) supaya inset jadi
-  ruang ekstra di UJUNG scroll (ikut ke-scroll, cuma nampak pas discroll
-  sampai akhir) — BUKAN motong tinggi `Column` secara statis dari awal
-  layar (yang buang ruang layar permanen walau nav bar-nya tipis/gesture,
-  device-independent).
-  **Sengaja di luar scope**: inset status bar buat header (judul "Boomly" +
-  ikon ⚙️ Settings/❓ Help, di ATAS `TabRow`) — permintaan user spesifik
-  "semua tab", dan header itu sendiri render SEBELUM `TabRow`/`HorizontalPager`
-  (bukan bagian salah satu tab). Kalau user mau itu juga: 1 baris tambahan
-  `.statusBarsPadding()` di `Column` header (lokasi terpisah, `Column` lain
-  dari yang disentuh batch ini) — belum diinisiasi, tunggu user minta.
-  **Cek statis**: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
-  tutup (kurawal, TIDAK berubah dari Batch 95, cuma nambah 1 modifier +
-  komentar), 797 buka/797 tutup (kurung biasa, naik dari 786 murni karena
-  teks komentar + 1 pasang kurung `navigationBarsPadding()`), 0 selisih.
-  Import: 0 baris baru — `navigationBarsPadding()` sudah tercakup wildcard
-  `import androidx.compose.foundation.layout.*` yang sudah ada sejak file
-  ini dibuat (Batch 16).
-  **Belum divalidasi runtime** — TIDAK ADA kotlinc/Gradle/Android SDK di
-  sandbox Claude manapun (lihat catatan lama di bawah), jadi belum bisa
-  compile-check. Belum ada screenshot before/after device nyata yang
-  konfirmasi gesture bar/nav bar 3-tombol memang sudah tidak menutup
-  konten ujung bawah tiap tab — kalau masih kerasa kurang (mis. jarak
-  terasa kurang di device nav bar sangat tinggi, atau user sebenarnya
-  minta juga inset header/status bar), laporkan balik, gampang di-adjust.
-- 🐛 **Batch 95 (1 file kode — `BoosterScreen.kt`, fix bug hasil
-  validasi screenshot)**: User kirim 3 screenshot tab bar (`349907.jpg` =
-  tab "Kontrol" aktif, `349908.jpg` = tab "Tampilan" aktif, `349909.jpg` =
-  tab "Bantuan" aktif) dengan keluhan singkat: "Bagus sih. Cuman kurang
-  fleksibel dan banyak truncated nya".
-  **Bug #1 (tab-bar)**: di `349907.jpg` label "Bantuan" kepotong jadi
-  "Bantu" di ujung kanan; di `349909.jpg` label "Kontrol" kepotong jadi
-  "ntrol" di ujung kiri. **Akar masalah** (dicek ke kode, bukan tebak):
-  `ScrollableTabRow` (Batch 94) kasih tiap `Tab` `minWidth` bawaan
-  Material3 90.dp — buat cuma 3 label pendek ("Kontrol"/"Tampilan"/
-  "Bantuan") total lebar tab masih SELALU lebih lebar dari layar sempit,
-  jadi `ScrollableTabRow` auto-scroll internal ke tab yang lagi aktif
-  (perilaku bawaan M3 biar tab terpilih kelihatan penuh) — efek sampingnya,
-  tab di UJUNG LAIN (yang lagi tidak aktif) ke-geser sebagian keluar layar
-  dan kepotong. Ini PERSIS risiko "belum divalidasi visual" #1 yang sudah
-  dicatat di Batch 94 sebelumnya, sekarang terbukti nyata.
-  **Fix**: `ScrollableTabRow` diganti `TabRow` biasa (evenly-divided,
-  non-scrollable) — untuk jumlah tab yang FIXED di 3 (bukan kandidat
-  nambah tab lagi ke depan), `TabRow` bagi rata lebar layar ke semua tab
-  sekaligus, jadi ke-3 label SELALU utuh kelihatan bareng, gak peduli tab
-  mana yang aktif. 1 baris nama Composable diubah (`selectedTabIndex`/
-  `containerColor`/`divider`/isi tetap sama persis, API kompatibel).
-  **Bug #2 (tombol bantuan)**: masih di `349909.jpg`, tombol "Lihat
-  penjelasan lengkap tiap fitur →" render 2 baris — baris kedua cuma
-  nampilin glyph nyaris tak terbaca ("'n"), bukan panah "→" yang
-  dimaksud. **Akar masalah**: karakter Unicode "→" nempel jadi 1 karakter
-  di ekor string `see_full_explanation` — begitu teks perlu wrap 2 baris
-  (layar sempit/lebar kolom terbatas), panah ke-isolasi sendirian jadi
-  baris ke-2 & rendering-nya jadi aneh. **Fix**: panah dipisah dari string,
-  diganti `Icon(Icons.AutoMirrored.Filled.ArrowForward, modifier =
-  Modifier.size(16.dp))` asli di `TextButton` (Compose vector icon, bukan
-  glyph font) — otomatis ikut alur `Row` internal `TextButton`, dan
-  auto-mirror kalau RTL suatu saat didukung (belum di-scope). String
-  `see_full_explanation` (`values/strings.xml` + `values-en/strings.xml`)
-  dilucuti ekor " →"/" →"-nya — 0 string baru/dihapus, parity tetap
-  ID/EN 125/125 (resource, TIDAK dihitung micro-batch, bukan kode).
-  Cek statis: balance kurung/kurawal `BoosterScreen.kt` — 246 buka/246
-  tutup, 786 buka/786 tutup untuk kurung biasa, 0 selisih. Grep konfirmasi
-  0 sisa pemanggilan `ScrollableTabRow` di kode aktif (cuma 2 referensi
-  historis di komentar Batch 94/95 yang sengaja dibiarkan sebagai riwayat).
-  **Belum divalidasi ulang** — screenshot di atas adalah BUKTI bug SEBELUM
-  fix ini, belum ada screenshot pasca-fix. Risiko Batch 94 #2 (transisi
-  tap-vs-swipe antar-tab) & #3 (`HorizontalPager` pakai `weight(1f)` tanpa
-  `.fillMaxSize()` eksplisit) masih berdiri, TIDAK disentuh batch ini
-  (di luar scope — user cuma laporin truncation, bukan masalah transisi/
-  layout pager). `docs/preview/current.html` TETAP belum disinkron ke
-  struktur tab (`PENDING_Batch94_SyncPreviewHTML.md`, tidak tersentuh).
-- 💊 **Batch 94 (1 file kode — `BoosterScreen.kt`)**: Request
-  eksplisit user, disertai 2 screenshot layar utama (kartu Kontrol penuh +
-  lanjutan scroll sampai Studio Equalizer/kartu baterai) yang nunjukkin
-  masalah: 1 scroll vertikal panjang buat sampai ke kartu paling bawah.
-  Minta: "semua tab yang awalnya vertikal kebawah -> horizontal scrollable
-  dan masih enak navigasi nya".
+- **Batch terakhir**: 106 (housekeeping dokumentasi).
+- **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
+  `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
+- **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
+  custom opt-in di Settings, tap-tab (bukan swipe), 1 scrollport, 0 clip
+  ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
+- **Tema**: 4 varian aktif via switch Settings — Midnight Glass (default),
+  Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism"),
+  Studio Equalizer. Lihat "Riwayat pivot arah desain" untuk detail tiap
+  varian.
+- **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema di
+  atas): grouped-list Kontrol + Settings selesai+tervalidasi, tipografi
+  Large Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
+  tervalidasi visual). Sisa: nav bar large-title-collapsing, audit
+  `OnboardingScreen.kt`, SF Symbols-style icon — lihat TODO Fase 7.
+- **Validasi runtime**: mayoritas perubahan UI/layout terkini BELUM
+  divalidasi di device fisik oleh user (sandbox tanpa compiler/emulator,
+  lihat "Batasan sandbox"). Anggap "belum tervalidasi" sebagai default
+  tiap ada perubahan baru kecuali eksplisit dicatat terkonfirmasi.
 
-  **Yang diubah** — SEBELUMNYA `BoosterScreen` Composable-nya 1 `Column`
-  raksasa dengan `.verticalScroll(rememberScrollState())` membungkus SEMUA
-  section flat sebagai sibling: Preset Cepat (chip horizontal-scroll) →
-  kartu Bass/Virtualizer/Loudness (`SectionLabel controls_title`) →
-  Equalizer Manual (`EqualizerSection` collapsible) → kartu dynamic color
-  (SDK 31+) → Aurora Glass → Skeuomorphism → Studio Equalizer → kartu
-  baterai/autostart → tombol "Lihat penjelasan lengkap". SEKARANG
-  dikelompokkan jadi 3 tab via `ScrollableTabRow` (M3, tersedia sejak 1.0,
-  aman di BOM 2024.06.00/M3 1.2.1 — TIDAK pakai `PrimaryScrollableTabRow`
-  yang baru ada di M3 1.3+, biar gak perlu bump BOM) + `HorizontalPager`
-  (package `androidx.compose.foundation.pager`, SUDAH dipakai
-  `OnboardingScreen.kt` — dikonfirmasi dulu sebelum dipakai, 0 dependency
-  baru):
-  - **Tab "Kontrol"** (label reuse `controls_title`, 0 string baru): Preset
-    Cepat (TIDAK disentuh, tetap sesuai roadmap "TETAP horizontal-scroll")
-    + kartu Bass/Virtualizer/Loudness + Equalizer Manual. Termasuk 2
-    `AlertDialog` (save preset & confirm delete) — tetap co-located di sini
-    karena trigger-nya (chip "+") cuma ada di tab ini juga.
-  - **Tab "Tampilan"** (string baru `tab_display_label`): 4 toggle tema —
-    dynamic color (`SDK_INT >= S`), Aurora Glass, Skeuomorphism, Studio
-    Equalizer.
-  - **Tab "Bantuan"** (string baru `tab_help_label`): kartu penjelasan izin
-    baterai/autostart + tombol bantuan.
+---
 
-  Header (judul+ikon), `PowerToggleRow`, motif waveform, `ServiceStatusBadge`,
-  dan SEMUA banner (crash/control-recovery/update/koneksi/izin
-  notifikasi/unsupported chipset) TETAP di luar tab, sebelum `ScrollableTabRow`
-  — sengaja TIDAK ikut di-tab-kan karena ini status/alert penting yang gak
-  boleh "hilang" di balik navigasi swipe.
+## ⚠️ Temuan validasi ZIP upload (Batch 96, transparansi, bukan bloker aktif)
+Saat itu dicek `Boomly_v96.zip` vs 3 fix session sebelumnya (Batch 94-96
+inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 
-  **Implementasi**: `Column` utama — `.verticalScroll()` DIHAPUS (state
-  pager+tab yang sekarang atur scroll, bukan 1 scroll gabungan lagi).
-  `pagerState = rememberPagerState(pageCount = { 3 })`. Tap tab →
-  `coroutineScope.launch { pagerState.animateScrollToPage(index) }` (reuse
-  `coroutineScope` yang SUDAH ada buat snackbar, 0 scope baru) + haptic
-  (pola SAMA kayak semua toggle lain di file ini). Swipe manual jalan
-  otomatis (bawaan `HorizontalPager`). Tiap halaman pager dibungkus
-  `Column(fillMaxSize().verticalScroll(rememberScrollState()))` sendiri —
-  scroll independen per tab, bukan cuma 1 raksasa. Warna teks tab:
-  `primary` bold pas selected, `LocalSkeuTokens.current.mutedText` pas
-  unselected (konsisten sama treatment chip preset Batch 93).
-  `divider = {}` di `ScrollableTabRow` — app ini dari awal tidak pernah
-  pakai divider Material default di mana pun (pola custom
-  `SkeuGroupDivider`), nambah 1 lagi cuma elemen asing. Isi tiap
-  kartu/section/logic **TIDAK diubah SAMA SEKALI** — 0 refactor di luar
-  scope, cuma dikelompokkan ulang jadi 3 branch `when(page)`.
+## 📅 LOG BATCH (descending, terbaru paling atas — BUKAN bagian permanen)
+Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
+Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
-  Cek statis DILAKUKAN 2x: (1) count kurung/kurawal naif — awalnya ketahuan
-  SELISIH 1 (kurang 1 `}` di ekor, keburu ke-skip pas nulis manual, langsung
-  diperbaiki), (2) re-cek pakai mini-lexer Python yang sadar string
-  literal/interpolasi `${...}`/komentar (biar gak false-positive/negative
-  dari karakter `{`/`}` yang numpang lewat di teks) — hasil akhir: depth 0,
-  0 error "unmatched closing brace" di titik manapun proses scan. Paren
-  juga dicek cara yang sama — 0 error.
+- **Batch 106** (0 kode, dok-only): konsolidasi `roadmap.md` + 2x
+  `PENDING_*.md` → `PROJECT_STATE.md` § TODO/ROADMAP, sumber lama
+  dipindah ke `/archive`. README diaudit, 0 info usang lain ditemukan.
+- **Batch 105** (`BoosterScreen.kt`, REVERT): swipe-antar-tab Batch 104
+  (auto-height pager) regresi UI parah di device fisik (klip/distorsi) —
+  direvert total, identik byte-per-byte ke Batch 103. Lihat "Keputusan
+  sadar" untuk lesson permanen.
+- **Batch 104** (`BoosterScreen.kt`, DIREVERT Batch 105): percobaan
+  kembalikan swipe-antar-tab via `HorizontalPager` auto-height
+  (`onSizeChanged`). GAGAL di runtime — jangan diulang cara sama.
+- **Batch 103** (`BoosterScreen.kt`): hapus swipe-antar-tab, ganti tap-tab
+  (`selectedTabIndex` + `rememberSaveable`). Hasil: 1 clip fisik sisa
+  (wajar, tepi layar), 0 clip ganda. Belum tervalidasi runtime saat itu
+  (sekarang TERVALIDASI stabil, lihat Status Terkini).
+- **Batch 102** (0 kode, keputusan scope): user tanya kenapa clip fisik
+  gak dihilangkan total. Dijawab 2 opsi arsitektur (auto-height pager vs
+  hapus swipe) — 0 dipilih sesi itu, dieksekusi Batch 103.
+- **Batch 101** (`BoosterScreen.kt`): fix clip ganda vertikal Mode Tab
+  Horizontal — `padding(horizontal=16.dp)` → `padding(16.dp)` di Column
+  per-halaman pager.
+- **Batch 100** (`BoosterScreen.kt`): fix ruang tab terasa sempit — Column
+  pembungkus utama scroll di kedua mode, `HorizontalPager` tinggi eksplisit
+  62% layar (dikunci 360-640dp) ganti `weight(1f)`.
+- **Batch 99** (`BoosterScreen.kt`): 2 fix Mode Tab Horizontal —
+  `TabRow`→`ScrollableTabRow`(`edgePadding=0`) biar gak sempit; Column
+  per-halaman pager dapat `padding(horizontal=16.dp)` biar shadow gak
+  kepotong clip pager.
+- **Batch 98** (`SettingsScreen.kt`, hotfix build): hapus 1 baris import
+  `weight` yang salah tabrak symbol internal Compose → fix compile error.
+- **Batch 97** (`BoosterScreen.kt`/`SettingsScreen.kt`/`PrefsHelper.kt`):
+  revert layout utama vertikal→default, Mode Tab Horizontal (struktur
+  Batch 94-96) jadi opsi opt-in toggle Settings. Lihat "Keputusan sadar".
+- **Batch 96** (`BoosterScreen.kt`): `.navigationBarsPadding()` ditambah
+  di Column tab pager — cegah konten bawah ketutup nav/gesture bar.
+- **Batch 95** (`BoosterScreen.kt`, fix hasil screenshot): tab label
+  kepotong → `ScrollableTabRow`→`TabRow` evenly-divided; panah "→" di
+  tombol bantuan wrap aneh → ganti `Icon` vector.
+- **Batch 94** (`BoosterScreen.kt`): kelompokkan layar utama jadi 3 tab
+  (Kontrol/Tampilan/Bantuan) via `ScrollableTabRow`+`HorizontalPager`.
+  Header/banner status TETAP di luar tab. Belum tervalidasi visual sama
+  sekali saat itu (kemudian di-revert-default Batch 97).
+- **Batch 93** (`BoosterScreen.kt`): styling pill Preset Cepat — unselected
+  jadi outline-only (transparent+border), selected tetap filled+glow.
+  `docs/preview/current.html` disinkron sekalian (ditemukan sudah lama beda
+  dari Kotlin).
+- **Batch 92** (`SettingsScreen.kt`, fix hasil screenshot): divider row
+  "Versi Aplikasi" salah indent (warisan default 50dp buat baris ber-icon)
+  → `startIndent=0.dp` khusus baris ini.
+- **Batch 91** (`SettingsScreen.kt`+strings ID/EN): grouped-list ala iOS —
+  baris versi app dipisah dari blok aksi cek-update via `SkeuGroupDivider`.
+- **Batch 90** (`Theme.kt`+`SettingsScreen.kt`): Large Title 34sp Bold ala
+  iOS HIG (`headlineMedium`, dari 28sp ExtraBold lama). Title inline
+  `SettingsScreen` turun ke `titleMedium` (17sp) biar gak kegedean.
+- **Batch 89** (0 kode, validasi): screenshot user konfirmasi Batch 88
+  (grouped-list Kontrol) render benar — Fase 7 Fase 1 SELESAI penuh.
+- **Batch 88** (`SkeuomorphicComponents.kt`+`BoosterScreen.kt`): mulai iOS
+  Look Hybrid Rombak — section Kontrol (Bass/Virtualizer/Loudness) jadi 1
+  `SkeuCard` grouped-list ala iOS Settings (`SkeuGroupDivider` baru), ganti
+  3 card terpisah. Warna/shadow tiap tema TIDAK disentuh.
+- **Batch 87** (`AudioEnhancerService.kt`): Fase 1 rebuild session-0 —
+  `DynamicsProcessing` dapat PreEq 5-band fallback, HANYA aktif kalau
+  `Equalizer` legacy device `UNAVAILABLE` total. 0 perubahan perilaku di
+  device dengan Equalizer legacy normal (mayoritas).
+- **Batch 86** (test baru `AudioEnhancerServiceStateTest.kt`): 13 test
+  Robolectric — Fase 0 audit item #8 selesai.
+- **Batch 85** (`AudioEnhancerService.kt`, hotfix): fix compile error
+  `DynamicsProcessing.Limiter` param pertama salah (`0` bukan Boolean) →
+  `inUse=true`. Lesson: constructor API effect jarang pakai WAJIB dicek ke
+  dokumentasi resmi, bukan tebak dari nama variabel.
+- **Batch 84** (`AudioEnhancerService.kt`): effect baru `DynamicsProcessing`
+  sebagai limiter murni (ceiling tambahan, bukan pipeline gain-staging
+  penuh — API publik gak bisa jamin urutan insert effect). Digated
+  `SDK_INT >= P` (guard yang sempat kelewat di draf awal, self-corrected).
+- **Batch 83** (`AudioEnhancerService.kt`): `AudioDeviceCallback` register
+  — deteksi perpindahan output route, nudge `enableEffects()` (bukan
+  recreate), digate `isRunning`.
+- **Batch 82** (0 kode): antrian Fase 0 audit sisa 5 item dicatat, tunggu
+  user pilih urutan (BLOKER #6 butuh konfirmasi risiko eksplisit).
+- **Batch 81** (3 file+strings): Settings cek-update tampilkan komparasi
+  versi eksplisit + ringkasan rilis + tombol unduh inline, 0 logic unduh
+  baru (reuse `BoosterViewModel`).
+- **Batch 80** (0 kode): pangkas ATURAN PERMANEN 98→63 baris (housekeeping
+  serupa yang sedang dilakukan sekarang di seluruh file).
+- **Batch 79** (0 kode): user konfirmasi fix Batch 78 (quote YAML) jalan
+  di produksi — caveat ditutup.
+- **Batch 78** (`.github/workflows/build.yml`, DIKONFIRMASI JALAN): root
+  cause update-checker gagal total sejak Batch 69 — `name:` Release YAML
+  tidak di-quote, ` #<run_number>)` kepotong jadi komentar YAML saat parse.
+  Fix: bungkus quote. Lesson: value YAML yang mengandung `#` WAJIB di-quote.
+- **Batch 77** (0 kode): investigasi laporan "gagal cek update" → BUKAN
+  bug, user tes dengan Mode Pesawat ON (WiFi tanpa rute internet bersih).
+- **Batch 76** (`app/build.gradle.kts`+`.github/workflows/build.yml`):
+  `versionName` ikut otomatis dari `GITHUB_RUN_NUMBER` (sebelumnya cuma
+  `versionCode`). Step CI "Extract changelog" diredesain ambil section
+  teratas CHANGELOG.md (bukan match versi lagi).
+- **Batch 75** (`UpdateManager.kt`+`BoosterViewModel.kt`): fix "app bilang
+  sudah terbaru padahal belum" — `fetchLatestRelease()` return sealed class
+  `CheckResult` (Available/UpToDate/Failed) ganti `null` ambigu.
+- **Batch 74** (`MainActivity.kt`): fix regresi gesture-back nutup app
+  (bukan balik ke BoosterScreen) — `BackHandler` baru khusus `showSettings`.
+- **Batch 73** (5 file+strings): `SettingsScreen.kt` baru — entry point
+  cek-update manual (ikon ⚙️ di header), status IDLE/CHECKING/UP_TO_DATE/
+  FOUND/ERROR.
+- **Batch 72** (dok-only): restrukturisasi `PROJECT_STATE.md` jadi 2 lapis
+  (Aturan Permanen vs Log Harian) — 0 konten historis dihapus saat itu.
+- **Batch 71** (dok-only): rule Batch 70 dipertegas — glob Termux
+  `Boomly*.zip` di-spell-out eksplisit.
+- **Batch 70** (dok-only): PIN format ZIP output `Boomly_<versi>-<batch>.zip`
+  (kemudian direvisi lagi Batch 76/94, lihat "Keputusan sadar").
+- **Batch 69** (5 file+3 parsial, v1.99.0): fitur in-app update — cek versi
+  via judul GitHub Release `(Run #N)`, unduh APK chunk-streaming Okio
+  (DILARANG `readBytes()`), install via FileProvider. Permission
+  `INTERNET`+`REQUEST_INSTALL_PACKAGES` pertama kali di project ini.
+- **Batch 68** (`strings.xml` ID/EN+preview html+README): ekspansi rebrand
+  — semua string user-facing app jadi "Boomly". Path fungsional
+  (`CrashLogger.APP_FOLDER`, applicationId, dll) TETAP tidak berubah.
+- **Batch 67** (dok-only): koreksi nama ZIP `AudioBooster`→`Boomly` (Batch
+  66 dianggap masih generik).
+- **Batch 66** (dok-only): rebrand kosmetik nama ZIP output
+  `AudioEnhancerPro`→`AudioBooster` (dikoreksi Batch 67). 0 kode disentuh.
+- **Batch 65** (`app/build.gradle.kts`+`.github/workflows/build.yml`):
+  inspeksi penuh Feature Lock CI/CD — 2 pelanggaran ketemu & fix:
+  `versionCode` yang selama ini manual → otomatis `GITHUB_RUN_NUMBER`;
+  "Stale Run Guard" (spek asli, gak pernah diimplementasi 64 batch) —
+  step baru exit 1 kalau `GITHUB_SHA` != HEAD main terkini.
+- **Batch 64** (`BoosterScreen.kt`): perkuat intensitas 3 dari 4 preset
+  bawaan (Flat sengaja tidak disentuh), tetap dalam batas kontrak platform.
+- **Batch 63** (`BoosterScreen.kt`+`PrefsHelper.kt`+test): preset custom
+  sekarang ikut simpan state Equalizer manual (`eqBands`), backward-compat
+  penuh ke preset lama (field kosong = EQ manual tak disentuh).
+- **Batch 62** (`BoosterScreen.kt`+`BoosterViewModel.kt`+`MainActivity.kt`):
+  `retryControlAcquisition()` (Batch 61) disurface ke UI — `ControlRecoveryBanner`
+  baru, tampil saat effect `CONTROL_LOST`/`FAILED`.
+- **Batch 61** (`AudioEnhancerService.kt`): `attachEffects()` dipecah per-
+  effect + fungsi publik `retryControlAcquisition()` (belum ada pemanggil
+  otomatis, sengaja — hindari retry-loop tanpa data device nyata).
+- **Batch 60** (`AudioEnhancerService.kt`): riset dokumentasi resmi
+  konfirmasi range Bass/Virtualizer `0..1000` adalah kontrak platform
+  (bukan device-specific seperti diasumsikan audit awal). Tambah
+  `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` diagnostik.
+- **Batch 59** (`BoosterScreen.kt`): `equalizerEffectState` disurface ke
+  `EqualizerSection` sebagai subtitle pesan `CONTROL_LOST`/`FAILED`.
+- **Batch 58** (3 file): `EffectState` (Batch 57) disurface Service→
+  ViewModel (poll 1 detik)→UI (`helpText` FeatureControl berubah saat
+  gagal).
+- **Batch 57** (`AudioEnhancerService.kt`): user upload audit eksternal gap
+  audio-engine robustness. `EffectState` enum baru per-effect + listener
+  `CONTROL_LOST` asli + exception dulu silent sekarang `Log.e`+`FAILED`.
+  Mulai 9-item roadmap Fase 0, dikerjakan satu-satu sesuai instruksi user.
+- **Batch 56** (`Theme.kt`+`SkeuomorphicComponents.kt`): tuning kontras
+  dual-shadow Neumorphism dinaikkan lagi (alpha, elevation, spread).
+- **Batch 55** (`.github/workflows/build.yml`): fix artifact log salah
+  ke-upload untuk job yang di-skip (bukan gagal) — kondisi `if:` diperketat
+  ke `outcome=='failure'`.
+- **Batch 54** (`SkeuomorphicComponents.kt`, hotfix build): Batch 53 gagal
+  CI — `drawOutline` tidak eksis di Compose UI graphics, ganti `drawPath`+
+  konversi `Outline`→`Path` manual.
+- **Batch 53** (`SkeuomorphicComponents.kt`, GAGAL BUILD — lihat Batch 54):
+  `SkeuDualDirectionalShadow` dirombak ke teknik gambar-ulang-siluet manual
+  (bukan `Modifier.shadow()` native, dibatasi alpha keras oleh sistem).
+- **Batch 52** (`Theme.kt`): reset total palet Neumorphism ke "Deep Navy &
+  Classic Brass" sesuai spek eksak user — root cause versi lama gak
+  genuine neumorphism (gradient+sheen di permukaan kartu, ciri
+  skeuomorphism/glass, bukan neumorphism flat+shadow-only).
+- **Batch 51** (`BoosterScreen.kt`): `SnackbarHost` pertama kali dipakai —
+  3 titik feedback sukses baru (simpan/hapus preset, hapus log crash).
+- **Batch 50** (`gradle.properties`+`roadmap.md` baru): configuration-cache
+  dinyalakan (setelah CI Batch 49 dikonfirmasi hijau). `roadmap.md` baru —
+  sintesis semua backlog jadi 1 checklist 6-fase (kemudian dikonsolidasi
+  balik ke file ini di Batch 106).
+- **Batch 49** (6 file, PERUBAHAN ARSITEKTUR TERBESAR sejak Batch 18):
+  Hilt+kapt DICABUT TOTAL — satu-satunya titik inject sudah gratis dari
+  `AndroidViewModel` bawaan. README: link download APK dipindah ke atas.
+- **Batch 48** (`.github/workflows/build.yml`): body GitHub Release
+  dipotong ke paragraf pembuka + cap 15 baris (sebelumnya ambil mentah
+  seluruh entry CHANGELOG, bisa >80 baris).
+- **Batch 47** (`Theme.kt`+`SkeuomorphicComponents.kt`): fix "kurang
+  depth/ambient bocor" — `SkeuTokens` dapat `shadowLightTint`/`shadowDarkTint`,
+  2-layer `Modifier.shadow` native terarah KHUSUS Neumorphism.
+- **Batch 46** (5 file): tema ke-3 jadi genuine Neumorphism "ultra
+  realistic+immersive" (dari Skeuomorphism bevel-hard lama), palet
+  Platinum+Ruby. Persistence key kode TETAP `SKEUOMORPHISM` (Protected).
+- **Batch 45** (`AudioEnhancerService.kt`): fix race condition nyata
+  (`isRunning` tanpa `@Volatile`, dibaca thread beda oleh watchdog) +
+  `THREAD_PRIORITY_URGENT_AUDIO` di `onCreate()`.
+- **MODE MAINTENANCE dimulai setelah Batch 44** — fitur inti dianggap
+  selesai. Implikasi: Claude JANGAN proaktif nawarin fitur besar baru;
+  prioritas bugfix/crash/regresi/permintaan kecil. Permintaan eksplisit
+  user untuk fitur besar TETAP dikerjakan (maintenance mode = larangan
+  inisiatif Claude, bukan larangan mutlak buat user).
+- **Batch 44** (2 file): fix "widget aktif, QS Tile nonaktif" — QS Tile
+  gak pernah diberi tahu state-change dari path lain, tambah
+  `requestTileUpdate()` di 3 titik yang sama dengan widget refresh.
+- **Batch 43** (6 file): tema ke-4 "Studio Equalizer" — neumorphism palet
+  studio abu-abu + aksen neon-lime `#39FF14` (khusus state aktif).
+- **Batch 42** (`.github/workflows/build.yml`): tag/nama Release/APK/artifact
+  pakai `github.run_id` (unik permanen) — override sadar keputusan Batch 11
+  (tag polos yang bisa tabrakan). Trade-off: Releases numpuk 1 per run CI.
+- **Batch 41** (3 perubahan `gradle.properties`+`build.gradle.kts`): kapt
+  worker API + incremental + `buildConfig=false` (0 pemanggil terkonfirmasi
+  grep) — percepat compile CI, tanpa ubah dependency.
+- **Batch 40** (`.github/workflows/build.yml`+`gradle.properties`): job
+  build+release digabung 1 job, cache Gradle, parallel+build-cache+heap naik.
+- **Batch 39** (`Theme.kt`+`SkeuomorphicComponents.kt`+strings): varian
+  Skeuomorphism jadi 100% otonom — radius/shape sendiri, aksen
+  tembaga→titanium-silver metalik.
+- **Batch 38** (5 file+strings): tambah varian tema ke-3 "Skeuomorphism"
+  (bevel/fisik, bukan glass) — toggle baru di Settings, 3 opsi eksklusif.
+- **Batch 37** (banyak file, REWRITE TOTAL): "iOS Glassmorphism +
+  Midnight-Blue dominan" jadi arah desain utama — kartu genuine frosted-
+  glass 4-stop+sheen kedua, radius naik 20→26dp, kontras teks dinaikkan.
+  Arsitektur 2-varian (Batch 36) dipertahankan, isi ditulis ulang total.
+- **Batch 36 Fix** (`Theme.kt`, hotfix): CI gagal kapt — `Dp` type tanpa
+  import class-nya (cuma extension `dp` yang di-import). Tambah 1 import.
+- **Batch 36** (banyak file, v1.75): fitur switch tema custom — arsitektur
+  `SkeuTokens`/`LocalSkeuTokens`/`AppThemeStyle` baru, 2 tema hidup
+  berdampingan (AMOLED Glass + Radical Skeuomorphism) dipilih via toggle
+  Settings. Semua komponen WAJIB baca `LocalSkeuTokens.current`, jangan
+  reference val hardcoded lagi.
+- **Batch 35** (v1.74): `TextMuted` (dead code sejak Batch 34) dipakai di
+  semua teks caption-tier.
+- **Batch 34** (v1.73): KOREKSI Batch 33 — guide referensi salah upload,
+  diganti "AMOLED Hybrid Glassmorphism + Subtle Midnight Blue +
+  Micro-Skeuomorphism" yang benar. Filosofi geser: glass jadi material
+  utama, skeuomorphism turun jadi "micro" (physical controls saja).
+- **Batch 33** (v1.72, REFERENSI SALAH — lihat Batch 34): palet AMOLED +
+  glass surfaces + Midnight Blue sebagai tint subtle. Kartu jadi
+  frosted-glass gradient (dari solid flat Batch 31).
+- **Batch 32** (v1.71): glow state-aktif (`Modifier.skeuGlow` baru) +
+  switch tactile (`SkeuSwitch` baru) sesuai guide detail yang di-upload
+  ulang user.
+- **Batch 31** (v1.70): DESIGN LANGUAGE PIVOT TOTAL — "Neumorphic Hybrid"
+  (Batch 12-26) DICABUT, ganti "Skeuomorphism-lite (Tactile UI)", WAJIB
+  dark-mode (toggle terang/sistem dihapus total).
+- **Batch 30** (v1.69): empty state hint preset custom, polish kecil.
+- **Batch 28** (v1.67, hotfix): `const val` pakai `Environment.DIRECTORY_DOCUMENTS`
+  (bukan compile-time constant) → hapus `const`. Lesson: field API Android
+  BUKAN compile-time constant walau terlihat "konstan".
+- **Batch 27** (v1.66): rewrite `CrashLogger.kt` ke MediaStore API 29+.
+- **Batch 26** (v1.65): body GitHub Release dinamis dari CHANGELOG.md +
+  polish kecil (batas karakter nama preset, haptic di 5 titik).
+- **Batch 25** (v1.64, hotfix): `LocalIndication` non-null di versi Compose
+  project ini → `NoRippleIndication` object custom ganti `provides null`.
+- **Batch 24** (v1.63): ripple removal 4 titik — desain benar, tipe Kotlin
+  yang salah (fixed Batch 25).
+- **Batch 22** (v1.61→v1.62): slider custom (`NeumorphicSliderTrack`/`Thumb`)
+  — desain benar, kurang 1 `@OptIn` (fixed run berikutnya).
+- **Batch 19-21** (v1.58-v1.60, 3 iterasi CI): root cause Gradle sistem
+  runner naik ke 9.6.1 (gak kompatibel KGP 1.9.24) — fix bertahap: pin
+  `--gradle-version 8.7`, generate wrapper di direktori terisolasi
+  (`mktemp -d`+`settings.gradle.kts` kosong), reorder step "Extract version
+  name" ke paling awal+unconditional. Artifact `log_fail_*` otomatis
+  ter-upload saat build gagal (fitur baru diminta user).
+- **Batch 18** (v1.57): Hilt DI ditambahkan (kemudian DICABUT TOTAL Batch
+  49 — 1 titik inject ternyata gratis dari `AndroidViewModel`).
+- **Batch 17**: state+business logic koneksi Service diekstrak
+  `MainActivity`→`BoosterViewModel` (`AndroidViewModel` polos, tanpa DI).
+  Bind/unbind pindah pakai Application Context (hindari context-leak).
+- **Batch 1-16**: scaffold awal, fitur inti (BassBoost/Virtualizer/
+  Equalizer/LoudnessEnhancer di session 0, foreground service anti-kill,
+  QS Tile, App Shortcuts, Widget home screen, CrashLogger, CI/CD signing),
+  beberapa putaran audit kecacatan logika (resource orphan, dead code,
+  splash screen stale, parity string, validasi tabrakan nama preset).
+  Detail lengkap tiap fitur/audit: `CHANGELOG.md` v1.0-v1.45.
 
-  **Resource (2 file, TIDAK dihitung ke micro-batch limit — bukan kode)**:
-  `values/strings.xml` + `values-en/strings.xml`, 2 string baru
-  (`tab_display_label`="Tampilan"/"Display", `tab_help_label`=
-  "Bantuan"/"Help"). Parity ID/EN terjaga 125/125.
+---
 
-  **Sengaja DITUNDA** (diekstrak ke PENDING, bukan bagian batch ini, biar
-  micro-batch tetap 1 file kode): `docs/preview/current.html` — mockup
-  statis BELUM disinkronkan ke struktur tab baru (butuh markup tab-bar +
-  tab-panel + JS toggle, bukan cuma ubah CSS var kayak Batch 93 preset chip
-  — effort-nya lebih deket ke "file kode kedua" kalau dipaksa masuk batch
-  ini). Detail lengkap: `PENDING_Batch94_SyncPreviewHTML.md`.
+## 🎨 Riwayat pivot arah desain (biar gak nyoba ulang hal yang sama)
+1. **Apple-style minimalis** (v1.11-v1.23) — gagal, user gak ngerasa beda.
+   Sebab: (a) HP user kemungkinan paksa Teks Tebal di Aksesibilitas,
+   override semua font; (b) tint alpha tipis di atas dark background hitam
+   pekat = nyaris invisible — LESSON: pakai solid color blend (`lerp()`),
+   jangan alpha mentah di atas dark background; (c) app pakai EMOJI
+   sebagai icon UI — iOS asli gak pernah begitu, ini akar utama kesan
+   "gak pernah berubah".
+2. **Neo-brutalist** — border tebal, sudut tajam, warna vivid. User:
+   masih kurang "premium".
+3. **Glassmorphism ultra premium, palet violet** (v1.29-v1.48) — struktur
+   disukai, palet violet dianggap "neon ungu alay".
+4. **Matte premium, palet graphite/bronze** (v1.49) — struktur #3
+   dipertahankan, cuma palet violet→champagne-bronze. LESSON: komplain
+   "alay/norak" bisa jadi cuma soal palet, bukan struktur — cek dulu
+   sebelum redesign besar.
+5. **Neumorphic Hybrid** (v1.51-v1.69, DICABUT Batch 31) — struktur ikut
+   diganti, dual-shadow extruded/inset, translucency & gradient-clip text
+   dibuang total.
+6. **Skeuomorphism-lite (Tactile UI)** (v1.70, DICABUT Batch 37) —
+   neumorphism dicabut, WAJIB dark-mode, tactile HANYA di physical
+   controls (power button/slider knob), kartu flat minimal.
+7. **iOS Glassmorphism + Midnight-Blue dominan** (Batch 37, v1.76.0,
+   ARAH DASAR SEKARANG) — kartu genuine frosted-glass (4-stop+sheen
+   kedua), radius besar ala iOS, background gradient Midnight-Blue→hitam,
+   kontras teks readability-first. **4 varian tema** hidup berdampingan
+   via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle` sejak
+   Batch 36): (1) Midnight Glass (default, restrained), (2) Aurora Glass
+   (vivid), (3) Neumorphism (Batch 46, ultra realistic, palet
+   Platinum+Ruby, persistence key kode TETAP `SKEUOMORPHISM`), (4) Studio
+   Equalizer (Batch 43, palet studio + neon-lime, low-contrast by design).
+   Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) TETAP
+   independen dari ke-4 varian ini.
+8. **iOS Look Hybrid Rombak** (Batch 88+, lapisan struktur/pola DI ATAS
+   poin 7, TIDAK ganti warna/material) — grouped-list, tipografi Large
+   Title, dst. Lihat TODO Fase 7 untuk progress.
 
-  Keputusan naming ZIP output sesi ini: Core Protocol user minta
-  `<NamaApp>_v<Batch>.zip` (`Boomly_v94.zip`), beda dari konvensi lama file
-  ini (`Boomly_batch<N>.zip`, lihat 🔒 Keputusan Sadar di bawah — SEKARANG
-  DIPERBARUI). Sesuai hierarki "User Instruction > Core Protocol > file
-  ini" yang dinyatakan sendiri oleh dokumen ini, Core Protocol menang —
-  user sudah eksplisit konfirmasi ("Y") pakai `Boomly_v94.zip` mulai
-  batch ini dan seterusnya.
+**Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
+bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
+(validasi arah desain jauh lebih murah lewat browser daripada build
+penuh). Kalau ada guide desain baru yang KELIHATAN mirip tapi beda detail
+dari yang dipakai batch terakhir, JANGAN asumsikan itu iterasi tambahan —
+cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 
-  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
-  Kandidat curiga: (1) warna indicator garis-bawah `ScrollableTabRow`
-  masih default M3 (belum di-custom ke token skeuomorphic/glass app ini —
-  mungkin kelihatan asing), (2) transisi tap-vs-swipe antar-tab belum
-  dites device fisik, (3) `HorizontalPager` pakai `Modifier.weight(1f)` di
-  `Column` yang TIDAK punya `.fillMaxSize()` eksplisit — SECARA TEORI tetap
-  bekerja karena constraint bounded diwariskan dari root `Box(fillMaxSize())`
-  (pola sama persis `OnboardingScreen.kt` yang sudah jalan), tapi belum
-  divalidasi runtime nyata di device.
-- 💊 **Batch 93 (1 file kode — `BoosterScreen.kt`)**: User pilih
-  **"C: styling pill Preset Cepat"** dari 4 kandidat sisa Fase 7 Fase 2
-  (`roadmap.md`).
-  Dibaca dulu implementasi chip preset yang ada (`FilterChip` Material3,
-  built-in di `presets.forEach` + custom di `customPresets.forEach`, keduanya
-  identik strukturnya). **Shape capsule TERNYATA SUDAH ADA sejak awal**
-  (`shape = RoundedCornerShape(50)` — persentase 50% dari sisi terpendek,
-  otomatis fully-rounded karena chip jauh lebih lebar dari tinggi) — bagian
-  ini TIDAK disentuh, sesuai roadmap eksplisit "TETAP horizontal-scroll",
-  scope-nya emang cuma "selected-state lebih tegas ala iOS".
-  **Yang diubah** — sebelumnya unselected & selected SAMA-SAMA filled
-  (bedanya cuma warna: `surfaceVariant` abu vs `primary` biru), 0 chip
-  punya border sama sekali:
-  - Unselected: `containerColor` `surfaceVariant` (filled abu) →
-    **`Color.Transparent`** + `border = BorderStroke(1.dp,
-    LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f))` — token
-    `mutedText` SUDAH ADA di ke-4 varian tema, 0 token baru ditambah ke
-    `SkeuTokens`. Hasil: ala iOS "outline-only" buat opsi yang belum dipilih.
-  - Selected: TETAP `containerColor = primary` + `skeuGlow` (2 penanda itu
-    SUDAH cukup tegas dari awal, tidak disentuh) — `border` sengaja
-    `null` pas selected (nambah border DI ATAS fill+glow yang udah rame
-    cuma bikin berantakan visual, bukan nambah ketegasan — prinsip restraint
-    yang sama dipakai `SkeuGroupDivider` Fase 1).
-  Import `BorderStroke` (`androidx.compose.foundation`) ditambah. Berlaku
-  ke DUA lokasi (`presets.forEach` built-in + `customPresets.forEach`
-  custom) — disinkron identik, 0 alasan preset custom beda treatment.
-  **`docs/preview/current.html`**: dicek dulu (bukan diasumsikan gak
-  relevan) — ternyata section "PRESET CEPAT" ADA di mockup ini
-  (`.chip`/`.chip.active`), dan CSS-nya SUDAH LAMA beda dari Kotlin
-  (mockup: base chip udah punya border+`background:var(--surface)` dari
-  awal; `.chip.active` cuma ganti warna teks/border, `background` TETAP
-  `var(--surface)`, gak pernah filled solid kayak Kotlin). Disinkronkan
-  sekalian ke treatment baru: `.chip` → `background:transparent` (border
-  `var(--border)` YANG SUDAH ADA dipertahankan, 0 var baru), `.chip.active`
-  → `background:var(--primary)` + teks putih + border dihilangkan (mirror
-  logic sama persis kayak Kotlin di atas). Sekarang mockup & Kotlin SAMA
-  persis, sebelumnya enggak (temuan sampingan, bukan disengaja dicari).
-  Cek statis: balance kurung/kurawal `BoosterScreen.kt` — 0 selisih; brace
-  CSS `current.html` (41 buka = 41 tutup) — 0 selisih.
-  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
-  Kandidat curiga: (1) border 0.35 alpha mungkin kurang/kelewat kentara di
-  varian tema selain Neumorphism (Glass dkk — belum pernah dites, warna
-  background beda-beda per varian), (2) transisi ketika chip di-tap
-  (unselected→selected: border hilang, fill muncul bareng) mungkin
-  kelihatan "loncat" tanpa animasi — belum ada `animateColorAsState` di
-  `FilterChip` ini (di luar scope batch ini kalau ternyata jadi masalah,
-  perlu batch terpisah).
-- 🐛 **Batch 92 (1 file kode — `SettingsScreen.kt`, fix bug hasil
-  validasi screenshot)**: User kirim 2 screenshot (`349771.jpg` = header
-  utama "Boomly", `349772.jpg` = layar Settings) buat validasi Batch 90
-  (Large Title) + Batch 91 (grouped-list Settings) yang dua-duanya masih
-  "BELUM divalidasi visual" di log sebelumnya.
-  **Batch 90 VALID, 0 bug**: "Boomly" di `349771.jpg` jelas lebih besar/
-  tegas (34sp Bold) dibanding screenshot lama (`349736.jpg`, 28sp
-  ExtraBold), tetap 1 baris (gak wrap ke 2 baris meski font lebih besar),
-  gear icon ⚙️ pojok kanan atas gak ketabrak/kegeser.
-  **Batch 91 SEBAGIAN valid, 1 bug ketemu & di-fix**: di `349772.jpg`, row
-  "Versi Aplikasi | 139" render PERSIS sesuai desain (label kiri, value
-  kanan warna muted). Title inline "Pengaturan" (17sp SemiBold, hasil fix
-  Batch 90) juga proporsinya OK di sebelah tombol back. TAPI
-  `SkeuGroupDivider()` di bawah row versi kelihatan mulai jauh ke kanan
-  dari teks "Versi Aplikasi" — bukan flush rata kiri, nyasar ke tengah
-  tanpa alasan visual.
-  **Akar masalah** (dicek ke kode, bukan tebak): `SkeuGroupDivider`
-  (`SkeuomorphicComponents.kt`) defaultnya `startIndent=50.dp` — angka itu
-  SENGAJA dirancang Fase 1 (Batch 88) buat nge-skip lebar icon-box 40dp +
-  spacing `Row` 10dp di `FeatureControl`, biar divider align ke BAWAH TEKS
-  JUDUL (bukan bawah icon) di baris-baris "Kontrol" (Bass/Virtualizer/
-  Loudness — SEMUA row itu PUNYA icon). Baris "Versi Aplikasi" di
-  `SettingsScreen.kt` (Batch 91) TIDAK punya icon sama sekali — teks
-  langsung mulai dari padding Column 16dp, TANPA offset icon-box apa pun.
-  Warisi default 50dp itu jadinya SALAH KONTEKS: bukan nge-skip apa-apa,
-  cuma jadi indent sembarang yang gak align ke elemen manapun di atasnya.
-  **Fix**: `SkeuGroupDivider(startIndent = 0.dp)` khusus dipanggil di baris
-  ini (override eksplisit, BUKAN ubah default function-nya — default 50dp
-  masih benar buat semua caller lain yang PUNYA icon, ubah default bakal
-  balik nge-break Fase 1). 1 baris kode diubah, cek statis balance kurung
-  `SettingsScreen.kt` — 0 selisih.
-  **Kesimpulan**: Fase 7 Fase 1 (Batch 88) + Fase 2 opsi B/Large-Title
-  (Batch 90) + opsi A/grouped-Settings (Batch 91, minus bug ini) sekarang
-  SEMUA tervalidasi visual dari screenshot device asli. Fix divider INI
-  SENDIRI belum ada screenshot ulang pasca-fix (risiko rendah — cuma ubah
-  1 parameter numerik, bukan struktur), tapi kalau user mau lebih yakin
-  boleh minta screenshot lagi sebelum lanjut Fase 2+ berikutnya.
-- 📋 **Batch 91 (3 file kode — `SettingsScreen.kt`,
-  `values/strings.xml`, `values-en/strings.xml`)**: User jawab BLOKER
-  sisa Batch 90 — pilih **"A: Grouped-list SettingsScreen.kt"** dari 5
-  kandidat sisa Fase 7 Fase 2 (`roadmap.md`).
-  **Diaudit dulu sebelum ubah apa pun** (persis instruksi roadmap.md
-  "kemungkinan sudah dekat pola iOS Settings, perlu dicek ulang dulu"):
-  dibaca `SettingsScreen.kt` full — ternyata BUKAN kasus yang sama dengan
-  "Kontrol" Fase 1 (3 baris FeatureControl sejajar: Bass/Virtualizer/
-  Loudness). Screen ini cuma 1 `SkeuCard` berisi 1 blok CAMPURAN: teks versi
-  app polos ("Versi aplikasi: X") lalu tombol full-width "Cek Update
-  Sekarang" nempel PERSIS di bawahnya cuma dipisah `Spacer(12dp)` — 0
-  pemisah visual antara "info" dan "aksi", beda dari pola iOS Settings asli
-  (contoh nyata: Settings > General > About — baris "Version" [label
-  kiri, value kanan] TERPISAH garis tipis dari baris aksi di bawahnya).
-  **Treatment yang diterapkan** (BUKAN copy-paste pola Fase 1 mentah-mentah,
-  karena strukturnya beda — N baris sejajar vs 1 alur aksi tunggal):
-  dipecah jadi 2 GROUP dalam 1 kartu, disambung `SkeuGroupDivider` (SAMA
-  komponen dipakai Fase 1, 0 komponen baru):
-  1. Baris info versi ala row iOS ("Version   17.2" — label kiri, value
-     kanan, BUKAN 1 baris teks gabung lagi). String lama
-     `settings_app_version_label` (format gabungan "Versi aplikasi: %1$s")
-     **DIHAPUS** dari `values/strings.xml` DAN `values-en/strings.xml`
-     (dicek dulu 0 referensi lain ke key itu di seluruh project via
-     `grep -rn "R.string.settings_app_version_label"` — bersih), diganti
-     `settings_app_version_row_label` (label polos, 0 placeholder) di
-     KEDUA file locale.
-  2. Blok aksi cek-update (tombol + status/notes/download conditional
-     Batch 73/81) — **TIDAK direstruktur isinya**, itu 1 alur aksi
-     tunggal (bukan beberapa baris sejajar independen), jadi dipecah lebih
-     jauh lagi jadi row-row terpisah justru bakal maksa-maksain pola yang
-     gak cocok (ZERO-REFACTOR bagian yang gak relevan ke task).
-  Cek statis: balance kurung/kurawal `SettingsScreen.kt` (regex strip
-  komentar/string dulu) — 0 selisih. Kedua `strings.xml` divalidasi XML
-  well-formed (`xml.dom.minidom`). 0 referensi tersisa ke
-  `R.string.settings_app_version_label` di seluruh project (grep).
-  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user.
-  Kandidat curiga: (1) spacing baris versi vs divider vs tombol di bawahnya
-  — belum pernah dites proporsinya di layar asli, (2) label "Versi Aplikasi"
-  + value trailing mungkin kepanjangan buat 1 baris di layar sempit
-  (belum ada wrap handling eksplisit).
-- 🔤 **Batch 90 (2 file kode — `Theme.kt`, `SettingsScreen.kt`)**:
-  User jawab BLOKER Batch 89 — pilih **"B: Tipografi iOS"** dari 6 kandidat
-  Fase 7 Fase 2 (`roadmap.md`).
-  **Dicek dulu ke referensi resmi Apple HIG** (bukan tebak dari memori,
-  pelajaran Batch 85) sebelum nulis kode: Large Title iOS = 34pt, dan meski
-  SwiftUI `Font.largeTitle` abstrak defaultnya Regular, large-title yang
-  BENERAN kelihatan di `UINavigationBar` stok Apple (Settings/Mail/Messages
-  — pola acuan visual proyek ini sejak Batch 88) selalu Bold (bar chrome
-  bawaan, beda dari Font-style abstrak).
-  **`Theme.kt`**: `headlineMedium` (`AppTypography`, 1 set shared ke SEMUA 4
-  varian tema — bukan per-tema kayak warna/shape) dinaikkan dari 28sp
-  ExtraBold/34 lineHeight/-0.3 letterSpacing (angka lama ad-hoc, gak pernah
-  dicocokkan ke spek manapun) → **34sp Bold/41 lineHeight/-0.4 letterSpacing**
-  (rasio line-height ~1.2x dipertahankan sama seperti sebelumnya). Weight
-  dipilih Bold (bukan ExtraBold lagi, tapi juga bukan Regular literal) —
-  masih cukup tegas buat brand "Boomly", sekarang berbasis rasio iOS asli.
-  `letterSpacing` -0.4 itu sendiri BUKAN klaim angka tracking resmi SF Pro
-  (font Android beda metrik total, proyek ini sengaja gak embed font baru
-  sesuai roadmap.md) — cuma pendekatan realistis "makin besar size, makin
-  rapat tracking".
-  **Efek samping ketemu & diperbaiki (bukan scope creep — konsekuensi
-  langsung ubah token shared)**: `SettingsScreen.kt` ternyata pakai
-  `headlineMedium` yang SAMA buat title INLINE di sebelah tombol back —
-  kalau dibiarkan, 34sp bakal kegedean/berpotensi wrap 2 baris di layar
-  sempit. Pola iOS asli: Large Title cuma di ROOT screen, layar yang
-  di-push pakai title inline kecil (17pt Semibold) di navigation bar — jadi
-  `SettingsScreen.kt` dipindah ke `titleMedium` (17sp SemiBold, SUDAH ADA
-  sejak lama, 0 token baru ditambah).
-  **SENGAJA TIDAK disentuh**: `headlineSmall` (dipakai `OnboardingScreen.kt`
-  — audit onboarding itu kandidat Fase 2+ TERPISAH/E, belum dipilih user;
-  nilainya 22sp Bold kebetulan SUDAH cocok skala iOS "Title 2" 22pt, jadi
-  memang gak butuh diubah kalaupun nanti diaudit). `titleMedium`/`bodyLarge`/
-  `bodyMedium`/`bodySmall` juga tidak disentuh — scope batch ini spesifik
-  "Large Title header", bukan re-tuning seluruh skala tipografi sekaligus
-  (STABILITY > Speed, satu perubahan terukur per batch).
-  **Dokumentasi**: `docs/preview/current.html` (`h1` CSS, 2 varian glass)
-  disinkronkan ke 34px/700/41px-lineheight/-.4px, mirror `Theme.kt`.
-  Cek statis: balance kurung/kurawal kedua file kode (regex strip
-  komentar/string dulu) — 0 selisih di keduanya.
-  **BELUM divalidasi visual/device SAMA SEKALI** — butuh screenshot user
-  lagi. Kandidat curiga: (1) "Boomly" 34sp Bold mungkin mepet/wrap di
-  device layar sempit (proyek ini belum pernah setest lebar teks di ukuran
-  ini), (2) title "Pengaturan" di `SettingsScreen.kt` (sekarang 17sp,
-  turun drastis dari 34sp sebelumnya) perlu dicek proporsinya di sebelah
-  ikon back beneran pas atau malah kekecilan.
-- ✅ **Batch 89 (0 file kode — dok-only, validasi)**: User upload
-  screenshot device asli (`349736.jpg`) sebagai respons permintaan validasi
-  Batch 88 ("Butuh screenshot user sebelum lanjut Fase 2"). Dicek detail:
-  **tema Neumorphism terkonfirmasi** (shadow bertumpuk terlihat jelas di
-  badge status DAN kartu Kontrol — persis sama seperti temuan investigasi
-  Batch 88, bukan salah satu varian glass). Section "Kontrol" sekarang
-  benar 1 kartu gabungan: `SkeuGroupDivider` (inset ~50dp, alpha rendah,
-  mulai persis setelah posisi icon-box) tampak jelas sebagai garis tipis di
-  antara baris Bass Boost dan Virtualizer, TIDAK jadi garis penuh lebar
-  Android-style. Shadow tactile Neumorphism (1x panggilan `SkeuCard` untuk
-  3 baris, bukan 3x seperti sebelum Batch 88) proporsinya terlihat wajar,
-  tidak "gepeng"/hilang seperti dikhawatirkan di catatan Batch 88. Spacing
-  internal antar baris (14dp+14dp divider) juga tidak terlihat sempit atau
-  berantakan. **Kesimpulan: Fase 7 Fase 1 SELESAI PENUH** (kode + visual),
-  0 revisi diperlukan — `roadmap.md` diubah `[~]` → `[x]`.
-  **BLOKER (bukan dikerjakan asal tebak)**: antrian Fase 2+ ada 6 kandidat
-  independen (lihat roadmap.md: grouped-list `SettingsScreen.kt`, tipografi
-  iOS, styling pill preset, nav bar large-title collapsing, audit
-  `OnboardingScreen.kt`, icon SF-Symbols-style) TANPA urutan prioritas
-  eksplisit dari user — roadmap.md bilang "tunggu screenshot + arahan
-  user", screenshot-nya sudah ada sekarang tapi arahan URUTAN mana duluan
-  belum. Konsisten pola BLOKER Batch 82/86/87 (Fase 0 #6/#9 dulu), Claude
-  tanya balik lewat opsi bertanda di chat, bukan menebak prioritas sendiri.
-  0 file kode disentuh batch ini — VIP docs saja (`PROJECT_STATE.md`,
-  `roadmap.md`, `CHANGELOG.md`) di-sync sesuai ATURAN PERMANEN.
-- 🎨 **Batch 88 (2 file kode — `SkeuomorphicComponents.kt`,
-  `BoosterScreen.kt`)**: User upload screenshot app (tema Neumorphism
-  kemungkinan besar, lihat temuan di bawah) + minta eksplisit "Rombak total
-  UI/UX aplikasi jadi 100% iOS look. Tanpa mengorbankan theme yang telah ada
-  sebelumnya!!". Claude tawarkan 4 opsi prioritas Fase 1 lewat pilihan
-  bertanda; user jawab bebas (bukan pilih salah satu opsi): **"intinya: per
-  fase, dan terapkan metode hybrid tanpa mengorbankan ciri khas utama dari
-  theme nya masing-masing"** — jadi Claude yang tentukan titik mulai
-  konkret, LEWAT INVESTIGASI KODE DULU (`Theme.kt` 791 baris + 4 varian,
-  `SkeuomorphicComponents.kt` 601 baris dibaca lengkap), bukan tebak dari
-  screenshot doang.
-  **Temuan penting yang mengubah rencana**: efek "kartu bertumpuk" yang
-  kentara di screenshot user cuma render kalau `shadowLightTint`/
-  `shadowDarkTint` (`SkeuTokens`) BUKAN `Color.Transparent` — dan itu CUMA
-  diisi warna asli di varian ke-3 **"Neumorphism"**; 3 varian lain
-  (Midnight Glass default, Aurora Glass, Studio Equalizer) sengaja
-  `Transparent` ("kartu glass visually quiet", prinsip restraint Batch 34).
-  Artinya efek itu kemungkinan besar CIRI KHAS UTAMA varian Neumorphism itu
-  sendiri (bukan sesuatu yang perlu "diperbaiki" jadi lebih halus) — rencana
-  awal Claude (melunakkan `SkeuDualDirectionalShadow`) DIBATALKAN setelah
-  temuan ini, konsisten sama instruksi eksplisit user "jangan korbankan ciri
-  khas". Diganti pendekatan struktural yang genuinely orthogonal ke
-  identitas warna/shadow tiap tema.
-  **FASE 1 dikerjakan**: section "Kontrol" (`BoosterScreen.kt`) —
-  Bass Boost/Virtualizer/Loudness SEBELUMNYA 3 `SkeuCard` terpisah
-  (`wrapInCard=true` default tiap `FeatureControl`), SEKARANG 1 `SkeuCard`
-  gabungan ala **grouped-list iOS** (Settings.app: 1 kotak, N baris, garis
-  pemisah tipis inset) — pakai `SkeuGroupDivider` (komposabel baru,
-  `SkeuomorphicComponents.kt`) + pola `wrapInCard=false` yang **BUKAN baru**
-  (sudah lama dipakai `EqualizerSection` buat band-bandnya, di sini dipakai
-  pertama kali buat baris atas). Divider pakai `tokens.mutedText` yang
-  SUDAH ADA di ke-4 varian (0 token warna baru ke `SkeuTokens` — nambah
-  field baru wajib diisi ulang ke SEMUA 4 varian, risiko lupa 1), alpha
-  rendah (0.16) biar tetap "quiet", inset 50dp (lewati icon-box 40dp +
-  gap 10dp) meniru divider iOS asli (bukan garis full-width Android biasa).
-  Warna/border/shadow `SkeuCard` itu sendiri 100% TIDAK disentuh — cuma
-  JUMLAH pemanggilannya (3→1) yang berubah, jadi identitas visual tiap tema
-  (termasuk shadow tactile Neumorphism) tidak tersentuh sama sekali.
-  Cek statis: balance kurung/kurawal/bracket kedua file (regex strip
-  komentar/string dulu) — 0 selisih di keduanya.
-  **Dokumentasi**: `docs/preview/current.html` (mockup ground-truth 2 varian
-  glass) disinkronkan — section Kontrol jadi 1 `.card` + `.card-divider`
-  CSS baru (mirror `SkeuGroupDivider`), konsisten praktik lama project ini.
-  `roadmap.md` **Fase 7 — iOS Look Hybrid Rombak** baru dibuat (inisiatif
-  user, di luar audit eksternal Fase 0) — Fase 1 `[~]`, kandidat Fase 2+
-  dicatat (grouped-list `SettingsScreen.kt`, tipografi iOS, preset row TETAP
-  horizontal-scroll karena custom preset unbounded — segmented control
-  literal dicoba dipikirkan lalu SENGAJA tidak dipilih, nav bar large-title,
-  `OnboardingScreen.kt` belum diaudit, icon SF-Symbols-style belum
-  diputuskan). **Ketemu & diperbaiki sekalian** item lama Fase 6 roadmap.md:
-  paragraf "Arah desain UI aktif" di file ini belum pernah di-update sebut
-  "4 varian" sejak Batch 43 — sekarang lengkap + ditambah paragraf baru
-  yang eksplisit bedakan lapisan "Arah desain" (warna/material, lama) vs
-  "iOS Look Hybrid Rombak" (struktur/pola, baru Batch 88).
-  **File disentuh**: 2 file kode + `docs/preview/current.html` + `roadmap.md`
-  + VIP docs. 0 file lain (`Theme.kt` 0 token baru, `SettingsScreen.kt`,
-  `OnboardingScreen.kt`, semua test, Manifest 100% apa adanya). 0 bump versi.
-  **BELUM divalidasi visual/device SAMA SEKALI** — Claude tidak punya
-  preview render di sandbox. Kandidat curiga: (1) spacing internal grup
-  (14dp+14dp divider) vs spacing 3-card lama mungkin terasa beda dari
-  ekspektasi begitu dilihat di device, (2) di Neumorphism (kemungkinan tema
-  screenshot user), `SkeuCard` shadow tactile sekarang cuma 1x panggilan
-  (bukan 3x) buat 3 baris — proporsi visual belum diverifikasi. Butuh
-  screenshot user sebelum lanjut Fase 2 (2 varian glass bisa dicek duluan
-  lewat `docs/preview/current.html`). Detail lengkap: CHANGELOG.md "Batch 88".
-- 🏗️ **Batch 87 (1 file kode — `AudioEnhancerService.kt`)**: User
-  kirim ZIP Batch 86 + "Lanjut kerjakan next task!!" — antrian Fase 0 tersisa
-  cuma #6 (BLOKER) dan #9, dua-duanya butuh keputusan eksplisit user (bukan
-  cuma "lanjut" generik, lihat Batch 82/86). Claude tanya lewat pilihan
-  bertanda; user pilih **"#6 Rebuild session-0 (paham risikonya,
-  lanjutkan)"**.
-  Dikerjakan **FASE 1** dari rebuild bertahap (item #6 terlalu besar buat 1
-  micro-batch — Micro-Batch maks 3 file kode, dan tanpa compile-check/device
-  test, rewrite besar sekaligus melanggar STABILITY > Speed): `DynamicsProcessing`
-  (sebelumnya cuma limiter murni, Batch 84) sekarang JUGA bisa dipasangi
-  PreEq stage 5-band (`FALLBACK_EQ_BANDS_HZ` — 60/230/910/3600/14000 Hz, TIDAK
-  di-query dari device, pilihan tetap) — **HANYA aktif kalau `Equalizer`
-  legacy device ini `UNAVAILABLE` total** (`needsEqFallback` dihitung dari
-  `equalizerState` tepat setelah `attachEqualizer()` — urutan panggil TIDAK
-  diubah). Device dengan Equalizer legacy normal (mayoritas) melewati cabang
-  ini sepenuhnya — **0 perubahan perilaku** untuk kasus itu (diverifikasi
-  manual: setiap fungsi `getEqualizerBand*()`/`setEqualizerBand()`/
-  `isEqualizerSupported()` punya cabang `if (equalizerFallbackActive) ...
-  else <kode lama apa adanya>`).
-  Dicek dulu ke dokumentasi resmi `developer.android.com` (bukan tebak dari
-  memori — pelajaran langsung dari insiden Batch 85) sebelum nulis kode:
-  signature `DynamicsProcessing.Config.Builder(...)` (posisi param preEq),
-  `DynamicsProcessing.EqBand(enabled, cutoffFrequency, gain)` (constructor
-  3-argumen, `cutoffFrequency` = frekuensi TERATAS band bukan frekuensi
-  tengah), dan `setPreEqBandAllChannelsTo(band, EqBand)` ADA sebagai method
-  instance efek `DynamicsProcessing` itu sendiri (bukan cuma di `Config`,
-  dikonfirmasi lewat source AOSP) — konsisten pola `setLimiterAllChannelsTo`
-  yang sudah dipakai Batch 84.
-  Konversi satuan: `levelMb` (mB, satuan lama UI/`Equalizer`) → `gainDb` (dB,
-  satuan `EqBand.gain`) via bagi 100 — dicek 1 dB = 100 mB, bukan asumsi
-  baru. Rentang fallback `±12 dB` (`FALLBACK_EQ_RANGE_MB`) dipilih
-  konservatif (TIDAK ADA API resmi query gain range EqBand per-device, beda
-  dari `Equalizer.bandLevelRange`), limiter (Batch 84, tetap terpasang) di
-  effect yang SAMA jadi pengaman terakhir kalau user pukul rata semua band
-  fallback ke maksimal.
-  `restoreSavedSettings()` DIRAPIKAN sekalian (bukan scope terpisah — bagian
-  langsung dari wiring fallback ini): SEBELUMNYA baca `equalizer.numberOfBands`
-  + `eq.setBandLevel()` langsung, SEKARANG lewat `getEqualizerBandCount()`/
-  `setEqualizerBand()` publik supaya 1 sumber logic dipakai baik jalur asli
-  MAUPUN fallback — jalur asli 100% perilaku identik (fungsi publik itu
-  MEMANG cuma memanggil `equalizer?.setBandLevel()` yang sama persis di
-  cabang non-fallback).
-  Cek statis: balance kurung/kurawal/bracket SELURUH file (bukan cuma bagian
-  baru) via parser Python (regex strip komentar/string dulu) — 0 selisih
-  (291/291 `()`, 2/2 `[]`, 155/155 `{}`).
-  `roadmap.md` Fase 0 #6 `[ ]` → `[~]`, ditambah paragraf "BATASAN
-  FUNDAMENTAL" (kenapa "rebuild ke API modern" secara harfiah TIDAK BISA
-  100% lewat API publik non-root — TIDAK ADA API Android yang beri app
-  kontrol urutan insert effect di HAL chain session-0, berlaku untuk
-  `AudioEffect` legacy MAUPUN `DynamicsProcessing` sama-sama, keduanya cuma
-  node independen di chain yang sama). Progress ringkas Fase 0: 4 selesai +
-  4 sebagian (dari sebelumnya 4+3). File BARU `PENDING_Fase0_
-  Item6_RebuildSessionZero.md` (VIP-adjacent, isolated per aturan
-  Micro-Batch buat task oversized): catat kandidat Fase 2 (fallback
-  Bass/Virtualizer, validasi device Fase 1, opsi `AudioPlaybackCapture`
-  sebagai proyek TERPISAH kalau user mau — bukan bagian #6) + alasan
-  fundamental kenapa dipecah.
-  **File disentuh**: 1 file kode (`AudioEnhancerService.kt`) + `roadmap.md` +
-  1 file `.md` isolated baru + VIP docs (`PROJECT_STATE.md`, `CHANGELOG.md`)
-  — 0 file lain disentuh (`BoosterViewModel.kt`/`BoosterScreen.kt`/Manifest
-  100% apa adanya, TIDAK ada perubahan yang terlihat user di device yang
-  Equalizer legacy-nya normal — mayoritas), 0 bump versi manual.
-  **BELUM divalidasi runtime SAMA SEKALI** — kandidat curiga pertama: (1)
-  jalur fallback ini SECARA ALAMI jarang ke-trigger di device nyata manapun
-  (Equalizer legacy sudah sangat matang, jarang benar-benar `UNAVAILABLE`) —
-  device uji yang genuinely exercise kode baru ini mungkin tidak pernah ada
-  di tangan user, (2) apakah construct `DynamicsProcessing` dengan
-  `preEqBandCount=5` benar-benar sukses di device API 28+ manapun (variasi
-  HAL, sama kelas risiko capability lain di file ini), (3) apakah konversi
-  mB→dB & rentang ±12 dB terdengar wajar dibanding Equalizer asli (belum
-  diadu telinga langsung). Detail lengkap: CHANGELOG.md "Batch 87" +
-  `PENDING_Fase0_Item6_RebuildSessionZero.md`.
-- 🧪 **Batch 86 (1 file test baru — `AudioEnhancerServiceStateTest.kt`)**:
-  User kirim ZIP Batch 85 + "Lanjut kerjakan next task!!" — item berikutnya
-  dari antrian Fase 0 yang bisa dikerjakan tanpa konfirmasi user adalah #8
-  (Automated audio-engine test; #6 masih BLOKER menunggu konfirmasi risiko).
-  File baru 13 test Robolectric menutup 3 gap utama: (a) EffectState enum
-  completeness guard, (b) effect creation failure → UNAVAILABLE (AudioFlinger
-  absent = RuntimeException di constructor AudioEffect, harus ditangkap
-  graceful bukan crash), (c) state reconciliation `retryControlAcquisition()`
-  return false + idempotent saat semua state UNAVAILABLE. `roadmap.md` Fase 0
-  #8 `[ ]` → `[x]`, Progress ringkas: 4 selesai (dari sebelumnya 3). Cek
-  statis: balance brace/paren/bracket seluruh file baru via parser Python
-  (0 selisih). **File disentuh**: 1 file test baru
-  (`AudioEnhancerServiceStateTest.kt`) + `roadmap.md` (checklist) + VIP docs
-  (`PROJECT_STATE.md`, `CHANGELOG.md`) — 0 file kode produksi disentuh
-  (Zero-Refactor), 0 bump versi manual. BELUM divalidasi CI (push batch ini
-  baru pertama kali setelah Batch 85 hotfix).
-- 🐛 **Batch 85 (terbaru, hotfix, 1 file kode — `AudioEnhancerService.kt`)**:
-  User kirim ZIP proyek (Batch 84) + log gagal CI run 133
-  (`log_fail_v133-debug-run133.zip`) tanpa instruksi teks — diperlakukan
-  sebagai laporan bug implisit (bukan instruksi baru diabaikan, ini
-  konsisten "AUTO_READ" sesi baru). Log nunjukkin `:app:compileDebugKotlin`
-  FAILED, satu baris error: `AudioEnhancerService.kt:440:46 The integer
-  literal does not conform to the expected type Boolean`. Root cause:
-  `attachDynamicsProcessing()` (baru Batch 84) construct
-  `DynamicsProcessing.Limiter(...)` dengan param pertama diisi
-  `/* channelIndex = */ 0` — nama param ini HALUSINASI, class
-  `android.media.audiofx.DynamicsProcessing.Limiter` TIDAK PERNAH punya
-  channelIndex di constructor manapun (dicek ulang eksplisit ke dokumentasi
-  resmi `developer.android.com` sebelum fix ditulis, bukan tebak dari
-  memori) — param pertama asli adalah `inUse: Boolean`. Fix: `0` → `true`
-  (`inUse`), 7 parameter lain (`enabled`/`linkGroup`/`attackTime`/
-  `releaseTime`/`ratio`/`threshold`/`postGain`) sudah cocok signature asli,
-  TIDAK disentuh. `inUse=true` juga lebih benar secara semantik (limiter ini
-  "satu-satunya stage yang dipakai" effect ini). LESSON: kalau construct
-  API effect Android yang jarang dipakai (`DynamicsProcessing.*` dkk) dan
-  TIDAK bisa compile-check di sandbox, urutan+nama parameter constructor
-  WAJIB dikonfirmasi ke dokumentasi resmi dulu (bukan pola-cocok dari nama
-  variabel/komentar yang "kedengaran masuk akal"), terutama untuk parameter
-  di posisi awal yang gampang salah asumsi urutannya. Detail penuh + isi
-  compiler error di CHANGELOG.md "Batch 85 (hotfix)". **File disentuh**: 1
-  file kode saja (`AudioEnhancerService.kt`, edit-parsial) + VIP docs
-  (`PROJECT_STATE.md`, `CHANGELOG.md`) buat sinkron — 0 refactor file lain
-  (Zero-Refactor), 0 bump versi manual. BELUM divalidasi runtime — cek
-  statis brace/paren file penuh saja (0 selisih), siklus CI baru pasca-fix
-  ini belum jalan.
-- 🆕 **Batch 84 (1 file kode — `AudioEnhancerService.kt`)**: User
-  bilang "Next" / "Lanjutkan" — item KEDUA dari antrian Batch 82 (urutan
-  sesuai daftar roadmap.md). Implementasi **roadmap.md Fase 0 #5 "Gain
-  staging + dynamics pipeline"**:
-  - Effect BARU (TAMBAHAN, bukan pengganti 4 effect lama) —
-    `android.media.audiofx.DynamicsProcessing`, dikonfigurasi HANYA sebagai
-    limiter murni (0 pre-EQ band, 0 MBC band, 0 post-EQ band,
-    `limiterInUse=true` saja) via `attachDynamicsProcessing()`. Parameter
-    limiter (hardcoded, belum ada slider UI): threshold -1 dBFS, ratio 20:1
-    (nyaris brickwall), attack 3ms (tangkap transient cepat), release 60ms
-    (moderat, hindari "pumping"), postGain 0dB (TIDAK menambah loudness —
-    ceiling pasif, bukan duplikat `LoudnessEnhancer`).
-  - `dynamicsState: EffectState` (@Volatile, field baru, pola sama
-    `bassState` dkk) diikutkan penuh ke SEMUA jalur existing yang sudah ada:
-    `retryControlAcquisition()` (branch baru CONTROL_LOST/FAILED →
-    release+recreate), `releaseEffects()` (release + reset UNAVAILABLE),
-    `disableEffects()`/`enableEffects()` (ikut mati/nyala bareng 4 effect
-    lain) — TERMASUK otomatis ikut ter-nudge oleh `onOutputRouteChanged()`
-    (Batch 82/83) TANPA perubahan apa pun di fungsi itu (nudge manggil
-    `enableEffects()` yang sekarang sudah include limiter ini).
-  - **Kenapa BUKAN restrukturisasi pipeline sungguhan** (kenapa masih `[~]`
-    bukan `[x]`): audit asli minta urutan eksplisit `Input → Pre-Gain → EQ →
-    Dynamics → Loudness → Output`. API `AudioEffect` publik session-0
-    legacy TIDAK punya cara resmi buat app memaksa urutan insert di HAL —
-    semua effect (termasuk limiter baru ini) nyambung independen, urutan
-    proses akhir ditentukan sistem, bukan app. Limiter ini cuma "ceiling
-    tambahan" yang SEHARUSNYA tetap efektif menangkap level gabungan
-    terlepas dari urutan proses effect lain — bukan pipeline gain-staging
-    sungguhan seperti diminta audit. Rebuild yang benar-benar bisa jamin
-    urutan itu = scope `roadmap.md` Fase 0 #6 (item terpisah, jauh lebih
-    besar, masih BLOKER menunggu konfirmasi user).
-  - `channelCount` di-hardcode 2 (stereo) — `Config.Builder` (beda dari
-    BassBoost/Virtualizer/Equalizer/LoudnessEnhancer) butuh channelCount
-    eksplisit, tidak ada API resmi query channel count output aktif dari
-    sisi effect. Device mono-only (kalau ada) BELUM divalidasi.
-  - **KOREKSI ditemukan & diperbaiki SENDIRI sebelum zip dikirim** (bukan
-    dari user): `DynamicsProcessing` baru ada sejak API 28 — draf awal
-    SEMPAT tidak digated versi SDK (salah asumsi minSdk 31 dari deskripsi
-    role generik, padahal `app/build.gradle.kts` project ini `minSdk = 24`).
-    Tanpa guard, device API 24-27 bisa `NoClassDefFoundError` (subclass
-    `Error`, LOLOS dari `catch(Exception)` yang ada) — potensi crash total,
-    BUKAN graceful-degrade seperti niat awal. Fix: seluruh isi
-    `attachDynamicsProcessing()` dibungkus
-    `Build.VERSION.SDK_INT >= Build.VERSION_CODES.P`, di bawah itu langsung
-    `dynamicsState = UNAVAILABLE` tanpa menyentuh class-nya.
-  - `roadmap.md` checklist #5 `[ ]` → `[~]`, baris "Progress ringkas" Fase 0
-    ikut diperbarui (3 selesai + 3 sebagian, dari sebelumnya 3+2).
-  - **0 file lain disentuh** — `BoosterViewModel.kt`/UI/Manifest 100% apa
-    adanya, tidak ada permission baru dibutuhkan.
-  **BELUM divalidasi runtime** — kandidat curiga pertama: (1) apakah
-  `DynamicsProcessing` benar-benar tersedia/lolos construct di device API
-  28+ asli (variasi HAL, belum pernah diuji device fisik), (2) apakah
-  parameter limiter (threshold -1dBFS dkk) beneran ke-apply tanpa exception
-  — cek Logcat filter `AudioEnhancerService` cari baris "DynamicsProcessing
-  tidak tersedia" (kalau muncul = `dynamicsState` jatuh ke `UNAVAILABLE`,
-  bukan crash total, effect lain tetap jalan), (3) uji telinga langsung:
-  set Bass+Virtualizer+EQ+Loudness ke maksimal berbarengan, dengarkan
-  apakah ada clipping/distorsi yang masih lolos vs sebelum Batch 84, (4)
-  device API 24-27 asli (fix guard di atas belum pernah dites device fisik
-  sama sekali, cuma penalaran manual bytecode/verifier).
-- 🆕 **Batch 83 (1 file kode — `AudioEnhancerService.kt`)**: User
-  bilang "Kerjakan woy!!" — dijalankan sebagai eksekusi item PERTAMA dari
-  antrian Batch 82 (urutan sesuai daftar roadmap.md: #3 duluan, BUKAN
-  #6/blocker duluan). Implementasi **roadmap.md Fase 0 #3 "Output routing
-  awareness"**:
-  - `AudioDeviceCallback` (API 23+, aman di minSdk 31 project ini) di-register
-    `onCreate()` / unregister `onDestroy()` (urutan unregister SEBELUM
-    `releaseEffects()` sengaja, hindari race callback nyangkut sesudah effect
-    object dilepas) — sistem sekarang beri tahu Service tiap sink output
-    nyambung/lepas (speaker, Bluetooth klasik/LE, wired headset/headphones,
-    USB DAC/headset/accessory, HDMI, dock), SEBELUMNYA nol handling apa pun.
-  - Field baru `lastOutputRouteDescription: String?` (@Volatile, pola sama
-    seperti `bassState` dkk) — deskripsi ringkas route terakhir buat
-    Log/diagnostik, SENGAJA belum disurface ViewModel/UI batch ini (pola
-    persis Batch 60: Service-layer dulu — kandidat kuat #9 kalau nanti perlu
-    ditampilkan ke user).
-  - Reaksi ke route berubah SENGAJA ringan: `enableEffects()` (re-assert
-    `enabled=true`, sudah ada sejak lama, idempotent+null-safe) SAJA, DIGATE
-    `isRunning` (supaya TIDAK menyalakan ulang effect kalau user baru saja
-    tekan "Matikan" — menghormati pilihan eksplisit user). **BUKAN**
-    `retryControlAcquisition()` (recreate object) — alasan SAMA PERSIS
-    dengan kenapa fungsi itu juga tidak ada pemanggil otomatis sejak Batch
-    62: route bisa berpindah CUKUP SERING (mis. TWS Bluetooth reconnect
-    berkali-kali), recreate tiap kali berisiko churn CPU/baterai sia-sia.
-  - `roadmap.md` checklist #3 diubah `[ ]` → `[~]` (SEBAGIAN, bukan SELESAI —
-    detail kenapa ada di file itu), baris "Progress ringkas" Fase 0 ikut
-    diperbaiki (SEBELUMNYA stale, masih bilang "1/9" padahal sudah 3 item
-    `[x]` + 1 item `[~]` dari batch-batch lama — bukan perubahan status baru,
-    cuma nutup gap 2-sumber-kebenaran yang kebetulan ketemu pas sesi ini).
-  - **0 file lain disentuh** — `BoosterViewModel.kt`/UI/Manifest 100% apa
-    adanya, tidak ada permission baru dibutuhkan (`AudioDeviceCallback`
-    tidak butuh permission khusus).
-  **BELUM divalidasi runtime** (siklus zip→Termux→CI→install) — kandidat
-  curiga pertama: (1) apakah `AudioDeviceCallback` benar-benar fire
-  konsisten di semua OEM (variasi HAL, sama kelas risiko capability lain di
-  file ini — belum pernah diuji device fisik), (2) Logcat filter
-  `AudioEnhancerService` + ganti Bluetooth/cabut headset buat lihat baris
-  "Output route berubah" muncul, (3) pastikan nudge `enableEffects()` TIDAK
-  ke-trigger saat `isRunning=false` (matikan dulu via notifikasi, baru ganti
-  device audio, pastikan efek TETAP mati).
-- 🆕 **Batch 82 (0 file kode — dokumentasi/antrian only)**: User
-  instruksikan lanjut `roadmap.md` Fase 0 sisa 5 item — **#3** Output routing
-  awareness, **#5** Gain staging + dynamics pipeline, **#6** Rebuild
-  arsitektur session-0, **#8** Automated audio-engine test, **#9**
-  UI/error-state refinement lanjutan — dikerjakan **BERTAHAP, SATU per satu**
-  (konsisten instruksi lama di `roadmap.md` Fase 0: "jangan sekaligus"), mode
-  MAINTENANCE tetap aktif. Claude **MENUNGGU** user tunjuk eksplisit item
-  mana duluan sebelum mulai kode apa pun — TIDAK ada inisiatif otomatis lanjut
-  ke item berikutnya begitu 1 item selesai.
-  **Catatan BLOKER #6** (item paling berisiko dari 5): `roadmap.md` eksplisit
-  tandai "BUTUH testing device intensif lintas OEM ... JANGAN diinisiasi
-  tanpa user paham & setuju trade-off/risikonya" — kalau user pilih #6
-  duluan, Claude WAJIB minta konfirmasi eksplisit user paham risikonya
-  SEBELUM menulis kode apa pun, bukan asumsi otomatis lanjut.
-  **0 kode disentuh** — murni update dokumentasi (`PROJECT_STATE.md`) buat
-  catat antrian sesi berikutnya. Checklist `roadmap.md` Fase 0 TIDAK diubah
-  (belum ada item yang selesai/berubah status).
-- 🆕 **Batch 81 (3 file kode + strings.xml ID/EN)**: Diminta user
-  eksplisit lewat 2 screenshot — feedback tombol "Cek Update Sekarang" di
-  Pengaturan dikeluhkan gak informatif ("Update v129 ketemu — lihat banner di
-  layar utama") DAN maksa bolak-balik tab ke layar utama cuma buat lihat
-  detail/mulai unduh. Sekarang begitu FOUND, Pengaturan langsung tampilkan:
-  (1) komparasi versi eksplisit "v128 → v129" (dulu cuma versi baru doang),
-  (2) ringkasan 1-baris rilis dari `UpdateManager.extractReleaseSummary()` —
-  BUKAN link ke CHANGELOG.md selengkapnya, diminta eksplisit, (3) tombol
-  "Unduh & Pasang" yang bisa langsung ditekan di situ.
-  **0 logic unduh baru** — `SettingsScreen.kt` reuse 100% state
-  (`updateDownloadProgress`/`updateDownloadFailed`) & fungsi
-  (`downloadAndInstallUpdate()`) yang SUDAH ADA di `BoosterViewModel` sejak
-  Batch 69 (dipakai bareng `UpdateBanner`/`BoosterScreen.kt`, yang TETAP ada
-  apa adanya) — makanya `BoosterViewModel.kt` 0 disentuh sama sekali.
-  `strings.xml` (ID+EN): `settings_update_found` sekarang 2 placeholder
-  (versi lama→baru), tambah `settings_whats_new_label`.
-  **BELUM divalidasi runtime** (siklus zip→Termux→CI→install) — kandidat
-  pertama dicurigai kalau summary rilis nongol kosong/format aneh: asumsi
-  `extractReleaseSummary()` soal bentuk body Release GitHub (lihat komentar
-  fungsinya, `UpdateManager.kt`) belum pernah diadu lawan response API asli
-  pasca perubahan ini. Detail teknis lengkap: lihat CHANGELOG.md.
-- ✂️ **Batch 80 (riwayat, 0 file kode)**: Pangkas narasi bertele-tele di
-  section 🔒 ATURAN PERMANEN & HIERARKI (98→63 baris) atas permintaan
-  eksplisit user. Semua keputusan/fakta teknis dipertahankan utuh (rebrand
-  Boomly + konsekuensinya, permission locks, versioning lock, dst) — cuma
-  justifikasi/penjelasan panjang yang dipotong jadi ringkas. LOG HARIAN &
-  CHANGELOG.md TIDAK disentuh (di luar scope permintaan). **File disentuh**:
-  0 kode. Cuma sync status doc ini.
-- ✅ **Batch 79 (riwayat, 0 file kode)**: User konfirmasi eksplisit ("It
-  works") — fix Batch 78 (quote `name:` di step "Publish GitHub Release")
-  BENERAN nyelesain masalah di produksi, tombol "Cek Update Sekarang"
-  sekarang berfungsi. **Caveat "BELUM tervalidasi runtime CI beneran" di
-  Batch 78 RESMI DITUTUP — dikonfirmasi VALID.**
-  User juga komentar: fitur update di project LAIN dia gak pernah kena
-  masalah serupa. **Catatan buat sesi depan (transferable, BUKAN klaim soal
-  project lain — Claude gak punya akses kode project lain user di sesi
-  ini)**: root cause Batch 78 (YAML unquoted string yang isinya ` #` diam-diam
-  kepotong jadi komentar) itu SPESIFIK ke kombinasi: (a) workflow YAML nulis
-  literal `#` di tengah value TANPA quote, (b) value itu dipakai lagi
-  di-parse balik oleh kode app (regex `Run #(\d+)`). Kombinasi ini gak
-  otomatis muncul di project lain KECUALI mereka juga punya pola serupa
-  (judul/field yang disisipin `#<angka>` unquoted di YAML lalu di-parse balik
-  app). Gagal-nya SENGAJA "senyap" — CI tetap SUKSES, Release tetap
-  ke-publish, gak ada error di mana pun — cuma field-nya aja yang isinya beda
-  dari yang dimaksud. Kalau user pernah/mau bikin fitur serupa (title/field
-  YAML yang disisipin `#<run-number>` dkk) di project lain, worth di-quote
-  preventif dari awal.
-  **File disentuh**: 0 kode. Cuma sync status doc ini.
-- 🐛🎯 **Batch 78 (riwayat, DIKONFIRMASI JALAN — lihat Batch 79)**: Lanjutan investigasi Batch 77 — user push balik
-  soal "sinyal WiFi tetap normal walau Mode Pesawat aktif", jadi Claude
-  MINTA BUKTI LANGSUNG (bukan nebak lagi): `curl` ke endpoint API PERSIS yang
-  dipanggil app (`https://api.github.com/repos/FDzaki-dev/AudioEnhancerPro/releases/latest`),
-  dijalankan user dari Termux. Percobaan PERTAMA (nulis ke `/tmp/...`) balik
-  body kosong — dicurigai `/tmp` gak writable di Termux (root fs asli, bukan
-  `$HOME`), user diminta ulang nulis ke `$HOME` + cek byte count eksplisit.
-  Percobaan KEDUA: `HTTP_STATUS:200 SIZE:4359`, body LENGKAP kebaca.
-  **ROOT CAUSE KETEMU** dari field `"name"` di JSON asli:
-  `"name":"AudioEnhancerPro v127 (Run"` — KEPOTONG, seharusnya
-  `"...(Run #127)"`. Diperiksa `.github/workflows/build.yml` baris 282:
-  `name: AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{
-  github.run_number }})` — TIDAK di-quote. **YAML plain scalar (unquoted)
-  memperlakukan SPASI+`#` sebagai awal komentar** — di tengah baris SEKALIPUN
-  — jadi ` #${{ github.run_number }})` KEHAPUS saat parsing YAML di runner
-  CI, SEBELUM softprops/action-gh-release sempat kirim apa pun ke GitHub API.
-  Bukan soal transit/API sama sekali.
-  **Dampak retroaktif (penting buat konteks histori project)**: bug YAML ini
-  SUDAH ADA sejak baris `name:` ini pertama ditulis (Batch 69, fitur update
-  pertama kali dibuat) — TIDAK PERNAH sekalipun `RUN_NUMBER_REGEX` di
-  `UpdateManager.kt` berhasil match judul Release. Ini akar masalah GANDA:
-  1. **Sebelum Batch 75**: `fetchLatestRelease()` lama balik `null` kalau
-     regex gak match — app SALAH lapor "sudah versi terbaru" (laporan awal
-     user di percakapan ini, root cause SEBENARNYA baru ketemu sekarang).
-  2. **Setelah Batch 75**: `null` diganti `CheckResult.Failed`→`ERROR` — app
-     jujur lapor "Gagal mengecek update" (Batch 77), TAPI regex tetap gak
-     pernah match karena root cause YAML ini belum kesentuh — makanya
-     Batch 77 sempat salah duga soal jaringan/Mode Pesawat (masuk akal saat
-     itu, HTTP 200 asli emang gak pernah dicek isinya duluan).
-  **Fix**: `name:` value dibungkus tanda kutip ganda (`"..."`) — expression
-  `${{ }}` GitHub Actions tetap jalan normal di dalam string YAML yang
-  di-quote, `#` di dalamnya jadi literal (bukan comment starter). Divalidasi
-  `python3 -c "import yaml"`: value ke-parse UTUH
-  `'AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{
-  github.run_number }})'`, 15 step tetap sama, urutan gak berubah.
-  **File disentuh** (1 file kode, dalam Micro-Batch, Protected):
-  `.github/workflows/build.yml`. ~~BELUM tervalidasi runtime CI beneran~~ —
-  **DIKONFIRMASI JALAN di produksi, lihat Batch 79** (user: "It works").
-- 🔍 **Batch 77 (riwayat)**: User kirim screenshot Settings:
-  "Versi aplikasi: 126", tap "Cek Update Sekarang" → hasil merah "Gagal
-  mengecek update, coba lagi nanti" (`ManualUpdateCheckState.ERROR`). Ini
-  LAPORAN BARU, bukan gejala bug lama Batch 75 (yang salah nampilin
-  "sudah terbaru" — ini malah jujur bilang gagal, PERSIS perilaku yang
-  dimaksud fix Batch 75).
-  **Investigasi**: Claude cek dulu apa GitHub Release repo ini kelihatan dari
-  luar (`web_search` "FDzaki-dev/AudioEnhancerPro releases") — NIHIL hasil
-  (repo kemungkinan private atau belum ke-index, Claude TIDAK BISA verifikasi
-  state Releases/API GitHub repo ini dari sandbox, harus dari observasi
-  screenshot + konfirmasi user). Dari screenshot: ikon Mode Pesawat status bar
-  NYALA bareng ikon WiFi bersebelahan — dicurigai jadi kandidat penyebab
-  paling gampang duluan (ketimbang langsung nebak-nebak ubah kode). **User
-  DITANYA dulu via tappable options (bukan langsung eksekusi/ubah kode) —
-  Core Protocol "STOP → BLOKER kalau info kurang", `Gagal mengecek update`
-  bisa banyak sebab beda (jaringan device vs state GitHub API/Releases repo)
-  yang gak kelihatan dari 1 screenshot doang.**
-  **Hasil konfirmasi user**: Mode Pesawat MEMANG ON saat tes (WiFi dinyalain
-  manual). **KESIMPULAN: BUKAN bug** — WiFi-saat-Mode-Pesawat TIDAK selalu
-  punya rute internet bersih ke luar (tergantung OEM/state koneksi persis
-  saat itu); `UpdateManager.fetchLatestRelease()` (Batch 74/75) benar
-  menangkap kegagalan HTTP/jaringan itu dan melaporkannya jujur sebagai
-  `Failed`→`ERROR`, BUKAN salah-lapor `UpToDate` seperti sebelum Batch 75.
-  **0 file kode disentuh** — tidak ada bug ditemukan untuk diperbaiki.
-  **Rekomendasi buat user (dicatat, bukan instruksi wajib)**: tes ulang tombol
-  "Cek Update Sekarang" dengan Mode Pesawat OFF total (bukan WiFi-saat-Mode-
-  Pesawat) buat konfirmasi jalur happy-path juga beneran jalan.
-  **BELUM tervalidasi**: apakah check BERHASIL (`FOUND`/`UP_TO_DATE`) di
-  kondisi jaringan normal — user belum laporan hasil tes ulang. Kandidat
-  investigasi lanjutan KALAU tes ulang jaringan-normal MASIH gagal juga:
-  (a) repo belum punya Release sama sekali / CI belum pernah jalan sukses,
-  (b) rate-limit GitHub API unauthenticated (403, 60 req/jam per-IP — Batch
-  75 catatan awal), (c) format judul Release lama (pra-perubahan tag/title
-  scheme sebelumnya) gak match `RUN_NUMBER_REGEX`. Claude TIDAK BISA cek ini
-  dari sandbox (repo gak ke-index search, kemungkinan private) — kalau
-  terjadi, user perlu share isi tab Releases repo atau hasil
-  `curl https://api.github.com/repos/FDzaki-dev/AudioEnhancerPro/releases/latest`
-  langsung dari Termux buat Claude diagnosis lanjut.
-- 🔧🚨 **Batch 76 (riwayat)**: User eksplisit ("Pokoknya versionName wajib
-  otomatis dari GITHUB_RUN_NUMBER!!") setelah ditawarkan BLOCKER 3-opsi (lihat
-  catatan Batch 65 di bawah — perubahan ini SUDAH diantisipasi sejak lama,
-  sengaja ditahan sampai user pilih arah eksplisit). User pilih **"angka run
-  number polos"** (bukan semantic+suffix `1.99.<run>`).
-  **Perubahan inti**: `app/build.gradle.kts` — `versionName =
-  System.getenv("GITHUB_RUN_NUMBER") ?: "1"` (PERSIS sumber sama dengan
-  `versionCode`, cuma beda tipe). Bukan literal string manual lagi.
-  **Konsekuensi berantai (WAJIB ikut diperbaiki, bukan opsional)**:
-  1. Step CI **"Extract version name"**: dulu `grep` literal dari gradle file
-     — gradle sekarang formula bukan string, grep bakal selalu kosong/salah.
-     Ganti: baca `${{ github.run_number }}` langsung (context var bawaan,
-     nilai identik, 0 parsing gradle).
-  2. Step CI **"Extract changelog entry for this version"**: dulu `awk`
-     cocokkan header PERSIS `## v<versionName>` di `CHANGELOG.md` — MUSTAHIL
-     berhasil lagi karena `versionName` beda tiap run dan Claude nulis
-     CHANGELOG.md SEBELUM push (gak mungkin tahu run_number run berikutnya).
-     Diredesain total: ambil section PALING ATAS `CHANGELOG.md` apa adanya
-     (`## ` pertama s.d. `## ` kedua), 0 kebutuhan tahu versi/run_number —
-     konsisten sama konvensi "entry terbaru paling atas" yang MEMANG sudah
-     dipakai file itu. **Disimulasikan di sandbox terhadap CHANGELOG.md asli
-     (bukan cuma dibaca) — hasil ambil section Batch 76 yang baru dengan
-     benar, berhenti pas di baris `**Perubahan inti**` sesuai pola 40+ entry
-     sebelumnya, 7 baris release notes bersih, TIDAK jatuh ke fallback.**
-  **Konsekuensi kosmetik DITERIMA (bukan bug, jangan "diperbaiki" tanpa user
-  minta)**: nama APK CI & judul GitHub Release sekarang tampilkan angka run
-  number 2x format beda (mis. `v78` dan `Run #78`) — redundan tapi benar. UI
-  in-app (`SettingsScreen`/banner update) ikut tampil angka polos ("Versi
-  baru: 78") bukan "1.99.0" — `UpdateManager.kt` TIDAK disentuh, otomatis ikut
-  karena cuma baca `versionName`/`tag_name` apa adanya.
-  **Heading CHANGELOG.md ke depan**: `## Batch N: <deskripsi>` (bukan lagi
-  `## v<versi> - Batch N: ...`) — histori lama (`## v1.98.0` dst) TIDAK ditulis
-  ulang.
-  **Konsekuensi lain (dokumentasi, bukan kode)**: format nama ZIP output
-  Claude yang di-pin Batch 70 (`Boomly_<versi>-<batch>.zip`) ikut DIREVISI
-  jadi `Boomly_batch<N>.zip` — slot `<versi>` gak ada lagi yang valid diisi
-  (versionName = run_number, belum ke-assign GitHub saat Claude packaging).
-  Detail lengkap & alasan di "Keputusan sadar" > Brand kosmetik di atas.
-  **File disentuh** (2 file kode, dalam Micro-Batch, KEDUANYA Protected,
-  edit-parsial): `app/build.gradle.kts`, `.github/workflows/build.yml`.
-  **Cek statis**: brace/paren `build.gradle.kts` 0 selisih, YAML `build.yml`
-  parse-valid (`python3 -c "import yaml"`, 15 step, urutan sama persis).
-  **BELUM divalidasi runtime/CI beneran** — kandidat pertama dicurigai kalau
-  ada gejala aneh: (a) artifact/tag CI redundan (lihat "Konsekuensi kosmetik"
-  — bukan bug), (b) kalau CHANGELOG.md suatu saat kosong/cuma ada
-  "# Changelog" tanpa entry apapun, step baru fallback ke pesan generik
-  ("CHANGELOG.md kosong/tidak ada entry"), belum pernah kejadian nyata jadi
-  belum tervalidasi runtime.
-- 🐛 **Batch 75 (v1.99.0, riwayat)**: FIX laporan user ("app bilang sudah versi
-  terbaru padahal jelas belum") soal tombol "Cek Update Sekarang".
-  **Root cause**: `UpdateManager.fetchLatestRelease()` (privat) balik nilai
-  `null` untuk 3 kondisi yang beda arti — (1) memang sudah versi terbaru
-  (`runNumber <= currentVersionCode`), (2) HTTP request gagal (respons
-  non-200 — paling mungkin: rate-limit `403` GitHub REST API unauthenticated,
-  cuma 60 request/jam PER-IP, gampang kena di jaringan seluler ber-NAT), atau
-  (3) judul Release gagal match regex `Run #(\d+)` / asset APK tidak ketemu di
-  Release. `checkForUpdateManual()` (dipanggil tombol Settings) meneruskan
-  `null` itu apa adanya ke `BoosterViewModel.checkForUpdateManually()`, yang
-  cuma cek `result != null` — jadi kondisi (2) dan (3) SALAH diklasifikasi
-  jadi `UP_TO_DATE`, padahal seharusnya `ERROR` (state ini SUDAH ADA di enum
-  `ManualUpdateCheckState` sejak Batch 73, cuma gak pernah ke-trigger buat
-  kasus HTTP-gagal). Cek otomatis diam-diam (`checkForUpdate()`, dipanggil
-  `init` ViewModel tiap app dibuka) TIDAK kena bug ini secara user-facing —
-  dia emang SENGAJA diam kalau gagal (lihat dokumentasi Batch 69), jadi
-  ke-3 kondisi kebetulan boleh sama-sama `null` di situ.
-  **Fix**: `UpdateManager.CheckResult` sealed class baru (`Available(info)` /
-  `UpToDate` / `Failed`) — `fetchLatestRelease()` sekarang return ini, bukan
-  `UpdateInfo?`. `checkForUpdate()` (silent) unwrap `Available` ke
-  `UpdateInfo?` seperti sebelumnya (0 perubahan perilaku di jalur ini).
-  `checkForUpdateManual()` sekarang return `CheckResult` apa adanya.
-  `BoosterViewModel.checkForUpdateManually()` di-`when`-kan ke 3 cabang:
-  `Available`→`FOUND`, `UpToDate`→`UP_TO_DATE`, `Failed`→`ERROR` (exception
-  asli — network timeout dkk — tetap ketangkep `catch` luar seperti sebelumnya,
-  0 perubahan di situ). **`SettingsScreen.kt` TIDAK disentuh** — UI buat state
-  `ERROR` (teks + warna `MaterialTheme.colorScheme.error`) SUDAH ADA sejak
-  Batch 73, cuma gak pernah ke-reach untuk kasus ini; sekarang ke-reach.
-  **File disentuh** (2 file kode, dalam Micro-Batch): `UpdateManager.kt`
-  (sealed class baru + `fetchLatestRelease`/`checkForUpdate`/
-  `checkForUpdateManual`, komentar lama yang sebut "return null" diperbaiki
-  biar gak stale), `BoosterViewModel.kt` (`checkForUpdateManually` jadi
-  `when` 3-cabang, guard dobel-tap & `try/catch` luar tidak diubah).
-  **Cek statis**: brace/paren balance 0 selisih di kedua file (dihitung ulang
-  setelah semua edit). **0 bump versi** — bugfix atas fitur v1.99.0 yang sama
-  (Batch 69/73), bukan milestone baru. **BELUM divalidasi runtime** (CI
-  belum jalan dari sesi ini) — kandidat pertama dicurigai kalau masih ada
-  gejala aneh: constant `REPO_API_LATEST_RELEASE` masih hardcode
-  `FDzaki-dev/AudioEnhancerPro` (benar, itu `[NamaFolderProyek]`/repo asli,
-  BUKAN brand kosmetik `Boomly` — lihat "Keputusan sadar", sengaja tidak
-  ikut disentuh batch ini).
-- 🐛 **Batch 74 (v1.99.0, riwayat)**: FIX regresi gesture back, user tegur
-  singkat ("Gesture back mengalami regresi") langsung setelah Batch 73.
-  **Root cause**: 0 `BackHandler` ada di MANAPUN di project ini sebelum batch
-  ini — `SettingsScreen` (Batch 73) dikasih tombol panah-balik EKSPLISIT di
-  UI, tapi system back gesture/tombol Android TIDAK diintersep sama sekali,
-  jadi malah nutup TOTAL app (bukan balik ke `BoosterScreen` seperti tombol
-  panahnya). **Fix**: `BackHandler(enabled = showSettings) { showSettings =
-  false }` baru di `MainActivity.kt`, SENGAJA CUMA guard `showSettings`.
-  `showOnboarding` SADAR TIDAK disentuh — itu forced first-run flow, `Back
-  Handler` generik di situ resikonya user bisa skip onboarding pertama cuma
-  modal gesture back (kelas masalah beda dari yang dilaporkan, jangan
-  digabung tanpa user minta eksplisit). **File disentuh**: `MainActivity.kt`
-  saja (1 file kode, Protected edit-parsial — tambah 1 import + 1 baris
-  `BackHandler` + komentar, 0 baris lain disentuh). Brace/paren balance 0
-  selisih. 0 bump versi. **Belum divalidasi runtime** — kandidat pertama
-  dicurigai kalau masih ada gejala aneh soal gesture: cek
-  `android:enableOnBackInvokedCallback` TIDAK ada di `AndroidManifest.xml`
-  (app masih pakai legacy back dispatch, BUKAN predictive-back API 33+ —
-  di luar scope batch ini, cuma dicatat kalau relevan nanti).
-- 🆕 **Batch 73 (v1.99.0, riwayat)**: Section **Settings baru** (`SettingsScreen.kt`)
-  — entry point cek-update MANUAL, user tegur eksplisit lewat 2 screenshot
-  ("dimana tab update dalam aplikasinya") setelah BLOCKER dijawab user pilih
-  "Section Settings baru". Root cause (sudah dikonfirmasi dari kode SEBELUM
-  eksekusi, bukan tebakan): `UpdateBanner` (Batch 69) emang cuma banner
-  KONDISIONAL (`val info = updateInfo ?: return`), disembunyikan TOTAL kalau
-  gak ada rilis baru — bukan bug/gagal, tapi juga TIDAK ADA cara user
-  trigger/pantau cek manual sama sekali sebelum batch ini.
-  - **UI baru**: ikon ⚙️ di header `BoosterScreen` (sebelah ikon bantuan) buka
-    `SettingsScreen` — 1 kartu: versi app terpasang + tombol "Cek Update
-    Sekarang" + status teks (mengecek/sudah terbaru/ketemu update/gagal).
-    SENGAJA TIDAK duplikasi UI unduh/pasang — kalau ketemu update, `updateInfo`
-    (state `BoosterViewModel` yang SUDAH ADA) ikut di-set, `UpdateBanner` yang
-    urus unduh/pasang begitu user balik ke layar utama.
-  - **`UpdateManager.kt` di-refactor (BUKAN ubah perilaku lama)**: logic inti
-    diekstrak ke `fetchLatestRelease()` privat. `checkForUpdate()` (otomatis,
-    init ViewModel) TETAP menelan exception — 0 perubahan perilaku, cuma
-    delegasi ke fungsi privat baru. `checkForUpdateManual()` BARU: exception
-    dilempar apa adanya (pola sama `downloadApk()`), ditangkap
-    `BoosterViewModel.checkForUpdateManually()` baru (guard dobel-tap kalau
-    masih CHECKING) — `ManualUpdateCheckState` enum baru (IDLE/CHECKING/
-    UP_TO_DATE/FOUND/ERROR) buat status teks di Settings.
-  - **Navigasi**: `MainActivity.kt` sekarang tri-state (`showOnboarding`/
-    `showSettings`/default `BoosterScreen`, pola SAMA seperti `showOnboarding`
-    yang sudah ada — bukan direfactor jadi enum, biar diff minimal).
-  - **File disentuh** (5 file kode — MELEBIHI Micro-Batch 3, justifikasi SAMA
-    seperti Batch 69: fitur besar diminta eksplisit + user baru jawab BLOCKER,
-    1 unit atomik lebih aman daripada dipecah nanggung): `SettingsScreen.kt`
-    baru, `UpdateManager.kt`, `BoosterViewModel.kt`, `BoosterScreen.kt` +
-    `MainActivity.kt` (Protected, edit-parsial — cuma tambah 1 state + 1
-    cabang `else if`, 0 baris lain disentuh). `values/strings.xml` +
-    `values-en/strings.xml`: +9 string tiap bahasa, parity 113→122/122.
-    README.md (Fitur + Troubleshooting) & CHANGELOG.md (Addendum di bawah
-    v1.99.0) ikut disinkronkan (VIP).
-  - **Cek statis**: brace/paren balance 0 selisih di 5 file Kotlin (dihitung
-    ulang setelah SEMUA edit selesai, bukan per-file terpisah), kedua
-    strings.xml XML-valid (`xml.etree.ElementTree`), parity 122/122.
-  - **0 bump versi** — kelanjutan/penuntasan milestone in-app-update v1.99.0
-    yang sama (Batch 69), BUKAN milestone baru yang pantas versionName naik.
-  - **BELUM divalidasi runtime** — statis only, kandidat pertama dicurigai
-    kalau ada gejala aneh: (a) `packageManager.getPackageInfo(packageName, 0)
-    .versionName` di `MainActivity.kt` return null/kosong di device tertentu,
-    (b) navigasi tri-state `showSettings` konflik sama `showOnboarding` kalau
-    user somehow trigger keduanya nyaris bersamaan (harusnya gak mungkin dari
-    UI biasa, cuma 1 ikon masing-masing).
-- 🗂️ **Batch 72 (v1.99.0, riwayat)**: Restrukturisasi murni `PROJECT_STATE.md`,
-  diminta user eksplisit ("pisahkan header/hierarchy rule permanen dari daily
-  update information, tidak ada narasi panjang lebar yang ikut di-pin"). Yang
-  berubah HANYA lokasi/pelabelan, **0 konten historis dihapus**:
-  1. Section "Keputusan sadar" + "Cara update file ini" DIPINDAH jadi
-     sub-bagian dari blok baru **"🔒 ATURAN PERMANEN & HIERARKI"** tepat
-     setelah header — isinya ringkas (index/rule + list keputusan, BUKAN
-     narasi batch).
-  2. Seluruh log naratif per-batch (dulu numpuk di bawah "Status saat ini")
-     DIPINDAH ke section baru **"📅 LOG UPDATE HARIAN"** ini — eksplisit
-     dilabeli "BUKAN bagian permanen" biar gak ketuker lagi ke depannya.
-  3. "Status saat ini" diringkas jadi **"🧭 Status Terkini"** — cuma versi +
-     1-2 baris highlight batch terakhir, detail penuh pointer ke sini.
-  4. Referensi nama section di "Cara update file ini" disesuaikan ke nama
-     baru di atas, + ditambah larangan eksplisit taruh narasi di blok
-     permanen (biar gak regresi ke struktur campur-aduk lama).
-  - **File disentuh**: `PROJECT_STATE.md` saja (VIP, kebal limit) — 0 file
-    kode. `README.md`/`CHANGELOG.md` TIDAK berubah (tidak ada fitur/versi
-    yang bergeser, isinya masih akurat, tidak ada yang perlu disinkronkan).
-    0 bump versi (murni reorganisasi dokumen, 0 logic/behavior app berubah).
-- 📌 **Batch 71 (v1.99.0, riwayat)**: Rule Batch 70 DIPERTEGAS — sempat salah
-  diterapkan (skrip Termux pakai glob `AudioEnhancerPro*.zip`, padahal ZIP
-  sudah `Boomly_...`). Glob `Boomly*.zip` sekarang di-spell-out LANGSUNG di
-  "Keputusan sadar" poin 1, gak lagi cuma implisit dari `[NamaFileAplikasi]`.
-  0 kode/repo disentuh, 0 bump versi.
-- 📌 **Batch 70 (v1.99.0, riwayat)**: Rule permanen dipertegas, diminta user
-  eksplisit tanpa narasi panjang — format ZIP output Claude di-PIN persis
-  `Boomly_<versi>-<batch>.zip` (lihat "Keputusan sadar" poin 1; Batch 69 sempat
-  salah pakai prefix `AudioEnhancerPro`). 0 kode/repo disentuh, 0 bump versi.
-- 🆕📡 **Batch 69 (v1.99.0, riwayat)**: In-app update — FITUR BESAR diminta user
-  eksplisit ("Tambahkan konfigurasi update langsung dalam aplikasinya"). Sebelumnya
-  cuma tercatat sebagai item SENGAJA DITUNDA sejak MODE MAINTENANCE (Batch 44) —
-  maintenance mode ngatur INISIATIF Claude, BUKAN larangan mutlak buat user,
-  permintaan eksplisit tetap dikerjakan (aturan §4 di bawah).
-  - **File baru**: `UpdateManager.kt` (lihat "Struktur proyek singkat"),
-    `res/xml/file_paths.xml` (FileProvider paths, expose SUBFOLDER
-    `cacheDir/updates/` doang — least-privilege).
-  - **Sumber kebenaran versi — 0 field API baru**: judul tiap Release GitHub SELALU
-    diakhiri `(Run #<run_number>)` (Batch 42). `versionCode` APK yang lagi jalan
-    OTOMATIS = `GITHUB_RUN_NUMBER` run yang men-generate-nya (Batch 65). Jadi "ada
-    update?" = run_number Release TERBARU > versionCode yang jalan — TIDAK
-    bandingkan versionName (string) sama sekali (tidak selalu naik tiap rilis CI,
-    lihat Batch 64).
-  - **Chunk streaming (Feature Lock §3)**: `downloadApk()` baca APK per-chunk
-    (64KB) via `Source.read(Buffer,Long)`/`Sink.write(Buffer,Long)` — interface
-    DASAR Okio, `.buffer()` TIDAK dipanggil sama sekali (kedua method itu sudah
-    ada langsung di `Source`/`Sink`, permukaan API lebih sempit = lebih sedikit
-    resiko salah). DILARANG `readBytes()`. Panggilan API metadata Release (JSON,
-    beberapa KB) TIDAK kena aturan ini, baca sekaligus aman.
-  - **Dependency baru**: `com.squareup.okio:okio:3.9.0`. **Permission baru**
-    (PERTAMA KALI project ini butuh network): `INTERNET`, `REQUEST_INSTALL_PACKAGES`.
-    **FileProvider baru** di Manifest. SENGAJA TIDAK cek/minta
-    `REQUEST_INSTALL_PACKAGES` manual di kode — PackageInstaller sistem sendiri
-    yang tampilkan layar izin kalau belum diizinkan, cek manual cuma duplikasi.
-  - **UX**: cek update diam-diam sekali tiap `BoosterViewModel` dibuat (~sekali per
-    sesi app dibuka), kegagalan cek DITELAN (tidak ada banner, BUKAN snackbar
-    error — ini otomatis, bukan aksi user). Kalau ada update: `UpdateBanner` baru
-    (`BoosterScreen.kt`, pola SAMA CrashBanner/ControlRecoveryBanner, tint
-    `primary` bukan `error`). Tap "Unduh & Pasang" → unduh (progress bar) LALU
-    LANGSUNG trigger intent instalasi (1 aksi, bukan 2 langkah). Installer sistem
-    sempat di-dismiss? Tombol jadi "Pasang Sekarang", TANPA unduh ulang (APK cache
-    dipakai lagi). Kegagalan unduh (dipicu eksplisit tap user, BEDA dari kegagalan
-    cek di atas) → snackbar via `SnackbarHostState` yang sudah ada (Batch 51).
-  - **Versioning**: `versionName` dibump manual `1.98.0`→`1.99.0` (keputusan sadar
-    Batch 65 masih berlaku: "boleh diubah Claude kalau ada milestone semantik
-    baru yang pantas" — network permission pertama kali + fitur self-update
-    dianggap pantas). `versionCode` TIDAK disentuh (tetap otomatis).
-  - **File disentuh**: 5 file kode (`UpdateManager.kt` baru, `BoosterViewModel.kt`,
-    `BoosterScreen.kt`, `MainActivity.kt`, `values/strings.xml`+`values-en/
-    strings.xml` — 5 string baru/bahasa, parity 113/113) + 3 Protected
-    edit-parsial (`AndroidManifest.xml`, `app/build.gradle.kts`,
-    `res/xml/file_paths.xml` baru) + VIP docs (`README.md` Fitur+Troubleshooting,
-    `CHANGELOG.md`, `FILE_MANIFEST.txt`, file ini).
-  - **Belum divalidasi runtime** — statis only (brace/paren balance 0 selisih 4
-    file Kotlin, XML parse-valid semua, parity string 113/113). `okio.*`,
-    `FileProvider`, intent instalasi PERTAMA KALI dipakai project ini — kandidat
-    pertama dicurigai kalau CI compile error di sekitar import itu, atau laporan
-    device nyata soal banner/unduhan/instalasi gagal. Detail rasional lengkap:
-    `CHANGELOG.md` v1.99.0.
-- 📱 **Batch 68 (v1.98.0, riwayat)**: EKSPANSI rebrand — user tegur eksplisit
-  Batch 66/67 cuma ganti nama ZIP, PADAHAL maksudnya **aplikasi juga kena**
-  (tetap "user facing, kosmetik only", scope diperjelas bukan diperlebar ke
-  vital). Semua string USER-FACING yang isinya `Audio Booster`/
-  `AudioEnhancerPro` diganti **`Boomly`** — label launcher, judul notifikasi,
-  channel notifikasi, QS Tile, subtitle header, teks izin notifikasi, judul
-  onboarding. 3 file kode (pas limit Micro-Batch): `values/strings.xml`
-  (8 string), `values-en/strings.xml` (8 string, parity 108/108 terjaga),
-  `docs/preview/current.html` (h1 + 1 span, biar preview HTML gak stale vs
-  Kotlin — lesson Batch 34). + `README.md` (1 baris troubleshooting "Settings
-  > Apps > Boomly", VIP kebal limit, biar instruksi ke user tetap akurat).
-  - **SENGAJA TETAP TIDAK diubah** (bukan kelewat, ini keputusan sadar — baca
-    sebelum tanya lagi): `CrashLogger.APP_FOLDER` (`Documents/AudioEnhancerPro/
-    logs/`) — ini PATH PENYIMPANAN fungsional, bukan teks kosmetik; ganti ini
-    FRAGMENTASI crash log lama yang sudah tersimpan di device user (log lama
-    jadi "hilang" dari sudut pandang app, bukan cuma ganti nama tampilan).
-    Kalau user MAU ini juga diganti, itu given eksplisit + terima
-    konsekuensinya, bukan didefault dari sini. `applicationId`/`namespace`/
-    `rootProject.name`/nama workflow/`NamaFolderProyek` (repo GitHub) TETAP —
-    itu vital, di luar definisi "kosmetik" apapun konteksnya (lihat Batch 66).
-  - **Belum divalidasi runtime** — statis only (XML parse valid 2 file,
-    parity string 108/108, tidak ada tag/struktur HTML yang berubah cuma isi
-    teks). 0 bump versi (nol logic/behavior berubah, cuma isi string).
-- ✏️ **Batch 67 (v1.98.0, riwayat)**: KOREKSI Batch 66 — user tegur eksplisit
-  pilihan nama Batch 66 (`AudioBooster`) MASIH kerasa "generik/placeholder"
-  (cuma gabungan literal "Audio"+"Booster", sama kelasnya dgn
-  "AudioEnhancerPro" lama — bukan brand asli). Ganti ke **`Boomly`** (1 kata,
-  invented/brandable, main dari "boom"/bass — bukan deskriptif harfiah).
-  Scope TETAP SAMA persis Batch 66 (baca situ dulu kalau belum): HANYA nama
-  ZIP output Claude, 0 kode/repo disentuh. `NamaFolderProyek` TETAP
-  `AudioEnhancerPro` (tidak diminta ganti, tetap vital/stable — kalau user
-  MAKSUDNYA repo juga mau di-rename, itu scope lebih besar & butuh
-  konfirmasi eksplisit dulu, JANGAN diasumsikan dari teguran ini). Aturan
-  permanen "Keputusan sadar" di bawah SUDAH di-update ke `Boomly` (override
-  entry Batch 66, bukan dihapus).
-- 🏷️ **Batch 66 (v1.98.0, riwayat, nama DIKOREKSI Batch 67)**: rebrand KOSMETIK, diminta user eksplisit.
-  Scope SEMPIT SENGAJA: HANYA nama output ZIP artifact Claude, BUKAN kode/repo.
-  `NamaApp` ZIP baru **AudioBooster** (ganti `AudioEnhancerPro`) — dipilih
-  karena sudah match `app_name` yang LAMA live di HP user ("Audio Booster",
-  lihat `strings.xml`), jadi bukan nama baru asing. **0 file kode disentuh**:
-  `applicationId`/`namespace`/`rootProject.name`/nama workflow/
-  `CrashLogger.APP_FOLDER`/`strings.xml` SEMUA TETAP literal
-  `AudioEnhancerPro` (Protected: gradles+workflows, atau sudah lama-stable:
-  path MediaStore user, onboarding string). `NamaFolderProyek` (repo GitHub +
-  folder lokal Termux) **TETAP `AudioEnhancerPro`** — TIDAK ikut rename (git
-  history 65 batch + secrets + workflow sudah terikat ke nama ini, rename repo
-  = breaking, di luar "kosmetik"). Aturan PERMANEN dicatat di "Keputusan
-  sadar" di bawah — baca sebelum bikin ZIP/skrip Termux sesi depan.
-  - **File disentuh**: `PROJECT_STATE.md` + `CHANGELOG.md` saja (VIP docs,
-    kebal limit). Tidak ada bump versi (tidak ada kode berubah).
-- 🔧🚨 **Batch 65 (v1.98.0, riwayat)**: user eksplisit minta "inspeksi+langsung
-  perbaiki" soal BLOCKER Versioning Lock yang dicatat Batch 64. **2 pelanggaran
-  NYATA ketemu & DIPERBAIKI** (bukan cuma versioning, full re-check ke seluruh
-  FEATURE LOCKS #3 "CI/CD" user karena diminta "inspeksi"):
-  1. **Versioning Lock** (`app/build.gradle.kts`): `versionCode` SELAMA INI
-     literal manual (`103`, di-bump tangan tiap batch 64x berturut-turut) —
-     LANGSUNG melanggar instruksi standing "WAJIB otomatis dari
-     GITHUB_RUN_NUMBER, DILARANG bump manual". Fix: `versionCode =
-     System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1` — `GITHUB_RUN_NUMBER`
-     env var BAWAAN tiap step GitHub Actions (0 perubahan workflow dibutuhkan
-     buat expose var ini), naik monoton per run, PERSIS kontrak yang Android
-     butuhkan dari versionCode (strictly-increasing). Fallback `1` cuma kepake
-     kalau di luar CI (app ini gak pernah dibuild lokal). **Keputusan sadar:
-     `versionName` TETAP manual** (`"1.98.0"`, TIDAK ikut diotomatisasi) — alasan:
-     (a) instruksi soal "bump versi dilarang" paling masuk akal ke `versionCode`
-     spesifik (itu yang secara teknis WAJIB strictly-increasing & yang selama
-     ini di-bump manual tiap batch, root cause pelanggaran nyata), (b) `versionName`
-     adalah LABEL semantik yang jadi KUNCI PENCARIAN CI step "Extract changelog
-     entry for this version" (`awk` match exact `## v<versionName>` di
-     CHANGELOG.md, mekanisme dari Batch 48) — kalau ini ikut diotomatisasi jadi
-     angka run number mentah, seluruh sistem CHANGELOG->Release-notes matching
-     (63+ batch riwayat) rusak tanpa diminta. Diverifikasi grep regex CI
-     (`versionName\s*=\s*"\K[^"]+`) TETAP nangkep `1.98.0` dengan benar meski
-     ada komentar baru di atasnya (disimulasikan di sandbox, hasil cocok).
-     **Kalau user MAKSUDNYA versionName juga harus ikut otomatis dari run
-     number**, itu perubahan lebih besar (bakal ubah cara CHANGELOG.md
-     dirujuk CI) — TANYAKAN dulu sebelum dikerjakan, jangan diasumsikan dari
-     sini.
-  2. **FEATURE LOCKS #3 "Stale Run Guard" HILANG TOTAL** — spek user eksplisit
-     ("CI/CD: Release APK via Github Action + 'Stale Run Guard' [exit 1 kalau
-     GITHUB_SHA != local main]") TERNYATA TIDAK PERNAH diimplementasi sama
-     sekali di `.github/workflows/build.yml` sepanjang 64 batch riwayat proyek
-     ini — gap tersembunyi, baru ketauan karena diminta inspeksi eksplisit kali
-     ini. Fix: step baru "Stale Run Guard" (step ke-2, PALING AWAL setelah
-     Checkout, sebelum step lain apapun biar run stale exit cepat tanpa buang
-     menit CI) — `git ls-remote origin refs/heads/main` ambil SHA HEAD main
-     TERKINI dari server (bukan `git rev-parse origin/main`, karena checkout
-     default shallow+single-branch, remote-tracking ref lokal belum tentu
-     lengkap), bandingkan ke `$GITHUB_SHA` bawaan run ini — `exit 1` kalau beda
-     (run ini sudah "usang", ada commit main lebih baru yang seharusnya yang
-     jalan, bukan run ini). Mencegah race: 2 push Termux beruntun cepat -> 2 run
-     CI overlap -> run lama selesai belakangan & publish Release utk kode yang
-     sudah ketinggalan. `if [ -z "$REMOTE_MAIN_SHA" ]` guard tambahan (warning,
-     BUKAN exit 1) kalau `ls-remote` gagal total (network/repo issue) — biar
-     masalah infra sesaat gak nge-block SEMUA build selamanya secara tidak
-     adil.
-  - **File yang berubah**: `app/build.gradle.kts` (versionCode 1 baris +
-    komentar), `.github/workflows/build.yml` (1 step baru, 15 total dari 14).
-    2 file, KEDUANYA Protected (gradles + workflows) — edit PARSIAL sesuai
-    aturan, bukan rewrite.
-  - **Verifikasi statis**: YAML parse valid (`python3 -c "import yaml"`, 15 step
-    terbaca, urutan "Stale Run Guard" persis posisi ke-2/setelah Checkout
-    dikonfirmasi), brace/paren `app/build.gradle.kts` 18/18 & 48/48, grep
-    regex CI versionName disimulasikan ulang di sandbox (hasil `1.98.0` benar,
-    tidak ke-distract komentar baru). **Belum divalidasi runtime/CI beneran**
-    — `git ls-remote` butuh koneksi jaringan sungguhan ke GitHub yang gak ada
-    di sandbox, jadi step "Stale Run Guard" baru BENAR-BENAR ketahuan jalan
-    normal (exit 0 kondisi normal, TIDAK exit 1 palsu di run non-race biasa)
-    setelah CI run pertama pasca-push ini. Kalau CI tiba-tiba merah di step
-    ini padahal cuma 1 push tunggal (bukan race beneran), kandidat pertama:
-    permission token checkout gak punya akses baca `ls-remote` (jarang, tapi
-    cek `permissions:` block kalau kejadian).
-  - **PENTING buat sesi depan**: versionCode SEKARANG OTOMATIS — JANGAN PERNAH
-    lagi manual edit angka versionCode di `app/build.gradle.kts` (baris itu
-    sekarang formula, bukan literal — mengubahnya balik ke angka statis
-    berarti REVERT fix batch ini tanpa alasan). `versionName` MASIH manual
-    (boleh diubah Claude kalau ada milestone semantik baru yang pantas, tapi
-    BUKAN "wajib naik tiap batch" seperti versionCode dulu — hanya kalau
-    memang relevan, mis. kalau user eksplisit minta rilis versi baru).
-- 🔊 **Batch 64 (v1.98.0, riwayat)**: user minta "perkuat efek preset!!" (fast-track,
-  micro task). 3 dari 4 preset bawaan (`presets = listOf(Preset(...))`,
-  `BoosterScreen.kt`) dinaikkan intensitasnya — **Flat SENGAJA TIDAK disentuh**
-  (definisinya memang netral/nol, menaikkan nilainya kontradiksi sama namanya
-  sendiri). Bass Heavy `bass 900→1000 (MAX)` / `virtualizer 300→400` /
-  `loudness 500→750`. Vocal Boost `bass 200→300` / `virtualizer 600→750` /
-  `loudness 800→1100`. Treble Boost `bass 100→150` / `virtualizer 800→950` /
-  `loudness 600→850`. Batas dicek dulu SEBELUM diubah: Bass/Virtualizer tetap
-  di kontrak platform `0..1000` (per mille, Batch 60 — bukan device-specific,
-  Bass Heavy sekarang pas di MAX), Loudness tetap di batas slider UI `0..3000`
-  mB (`FeatureControl` loudness, `valueRange = 0f..3000f` — melebihi ini bikin
-  thumb slider invalid). Karakter tiap preset (fitur mana yang dominan)
-  dipertahankan, cuma headroom ke batas platform yang dipakai lebih banyak
-  (+11–50% tergantung preset). Detail lengkap: `CHANGELOG.md` v1.98.0
-  (addendum Batch 64, di atas entry Batch 63).
-  - **Versioning Lock BELUM diwiring ke project ini**: instruksi standing user
-    ("otomatis dari `GITHUB_RUN_NUMBER`, dilarang bump manual") BEDA dari
-    praktik project ini selama 63 batch sebelumnya (selalu bump manual
-    `versionCode`/`versionName` di `app/build.gradle.kts` tiap batch, CI cuma
-    BACA `versionName` dari situ buat label/tag, bukan generate dari
-    `run_number`/`run_id` — lihat `.github/workflows/build.yml` step "Extract
-    version name"). Batch ini PATUH ke instruksi baru (TIDAK bump manual),
-    tapi konsekuensinya: `versionCode`/`versionName` TETAP `103`/`"1.98.0"`
-    (punya Batch 63) dan entry CHANGELOG Batch 64 numpang di header `## v1.98.0`
-    yang sama (bukan header baru) — kalau tidak, ekstraksi release-notes CI
-    (`awk` match exact `## v<versionName> `) tidak akan pernah nemu entry
-    Batch 64 karena versionName di gradle tidak berubah. **BLOCKER buat sesi
-    depan kalau user mau push ke GitHub**: sebelum Batch 64 bisa di-release,
-    HARUS diputuskan salah satu — (a) user cabut instruksi Versioning Lock
-    khusus project ini (balik ke manual bump seperti 63 batch sebelumnya), atau
-    (b) implementasikan wiring sungguhan (`versionCode` dari
-    `GITHUB_RUN_NUMBER`/`github.run_number` di `build.gradle.kts` via
-    `System.getenv()`, `versionName` tetap semantic manual ATAU ikut skema
-    baru) — ini Atomic Change tersendiri (nyentuh `app/build.gradle.kts` +
-    kemungkinan `.github/workflows/build.yml`, 2 file Protected), JANGAN
-    dikerjakan tanpa user pilih opsi & konfirmasi eksplisit dulu (bukan
-    diasumsikan/dikerjakan sepihak, sesuai kaidah Hard Reset & Protect).
-  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
-    215/215 & 667/667, cuma nilai literal Float yang diubah di 3 baris,
-    0 logic/state/struktur baru — resiko regresi minimal).
-- 🔧🩺 **Batch 63 (v1.98.0, riwayat)**: lanjutan Batch 62, nutup roadmap.md Fase
-  0 item #7 ("Preset lengkap termasuk EQ", audit Gap #16) — sekarang `[x]`
-  SELESAI. `PrefsHelper.CustomPreset` (`PrefsHelper.kt`) dapat field baru
-  `eqBands: List<Int> = emptyList()`. **Baca saat simpan**: dialog "Simpan
-  Preset" (`BoosterScreen.kt`) sekarang snapshot EQ dengan baca balik
-  `PrefsHelper.getEqualizerBandLevel()` per-band — INI SUMBER KEBENARAN yang
-  SUDAH ADA sejak lama (`AudioEnhancerService.setEqualizerBand()` selalu
-  nulis ke situ tiap slider band digeser), jadi 0 plumbing/hoisting state
-  Compose baru dibutuhkan, cuma baca ulang API yang sudah ada. **Terapkan saat
-  load**: `applyCustomPreset()` sekarang cek `preset.eqBands` — kalau TERISI
-  (preset baru, disimpan sejak batch ini), EQ ikut diterapkan + state
-  `eqOverrideLevels` baru (var Compose) dipakai maksa `EqualizerSection`
-  recompose ke nilai itu (pola sama seperti `applyPreset()` built-in yang
-  sudah lebih dulu ada, cuma built-in selalu flat/nol sedangkan custom pakai
-  nilai preset). Kalau `eqBands` KOSONG (preset LAMA, disimpan SEBELUM batch
-  ini, JSON tersimpan tidak punya field ini sama sekali), EQ manual user
-  SENGAJA TIDAK disentuh — persis perilaku ASLI sebelum batch ini
-  dipertahankan (backward-compat penuh, `getCustomPresets()` pakai
-  `optJSONArray` yang toleran field hilang, bukan `getJSONArray` yang akan
-  bikin SELURUH preset lenyap kalau field baru ini tidak ada). String
-  `presets_empty_hint` (ID+EN) diupdate teksnya (sekarang sebut "equalizer"
-  juga, sebelumnya cuma "bass/virtualizer/loudness" — sudah tidak akurat
-  sejak batch ini). 2 test unit baru di `PrefsHelperTest.kt`: round-trip JSON
-  `eqBands`, dan JSON preset lama tanpa field `eqBands` tetap load tanpa
-  crash (simulasi tulis SharedPreferences langsung, bukan lewat
-  `addCustomPreset` yang sekarang SELALU nulis field ini). Detail lengkap:
-  `CHANGELOG.md` v1.98.0.
-  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
-    215/215 & 660/660, `PrefsHelper.kt` 25/25 & 170/170, `PrefsHelperTest.kt`
-    26/26 & 136/136; parity string 108/108; semua call-site `CustomPreset(...)`
-    lama dicek masih valid berkat default parameter `eqBands`). Kandidat
-    pertama dicurigai kalau: preset baru disimpan tapi EQ-nya gak pernah balik
-    saat diterapkan ulang, atau preset LAMA (kalau ada di device user) tiba-tiba
-    gagal dimuat/crash sama sekali (harusnya TIDAK — `optJSONArray` toleran).
-  - **PENTING buat sesi depan**: roadmap.md Fase 0 tersisa item #3 (Output
-    routing awareness), #5 (Gain staging/dynamics), #6 (rebuild session-0 —
-    JANGAN tanpa user minta eksplisit), #8 (Automated audio-engine test —
-    scope LEBIH BESAR dari 2 test kecil batch ini, item #8 soal effect
-    creation failure/control loss/dst yang butuh mocking `AudioEffect`
-    Android, bukan cuma persistence JSON), #9 (UI/error-state refinement
-    lanjutan). Semua item tersisa butuh riset/device-testing/scope lebih
-    besar dari #4/#7 yang baru selesai — kalau user "lanjut" tanpa arahan,
-    TANYAKAN dulu mana yang diprioritaskan (beda dari Batch 61→62→63 yang
-    tiap kandidat "berikutnya"-nya jelas & kecil).
-- 🔧🩺 **Batch 62 (v1.97.0, riwayat)**: lanjutan Batch 61, nutup roadmap.md
-  0 item #4 ("Control ownership/lifecycle lanjutan") — sekarang `[x]` SELESAI.
-  `AudioEnhancerService.retryControlAcquisition()` (Batch 61, sebelumnya fungsi
-  Service menggantung TANPA pemanggil sama sekali) DISURFACE penuh ke UI:
-  `BoosterViewModel.retryControlAcquisition()` (wrapper tipis, sinkron — service
-  ini `bindService` SAMA PROSES lewat `LocalBinder`, jadi aman dipanggil
-  langsung dari Compose click handler tanpa coroutine) dipanggil dari komponen
-  baru `ControlRecoveryBanner` (`BoosterScreen.kt`, pola identik
-  `ServiceStatusBadge`/`CrashBanner`: `SkeuTintedCard` tint error + `TextButton`).
-  Banner HANYA tampil kalau ADA effect (bass/virtualizer/equalizer/loudness)
-  berstatus `CONTROL_LOST`/`FAILED` — deteksi pakai `EffectState` yang SUDAH
-  di-poll `BoosterViewModel` tiap 1 detik sejak Batch 58 (TIDAK ada mekanisme
-  polling baru ditambahkan), jadi banner otomatis hilang begitu effect terkait
-  balik `ENABLED`/`AVAILABLE`. Tap tombol → panggil retry + snackbar feedback
-  ("dicoba", BUKAN "berhasil" — tetap TIDAK ADA jaminan sukses, arbitration
-  priority Android di luar kendali app, sama seperti didokumentasikan di
-  komentar `retryControlAcquisition()` Service Batch 61). 3 string baru
-  (`control_recovery_message`/`_button`/`_snackbar`, ID+EN, parity 108/108).
-  Detail lengkap: `CHANGELOG.md` v1.97.0.
-  - **Belum divalidasi runtime** — statis only (brace/paren `BoosterScreen.kt`
-    208/208 & 637/637, `BoosterViewModel.kt` 31/31 & 118/118, `MainActivity.kt`
-    47/47 & 116/116; parity string 108/108; 1 call site `ControlRecoveryBanner(`
-    dicek cocok parameter). Belum ada cara sengaja memicu `CONTROL_LOST` di
-    sandbox buat lihat banner beneran muncul — kandidat pertama dicurigai kalau
-    laporan user: banner gak pernah muncul walau ada effect gagal, atau crash
-    saat tombol ditekan.
-  - **PENTING buat sesi depan**: roadmap.md Fase 0 tersisa item #3 (Output
-    routing awareness, belum disentuh sama sekali), #5 (Gain staging/dynamics),
-    #6 (rebuild session-0 — JANGAN diinisiasi tanpa user minta eksplisit &
-    paham trade-off), #7 (Preset lengkap termasuk EQ), #8 (Automated
-    audio-engine test), #9 (UI/error-state refinement lanjutan). Kalau user
-    "lanjut" tanpa arahan baru, kandidat paling alami berikutnya: item #7
-    (Preset custom simpan EQ, audit Gap #16) — scope-nya jelas & kecil
-    (`PrefsHelper.CustomPreset` + `BoosterScreen.kt` save/apply logic), beda
-    dari item #3/#5/#6 yang butuh riset/device-testing lebih berat.
-- 🔧🩺 **Batch 61 (v1.96.0, riwayat)**: lanjutan audit eksternal, roadmap.md
-  Fase 0 item #4 ("Control ownership/lifecycle lanjutan"). Batch 57 baru
-  DETEKSI `CONTROL_LOST`, belum ada cara REBUT KEMBALI kontrol — batch ini
-  nutup itu, Service-layer dulu. `attachEffects()` dipecah jadi 4 fungsi
-  per-effect (`attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/
-  `attachLoudness()`, 0 logic berubah, murni refactor struktur) + fungsi
-  publik baru `retryControlAcquisition(): Boolean` — release+recreate PER-
-  EFFECT yang `CONTROL_LOST`/`FAILED` saja, lalu `restoreSavedSettings()`
-  biar slider value user gak hilang. TIDAK dijamin berhasil (arbitration
-  priority Android di luar kendali app, didokumentasikan panjang di komentar
-  fungsi). **BELUM ADA pemanggil otomatis** (bukan watchdog, bukan UI) —
-  masih "menggantung" sengaja, nunggu observasi device nyata sebelum
-  diotomatisasi (risiko retry-loop rapat kalau langsung diotomatisasi tanpa
-  data). Detail lengkap: `CHANGELOG.md` v1.96.0.
-  - **Belum divalidasi runtime** — statis only (brace/paren 120/120 &
-    334/334 di `AudioEnhancerService.kt`). Risiko lebih rendah dari batch
-    biasa (refactor kode existing yang sudah "jalan", bukan API baru) tapi
-    tetap kandidat pertama dicurigai kalau `onCreate()` (jalur
-    `attachEffects()` normal) crash — kemungkinan typo halus pas refactor
-    manual per-fungsi.
-  - **PENTING buat sesi depan**: `retryControlAcquisition()` belum ada
-    pemanggil. Next kandidat alami kalau "lanjut" tanpa arahan baru: surface
-    ke `BoosterViewModel` + tombol UI eksplisit (pola sama Batch 57→58,
-    mirip tombol "Coba Lagi" yang sudah ada buat `ConnectionState.ERROR`).
-    ALTERNATIF: roadmap.md Fase 0 item #3 (Output routing awareness) masih
-    belum disentuh sama sekali.
-- 🔧🩺 **Batch 60 (v1.95.0, terbaru)**: lanjutan audit eksternal, roadmap.md
-  Fase 0 item #2 ("Capability detection + fallback"). **Riset dulu via web
-  search ke dokumentasi resmi Android SDK sebelum nulis kode** (gak ada
-  compiler di sandbox) — TEMUAN PENTING: range Bass/Virtualizer `[0, 1000]`
-  TERNYATA kontrak API platform TETAP (bukan device-specific), jadi klaim
-  awal audit Gap #7 "hard-coded assumption yang salah" untuk 2 effect ini
-  TIDAK akurat — kode `BoosterScreen.kt` yang lama sebenarnya sudah benar.
-  Yang BENERAN gap: *rounding* (device boleh membulatkan strength diam-diam,
-  gak pernah dibaca balik) — ditambah `getBassRoundedStrength()`/
-  `getVirtualizerRoundedStrength()` + `Log.w` diagnostik di
-  `AudioEnhancerService.kt` (Service-layer only, belum ke UI). LoudnessEnhancer
-  DIVERIFIKASI tidak punya API query range sama sekali — jalur exception-nya
-  sudah gap-closed sejak Batch 57 lewat cara lain, 0 baris logic diubah buat
-  effect ini. Detail lengkap: `CHANGELOG.md` v1.95.0. `roadmap.md` Fase 0
-  item #1 ditandai `[x]` SELESAI, item #2 `[~]` SEBAGIAN (fallback engine
-  kalau effect null sengaja belum disentuh, overlap ke item #6).
-  - **Belum divalidasi runtime** — statis only (brace/paren 102/102 &
-    275/275 di `AudioEnhancerService.kt`). Properti `roundedStrength` BELUM
-    pernah dipakai project ini sebelumnya — dikonfirmasi ADA di API level 9
-    lewat 3 sumber independen (developer.android.com, Microsoft Learn, AOSP
-    source) sebelum dipakai, tapi tetap kandidat pertama dicurigai kalau CI
-    compile error "Unresolved reference: roundedStrength".
-  - **PENTING buat sesi depan**: kalau user "lanjut" lagi tanpa arahan baru,
-    next kandidat roadmap.md Fase 0 item #3 (Output routing awareness) atau
-    #4 (Control ownership lanjutan/re-acquire otomatis). JANGAN loncat ke
-    item #6 (rebuild session-0) tanpa user minta eksplisit.
-- 🔧🩺 **Batch 59 (v1.94.0, riwayat)**: lanjutan Batch 58, mengerjakan item
-  "sisa" yang eksplisit dicatat di sana: `equalizerEffectState` (sudah
-  diterima `BoosterScreen` sejak Batch 58) sekarang DISURFACE ke
-  `EqualizerSection` — subtitle header ("Atur tiap pita frekuensi...") ganti
-  jadi pesan `CONTROL_LOST`/`FAILED` (string DIPAKAI ULANG dari Batch 58, 0
-  string baru, parity ID/EN tetap 105/105). DESAIN: 1 subtitle buat SEMUA
-  band (bukan per-band) karena `Equalizer(0,0)` di Service 1 objek
-  `AudioEffect` tunggal, bukan N objek per band — beda dari pola Bass/
-  Virtualizer/Loudness yang 1:1 per-fitur. Detail lengkap: `CHANGELOG.md`
-  v1.94.0. **Dengan ini, seluruh "sisa" Batch 57/58 (surface EffectState
-  Service→ViewModel→UI, 4 effect) SUDAH SELESAI** — next kandidat alami:
-  audit Gap #2/Fase 0 #2 (capability detection + fallback range, ganti
-  asumsi hard-code `0..1000`/`0..3000` jadi baca dari device), atau gap lain
-  di audit sesuai arahan user. JANGAN loncat ke Gap #1 (rebuild session 0 →
-  modern pipeline) tanpa user minta eksplisit.
-  - **Belum divalidasi runtime** — statis only (brace/paren 198/198 & 600/600
-    di `BoosterScreen.kt`, 1 call site `EqualizerSection(` dicek match
-    parameter baru, parity string 105/105 tidak berubah). Kandidat pertama
-    dicurigai kalau subtitle Equalizer gak pernah berubah walau
-    `equalizerState` di Service seharusnya `CONTROL_LOST`/`FAILED`.
-- 🔧🩺 **Batch 58 (v1.93.0, riwayat)**: lanjutan Batch 57, user cuma bilang
-  "Lanjut" (tanpa detail baru) — dikerjakan item yang sudah eksplisit dicatat
-  sebagai "sisa" di Batch 57: surface `AudioEnhancerService.EffectState` ke
-  `BoosterViewModel` (poll 1 detik via `viewModelScope`, PERTAMA KALI dipakai
-  file ini) → `BoosterScreen` (`helpText` FeatureControl Bass/Virtualizer/
-  Loudness sekarang beda pesan saat `CONTROL_LOST`/`FAILED`, bukan cuma
-  "didukung/tidak"). String baru `feature_help_failed`/
-  `feature_help_control_lost` (ID+EN, parity 105/105). Detail lengkap:
-  `CHANGELOG.md` v1.93.0.
-  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih 3 file
-    Kotlin, parity string 105/105, XML valid). Kandidat pertama dicurigai
-    kalau helpText baru gak pernah berubah dari normal walau `EffectState`
-    seharusnya berubah, atau crash coroutine saat ViewModel di-clear.
-- 🔧🩺 **Batch 57 (v1.92.0, riwayat)**: user upload audit eksternal
-  ("AudioEnhancerPro — Audit Nyata, Gap Terbesar Menuju 100% Functional")
-  yang menegaskan gap terbesar ada di **audio-engine robustness** (~60-70%),
-  bukan UI (~90-95%). Instruksi eksplisit: kerjakan bertahap, jangan sekaligus.
-  Batch ini (langkah pertama dari 10 di "Fokus Next Step" audit) SENGAJA
-  dibatasi ke lapisan `AudioEnhancerService.kt` saja: `EffectState` enum baru
-  (`UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST`) per-effect (bass/
-  virtualizer/loudness/equalizer), dipasangi `setControlStatusListener`+
-  `setEnableStatusListener` (API `AudioEffect` bawaan, PERTAMA KALI dipakai
-  project ini) buat deteksi `CONTROL_LOST` beneran (audit Gap #4), dan
-  exception di `enableEffects()`/`set*()` yang SEBELUMNYA silent total
-  sekarang `Log.e` + state `FAILED` (audit Gap #13). Detail lengkap:
-  `CHANGELOG.md` v1.92.0. **PENTING buat sesi depan**: state baru ini BELUM
-  disurface ke ViewModel/UI sama sekali (Service-only batch, by design) —
-  kalau user minta lanjut, langkah #2 alaminya: pass `bassState` dkk lewat
-  `BoosterViewModel` (pola sama seperti `bassSupported` existing) ke
-  `BoosterScreen.kt` sebagai badge/warning kecil per-`FeatureControl` (mis.
-  teks helpText tambahan saat `CONTROL_LOST`/`FAILED`, jangan redesign kartu).
-  JANGAN loncat ke rebuild arsitektur session-0 (audit Gap #1/#2, effort &
-  risiko jauh lebih besar, belum ada di roadmap sesi ini) tanpa user minta
-  eksplisit & paham trade-off-nya (device-testing intensif, di luar kapasitas
-  sandbox Claude sepenuhnya).
-  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih).
-    Kandidat pertama dicurigai kalau ada laporan crash pas toggle service/
-    equalizer, atau (batch depan, begitu disurface ke UI) badge macet di
-    ENABLED terus.
-- 🎨 **Batch 56 (v1.91.0, riwayat)**: user konfirmasi dual-shadow Batch 53-55
-  render benar di device ("lumayan") lalu minta depth/kontras dinaikkan lagi.
-  Tuning murni (0 perubahan teknik): alpha tint `NeumoEdgeHighlight`/
-  `NeumoEdgeShadow` naik (0.55/0.92→0.72/0.97), `cardElevation` 10dp→13dp,
-  multiplier spread global 1.15f→1.6f (`SkeuomorphicComponents.kt`), depth/
-  steps per-elemen (power button/slider track/switch) naik proporsional.
-  Detail: `CHANGELOG.md` v1.91.0. File: `Theme.kt` + `SkeuomorphicComponents.kt`
-  + version bump. 3 varian tema lain tetap tidak kepengaruh.
-- 🔧 **Batch 55 (v1.90.2, riwayat)**: user tanya kenapa artifact
-  `log_fail-debug` DAN `log_fail-release` sama-sama muncul padahal cuma
-  debug yang gagal (Batch 54's compile error). Jawaban: `if: failure()`
-  polos di step upload log release dievaluasi level JOB bukan step spesifik
-  — step release ke-SKIP (bukan gagal) tapi upload log-nya tetap
-  ke-trigger karena job overall failing, upload artifact isi cuma bootstrap
-  log (menyesatkan). Fix: `.github/workflows/build.yml` — step release
-  dikasih `id: build_release`, kondisi upload log release diperketat jadi
-  `if: failure() && steps.build_release.outcome == 'failure'` (outcome step
-  skip = `'skipped'`, bukan `'failure'`). Upload log DEBUG TIDAK diubah
-  (sudah benar dari awal, gak ada step build lain sebelumnya yang bisa
-  bikin dia ke-skip). Detail: `CHANGELOG.md` v1.90.2. Divalidasi YAML parse
-  (14 steps, id & if baru kebaca benar) — **belum CI run sungguhan**.
-  `app/build.gradle.kts` versionCode 94→95 (CI-only, 0 kode app berubah).
-- 🔴🔧 **Batch 54 (v1.90.1, riwayat)**: Batch 53 GAGAL build CI
-  (user upload screenshot GitHub Actions FAILED + 2 log run105 debug/release)
-  — root cause `drawOutline` (dipakai `SkeuDualDirectionalShadow`,
-  SkeuomorphicComponents.kt) TERNYATA gak eksis di Compose UI graphics sama
-  sekali (compiler: "Unresolved reference", 3 titik). Ini PERSIS risiko yang
-  sudah ditulis eksplisit di catatan Batch 53 sendiri ("kandidat pertama
-  dicurigai... soal import drawOutline") — kejadian beneran. Fix: ganti
-  `drawPath` (primitive DrawScope yang valid) + konversi `Outline` ke `Path`
-  manual (`when` exhaustive: `Rectangle`/`Rounded`/`Generic`). Detail
-  lengkap + level-confidence verifikasi (BUKAN compile sungguhan, masih audit
-  ingatan API + pola umum): `CHANGELOG.md` v1.90.1. **KALAU CI GAGAL LAGI DI
-  TITIK SAMA, jangan diulang lagi — coba fallback disebut di CHANGELOG:
-  `drawRoundRect`/`drawOval` langsung tanpa lewat `Outline` sama sekali.**
-  File: `SkeuomorphicComponents.kt` (fix) + `app/build.gradle.kts` (patch
-  versionCode 93→94, versionName 1.90.0→1.90.1).
-- 🎨 **Batch 53 (v1.90.0, riwayat, GAGAL BUILD — lihat Batch 54)**: user lapor kesan "extruded & pressed"
-  tema Neumorphism (Batch 52, palet sudah benar) MASIH kurang menonjol dari
-  2 screenshot device asli. Root cause TERULANG dari yang sudah
-  didokumentasikan sejak Batch 14: `Modifier.shadow()` native (termasuk
-  `ambientColor`/`spotColor` era Batch 47) dibatasi alpha keras oleh sistem +
-  warna custom cuma jalan API 28+ (senyap diabaikan di bawahnya). Fix:
-  `SkeuDualDirectionalShadow` (SkeuomorphicComponents.kt) DIROMBAK ke teknik
-  gambar-ulang-siluet manual (`drawOutline`+`translate`, DrawScope polos,
-  BUKAN Paint/BlurMaskFilter — preseden Batch 14/32 tetap dihormati) — 100%
-  konsisten semua API level `minSdk 24`, 0 gating. Parameter baru
-  `invert: Boolean` buat cue "pressed"/cekung (arah shadow dibalik + di-clip
-  ke dalam bentuk), dipasang BARU di `SkeuSliderTrack` (groove track),
-  `SkeuSwitch` (groove thumb), DAN `SkeuPowerButton` (tombol Aktif/Nonaktif —
-  ternyata SEBELUMNYA gak pernah pakai dual-shadow sama sekali, gap
-  tersembunyi). Detail lengkap + bug alpha-falloff yang ketemu & diperbaiki
-  sebelum dikirim: `CHANGELOG.md` v1.90.0. HANYA `SkeuomorphicComponents.kt`
-  (1 file kode) + version bump `app/build.gradle.kts` yang diubah — `Theme.kt`
-  & `MainActivity.kt` (PROTECTED) TIDAK disentuh. 3 varian tema lain TIDAK
-  kepengaruh (gate `shadowLightTint == Transparent` dipertahankan).
-  - **Belum divalidasi runtime** (sandbox gak ada kotlinc/device). Teknik
-    `drawOutline`/`translate` PERTAMA KALI dipakai di project ini — kandidat
-    pertama dicurigai kalau user lapor compile error/render kosong setelah
-    rebuild (khususnya soal import `drawOutline`, lihat catatan di
-    `CHANGELOG.md`).
-- 🎨 **Batch 52 (v1.89.0, riwayat)**: user lapor tema Neumorphism (Batch 46,
-  Platinum+Ruby) "gak eksplisit ala kadarnya", kasih spek komposisi warna
-  eksak "Deep Navy & Classic Brass" (Tailwind Slate family + 1 aksen brass
-  `#D4AF37`). Root cause teknis kenapa versi lama gak kebaca genuine
-  neumorphism: kartu (`NeumoBevelBrush`) pakai gradient 5-stop DI DALAM
-  permukaannya sendiri (ciri skeuomorphism/glass, BUKAN neumorphism — genuine
-  neumorphism = permukaan flat 1 warna, kedalaman 100% dari sepasang shadow
-  terarah DI LUAR bentuk) + ada sheen glossy (`NeumoSpecularBrush`, ciri
-  glass) + kontras dual-shadow (`shadowLightTint`/`shadowDarkTint`) terlalu
-  tipis. Fix: `NeumoBevelBrush`/`NeumoScreenBackgroundBrush` jadi
-  `SolidColor` flat, sheen di-`Transparent`-kan (component
-  `SkeuCard`/`SkeuTintedCard` di SkeuomorphicComponents.kt TIDAK disentuh),
-  kontras `NeumoEdgeHighlight`/`NeumoEdgeShadow` dinaikkan signifikan. Palet
-  direset total (`NeumoBackground #0F172A`, `NeumoPanel #1E293B`,
-  `NeumoBorder #334155`, `NeumoBrass #D4AF37` — brass HANYA di
-  primary/glow/ring state-aktif, gak disebar ke bevel/border kayak Platinum
-  dulu). Detail lengkap: `CHANGELOG.md` v1.89.0. HANYA `Theme.kt` (token
-  warna + `NeumorphismSkeuTokens`/`NeumorphismDarkColors`) + version bump
-  `app/build.gradle.kts` yang diubah — `SkeuomorphicComponents.kt` &
-  `MainActivity.kt` (PROTECTED) TIDAK disentuh, nama semua var `Neumo*`
-  dipertahankan supaya referensi lintas-file tetap valid (diverifikasi grep).
-  3 varian tema lain TIDAK disentuh.
-  - **Belum divalidasi runtime** (sandbox gak ada kotlinc/device, cuma audit
-    statis brace/paren + grep referensi silang). Kalau user lapor dual-shadow
-    masih kurang "nendang" di device tertentu setelah APK baru — itu limitasi
-    rendering `Modifier.shadow` ambientColor/spotColor yang emang beda-beda
-    tipis antar GPU/API level, bukan otomatis bug kode; baru investigasi kode
-    kalau kartu keliatan sama sekali datar TANPA shadow apapun.
-- ✅🍞 **Batch 51 (v1.88.0, riwayat)**: diminta user \"sempurnakan fungsionalitas
-  aplikasi 100%\" (permintaan umum). Full static re-audit 16 file Kotlin +
-  resource dulu (brace/paren, parity string, XML) — NIHIL bug baru, fitur inti
-  tetap SELESAI. `roadmap.md` dibaca sebagai acuan aktif: Fase 1 (Runtime
-  Validation Debt) TIDAK BISA dikerjakan dari sandbox (butuh device fisik,
-  BUKAN sesuatu yang Claude bisa "kerjakan" — cuma bisa nunggu user install &
-  cek 1-per-1), jadi progress realistis yang diambil batch ini: 1 item Fase 3
-  ("loading/success/error state feedback... saat ini minim"). Detail teknis
-  lengkap: `CHANGELOG.md` v1.88.0. Ringkas: `SnackbarHost` baru di
-  `BoosterScreen()` (pertama kali dipakai project ini), 3 titik feedback sukses
-  baru (simpan preset, hapus preset, hapus log crash) — sebelumnya cuma haptic
-  + dialog tertutup diam-diam, 0 konfirmasi visual eksplisit. 2 file kode
-  (`BoosterScreen.kt`, `app/build.gradle.kts` versionCode/versionName saja),
-  2 file resource (parity 103/103).
-  - **PENTING buat sesi depan**: kalau user tanya lagi "sempurnakan 100%"/
-    "selesaikan aplikasi", JANGAN coba kerjakan Fase 1 `roadmap.md` (mustahil
-    dari sandbox tanpa device) — arahkan ke item Fase 3 berikutnya (satu per
-    batch, sama pola batch ini) atau minta user mulai centang Fase 1 kalau ada
-    APK baru yang sudah di-install & dicoba.
-  - **Belum divalidasi runtime** — `SnackbarHost`/`SnackbarHostState` API
-    Compose Material3 standar tapi baru pertama kali dipakai di project ini,
-    kandidat pertama dicurigai kalau ada laporan Snackbar gak muncul/posisi
-    aneh (terutama saat dialog simpan preset masih terbuka + keyboard software
-    naik).
-- ⚡🗺️ **Batch 50 (v1.87.0, riwayat)**: diminta user \"percepatan compile\" +
-  \"tambahkan roadmap.md panduan menuju 100%\". User KONFIRMASI CI v1.86.0
-  (Batch 49) HIJAU/SUKSES sebelum batch ini dikerjakan (syarat penahanan yang
-  dicatat Batch 49 sudah terpenuhi). 2 bagian:
-  1. **Build speed**: `org.gradle.configuration-cache=true` dinyalakan
-     (`gradle.properties`) — kandidat yang SENGAJA DITUNDA Batch 49, sekarang
-     jadi 1 variabel risiko tunggal (kapt removal sudah tervalidasi CI run
-     terpisah). Gradle skip fase konfigurasi penuh di run kedua+ selama
-     input gak berubah. **Kalau CI merah**: cari pesan eksplisit
-     "configuration cache problems" di log (beda dari error compile Kotlin
-     biasa) — kandidat pertama: `signingConfigs` baca `System.getenv()` (yang
-     sudah dicek terjadi di fase KONFIGURASI, bukan task EXECUTION — harusnya
-     aman, tapi belum tervalidasi compiler).
-  2. **`roadmap.md` baru** (root project) — sintesis SEMUA backlog yang
-     sebelumnya tersebar di bagian TODO/status batch-batch lama file ini,
-     jadi 1 checklist 6-fase actionable dengan definisi "100%/tamat" eksplisit.
-     **PENTING buat sesi depan**: mulai sekarang, `roadmap.md` yang jadi
-     acuan AKTIF soal prioritas & progress ke depan (bukan lagi bagian TODO
-     di bawah file ini, itu sekarang murni riwayat) — update checklist di
-     `roadmap.md` tiap kali 1 item pindah status, JANGAN biarkan 2 sumber
-     kebenaran beda isi.
-  2 file berubah: `gradle.properties`, `app/build.gradle.kts` (versionCode/
-  versionName saja). File baru: `roadmap.md`. Housekeeping: `FILE_MANIFEST.txt`.
-  **Belum tervalidasi runtime** — flag resmi Gradle terdokumentasi, tapi baru
-  pertama kali dipakai project ini, WAJIB dicek run CI berikutnya sebelum
-  nambah risiko build-system lain lagi.
-- ⚡📄 **Batch 49 (v1.86.0, riwayat)**: ✅ CI CONFIRMED HIJAU (user, sebelum Batch
-  50 dimulai). 2 bagian dalam 1 pesan user. (1) README:
-  link `[⬇️ Download APK Terbaru]` (URL `/releases/latest`, selalu ke rilis
-  TERBARU) dipindah jadi hal PERTAMA di bawah judul H1 — sebelumnya cuma
-  disebut prosa di section ke-6 dari 8, gak ada link eksplisit sama sekali.
-  Isi lain README tidak dipangkas (keluhan user soal reachability, bukan
-  minta konten dihapus). (2) Build speed: Hilt+kapt (Batch 18) DICABUT TOTAL
-  — grep ulang konfirmasi satu-satunya titik inject Hilt di project ini
-  (Application ke BoosterViewModel) sudah didapat GRATIS oleh
-  `AndroidViewModel`/`SavedStateViewModelFactory` bawaan AndroidX tanpa DI
-  framework apa pun, kapt annotation-processing cuma buang waktu compile
-  buat 1 baris yang toh otomatis. `org.gradle.configuration-cache`
-  DIPERTIMBANGKAN tapi SENGAJA DITUNDA ke batch berikutnya (draf awal sempat
-  nyalain bareng, dibatalkan sadar sebelum kirim — numpuk 2 resiko
-  un-compiled sekaligus turunin confidence di bawah 95%, dipisah biar tetap
-  1 variabel risiko per push). 6 file: `README.md`, 2 `build.gradle.kts`,
-  `gradle.properties`, `AudioEnhancerApp.kt`, `MainActivity.kt` (parsial),
-  `BoosterViewModel.kt` (Atomic Change).
-  **PERUBAHAN ARSITEKTUR TERBESAR sejak Batch 18 TANPA compiler verifikasi**
-  — statis only (grep 0 sisa Hilt/dagger aktif, brace/paren 16/16 file OK),
-  **BELUM compile sungguhan**. Kalau CI merah: error `Cannot create an
-  instance of BoosterViewModel` di Logcat = tanda spesifik constructor
-  AndroidViewModel gagal resolve. Detail: `CHANGELOG.md` v1.86.0.
-- 🧹 **Batch 48 (v1.85.0)**: diminta user "rapikan present repository
-  yang berantakan/penuh dengan teks yang kepanjangan (utamanya bagian GitHub
-  release)". 1 file: `.github/workflows/build.yml`. Root cause: body Release
-  ambil MENTAH seluruh entry CHANGELOG.md (log teknis buat sesi Claude
-  berikutnya, makin ke belakang makin panjang, >80 baris beberapa entry) —
-  bukan buat pembaca umum. Fix: extraction berhenti di baris pertama
-  berawalan `**` (batas alami paragraf pembuka vs subsection detail, pola
-  konsisten 40+ entry terakhir) + hard cap 15 baris. Detail lengkap tetap ada
-  via link ke CHANGELOG.md di penutup body. **Diuji nyata** (bukan cuma baca
-  kode): logic awk disimulasikan di sandbox terhadap 3 entry CHANGELOG.md
-  ASLI (v1.84.0/1.83.0/1.82.0) — hasil 50-100+ baris turun jadi 7-10 baris.
-  YAML divalidasi parse (`python3 -c "import yaml; yaml.safe_load(...)"`) —
-  14 step normal. **Belum CI run sungguhan** — rendering Markdown body-nya di
-  tab Releases GitHub asli belum dilihat langsung. Detail: `CHANGELOG.md`
-  v1.85.0.
-  - README.md belum diaudit soal "berantakan" — kalau keluhan user ternyata
-    lebih luas dari GitHub Release doang, tanya/cek bagian lain.
-- 🎨🐛 **Batch 47 (v1.84.0)**: user kirim screenshot + "kurang depth &
-  tactile, ambient lighting bocor". Root cause: `SkeuCard` cuma 1 shadow native
-  hitam (kontras rendah di panel gelap) + `skeuGlow` radial 2-stop hard-cutoff
-  (kebaca "bocor"). Fix: `SkeuTokens` +2 field `shadowLightTint`/
-  `shadowDarkTint` -> 2 layer `Modifier.shadow(ambientColor=, spotColor=)`
-  NATIVE terarah (terang kiri-atas + gelap kanan-bawah) KHUSUS Neumorphism (3
-  varian lain eksplisit `Color.Transparent` = 0 perubahan, tetap "visually
-  quiet"/"low-contrast by design" sesuai filosofi masing-masing). `skeuGlow`
-  4-stop falloff (global, semua varian) ganti dari 2-stop hard cutoff. 2 file:
-  `Theme.kt`, `SkeuomorphicComponents.kt`. **Bug compile ditemukan & diperbaiki
-  sebelum kirim**: draf awal `Brush.radialGradient(colorStops = arrayOf(...))`
-  invalid (vararg param gak bisa named+arrayOf tanpa spread) — diperbaiki jadi
-  pairs positional langsung. Layout: `SkeuCard`/`SkeuTintedCard` dibungkus
-  `Box{}` buat wadah shadow layer, `modifier` caller TETAP di `Column` posisi
-  lama (0 regresi sizing 20+ call-site). **Kemungkinan besar**: screenshot user
-  dari build SEBELUM Batch 46/47 di-compile — perlu rebuild+install APK baru
-  lewat Termux buat lihat hasil sebenarnya. Detail: `CHANGELOG.md` v1.84.0.
-- 🎨 **Batch 46 (v1.83.0, riwayat)**: diminta user eksplisit "lanjutkan polish UI
-  yang pending" + "upgrade Skeuomorphism -> Neumorphism ultra realistic+immersive,
-  aksen Platinum+Ruby". Varian tema ke-3 (sebelumnya "Skeuomorphism" bevel-hard,
-  Batch 38-39) sekarang genuine **Neumorphism** — shadow pasangan SEHUE base
-  panel (arsitektur sama seperti "Studio Equalizer" Batch 43, palet+intensitas
-  beda total). "Ultra realistic+immersive" = `cardElevation` 10dp (tertinggi dari
-  4 varian), bevel 5-stop, sheen specular alpha 0.30f (2x lebih kuat dari Studio
-  Eq). Palet: `NeumoPlatinum #E4E3E0` (metalik netral, dipakai LUAS di bevel/
-  border/knob) + `NeumoRuby #E0115F` (jewel-tone, KHUSUS primary/glow state-aktif,
-  alpha 0.38f — tertinggi dari 4 varian). Semua token `SkeuoXxx` di-RENAME total
-  ke `NeumoXxx` (preseden Batch 34: pivot filosofi = rename, bukan reuse nama).
-  Radius `NeumoCardRadius`/`IconBoxRadius` 22dp/15dp (rounded soft-UI, dari
-  14dp/10dp sudut tegas lama). 5 file: `Theme.kt`, `MainActivity.kt` (parsial,
-  1 referensi brush + komentar), `values/strings.xml`+`values-en/strings.xml`
-  (2 string masing-masing, title "Neumorphism"), `docs/preview/current.html`
-  (footer note). **TIDAK diubah (Protected Asset persistence key)**: enum
-  `AppThemeStyle.SKEUOMORPHISM` & `PrefsHelper.APP_THEME_SKEUOMORPHISM` — user
-  yang sudah pilih varian ini lanjut otomatis ke Neumorphism baru tanpa toggle
-  ulang. Backlog audit Medium/Low lama (recomposition review, micro-animation,
-  loading/empty/error state, dst — pending sejak Batch 16) **TETAP belum
-  disentuh**, di luar scope batch ini. Detail lengkap: `CHANGELOG.md` v1.83.0.
-  - **Bug ditemukan & diperbaiki SEBELUM dikirim** (self-review): draf awal
-    `NeumoEdgeHighlight` sempat forward-reference `NeumoPlatinum` sebelum
-    deklarasinya sendiri (top-level `val` Kotlin di-init berurutan sesuai posisi
-    file — bisa null-crash saat class-load kalau kebalik). Sudah di-reorder &
-    dicek ulang, tidak ada forward-reference lain di blok token baru.
-  - **Belum divalidasi runtime** — statis only (brace/paren Theme.kt &
-    MainActivity.kt 0 selisih, parity string ID/EN 100/100, XML valid, grep
-    sweep `Skeuo*` lama di luar Theme.kt = nihil). Efek visual riil (kontras
-    platinum-ruby, kedalaman shadow) baru terkonfirmasi setelah build + cek
-    device — `docs/preview/current.html` TIDAK dapat mockup visual terpisah
-    buat varian ini (cuma footer note disinkron, sama seperti Batch 38/43).
-- 🐛⚡ **Batch 45 (v1.82.0, riwayat)**: diminta user "indikasi race condition" +
-  "kunci aplikasi dipuncak performa nya". 1 file (`AudioEnhancerService.kt`), 2
-  perubahan: (1) `isRunning` (companion var) ternyata RACE CONDITION nyata —
-  ditulis di main thread (`onStartCommand`/`onDestroy`) tapi dibaca juga dari
-  `ServiceWatchdogWorker.doWork()` yang jalan di background dispatcher
-  WorkManager (thread beda) — tanpa `@Volatile` watchdog bisa baca nilai stale,
-  gagal restart diam-diam. Fix: `@Volatile`. (2) `onCreate()` sekarang
-  `Process.setThreadPriority(THREAD_PRIORITY_URGENT_AUDIO)` (try-catch, no-op
-  aman) — "mengunci" service di prioritas CPU tertinggi kelas audio, karena
-  status foreground service SEBELUMNYA cuma menaikkan importance/oom_adj (anti
-  dibunuh), BUKAN prioritas penjadwalan CPU thread. Detail lengkap + rasional:
-  `CHANGELOG.md` v1.82.0.
-  - **Belum divalidasi runtime** — brace/paren balance 0 selisih (16/16 file
-    Kotlin). Kandidat root cause kalau user PERNAH alami gejala "widget/QS Tile
-    kadang gak sinkron balik sendiri walau ditunggu lama" — kalau ya, laporkan,
-    ini kemungkinan penyebabnya. Kalau belum pernah ada gejala itu, fix ini
-    tetap valid sebagai pencegahan (race condition laten, belum tentu pernah
-    ketrigger kombinasi timing yang pas).
-- 🛠️ **MODE: MAINTENANCE (dimulai setelah Batch 44)** — diminta user eksplisit
-  "kita akan memasuki babak maintenance mode!!". Fitur inti dianggap SELESAI
-  (audio engine, reliability/watchdog/autostart, preset, widget+QS tile, crash
-  logger, CI/CD release, 4 tema). **Implikasi buat sesi depan**:
-  1. JANGAN proaktif nawarin fitur baru besar (custom EQ curve editor,
-     export/import preset, in-app update checker, dst — daftar lengkap ada di
-     riwayat chat, BUKAN ditolak selamanya, cuma gak diinisiasi sendiri lagi).
-  2. Prioritas kerja: bugfix, laporan crash, regresi, permintaan kecil/kosmetik
-     spesifik dari user, dan maintenance CI/dependency kalau ada yang perlu.
-  3. TODO list (2 item di bawah) TETAP didepri­oritaskan — status gak berubah
-     cuma karena masuk maintenance mode.
-  4. Kalau user minta fitur besar BARU secara eksplisit, itu tetap boleh
-     dikerjakan — "maintenance mode" ngatur INISIATIF Claude, bukan larangan
-     mutlak buat user.
-- 🐛 **Batch 44 (v1.81.1, riwayat)**: bugfix dilaporkan
-  user "widget aktif, QS Tile nonaktif". Root cause: `AudioEnhancerService` cuma
-  manggil `BoosterWidgetProvider.refreshAll()` di 3 titik state-change, QS Tile
-  gak pernah diberi tahu (cuma self-refresh pas shade dibuka/`onClick` sendiri) —
-  jadi basi kalau toggle dari path lain (widget/app/BootReceiver/Shortcut). Fix:
-  `QuickToggleTileService.requestTileUpdate()` (pakai `TileService.
-  requestListeningState()` API bawaan Android) dipanggil di 3 titik sama persis
-  dengan widget refresh. 2 file: `QuickToggleTileService.kt`,
-  `AudioEnhancerService.kt`. Detail lengkap: `CHANGELOG.md` v1.81.1.
-  - **Belum divalidasi runtime** — brace/paren balance 0 selisih, 3 call site
-    terkonfirmasi grep. Perlu tes device: toggle dari widget -> buka shade ->
-    tile harus langsung sinkron.
-- 🎨 **Batch 43 (v1.81.0, riwayat)**: tema ke-4 "Studio
-  Equalizer" (neumorphism), diminta user dengan 4 warna HEX eksak: Base `#1E222A`,
-  Dark Shadow `#14171D`, Light Shadow `#282D37`, Aksen Glow (Aktif) `#39FF14`.
-  Toggle ke-4 sejajar 3 existing (Aurora Glass/Skeuomorphism) di Settings, 1
-  pilihan aktif dari 4. **Kunci beda dari Skeuomorphism**: shadow SEHUE base
-  (bukan Color.White/Black) — neumorphism asli, bukan bevel tegas. Hijau neon
-  DIJAGA cuma nyala di `primaryGlow`/state aktif (colorScheme.primary), panel
-  tetap netral abu-abu studio. 6 file: `Theme.kt` (token+colorScheme+shapes
-  lengkap, `AppThemeStyle.STUDIO_EQ`), `PrefsHelper.kt` (`APP_THEME_STUDIO_EQ`),
-  `MainActivity.kt` (mapping+screenBrush), `BoosterScreen.kt` (toggle+import
-  `Icons.Filled.Equalizer`), `strings.xml` ID+EN. Detail lengkap & rasional tiap
-  token: `CHANGELOG.md` v1.81.0.
-  - **Belum divalidasi runtime** — statis only (brace/paren 0 selisih, parity
-    string 100/100, xmllint valid, sweep `AppThemeStyle.` exhaustive semua
-    cabang `when`). Efek visual riil (kontras neon-green, dll) baru terkonfirmasi
-    setelah build + cek device.
-- 🔑 **Batch 42 (v1.80.1, riwayat)**: diminta user
-  eksplisit "tambahkan unique key pada setiap output github release, untuk
-  mencegah duplikasi terjadi lagi". `.github/workflows/build.yml`, 4 titik pakai
-  `github.run_id` (global unik, gak pernah reset/reuse): `tag_name`
-  (`v<versi>-run<run_id>`), judul Release (+`Run #<run_number>` di akhir), nama
-  file APK, nama Actions Artifact. **OVERRIDE SADAR keputusan Batch 11** (tag
-  dulu sengaja `v<versi>` polos & di-reuse/timpa kalau versi sama dipush lagi) —
-  sekarang tiap run bikin Release+tag+asset BARU, gak pernah tabrakan apapun
-  skenarionya (push berulang tanpa bump versi, retry, re-run job gagal, dst).
-  **Trade-off WAJIB diingat**: tab Releases sekarang numpuk 1 entry PER RUN CI
-  sukses (bukan 1 per versi lagi) — push 3x versi sama = 3 Release terpisah,
-  bukan 1 yang di-update. Ini konsekuensi LANGSUNG dari "gak pernah duplikasi",
-  BUKAN bug. **PENTING buat sesi depan**: kalau user nanya "kenapa Releases
-  numpuk banyak", ini SUDAH DIKETAHUI & disengaja — jangan buru-buru \"fix\"
-  balik ke tag polos tanpa user minta eksplisit (itu balik ke resiko yang baru
-  di-fix batch ini). Detail lengkap: `CHANGELOG.md` v1.80.1.
-  - **Belum divalidasi runtime** — YAML syntax-check valid, `run_id`/`run_number`
-    context variable bawaan GitHub Actions (bukan reka-reka), tapi hasil akhir
-    (Release baru ke-generate benar, gak ada tabrakan) baru terkonfirmasi
-    setelah CI run beneran.
-- ⚡ **Batch 41 (v1.80.0, riwayat)**: lanjutan pangkas
-  waktu compile CI (diminta user lagi, "lanjutkan percepat compiler"), 3 perubahan
-  low-risk TANPA ubah dependency/versi (jadi aman tanpa compiler buat verifikasi):
-  1. `gradle.properties`: `kapt.use.worker.api=true` — kapt (Hilt) jalan lewat
-     Gradle Worker API, annotation-processing bisa paralel/isolated per-worker
-     kalau CPU runner ada core nganggur.
-  2. `gradle.properties`: `kapt.incremental.apt=true` — kapt cuma reproses stub
-     yang berubah. Manfaat kecil di CI (checkout selalu fresh) tapi nol downside.
-  3. `app/build.gradle.kts`: `buildFeatures.buildConfig = false` — kelas
-     `BuildConfig` TERKONFIRMASI 0 pemanggil di seluruh `app/src/main/java`
-     (`grep` eksplisit sebelum diubah), matiin generate-nya skip task
-     `generate{Debug,Release}BuildConfig` sepenuhnya per variant.
-  - **Next kandidat kalau user minta lanjut lagi** (belum dikerjain, urutan dari
-    dampak terbesar tapi RISIKO naik juga): (a) commit `gradlew`+
-    `gradle-wrapper.jar` permanen ke repo — hilangin overhead "Bootstrap Gradle
-    Wrapper" SEPENUHNYA (bukan cuma di-cache), TAPI sandbox Claude gak bisa
-    lakuin ini sendiri (butuh Gradle binary + network yang gak ada di sandbox,
-    `gradle-wrapper.jar` itu file biner, gak bisa ditulis manual dari teks) —
-    perlu dikerjain user dari mesin dev manapun yang punya Gradle terinstal,
-    generate sekali, commit manual. (b) kapt→KSP buat Hilt — lever besar tapi
-    tetap keputusan sadar Batch 18 buat TIDAK diubah tanpa user minta eksplisit
-    & paham resikonya (versi KSP harus persis cocok Kotlin, gak bisa divalidasi
-    di sandbox ini). (c) `org.gradle.configuration-cache` — tetap ditahan, sama
-    alasan kapt+configuration-cache riwayatnya kurang mulus dikombinasi.
-  - **Belum divalidasi runtime** — 3 perubahan di atas semuanya flag/config resmi
-    terdokumentasi (bukan reka-reka), `buildConfig=false` diverifikasi aman lewat
-    grep eksplisit (bukan asumsi), tapi efek RIIL & tidak-adanya regresi baru
-    kekonfirmasi setelah CI run beneran.
-- ⚡ **Batch 40 (v1.79.0, riwayat)**: pangkas waktu
-  compile CI, diminta user eksplisit. 3 perubahan (lihat detail lengkap +
-  rasional/trade-off tiap poin di `CHANGELOG.md` v1.79.0, jangan diulang tanpa
-  baca dulu):
-  1. `.github/workflows/build.yml`: job `build`+`release` DIGABUNG jadi 1 job
-     (`build-and-release`) — hilangin overhead 2x checkout/JDK-setup/wrapper-
-     bootstrap, & daemon Gradle/Kotlin tetap panas antara assembleDebug->
-     assembleRelease (sebelumnya 2 VM terpisah = daemon dingin tiap job).
-     Semantik "skip release kalau debug gagal" TIDAK berubah (step tanpa
-     `if: always()` otomatis skip standar GitHub Actions).
-  2. `actions/setup-java@v4` tambah `cache: 'gradle'` — cache dependency Maven +
-     distribusi Gradle 8.7 (~120MB, SEBELUMNYA didownload ulang tiap run karena
-     gradlew di-generate on-the-fly, gak pernah di-commit). Run PERTAMA setelah
-     ini TETAP full-download (cache masih kosong), baru kerasa dari run kedua.
-  3. `gradle.properties`: `org.gradle.parallel=true` + `org.gradle.caching=true`
-     (build cache lokal) + heap 2048m->3072m.
-  - **SENGAJA TIDAK dilakukan**: `org.gradle.configuration-cache` (kapt/Hilt
-    kurang mulus dikombinasi ini, gak bisa divalidasi di sandbox), kapt->KSP
-    Hilt (lever besar berikutnya tapi keputusan sadar Batch 18, riskan diubah
-    tanpa user minta eksplisit), commit `gradlew` permanen ke repo (hilangin
-    bootstrap overhead sepenuhnya tapi ubah arsitektur delivery ZIP/Termux, di
-    luar scope kali ini — opsi lanjutan kalau user mau).
-  - **Belum divalidasi runtime** — YAML syntax-check valid, tapi efek
-    pemangkasan waktu SEBENARNYA baru kekonfirmasi setelah CI run beneran
-    (terutama cache hit di run KEDUA dst).
-- 🔩 **Batch 39 (v1.78.0, BELUM diverifikasi CI/runtime)**: 2 perbaikan varian
-  Skeuomorphism (Batch 38) diminta user eksplisit setelah ditanya "apakah otonom
-  penuh, gak numpang baseline default":
-  1. **Radius/shape sekarang 100% otonom** — sebelumnya `SkeuCardRadius`/
-     `SkeuIconBoxRadius` (const global 26dp/16dp, era iOS-glass Batch 37) dipakai
-     SEMUA varian termasuk Skeuomorphism. Sekarang `SkeuTokens` punya field
-     `cardRadius`/`iconBoxRadius` per-varian: 2 varian glass tetap 26dp/16dp,
-     Skeuomorphism dapat radius sendiri `SkeuoCardRadius`/`SkeuoIconBoxRadius`
-     (14dp/10dp, lebih tegas/kecil, khas hardware fisik). Material3 `Shapes`
-     (dipakai default `Button`/`AlertDialog`/dll) juga di-pisah:
-     `SkeuomorphismShapes` baru (4-20dp) vs `AppShapes` lama (10-34dp, 2 varian
-     glass), dipilih di `AudioEnhancerTheme` composable via `themeStyle`.
-  2. **Aksen tembaga -> titanium+silver metalik** — `SkeuoAccent` `#C98A4C` ->
-     `#AEB4BF` (silver cool-neutral, hint biru-baja). Token baru `SkeuoAccentDeep`
-     (`#6E737D`) dipakai buat variasi 2-stop metalik di `SkeuoBevelBrush` (bukan
-     cuma di 1 accent chip — karakter metalik sekarang kerasa di SELURUH panel
-     kartu). `SkeuomorphismDarkColors` (onPrimary/primaryContainer/
-     onPrimaryContainer) disesuaikan ke neutral-cool.
-  - File: `Theme.kt`, `SkeuomorphicComponents.kt` (baca `tokens.cardRadius`/
-    `iconBoxRadius`, bukan const global lagi), `values/strings.xml`+`values-en/
-    strings.xml` (desc toggle: "titanium-silver metalik", parity tetap 98/98).
-  - **SENGAJA TIDAK diubah**: 2 varian glass (radius/shape/warna utuh), panel
-    netral Skeuomorphism (`SkeuoBackground`/`SkeuoPanel`, sudah netral/cocok buat
-    titanium-silver, gak perlu diubah).
-  - Detail lengkap: `CHANGELOG.md` v1.78.0.
-- ➕ **Batch 38 (v1.77.0, BELUM diverifikasi CI/runtime)**: tambah varian tema ke-3
-  "Skeuomorphism" (dark-mode asli, bahasa desain fisik/bevel — BUKAN glass), diminta
-  user eksplisit "gak kurang gak lebih". Toggle baru di Settings, PERSIS DI BAWAH
-  toggle "Gaya Aurora Glass" (posisi sesuai permintaan), 1 pilihan tunggal dari 3
-  opsi (nyalain 1 otomatis matiin yang lain, matiin balik ke default Midnight Glass).
-  - `AppThemeStyle` enum: 2->3 nilai (`SKEUOMORPHISM` baru). `PrefsHelper`: const baru
-    `APP_THEME_SKEUOMORPHISM`, const lama TIDAK diubah (persistence user lama aman).
-  - Token baru di `Theme.kt`: `SkeuoXxx` (panel gunmetal netral, bevel extrusion kuat,
-    aksen tembaga #C98A4C — SENGAJA beda hue dari accent biru 2 varian glass),
-    `SkeuomorphismSkeuTokens` (cardElevation 8dp, paling kuat dari 3 varian),
-    `SkeuomorphismDarkColors`, `SkeuoScreenBackgroundBrush`.
-  - `MainActivity.kt`: mapping String->enum & screenBrush pakai `when` (bukan
-    if/else lagi). `BoosterScreen.kt`: param `themeStyleIsRadical: Boolean` ->
-    `appThemeStyleKey: String` (perlu String karena sekarang 3 opsi saling
-    eksklusif, bukan cuma on/off) — kartu toggle Skeuomorphism ditambah persis di
-    bawah kartu Aurora Glass, struktur SAMA PERSIS (SkeuCard+Icon+judul+desc+
-    SkeuSwitch) biar konsisten visual.
-  - `SkeuomorphicComponents.kt` TIDAK disentuh — sudah generik lewat
-    `LocalSkeuTokens`, otomatis kompatibel varian baru.
-  - String baru `theme_style_skeuo_title`/`theme_style_skeuo_desc` (ID+EN, parity
-    98/98). `docs/preview/current.html` cuma footer note diperbarui (TIDAK ada
-    mockup visual terpisah utk varian ini — di luar scope "toggle + theme").
-  - **Belum divalidasi runtime** — statis only (brace/paren 0/0 semua file Kotlin
-    disentuh + full sweep project, parity string 98/98, grep `AppThemeStyle` di luar
-    3 file yang disentuh: nihil). Detail lengkap: `CHANGELOG.md` v1.77.0.
-- 🎨 **Batch 37 (v1.76.0, BELUM diverifikasi CI/runtime)**: REWRITE TOTAL sektor
-  UI/UX diminta user eksplisit — "iOS-style Glassmorphism" jadi bahasa desain
-  DOMINAN di seluruh app, Midnight-Blue sekarang hint yang KENTARA (ambient alpha
-  0.06->0.20, bukan subtle lagi), readability tetap prioritas #1 (kontras teks
-  dinaikkan tegas, bukan dikorbankan demi efek kaca). Arsitektur 2-varian
-  (`SkeuTokens`/`AppThemeStyle`/switch Settings, Batch 36) DIPERTAHANKAN — user
-  tidak minta fitur switch dihapus — tapi ISI kedua varian ditulis ulang total:
-  1. **Kartu struktural**: 4-stop diagonal glass gradient (ganti 3-stop rata lama)
-     + layer sheen KEDUA (`tokens.specularBrush`, field baru di `SkeuTokens`) di
-     pojok kiri-atas via `.background()` dipanggil 2x berurutan di
-     `SkeuCard`/`SkeuTintedCard`/`SkeuPowerButton` — ini yang bikin kartu kebaca
-     sebagai KACA sungguhan, bukan cuma kartu solid biru. Border kartu jadi
-     gradient highlight->transparan (`GlassBorderBrush`), bukan solid alpha tipis.
-  2. **Varian ke-2** (const/enum TETAP `RADICAL_SKEUO` di kode — Protected Asset
-     persistence key, TIDAK diganti biar data user lama valid) SEKARANG juga glass
-     genuine (`RadicalGlassBrush`), BUKAN lagi skeuomorphism bevel-raised solid flat
-     era Batch 36. Copy user-facing di Settings diganti "Gaya Aurora Glass"/"Aurora
-     Glass Style" (lebih vivid/saturated) — default tetap "Midnight Glass" (restrained).
-  3. **Background layar** (`MainActivity.kt`, edit parsial) ganti dari flat
-     `colorScheme.background` ke `ScreenBackgroundBrush`/`AuroraScreenBackgroundBrush`
-     (gradient vertikal Midnight-Blue->nyaris-hitam) — glassmorphism butuh backdrop
-     bervariasi supaya translucency kartu "kebaca".
-  4. Radius dinaikkan (kartu 20->26dp, icon-orb 14->16dp, `AppShapes` semua step) —
-     lebih membulat ala iOS, bukan radius standar Android lama.
-  5. Kontras teks: `TextPrimary`/`TextSecondary`/`TextMuted` (+ setara Aurora) semua
-     dinaikkan — permintaan user "readability maksimal" eksplisit.
-  - File lain yang ikut disinkronkan (bukan sumber logic, tapi WAJIB konsisten):
-    `values/colors.xml`+`values-night/colors.xml` (splash hex), `drawable/
-    widget_background.xml` (gradient RemoteViews XML, gak bisa pakai Compose Brush),
-    `drawable/ic_shortcut_preset.xml` (fill warna), `values/strings.xml`+`values-en/
-    strings.xml` (copy switch tema), `docs/preview/current.html` (ground truth
-    visual, WAJIB disinkron — lesson lama Batch 33/34 soal preview HTML gak boleh
-    stale).
-  - **SENGAJA TIDAK diubah**: nama const persistence & enum `AppThemeStyle` (lihat
-    poin 2 di atas), warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer,
-    bukan sumber keluhan), typography scale (resiko layout tanpa compiler tidak
-    sepadan), app launcher icon (`ic_launcher_background.xml`, di luar scope "sektor
-    UI & UX layar app").
-  - **PENTING buat sesi depan**: kalau nambah komponen Skeu baru yang butuh
-    background glass, WAJIB pakai pola `.background(tokens.cardBrush).background(
-    tokens.specularBrush)` (2 background berurutan = base + sheen), JANGAN cuma 1
-    background flat — itu yang bikin efek "kaca" hilang lagi & balik ke kesan
-    Batch 36 (kartu solid berwarna, bukan glassmorphism).
-  - **Belum divalidasi runtime** — statis only (brace/paren 0/0 di semua file
-    Kotlin yang disentuh + full sweep project, parity string ID/EN 96/96, XML valid).
-    `Modifier.background(brush)` dipanggil 2x berurutan pada 1 chain modifier
-    (SkeuCard/SkeuTintedCard/SkeuPowerButton) API standar Compose foundation, tapi
-    pola pemakaian 2x berurutan ini PERTAMA KALI dipakai di project ini — kandidat
-    pertama dicurigai kalau ada laporan sheen kartu gak nongol/salah posisi/nutup
-    teks. Detail lengkap: `CHANGELOG.md` v1.76.0.
-- 🔧 **Batch 36 Fix (v1.75.1, riwayat)**: CI run #81 FAILED di
-  `kaptGenerateStubsDebugKotlin`
-- 🔧 **Batch 36 Fix (v1.75.1)**: CI run #81 FAILED di `kaptGenerateStubsDebugKotlin`
-  (`e: Could not load module <Error module>` — generik, kapt swallow detail). Root cause:
-  `Theme.kt` field baru `SkeuTokens.cardElevation: Dp` pakai tipe `Dp` tanpa
-  `import androidx.compose.ui.unit.Dp` (yang ada cuma `import ...unit.dp` extension
-  property). Fix: tambah 1 baris import. **PENTING buat sesi depan**: kalau ketemu error
-  kapt generik serupa lagi, cek dulu semua type annotation eksplisit di file yang BARU
-  disentuh batch itu (paling sering `Dp`/`Color`/`Brush` yang lupa di-import class-nya,
-  cuma extension function-nya doang) — jangan langsung curiga config/dependency. Detail:
-  `CHANGELOG.md` v1.75.1.
-- 🎨 **Batch 36 (v1.75, BELUM diverifikasi CI/runtime)**: fitur baru diminta user —
-  "setting custom switch theme" yang konfigurasinya 100% mengikuti guide baru user-upload
-  `compose-skeuomorphism-radical-literal-dark-readability-performance-final.md`. Guide ini
-  BEDA TOTAL secara filosofi dari AMOLED Hybrid Glass (Batch 33-35, tema aktif sebelumnya):
-  Radical = bevel/geometry-first + kartu struktural ikut physical construction; AMOLED
-  Glass = frosted-glass first, kartu sengaja "quiet"/flat. **PENTING — scope dikonfirmasi
-  via `ask_user_input_v0` SEBELUM implementasi** (ikuti lesson Batch 34 di bawah: guide
-  baru yang beda detail dari batch terakhir JANGAN diasumsikan otomatis "ganti total"):
-  user pilih **kedua tema TETAP ADA, dipilih via 1 switch baru di Settings** — BUKAN
-  replace tema aktif, BUKAN switch berdiri sendiri di luar konteks tema.
-  1. **Arsitektur**: `SkeuTokens` data class baru (`Theme.kt`) + `LocalSkeuTokens`/
-     `LocalAppThemeStyle` CompositionLocal — komponen (`SkeuCard`/`SkeuTintedCard`/
-     `SkeuPowerButton`/`SkeuSliderThumb`/`SkeuSwitch`/`FeatureControl`) baca token
-     dinamis, BUKAN lagi val top-level `Glass*`/`TextMuted`/`SkeuBevelBrush`/
-     `SkeuPrimaryGlow` hardcoded. **PENTING buat sesi depan**: kalau nambah komponen
-     Skeu baru yang butuh warna surface/border/muted-text/glow, WAJIB baca dari
-     `LocalSkeuTokens.current`, JANGAN reference `Glass*`/`Radical*` val langsung —
-     kalau begitu komponen itu TIDAK akan ikut berubah pas user switch tema.
-  2. **Semua** referensi `TextMuted`/`SkeuPrimaryGlow` di `BoosterScreen.kt` (9 lokasi
-     total) ikut di-migrasi ke token dinamis — bukan cuma di kartu switch baru, biar
-     readability & glow 100% konsisten ke tema aktif di SELURUH layar (guide baru §26 +
-     final verdict eksplisit soal ini).
-  3. Persisted via `PrefsHelper.getAppThemeStyle`/`setAppThemeStyle` (String
-     "amoled_glass"/"radical_skeuo", default AMOLED — user lama tidak berubah kalau
-     belum sentuh switch baru), di-map ke `AppThemeStyle` enum di `MainActivity.kt`.
-  - **SENGAJA TIDAK dikerjakan (transparan, biar gak dikira 100%)**:
-    (a) `docs/preview/current.html` TIDAK disinkronkan — HANYA merepresentasikan AMOLED
-    Glass, state tema Radical TIDAK ada di sana. Kalau user minta validasi visual
-    Radical, JANGAN rujuk HTML preview, harus build APK asli. (b) Splash screen
-    (`values/colors.xml` dkk) TIDAK ikut berubah per-tema — tetap 1 warna AMOLED Glass
-    apapun switch-nya (render sebelum Compose tahu preferensi user).
-  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file Kotlin,
-    parity string ID/EN 96/96, XML valid). `CompositionLocalProvider` 3-value di
-    `AudioEnhancerTheme` & `SkeuTokens` data class BARU PERTAMA KALI dipakai project
-    ini — kandidat pertama dicurigai kalau ada laporan render aneh (switch gak
-    ke-apply, tema gak konsisten di sebagian komponen).
-  - Detail lengkap per-file: lihat CHANGELOG.md v1.75.
-- 🎨 **Batch 35 (v1.74, riwayat)**: user minta gabung SEMUA item
-  opsional yang disebutkan di closing note Batch 34 jadi 1 batch (biar gak numpuk
-  technical debt). 2 item, KEDUANYA CLOSED sekarang:
-  1. `TextMuted` (dead code sejak Batch 34) sekarang dipakai di semua teks caption-tier
-     — daftar lengkap file/lokasi ada di CHANGELOG.md v1.74. `onSurfaceVariant`
-     (`TextSecondary`) tetap dipakai buat teks "Secondary" tier, TextMuted khusus
-     caption/hint/unselected-label. Icon tint (bukan teks) SENGAJA tetap onSurfaceVariant
-     — di luar scope §16 tipografi.
-  2. §15 Navigation dicek ulang & DIKONFIRMASI N/A permanen — app single-screen, gak ada
-     nav component. JANGAN dicek ulang lagi sesi depan kecuali app beneran nambah nav
-     bottom-bar/rail baru.
-  - 0 perubahan hex/token warna di batch ini — murni migrasi pemakaian token existing,
-    resiko regresi rendah.
-- 🎨 **Batch 34 (v1.73, BELUM diverifikasi CI/runtime)**: KOREKSI Batch 33 — user
-  eksplisit bilang "salah kirim" file acuan Batch 33, upload ulang file yang benar:
-  `compose-amoled-hybrid-glass-final.md` ("Premium AMOLED Hybrid Glassmorphism +
-  Subtle Midnight Blue + Micro-Skeuomorphism"). PENTING buat sesi depan: kalau ada
-  guide baru lagi yang KELIHATAN mirip tapi beda detail sama yang dipakai batch
-  terakhir, JANGAN asumsikan itu iterasi tambahan — cek dulu apa ini koreksi/ganti
-  total kayak kasus ini (2x berturut-turut user upload file salah dulu). Detail
-  lengkap diff Batch 33→34 ada di CHANGELOG.md v1.73. Ringkasan poin kunci:
-  1. Filosofi geser: Batch 33 tactile/bevel-first ("skeuomorphism-lite" sbg identitas
-     kedua) → Batch 34 GLASS adalah material utama, skeuomorphism turun jadi "micro"
-     (cuma buat physical controls: button/switch/slider/knob).
-  2. Nama token warna beda (`GlassBase` bukan `GlassSurface`, dst) meski sebagian
-     hex sama — SEMUA referensi lama di-rename total, bukan cuma reuse.
-  3. `MidnightBlueAmbientAlpha` 0.06 (bukan 0.08 Batch 33) — guide baru kasih angka
-     eksplisit beda.
-  4. Slider knob "metallic realism" (radial gradient putih→accent ala dial logam,
-     bertahan dari Batch 31 sampai 33) AKHIRNYA dicabut — guide baru eksplisit
-     melarang pola ini di §13. Ganti radial restrained tint accent tanpa sheen putih.
-  5. Nemu 2 BUG dari sweep Batch 33 yang gak lengkap: `docs/preview/current.html`
-     `.slider-thumb` (masih metallic gradient) dan `.skeu-switch.on` border-color
-     (masih hardcode bronze `rgba(194,162,107,.6)` — literally warna lama Batch <31
-     yang lolos 2 batch theme-rewrite berturut-turut karena preview HTML gak
-     ke-grep bareng file .kt). **Lesson**: grep sweep integrity-check theme rewrite
-     ke depan WAJIB include `*.html` juga, bukan cuma `*.kt`/`*.xml`.
-  6. `AmoledBackground` (1 token, dipakai buat splash+background sekaligus di Batch
-     33) dipecah jadi 2: `AmoledBlack` (splash/root sejati) + `AmoledSurface`
-     (`colorScheme.background`, canvas layar) — guide §3 eksplisit minta 2-tone biar
-     glass Level 1+ "perceptible" di atas root.
-- 🎨 **Batch 33 (v1.72, BELUM diverifikasi CI/runtime, referensinya SALAH — lihat
-  Batch 34)**: user upload guide baru
-  `compose-skeuomorphism-lite-amoled-glass-hybrid-midnight-gradient.md` + perintah
-  eksplisit "timpa theme lama hingga bersih, wajib 100% sesuai". BEDA sama Batch 32:
-  Batch 32 sengaja MEMPERTAHANKAN graphite `#232220` karena guide lama cuma kasih
-  "suggested palette direction" (bukan wajib hex). Guide baru ini + perintah user
-  MEWAJIBKAN implementasi 100% — jadi keputusan Batch 32 itu di-OVERRIDE sengaja,
-  BUKAN diabaikan tanpa alasan. Detail lengkap di CHANGELOG.md v1.72. Ringkasan:
-  1. Palet total ganti ke AMOLED (`#030508`) + Glass surfaces (`#0A0F16`/`#101722`) +
-     Midnight Blue HANYA sebagai tint subtle di dalam gradient glass (`MidnightBlueTint`
-     alpha 0.08) — BUKAN identitas background dominan (guide §21 "Final Composition
-     Constraint": salah kalau jadi "blue interface with black elements").
-  2. `primary`/state-aktif/glow ganti dari bronze `#C2A26B` ke `MidnightBlueAccent
-     #6670FF`.
-  3. `SkeuCard`/`SkeuTintedCard` (kartu struktural) yang sebelumnya solid flat
-     (Batch 31 sengaja bikin gini ikut guide lama poin 3) SEKARANG wajib frosted-glass
-     gradient (guide §2.5) — tapi TETAP "quiet" dibanding tactile control fisik (guide
-     §8 gak berubah, cuma materialnya).
-  4. Splash screen (`values/colors.xml`) yang sebelumnya punya varian terang `#F7F5F1`
-     DICABUT — disamakan ke AMOLED persis kayak `values-night`, konsisten sama guide
-     §1.1/§13 "no light-mode fallback ever" (celah lama: splash bisa kilat terang
-     sebelum Compose theme render).
-  5. `docs/preview/current.html` (ground truth visual project ini per CHANGELOG) di-sync
-     juga, TIDAK dibiarkan stale — kalau nggak, sesi depan bisa salah rujuk visual lama.
-  - Feature accent colors (Bass/Virtualizer/Loudness/Equalizer/Battery) SENGAJA tetap
-    dipertahankan — itu identitas per-fitur, bukan bagian surface hierarchy yang diatur
-    guide.
-- 🎨 **Batch 32 (v1.71)**: user upload versi acuan design
-  guide yang LEBIH DETAIL (`compose-skeuomorphism-lite-dark.md`, beda dari
-  `compose-skeuomorphism-lite.md` yang jadi basis Batch 31) — diminta terapkan poin yang
-  BELUM ada dari update Batch 31. Diff dicek poin-per-poin ke Definition-of-Done guide
-  (section 14) + dibandingkan ke `docs/preview/current.html` (yang ternyata SUDAH lebih
-  maju dari Kotlin di 2 hal — sumber gap konkret, bukan tebakan):
-  1. **Glow state aktif (guide §9 "Glow Rules")**: token `SkeuPrimaryGlow` (Theme.kt)
-     sebelumnya DIDEFINISIKAN TAPI 0 PEMANGGIL — power button ON & chip preset aktif
-     cuma punya ring/border solid, gak ada halo lembut yang HTML preview sudah punya
-     sejak awal (`box-shadow: 0 0 16px var(--glow)` di `.power-btn.on`, `0 0 10px` di
-     `.chip.active`). Fix: `Modifier.skeuGlow(color, spread)` baru (native
-     `Brush.radialGradient` di `drawBehind`, BUKAN `BlurMaskFilter`/Paint hack — lesson
-     Batch 14 soal shadow custom gak reliable lintas API tanpa compiler tetap berlaku),
-     dipasang di `SkeuPowerButton` (saat `pressed=true`) & dibungkus `Box` di 2 loop chip
-     preset (`BoosterScreen.kt`) saat `selected`. Urutan modifier SENGAJA sebelum
-     `.shadow()`/`.clip()` supaya halo boleh \"bleed\" keluar batas shape.
-  2. **Switch tactile (guide §7 "Toggles / Switches", eksplisit minta physical
-     indentation)**: toggle Material You ("Warna ikut wallpaper", satu-satunya `Switch`
-     di app) sebelumnya pakai `Switch` Material3 BAWAAN POLOS — 0 treatment tactile sama
-     sekali, gap paling jelas terhadap guide baru. Fix: `SkeuSwitch` baru
-     (`SkeuomorphicComponents.kt`) — track pill (OFF abu netral/`surfaceVariant` murni =
-     "recessed/muted", ON blend 35% ke `accentColor` = "illuminated"), thumb bundar
-     (OFF `SkeuSurfaceTop` datar, ON solid `accentColor` + `skeuGlow` tipis — 2 cue
-     sekaligus: posisi/offset thumb DAN warna, sesuai syarat a11y guide "state must not
-     depend solely on structural changes"), PRESSED = thumb `scale 0.88` sesaat (micro-
-     interaction §6). `onCheckedChange = null` -> non-interaktif murni (pola sama kayak
-     `Switch` Material3 lama — parent `Row` di `BoosterScreen.kt` yang pegang
-     `toggleable`-nya sendiri, TIDAK diubah).
-  - **Dicek TAPI TERNYATA BUKAN gap** (biar gak diulang tanya/dikerjain 2x sesi depan):
-    (a) arah cahaya "top-left → bottom-right" (guide §3) — `SkeuBevelBrush`/
-    `SkeuBevelBorderBrush` (Theme.kt) SUDAH diagonal SECARA DEFAULT karena
-    `Brush.linearGradient(colors)` tanpa `start`/`end` eksplisit di Compose otomatis
-    resolve ke diagonal pojok-ke-pojok bounding box saat digambar — TIDAK perlu
-    diubah. (b) background AMOLED near-black (guide Definition-of-Done) — HTML preview
-    (ground truth desain yang sudah divalidasi sejak Batch 31) SENGAJA TETAP pakai
-    graphite `#232220`, BUKAN near-black `#05070A` contoh di guide (itu cuma "suggested
-    palette direction", bukan hex wajib) — TIDAK diubah, biar konsisten sama HTML yang
-    sudah jadi acuan visual project ini.
-  - **PENTING buat sesi depan**: kalau butuh glow lagi di komponen baru, pakai
-    `Modifier.skeuGlow(color, spread)` yang sudah ada (`SkeuomorphicComponents.kt`) —
-    JANGAN reimplementasi Paint/BlurMaskFilter manual lagi. Dipakai SELEKTIF (cuma state
-    aktif/selected, bukan didekorasi ke semua kartu/border — guide eksplisit larang itu
-    di §9 & §13 "Implementation Guardrails").
-  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file Kotlin
-    project, bersih). `animateColorAsState`/`toggleable`/`drawBehind`/`Brush.radialGradient`
-    semua API Compose standar yang sudah lama stabil, tapi API `Modifier.skeuGlow` +
-    `SkeuSwitch` ini pertama kali dipakai di project ini — kandidat pertama dicurigai
-    kalau ada laporan render aneh (glow gak nongol/ke-clip, switch thumb salah posisi).
+---
 
-- 🎨 **Batch 31 (v1.70, riwayat)**: DESIGN LANGUAGE PIVOT TOTAL —
-  "Neumorphic Hybrid" (Batch 12-26) DICABUT, ganti ke **"Skeuomorphism-lite (Tactile UI)"**
-  sesuai acuan `compose-skeuomorphism-lite.md` user, **WAJIB dark-mode** (theme mode
-  toggle terang/sistem dihapus total, tidak ada lagi pilihan). Detail teknis lengkap
-  di CHANGELOG.md & "Riwayat pivot" di bawah.
-- ✅ **CI CONFIRMED (user) crash-loop v1.68 gak muncul lagi** — banner cuma nampilin crash
-  lama pre-update, app jalan normal.
-- ⚠️ **Batch 30 (v1.69, BELUM diverifikasi CI/runtime)**: empty state hint di preset custom
-  (`BoosterScreen.kt`, string baru `presets_empty_hint`, ID+EN parity 97/97) — polish kecil,
-  murni tambahan 1 Text kondisional, nol perubahan logic/state. Detail di CHANGELOG.md.
-- **Batch 28 (v1.67, riwayat)**: hotfix CI compile error — `const val RELATIVE_PATH` pakai
-  `Environment.DIRECTORY_DOCUMENTS` (bukan compile-time constant Kotlin), fix: hapus `const`.
-  **LESSON**: `const val` di Kotlin CUMA valid kalau nilainya bisa di-resolve compiler tanpa
-  runtime (literal String/Int/dll). Field dari API Android manapun (`Environment.*`, `Build.*`,
-  dst) BUKAN compile-time constant walau kelihatannya "konstan" secara semantik — WAJIB `val`
-  biasa.
-- **Batch 27 (v1.66, riwayat)**: rewrite `CrashLogger.kt` ke MediaStore (standing spec) —
-  implementasi desain TETAP benar (terbukti Batch 29), detail lengkap di CHANGELOG.md.
-- ✅ **CI CONFIRMED HIJAU di v1.65** (body Release dinamis dari CHANGELOG, dikonfirmasi
-  user via screenshot — bukan link compare kosong lagi).
-- ✅ **CI CONFIRMED HIJAU di v1.64** (hotfix `NoRippleIndication` Batch 25 berhasil, Release
-  v1.64 sukses publish dengan APK signed — dikonfirmasi user via screenshot sidebar Releases).
-- ⚠️ **Batch 26 (v1.65, BELUM diverifikasi run CI berikutnya)**: (1) body GitHub Release
-  sekarang diambil dinamis dari entry CHANGELOG.md versi yang lagi dirilis (`awk` extract di
-  `.github/workflows/build.yml`, `body_path:` bukan `generate_release_notes:true` lagi) — cek
-  halaman Release v1.65 kalau isinya sudah sesuai entry CHANGELOG, bukan link compare kosong
-  lagi. (2) Polish kecil `BoosterScreen.kt`: batas 24 karakter + counter nama custom preset,
-  haptic feedback ditambah di 5 titik yang sebelumnya kelewat (restart service, retry
-  connection, buka setting notifikasi, confirm simpan/hapus preset). Detail lengkap di entry
-  Batch 26 CHANGELOG.md. Statis-only (brace/paren balance OK, parity string ID/EN 96/96, YAML
-  workflow syntax valid via `python3 -c "import yaml"`) — TIDAK ada compile-check sungguhan.
-- **PENTING buat sesi depan**: kalau nambah entry CHANGELOG.md versi baru, WAJIB pertahankan
-  format heading persis `## v<versi> - <judul>` (spasi sebelum & sesudah `v<versi>`) — step
-  ekstraksi release notes di CI (Batch 26) match berdasarkan prefix string ini, kalau formatnya
-  berubah body Release akan fallback ke placeholder kosong.
-- ⚠️ **Batch 25 (v1.64, riwayat)**: hotfix CI v1.63 gagal. compileDebugKotlin FAILED, root cause:
-  `LocalIndication` CompositionLocal NON-NULL di compose-foundation versi project ini —
-  `provides null` (Batch 24) gagal compile. Fix: `NoRippleIndication` object (no-op
-  `Indication`, di `NeumorphicComponents.kt`) dipakai sebagai pengganti `null` di 4 titik
-  `BoosterScreen.kt`. **BELUM diverifikasi run CI berikutnya.**
-- **LESSON buat sesi depan (WAJIB baca sebelum pakai `LocalIndication`/`Indication?`
-  lagi)**: versi API Compose Foundation project ini (compose-bom 2024.06.00) TIDAK selalu
-  match asumsi umum dari internet/training data soal nullability — 2 insiden berturut
-  (Batch 23 experimental opt-in, Batch 25 non-null CompositionLocal) SAMA-SAMA soal API
-  surface yang beda dari ekspektasi, BUKAN soal logic. Sandbox Claude gak bisa compile-
-  check, jadi kalau pakai API Compose yang belum pernah dipakai di project ini
-  sebelumnya, confidence HARUS diturunkan eksplisit di report, bukan diasumsikan aman.
-- ✅ **Batch 24 (v1.63): ripple removal** — implementasi TETAP benar secara desain (scope
-  4 titik, `NoRippleIndication` custom), cuma cara nulis Kotlin-nya yang salah tipe.
-  Detail lengkap di entry Batch 24 di bawah.
-- **Next kandidat polish**: audit Medium/Low lama dari Batch 16 (recomposition/reusable
-  component review, hierarki visual, white space, micro-animation tambahan, loading/
-  success/error feedback, empty/error state, penjelasan fitur lanjutan) — belum pernah
-  disentuh sama sekali.
-- ✅ **CI CONFIRMED HIJAU di v1.62** (hotfix `@OptIn` Batch 23 berhasil). Slider custom
-  Batch 22 sekarang FULLY VERIFIED (build + runtime compile, bukan cuma statis lagi).
-  Fase lanjut: **"polish, debugging, eksekusi sampai matang"**.
-- ✅ **CI CONFIRMED HIJAU di v1.60** (sebelum regresi Slider Batch 22 di v1.61) — root
-  cause Gradle wrapper bootstrap (Batch 19-21) TETAP final selesai, TIDAK terkait hotfix
-  ini. Fase tetap **"polish, debugging, eksekusi sampai matang"**.
-- ✅ **Batch 22 (v1.61): Slider custom** — implementasi TETAP benar secara desain (track
-  10dp, thumb 22dp+shadow+ring, konsisten `neumorphicDepth()`), cuma kurang 1 annotation
-  opt-in. Detail lengkap di entry Batch 22 di bawah.
-- ✅ **Batch 22 SELESAI: Slider custom** (item terakhir pending dari spec design system
-  "Hybrid Neumorphism", ditunda sejak Batch 15). `NeumorphicSliderTrack` (10dp, rounded
-  5dp) + `NeumorphicSliderThumb` (22dp, `neumorphicDepth()` sama dgn NeumorphicCard, ring
-  2dp aksen) di `NeumorphicComponents.kt`, dipasang ke `Slider` di `FeatureControl` via
-  overload `thumb=`/`track=` (material3 1.2+, tersedia di compose-bom 2024.06.00). 1 file
-  berubah, visual-only, belum divalidasi runtime (API ini baru pertama kali dipakai project
-  ini — kandidat pertama dicurigai kalau ada laporan render slider aneh).
-- **Sisa item design system pending**: `drawWithCache` optimasi (skip, gak ada manfaat
-  nyata di skala app ini — cuma static card, bukan list besar/animasi berat), ripple
-  removal Material3 default di `Button`/`FilterChip`/`AssistChip` (`BoosterScreen.kt`,
-  BELUM dikerjakan — kandidat batch polish berikutnya kalau user lanjut), radius "Phone:
-  44dp" (diabaikan permanen, tidak ada elemen target).
-- **Sisa item audit Medium/Low** (dari Batch 16, belum pernah disentuh): recomposition/
-  reusable component review, hierarki visual, white space, micro-animation tambahan,
-  loading/success/error feedback, empty/error state, penjelasan fitur lanjutan (Low).
-  Kandidat batch polish berikutnya.
+## 🚧 Batasan sandbox Claude (lesson permanen, biar gak ulang insiden sama)
+- **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox manapun (network
+  disabled). Claude TIDAK BISA compile-check Kotlin — verifikasi cuma
+  manual: baca ulang nama class/icon, cek balance brace/paren via python.
+- Constructor API Android yang jarang dipakai (`DynamicsProcessing.*` dkk)
+  WAJIB dicek ke dokumentasi resmi `developer.android.com` dulu — jangan
+  tebak urutan/nama parameter dari nama variabel yang "kedengaran masuk
+  akal" (insiden nyata: Batch 85, param `inUse` disalah-isi literal `0`).
+- API Compose yang PERTAMA KALI dipakai di project ini (belum ada
+  precedent lokal) — turunkan confidence eksplisit, jangan asumsikan
+  aman (insiden nyata: `LocalIndication` non-null Batch 25,
+  `@OptIn` kurang Batch 22).
+- `?attr/...` di drawable XML WAJIB prefix `?android:attr/...` kalau
+  maksudnya attr framework — attr tanpa prefix di-resolve ke namespace
+  package sendiri, kalau tidak terdefinisi → AAPT2 FAILED (insiden nyata:
+  v1.40→v1.41, `ic_qs_tile.xml`).
+- Kalau ZIP project TIDAK dibungkus folder induk (kasus project ini),
+  target `unzip -d` HARUS folder project itu sendiri, BUKAN parent-nya —
+  circuit breaker integritas bisa salah trigger kalau file nyasar ke
+  folder induk (insiden nyata: v1.41).
+  Value YAML yang isinya `#<...>` WAJIB di-quote — plain scalar
+  memperlakukan spasi+`#` sebagai awal komentar bahkan di tengah baris,
+  bisa diam-diam kepotong tanpa CI error apapun (insiden nyata: Batch 78,
+  bug ini lolos 9 batch sebelum ketemu).
+- Packaging ZIP DILARANG pakai pola exclude match-semua (`-x ".*"`) —
+  bisa ikut membuang `.github/workflows/` dan `.gitignore` tanpa
+  terdeteksi validasi manapun (insiden nyata: v1.46). WAJIB `unzip -l`
+  pada ZIP HASIL AKHIR dan cocokkan ke `FILE_MANIFEST.txt` sebelum
+  `present_files`.
+- `Surface`/`Card` dengan warna custom/alpha-blend (bukan slot asli
+  `ColorScheme`) butuh `contentColor` eksplisit — auto-detect
+  `contentColorFor()` fallback ke hitam pekat, teks jadi nyaris invisible
+  di dark theme (insiden nyata: v1.32).
+- `const val` Kotlin CUMA valid untuk literal yang compiler bisa resolve
+  tanpa runtime — field API Android manapun (`Environment.*`, `Build.*`)
+  BUKAN compile-time constant walau terlihat "konstan" (insiden nyata:
+  v1.67).
+- Laporan "service/notifikasi mati sendiri" (v1.34): implementasi Android
+  sudah diaudit BENAR (`stopWithTask=false`, `START_STICKY`,
+  `foregroundServiceType`) — akar masalah SELALU battery/task manager
+  OEM (MIUI/ColorOS/EMUI/dll), bukan bug kode. Cek dulu Autostart device
+  sebelum curiga ke `AudioEnhancerService`.
+- Kandidat OEM Autostart Infinix/Tecno/itel (`OemAutostartHelper.kt`)
+  PALING TIDAK TERVERIFIKASI dari semua kandidat — bahkan library
+  populer sekelas `judemanutd/AutoStarter` (600+ stars) masih punya issue
+  terbuka soal ini sejak 2020.
+- Siklus troubleshooting efisien tanpa compiler: (1) perubahan VISUAL
+  murni → update `docs/preview/current.html` dulu (validasi via browser
+  HP dalam detik), baru port ke Kotlin; (2) perubahan LOGIC/behavior →
+  tetap lewat siklus penuh zip→Termux→CI→install, tidak ada jalan pintas;
+  (3) repo PUBLIC → GitHub Actions minutes gratis, biaya sebenarnya WAKTU
+  per putaran (~5-10 menit all-in), bukan uang.
 
-- ✅ **Batch 21 SELESAI: fix LANJUTAN CI lagi (v1.59 belum tuntas).** User upload log
-  run #65 (`log_fail_v1_59-debug-run65.zip` — penamaan versi udah BENAR kali ini,
-  konfirmasi fix Batch 20 soal itu berhasil).
-  - **Progress dari Batch 20**: isolasi direktori scratch BERHASIL — Gradle sistem
-    9.6.1 udah gak lagi coba evaluasi `build.gradle.kts` project kita (gak ada lagi
-    error `Configuration.fileCollection(Spec)`). Tapi ketemu masalah BARU:
-    `Directory '/tmp/tmp.xxx' does not contain a Gradle build` — task `wrapper` Gradle
-    9.6.1 ternyata WAJIB direktorinya "valid Gradle project" (ada file settings) buat
-    bisa jalan sama sekali, beda dari Gradle versi lama yang bisa generate wrapper di
-    direktori kosong tanpa settings file apapun.
-  - **Fix**: bikin `settings.gradle.kts` KOSONG (isinya cuma komentar) di direktori
-    scratch SEBELUM manggil `gradle wrapper --gradle-version 8.7` di sana. File ini
-    sengaja kosong total — gak ada project/subproject/dependency apapun buat
-    dievaluasi, cuma syarat minimal biar Gradle 9.6.1 mau nganggep direktori itu
-    "valid Gradle build".
-  - **File yang berubah**: `.github/workflows/build.yml` (1 baris `echo` baru di kedua
-    job, tepat sebelum pemanggilan `gradle wrapper`), `app/build.gradle.kts`
-    (versionCode 59→60, versionName 1.59→1.60). Tidak ada perubahan kode Kotlin.
-  - **PENTING buat sesi depan**: kalau CI MASIH gagal lagi setelah ini, kemungkinan
-    besar bukan lagi soal bootstrap wrapper (itu levelnya udah makin dalam — versi
-    Gradle, lalu isolasi direktori, lalu syarat settings file — pola berulang "Gradle
-    9.6.1 punya persyaratan lebih ketat dari versi lama"). Kalau ternyata masih ada
-    lapisan masalah lain di titik ini, PERTIMBANGKAN pendekatan alternatif yang lebih
-    permanen: commit LANGSUNG file wrapper (`gradlew`, `gradlew.bat`,
-    `gradle/wrapper/gradle-wrapper.properties`, `gradle/wrapper/gradle-wrapper.jar`) ke
-    repo sekali aja secara manual (dari mesin dev manapun yang punya Gradle terinstal,
-    BUKAN dari CI), supaya CI gak perlu bootstrap apapun lagi selamanya — ini pendekatan
-    paling umum dipakai project Android sungguhan (wrapper SELALU dicommit, bukan
-    di-generate on-the-fly). Sandbox Claude gak bisa lakuin ini sendiri (perlu Gradle
-    binary + network yang gak ada di sandbox).
-  - **Belum diverifikasi runtime** — sama seperti 2 batch CI sebelumnya, HARUS dicek
-    run berikutnya.
+## [ARSIP, USANG sejak Batch 66/67] Command Termux lama — JANGAN dipakai
+Glob `AudioEnhancerPro*.zip` sudah tidak match output Claude sejak Batch
+66 (sekarang `Boomly*.zip`). Skrip aktif = template Immutable user
+preferences.
 
-- ✅ **Batch 20 (v1.59)** — status DIPERBARUI: fix isolasi direktori TERBUKTI BEKERJA
-  (masalah `Configuration.fileCollection` gak muncul lagi), tapi ketemu lapisan masalah
-  baru (lihat Batch 21). Fix penamaan artifact & kondisi upload log DIKONFIRMASI benar
-  (nama file log kali ini sudah ada versi & timestamp yang tepat).
+---
 
-- ✅ **Batch 19 (v1.58)** — status TETAP: root cause awal (Gradle sistem naik ke 9.6.1)
-  tetap benar dan valid, cuma fix-nya butuh 2 iterasi lagi (Batch 20, Batch 21).
+## 🗂️ Struktur proyek singkat (state saat ini, bukan histori per-batch)
+- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut
+  Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa. State
+  `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum.
+- `BoosterScreen.kt` — layar utama Compose. Default: 1 `Column`
+  `.verticalScroll()` flat berisi Preset Cepat → kartu Bass/Virtualizer/
+  Loudness (grouped-list 1 card) → Equalizer Manual → 4 toggle tema →
+  kartu baterai/autostart. Opsi custom: Mode Tab Horizontal
+  (`TabPageContent(page)`, tap-tab via `selectedTabIndex`). Termasuk
+  `PowerToggleRow`, `ServiceStatusBadge`, `CrashBanner`,
+  `ControlRecoveryBanner`, `UpdateBanner`, `EqualizerSection`, dialog
+  preset.
+- `SkeuomorphicComponents.kt` — atom UI reusable (`SkeuCard`,
+  `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SkeuGroupDivider`,
+  `SectionLabel`, `FeatureControl`, `Modifier.skeuGlow`). Semua
+  theme-aware lewat `LocalSkeuTokens.current` — komponen baru WAJIB baca
+  dari sini, JANGAN reference val hardcoded.
+- `AudioEnhancerService.kt` — foreground service, attach BassBoost/
+  Virtualizer/Equalizer/LoudnessEnhancer/DynamicsProcessing(limiter+PreEq
+  fallback) ke audio session 0. Tiap effect punya `EffectState`
+  (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via field
+  `@Volatile`, dipoll `BoosterViewModel` tiap 1 detik, disurface penuh ke
+  UI. `retryControlAcquisition()` publik (dipanggil `ControlRecoveryBanner`).
+  `AudioDeviceCallback` terdaftar — nudge `enableEffects()` (bukan
+  recreate) saat output route berubah, digate `isRunning`.
+- `Theme.kt` — palet dark-only, typography, shape, token bevel/glow untuk
+  ke-4 varian tema. Accent color per-fitur independen dari switch tema.
+  `SkeuTokens` data class + `LocalSkeuTokens`/`LocalAppThemeStyle`
+  CompositionLocal.
+- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence.
+  `CustomPreset` punya field `eqBands: List<Int>` (default `emptyList()`,
+  backward-compat via `optJSONArray`). `getUseHorizontalTabLayout()`/
+  `setUseHorizontalTabLayout()` — key `use_horizontal_tab_layout`.
+- `CrashLogger.kt` — tangkap uncaught exception → MediaStore API 29+,
+  rotasi FIFO maks 50 file.
+- `AudioEnhancerApp.kt` — Application class, `CrashLogger.install()`.
+- `OemAutostartHelper.kt` — deep-link Autostart/battery manager per-OEM,
+  fallback ke App Info.
+- `ServiceWatchdogWorker.kt` — WorkManager periodic 15 menit, restart
+  service kalau mati padahal user tidak minta mati.
+- `OnboardingScreen.kt` — 6 halaman onboarding (belum diaudit gaya iOS).
+- `UpdateManager.kt` — cek Release GitHub terbaru vs `versionCode`
+  runtime, unduh APK chunk-streaming Okio (`Source.read`/`Sink.write`
+  DASAR, TANPA `.buffer()`, DILARANG `readBytes()`), install via intent
+  `ACTION_VIEW`+FileProvider. `fetchLatestRelease()` privat return
+  `CheckResult` sealed class (Available/UpToDate/Failed).
+- `SettingsScreen.kt` — entry point cek-update manual (ikon ⚙️ di header),
+  komparasi versi + release notes + tombol unduh inline, 100% reuse state
+  `BoosterViewModel`. Section "Navigasi Layar Utama" — toggle Mode Tab
+  Horizontal.
+- `docs/preview/current.html` — mockup HTML standalone, WAJIB update
+  bareng perubahan visual besar.
 
-- **Detail lengkap Batch 20 (fix isolasi direktori, v1.59)**: fix v1.58
-  (`gradle wrapper --gradle-version 8.7`) TETAP dijalankan pakai Gradle SISTEM runner
-  (9.6.1). Ternyata `gradle wrapper` — MESKIPUN cuma buat generate file wrapper — tetap
-  memicu Gradle mengevaluasi PENUH seluruh project (baca `settings.gradle.kts` + SEMUA
-  `build.gradle.kts` termasuk `:app`) di fase konfigurasi. Fix: generate wrapper di
-  direktori kosong terpisah (`mktemp -d`), baru salin 4 file hasilnya ke root project.
-  Juga memperbaiki 2 bug penamaan artifact (step "Extract version name" dipindah ke
-  paling awal + jadi unconditional di job release; kondisi upload log release
-  disederhanakan jadi `if: failure()` saja).
-
-- **Detail lengkap Batch 20 (versi panjang, ditulis saat batch itu selesai)**:
-    TETAP dijalankan pakai Gradle SISTEM runner (9.6.1). Ternyata `gradle wrapper` —
-    MESKIPUN cuma buat generate file wrapper — tetap memicu Gradle mengevaluasi PENUH
-    seluruh project (baca `settings.gradle.kts` + SEMUA `build.gradle.kts` termasuk
-    `:app`) di fase konfigurasi, SEBELUM task `wrapper`-nya sendiri sempat jalan. Jadi
-    incompatibility Gradle 9.6.1 vs Kotlin Gradle Plugin 1.9.24 TETAP kena, cuma
-    gagalnya di step yang lebih awal (`Grant execute permission for gradlew`, sebelum
-    sempat `tee` output ke log — makanya log kemarin cuma dapet
-    `build/reports/problems/problems-report.html` isinya laporan WARNING dari task
-    `wrapper` itu sendiri, BUKAN error fatalnya).
-  - **Fix beneran (Batch 20)**: generate wrapper di **direktori kosong terpisah**
-    (`mktemp -d`, file wrapper generik — TIDAK bergantung isi project manapun, sama
-    persis buat project apapun yang target Gradle-nya sama), baru 4 file hasilnya
-    (`gradlew`, `gradlew.bat`, `gradle/wrapper/gradle-wrapper.jar`,
-    `gradle/wrapper/gradle-wrapper.properties`) disalin ke root project. Dengan cara
-    ini Gradle sistem 9.6.1 SAMA SEKALI TIDAK PERNAH menyentuh `build.gradle.kts`
-    project ini — cuma dipakai buat bootstrap file wrapper generik doang.
-  - **Bug KEDUA yang ikut ketemu & diperbaiki**: step "Extract version name" sebelumnya
-    ada SETELAH step wrapper (build job) / SETELAH `secret_check` DAN digated
-    `if: has_secret==true` (release job). Kalau step SEBELUM itu gagal (persis kasus
-    kemarin), step ini ikut ke-skip → `steps.version.outputs.name` kosong → nama
-    artifact log jadi `log_fail_v-debug-run64` (versi kosong, susah dikenali). Fix:
-    step ini dipindah ke **paling awal** (langsung setelah Checkout) di KEDUA job, dan
-    di job `release` jadi **unconditional** (sebelumnya gated secret) — cuma `grep` ke
-    file teks, gak butuh gradlew/JDK/secret sama sekali, aman dijalankan paling depan.
-  - **Bug KETIGA**: kondisi upload artifact log di job `release` sebelumnya
-    `if: failure() && steps.secret_check.outputs.has_secret == 'true'` — kalau step
-    wrapper gagal SEBELUM `secret_check` sempat jalan, `has_secret` kosong, kondisi
-    `== 'true'` FALSE, artifact log gagal ke-upload padahal build-nya beneran gagal.
-    Fix: disederhanakan jadi `if: failure()` saja (konsisten sama job `build`).
-  - **File yang berubah**: `.github/workflows/build.yml` (restrukturisasi urutan step +
-    3 fix di atas), `app/build.gradle.kts` (versionCode 58→59, versionName 1.58→1.59).
-    TIDAK ADA perubahan kode Kotlin.
-  - **PENTING buat sesi depan**: kalau nambah step baru di awal job yang BISA GAGAL
-    (network call, external command, dll), taruh SETELAH "Extract version name", JANGAN
-    SEBELUM — supaya penamaan artifact log kegagalan selalu punya nomor versi yang
-    benar apapun yang gagal duluan.
-  - **Belum diverifikasi runtime** — sama seperti Batch 19, HARUS dicek run CI
-    berikutnya. Kalau bootstrap-di-direktori-terpisah ini MASIH gagal juga, kemungkinan
-    besar bukan lagi soal versi Gradle — laporkan log lengkapnya (sekarang harusnya
-    lebih informatif: ada `gradle-wrapper-bootstrap.log` terpisah dari
-    `gradle-build-debug.log`, dan nama artifact-nya bakal ada nomor versi 1.59 dengan
-    benar).
-
-- ✅ **Batch 19 (v1.58)** — status DIPERBARUI: fix di batch itu TIDAK CUKUP (lihat
-  detail Batch 20 di atas), tapi PENEMUAN root cause-nya (Gradle sistem runner naik ke
-  9.6.1, gak kompatibel KGP 1.9.24) tetap BENAR dan jadi dasar fix Batch 20.
-
-- ⚠️ **Batch 18 (v1.57, Hilt DI)** — status TETAP SAMA: masih belum sempat teruji
-  beneran sampai satu run CI penuh berhasil lolos.
-
-- **Detail lengkap Batch 19 (root cause investigation awal + fix parsial v1.58)**:
-    `A problem occurred configuring project ':app'` →
-    `'...Configuration.fileCollection(...Spec)'` — ini gagal di TAHAP KONFIGURASI
-    project, SEBELUM task compile Kotlin manapun sempat jalan. Penyebab: project ini
-    dari awal TIDAK commit `gradlew`/`gradle-wrapper.properties` — CI generate wrapper
-    on-the-fly via `gradle wrapper` TANPA versi eksplisit, jadi ikut versi Gradle
-    bawaan image runner. Runner image ter-update (`ubuntu-24.04` versi
-    `20260720.247.2`) sekarang bawa **Gradle 9.6.1**, jauh lebih baru dari yang
-    didukung Kotlin Gradle Plugin 1.9.24 project ini (KGP 1.9.24 rilis 2023, gak
-    kompatibel API internal Gradle 9.x). Ini bug LATEN dari awal project (gak pernah
-    pin versi Gradle) yang baru kepicu sekarang karena Gradle di sisi GitHub jalan
-    terus naik versi — Batch 18 (Hilt) cuma KEBETULAN jadi push pertama SETELAH
-    runner image ter-update, bukan penyebabnya.
-  - **Fix**: `.github/workflows/build.yml` — `gradle wrapper` di kedua job (`build` &
-    `release`) sekarang eksplisit `gradle wrapper --gradle-version 8.7` (kompatibel
-    AGP 8.5.2 [min Gradle 8.7] + Kotlin 1.9.24). TIDAK ada perubahan kode Kotlin sama
-    sekali di batch ini — murni infra CI.
-  - **Fitur baru diminta user**: artifact `log_fail_v<versi>-<debug|release>-run<N>`
-    di-upload OTOMATIS (`if: failure()`) tiap kali step build gagal, isi = output
-    lengkap `./gradlew ... --stacktrace` (di-`tee` ke file) + `**/build/reports/**`
-    (termasuk `problems-report.html`). Muncul di tab Actions run → bagian Artifacts,
-    gak perlu scroll log mentah manual lagi. Kalau build sukses, artifact ini SAMA
-    SEKALI TIDAK dibuat (gak numpuk sampah di setiap run sukses).
-  - **PENTING buat sesi depan**: kalau suatu saat mau upgrade AGP/Kotlin lagi, versi
-    `--gradle-version 8.7` di CI HARUS di-update bareng (dicek kompatibilitasnya) —
-    JANGAN dibiarkan mismatch lagi kayak insiden ini.
-  - **Belum diverifikasi**: fix ini VALIDASI-nya HARUS lewat CI beneran (push +
-    lihat run baru) — sandbox gak bisa jalanin Gradle Wrapper generation sungguhan.
-    Confidence tinggi karena root cause sudah jelas & fix-nya standar (pin versi),
-    tapi tetap disarankan cek run berikutnya sebelum lanjut nambah fitur lagi.
-
-- ⚠️ **Batch 18 (v1.57, Hilt DI)** — status DIPERBARUI: kegagalan CI sebelumnya
-  TERNYATA BUKAN karena Hilt (lihat root cause Batch 19 di atas). Perubahan Hilt di
-  v1.57 kemungkinan besar SUDAH BENAR, cuma belum sempat diuji beneran karena CI gagal
-  duluan di tahap konfigurasi sebelum kode Hilt-nya sendiri sempat dikompilasi. Setelah
-  fix Batch 19 di-push, run berikutnya baru akan jadi tes SUNGGUHAN buat kode Hilt.
-
-- **Detail lengkap Batch 18 (Hilt DI, High #3, penutup 3 item High dari audit)**:
-  - **Kenapa risiko lebih tinggi dari Batch 16/17**: ini pertama kalinya audit nyentuh
-    LAPISAN BUILD SYSTEM (plugin resolution, annotation processing/`kapt`), bukan cuma
-    kode Kotlin. Sandbox Claude gak bisa verifikasi resolusi plugin/dependency Gradle
-    sama sekali (network disabled, gak ada Gradle/Maven cache) — beda dari
-    brace/paren-check yang cukup buat error kode Kotlin biasa. Kalau ada TYPO versi atau
-    ketidakcocokan Kotlin/Hilt/kapt, itu BARU KETAUAN pas CI jalan, gak bisa dicegah dari
-    sandbox ini.
-  - **Yang ditambahkan**: plugin `com.google.dagger.hilt.android` v2.51.1 (dipilih karena
-    kompatibel dgn Kotlin 1.9.24 + AGP 8.5.2 yang sudah dipakai — BUKAN versi terbaru
-    sembarangan), plugin `org.jetbrains.kotlin.kapt` (annotation processor, bukan KSP —
-    alasan: KSP butuh versi terpisah yang harus persis cocok Kotlin version, kapt lebih
-    aman tanpa compiler buat verifikasi), `kapt { correctErrorTypes = true }` (rekomendasi
-    resmi dokumentasi Hilt).
-  - **File yang berubah**: `build.gradle.kts` (root, +1 plugin), `app/build.gradle.kts`
-    (+kapt/hilt plugin, +2 dependency, +kapt block), `AudioEnhancerApp.kt`
-    (`@HiltAndroidApp`), `MainActivity.kt` (`@AndroidEntryPoint`), `BoosterViewModel.kt`
-    (`@HiltViewModel` + constructor `Application` sekarang `@Inject constructor(...)`,
-    BUKAN lagi constructor polos — `Application` di-provide OTOMATIS oleh Hilt, TIDAK
-    perlu Module/Provides manual buat ini).
-  - **KALAU CI GAGAL** (build error di step `assembleDebug`): kemungkinan besar
-    ketidakcocokan versi Hilt/Kotlin/kapt yang gak kelihatan dari sandbox statis. Cara
-    termudah recover: `git revert` commit batch ini (isinya kecil & terisolasi — cuma
-    5 file berubah, gampang di-revert bersih), balik ke v1.56 (Batch 17, ViewModel tanpa
-    DI, sudah "SELESAI" penuh confidence tinggi), laporkan pesan error CI lengkap biar
-    bisa didiagnosis versi mana yang perlu diganti.
-  - **PENTING buat sesi depan**: kalau nambah dependency/class baru yang butuh
-    di-inject (bukan cuma `Application`), WAJIB pakai constructor injection
-    (`@Inject constructor(...)`) — JANGAN bikin instance manual (`ClassName()`) untuk
-    apapun yang seharusnya di-inject, itu ngelawan tujuan DI. Kalau butuh binding
-    interface→implementation atau provide sesuatu yang bukan constructor-injectable
-    (mis. `SharedPreferences`), butuh `@Module`/`@InstallIn` baru — BELUM ADA di project
-    ini sama sekali, itu scope batch berikutnya kalau diperlukan (`PrefsHelper` saat ini
-    masih object singleton biasa, BUKAN di-inject).
-  - **Belum divalidasi runtime SAMA SEKALI** — ini benar-benar cuma statis (brace/paren
-    balance + baca ulang tiap anotasi/import manual). Confidence rating diturunkan
-    signifikan dibanding batch lain karena alasan di atas.
-
-- ✅ **Batch 17 SELESAI**: lanjutan audit (High #2) — ekstraksi state + business logic
-  seputar koneksi `AudioEnhancerService` dari `MainActivity.kt` ke `BoosterViewModel.kt`
-  (baru, `AndroidViewModel` polos, **TANPA DI framework**).
-  - **State pindah ke ViewModel** (jadi `var ... by mutableStateOf(...); private set`,
-    exposed read-only): `connectionState` (enum-nya juga pindah, sekarang
-    `BoosterViewModel.ConnectionState` bukan `MainActivity.ConnectionState`),
-    `bassSupported`/`virtualizerSupported`/`loudnessSupported`/`bassStrengthSupported`/
-    `virtualizerStrengthSupported`, semua state `equalizer*`, `service`/`bound` fields,
-    `ServiceConnection`, 4 buffer `pending*`.
-  - **Fungsi pindah**: `startBoosterService()`, `attemptBindService()`, ditambah 4 fungsi
-    baru `setBass/setVirtualizer/setLoudness/setEqualizerBand()` (gantiin lambda inline
-    `{ if (bound) service?.xxx else pendingXxx = it }` yang dulu ada di `setContent{}`
-    MainActivity — sekarang tinggal `{ viewModel.setBass(it) }`).
-  - **State yang SENGAJA TETAP di MainActivity** (bukan business logic audio, inheren
-    API Activity-only): `notificationPermissionGranted` (butuh
-    `ActivityResultLauncher`), `shortcutCustomPresetName` (butuh `Intent` dari Activity).
-  - **PERUBAHAN PERILAKU kecil (didisclose, BUKAN zero-change seperti Batch 16)**:
-    bindService/unbindService sekarang pakai `getApplication()` (Application Context)
-    lewat `AndroidViewModel`, bukan Activity Context langsung. Alasan: ViewModel yang
-    nyimpen Activity Context adalah context-leak risk (VM bisa outlive 1 instance
-    Activity kalau ada config change). Dampak praktis nyaris nihil di app ini karena
-    rotasi sudah dideprioritaskan user (VM tetap 1:1 umur dengan MainActivity). Unbind
-    sekarang di `BoosterViewModel.onCleared()`, bukan `MainActivity.onDestroy()` lagi
-    (override `onDestroy()` di MainActivity sudah dihapus, gak ada isinya lagi).
-  - **Dependency baru** (`build.gradle.kts`, edit parsial): `androidx.activity:activity-ktx:1.9.1`
-    (buat `by viewModels()`), `androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4` +
-    `androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4`.
-  - **PENTING buat sesi depan**: kalau nambah state/logic baru yang terkait
-    audio/service (bukan cuma UI lokal), taruh di `BoosterViewModel.kt`, JANGAN balik
-    ke pola field `by mutableStateOf` langsung di `MainActivity`. `BoosterScreen.kt`
-    sekarang terima `connectionState: BoosterViewModel.ConnectionState` (bukan
-    `MainActivity.ConnectionState` lagi) — kalau nambah screen/composable baru yang
-    perlu tahu status koneksi, referensikan ke `BoosterViewModel.ConnectionState`.
-  - **Belum dikerjakan dari audit** (urutan sama seperti dicatat di Batch 16, belum
-    berubah): (1) Hilt DI (Atomic Change terpisah, butuh ubah
-    `build.gradle.kts`+`settings.gradle.kts` lebih jauh — plugin Hilt, KSP/kapt, dst),
-    (2) item Medium (recomposition/reusable component, hierarki visual, white space,
-    micro-animation, loading/success/error feedback, empty/error state), (3) item Low
-    (penjelasan fitur lanjutan).
-  - **Belum divalidasi runtime** — statis only (brace/paren balance semua file project,
-    grep sisa referensi `MainActivity.ConnectionState` = 0, cross-check import unused,
-    string parity ID/EN tetap 95/95). Kandidat pertama dicurigai kalau ada laporan
-    aneh soal binding/unbinding service setelah update: perubahan Context bindService
-    di atas (Application vs Activity Context).
-
-- ✅ **Batch 16 SELESAI**: audit kode (dari user, format checklist High/Medium/Low) — user
-  eksplisit serahkan urutan prioritas ke Claude. Keputusan: item High "God Activity split"
-  (MVVM+DI dianggap Atomic Change terlalu besar buat 1 batch tanpa compiler) dikerjakan
-  DULUAN sebagai **pemindahan lokasi kode murni (zero logic change)**, karena:
-  1. Foundational — memudahkan ekstraksi ViewModel di batch berikutnya (diff lebih kecil,
-     lebih gampang dicek manual tanpa compiler).
-  2. Risiko paling rendah di antara semua item High: TIDAK ada perubahan logic/state/
-     behavior sama sekali, cuma potong-pindah blok kode + ubah `private`→`internal` di
-     5 composable yang sekarang dipanggil lintas-file. Diverifikasi: cross-check daftar
-     deklarasi (16/16 cocok, tidak ada yang hilang/dobel), brace/paren balance semua file
-     project (bukan cuma 3 file baru), string parity ID/EN (95/95, tidak berubah).
-  3. MVVM (ekstrak state+business logic ke ViewModel) & DI (Hilt/Koin) SENGAJA
-     DITUNDA ke batch terpisah — 2 perubahan besar sekaligus (struktur file + arsitektur
-     state) tanpa compiler sekali jalan terlalu berisiko (lihat insiden v1.40/v1.46 di
-     bawah, root cause-nya selalu typo kecil yang lolos karena gak ada compile-check).
-  - **File yang berubah**: `MainActivity.kt` dipecah jadi 3 file:
-    - `MainActivity.kt` (318 baris, dari 1421) — CUMA Activity class: lifecycle, service
-      binding, permission launcher, pemanggilan `BoosterScreen()`.
-    - `BoosterScreen.kt` (baru, 824 baris) — `BoosterScreen` + composable spesifik-layar:
-      `ServiceStatusBadge`, `PowerToggleRow`, `CrashBanner`, `ThemeModeToggle`,
-      `EqualizerSection`, `Preset` (data class), `formatFreqLabel`.
-    - `NeumorphicComponents.kt` (baru, 335 baris) — atom UI reusable: `NeumorphicCard`,
-      `NeumorphicTintedCard`, `NeumorphicCircleButton`, `SectionLabel`, `FeatureControl`,
-      `neumorphicDepth()`/`neumorphicInnerShadow()` (2 terakhir tetap `private`, cuma
-      dipakai di file ini).
-  - **Visibility yang diubah** (`private`→`internal`, WAJIB karena sekarang lintas-file):
-    `NeumorphicCard`, `NeumorphicTintedCard`, `NeumorphicCircleButton`, `SectionLabel`,
-    `FeatureControl`. `MainActivity.ConnectionState` (enum nested) TIDAK diubah — sudah
-    public by default, dipanggil dari `BoosterScreen.kt` via `MainActivity.ConnectionState.X`.
-  - **PENTING buat sesi depan**: kalau nambah composable baru yang generik/reusable
-    (bukan spesifik 1 layar), taruh di `NeumorphicComponents.kt`. Kalau spesifik ke layar
-    booster utama, taruh di `BoosterScreen.kt`. JANGAN tambah composable baru langsung di
-    `MainActivity.kt` lagi — file itu sekarang murni Activity/lifecycle.
-  - **Belum dikerjakan dari audit** (urutan rencana, TIDAK diminta dikerjakan sekaligus):
-    1. Ekstrak state (`bass`/`virtualizer`/`loudness`/service-binding fields dkk) +
-       business logic (`applyPreset`, `attemptBindService`, dst) ke `BoosterViewModel.kt`
-       (plain ViewModel dulu, TANPA DI framework) — High #2.
-    2. Introduce Hilt (butuh ubah `build.gradle.kts`+`settings.gradle.kts`, Atomic Change
-       sendiri) — High #3.
-    3. Item Medium (recomposition/reusable component, hierarki visual, white space,
-       micro-animation, loading/success/error feedback, empty/error state) & Low
-       (penjelasan fitur lanjutan) — dikerjain SETELAH arsitektur stabil, biar gak
-       nambah lagi yang perlu di-refactor ulang pas MVVM masuk.
-  - **Belum divalidasi runtime** — sama seperti batch-batch sebelumnya, sandbox Claude
-    gak punya compiler, cuma statis (brace/paren + cross-check deklarasi + grep import).
-
-- ✅ **Batch 15 SELESAI**: user kasih spec design system lengkap ("Hybrid Neumorphism")
-  tertulis — diterapkan selektif (bukan semua poin, lihat "Belum dikerjakan" di bawah):
-  - **Warna**: SUDAH 100% match sebelum batch ini (`#232220`/`#C2A26B`/`#F6F4EF`/
-    `#B8B3A8` — kebetulan/gak sengaja sudah persis dari Batch 12). Tidak ada perubahan.
-  - **Shadow**: alpha diturunkan drastis ke spec — sisi gelap 100%→**60% black**
-    (`0x99000000`), sisi terang 20%→**~4% white** (`0x0AFFFFFF`). Offset/blur jadi
-    ASIMETRIS: gelap `+8dp/17dp blur`, terang `-6dp/15dp blur` (sebelumnya simetris
-    `7dp/16dp` di kedua sisi). Token terpusat di `Theme.kt`
-    (`NeuShadowDark/LightOffset/Blur`) — JANGAN hardcode angka baru di `MainActivity.kt`.
-  - **Radius**: Card 20dp→**22dp** (`NeuCardRadius`), Icon Box dipisah jadi **14dp**
-    (`NeuIconBoxRadius`) + ukuran box 36dp→**40dp**. `NeumorphicCard` sekarang terima
-    parameter `radius` (default `NeuCardRadius`, override ke `NeuIconBoxRadius` di
-    icon-orb `FeatureControl`).
-  - **Pressed state**: fungsi baru `neumorphicInnerShadow()` (clip+stroke+shadowLayer,
-    lihat komentar di kodenya) gantiin border rata — dipakai di `NeumorphicCard(pressed
-    = true)` & `NeumorphicCircleButton` saat toggle ON. Tombol power juga dapat scale
-    **0.97x saat DITEKAN JARI** (gesture sesaat via `MutableInteractionSource`+
-    `animateFloatAsState`, BEDA dari param `pressed` yang berarti "toggle ON") + ripple
-    dimatikan (`indication = null`).
-  - **Typography**: Heading 30sp→**28sp** (tetap ExtraBold/800). `SectionLabel` di-hardcode
-    **12sp, letterSpacing 1.4** (lepas dari token `bodyMedium` global). Body 13-15sp &
-    Subtitle 12-13sp SUDAH sesuai sebelumnya, tidak diubah.
-  - **Layout**: padding root 24dp→**22dp**, gap antar-card 20dp→**16dp**.
-  - **Ripple**: dimatikan cuma di `NeumorphicCircleButton` (custom clickable). Chip/Button
-    Material3 bawaan (`FilterChip`, `AssistChip`, `Button`) MASIH pakai ripple default —
-    di luar scope batch ini (lihat TODO).
-
-  **⚠️ BELUM DIKERJAKAN dari spec user (transparan, biar gak dikira "udah 100%")**:
-  1. Slider custom (`Track 10dp`, `Thumb 22dp + shadow + ring`) — Compose `Slider` masih
-     dipakai default Material3 tanpa kustomisasi `thumb=`/`track=`. Butuh subclass Slider
-     Material3 1.2+ API, effort besar, BELUM disentuh.
-  2. `Modifier.drawWithCache()` buat optimasi render — belum dipakai, `drawBehind`/
-     `drawWithContent` biasa (cukup buat skala UI app ini, drawWithCache manfaatnya
-     kelihatan di list besar/animasi berat, bukan static card).
-  3. Radius "Phone: 44dp" di spec — TIDAK ADA elemen UI yang jelas jadi target token ini
-     (kemungkinan sisa dari referensi frame HTML mockup, bukan komponen app), diabaikan.
-  4. Ripple Material3 default (`Button`, `FilterChip`, `AssistChip`) belum diganti jadi
-     "sangat halus/nonaktif" — cuma tombol power custom yang sudah.
-  5. **Belum divalidasi runtime** — semua di atas statis (brace/paren balance +
-     compile-plausibility check), belum pernah di-build & dijalanin di device asli.
-
-- ✅ **Batch 14 SELESAI (fix urgent dilaporkan user)**: "efek kedalaman belum kelihatan"
-  di APK asli, padahal HTML preview kelihatan jelas. **ROOT CAUSE ketemu, BUKAN soal
-  tuning angka** (dugaan awal di catatan Batch 12 di bawah — itu SALAH): `Modifier.shadow`
-  Compose itu shadow ELEVATION bawaan Android, alpha ambient/spot-nya DIBATASI KERAS
-  oleh sistem (~3-15% max secara internal) TIDAK PEDULI warna/opacity yang dikasih ke
-  `ambientColor`/`spotColor` — API-nya sendiri gak sanggup setebal CSS `box-shadow`
-  (yang opacity-nya 100% dikontrol manual). Fix: `NeumorphicCard`/`NeumorphicTintedCard`/
-  `NeumorphicCircleButton` sekarang pakai `neumorphicDepth()` (extension `Modifier` baru,
-  private, di bawah `NeumorphicCard`) — gambar shadow manual pakai
-  `android.graphics.Paint.setShadowLayer()` lewat `drawBehind`+`drawIntoCanvas`, blur+offset
-  bebas kita atur PERSIS cara CSS. **Gated API 28+** (`Build.VERSION_CODES.P`) karena shadow
-  layer di canvas hardware-accelerated baru didukung penuh sejak Android 9 — di API <28
-  fallback diam-diam TANPA shadow sama sekali (bukan crash, tapi juga bukan dual-shadow
-  lama yang toh sama-sama nyaris invisible).
-  - **PENTING buat sesi depan**: kalau nambah kartu/komponen baru yang butuh efek
-    "timbul", WAJIB pakai `Modifier.neumorphicDepth(shape, darkColor, lightColor)` —
-    JANGAN balik pakai `Modifier.shadow(...ambientColor...)` lagi, sudah terbukti gak
-    kelihatan di device asli meski di preview compose/emulator kadang tampak oke.
-  - **Belum divalidasi ulang di device asli** setelah fix ini (user yang laporan Batch 13
-    kemarin perlu install v1.53 & konfirmasi). Kalau MASIH kurang tebal, itu murni soal
-    naikkan `blurRadius`/`offset` di `neumorphicDepth()`, bukan ganti pendekatan lagi.
-
-- ✅ **Batch 13 SELESAI**: porting 2 elemen yang hilang dari `docs/preview/current.html`
-  ke Kotlin (gap ketauan karena user compare screenshot APK vs HTML preview) —
-  **HTML lama SALAH KLAIM "sudah live di app"**, padahal 2 elemen ini belum pernah
-  ada di `MainActivity.kt`:
-  1. **Power toggle "Aktif/Nonaktif"** (`PowerToggleRow` + `NeumorphicCircleButton`,
-     baru, 64dp circle, dual-shadow sama teknik `NeumorphicCard` tapi `CircleShape`,
-     ring 2dp `primary` saat ON meniru `.power-btn.on` di HTML). Wired ke infra yang
-     SUDAH ADA sebelumnya (bukan bikin state baru): `AudioEnhancerService.requestStart`/
-     `requestStop` — sumber kebenaran yang sama dipakai `ShortcutHelper` toggle &
-     `QuickToggleTileService`. Polling `isRunning` tiap 1 detik, pola sama persis
-     `ServiceStatusBadge` (disengaja duplikasi kecil, biar composable ini berdiri
-     sendiri & TIDAK mengubah perilaku badge lama).
-  2. **Label section "Kontrol"** (`SectionLabel(stringResource(R.string.controls_title))`)
-     ditaruh sebelum kartu Bass Boost/Virtualizer/Loudness Gain — sebelumnya kartu itu
-     langsung tampil tanpa header, beda dari HTML.
-  - String baru (ID+EN, parity dijaga): `power_toggle_on_label`, `power_toggle_off_label`,
-    `power_toggle_on_desc`, `power_toggle_off_desc`, `cd_power_toggle`, `controls_title`.
-  - **TIDAK dihapus**: waveform bar decorative row (motif audio kecil di bawah header) —
-    itu ADA di Kotlin tapi TIDAK ADA di HTML preview. User cuma minta 2 elemen di atas
-    di-porting, bukan minta app di-strip biar match 100% ke HTML (lihat Strict Delete
-    Policy — gak boleh hapus fitur tanpa diminta eksplisit). Kalau user mau app match
-    HTML *persis* termasuk soal ini, waveform row perlu dihapus eksplisit di sesi
-    berikutnya.
-  - **Belum divalidasi runtime** — sama seperti Batch 12, tuning visual (ukuran ring,
-    radius icon) baru bisa dikonfirmasi kalau sudah dicoba di device asli.
-
-- ✅ **Batch 12 SELESAI di-port ke Kotlin** (final verdict user, setelah draft preview
-  divalidasi). Redesain BAHASA DESAIN penuh: glassmorphism (v1.29-v1.49) → **Neumorphic
-  Hybrid**. Detail lengkap ada di `CHANGELOG.md` v1.51. Ringkas:
-  - `Theme.kt`: background flat `#232220` (dark) / `#E7E4DC` (light), token dual-shadow
-    baru (`NeuShadowDarkSide` dkk), `LocalIsDarkTheme` CompositionLocal (WAJIB dipakai,
-    bukan `isSystemInDarkTheme()` mentah, di composable manapun yang perlu tahu status
-    tema AKTUAL termasuk override manual user).
-  - `MainActivity.kt`: `GlassCard`/`GlassTintedCard` → `NeumorphicCard`/
-    `NeumorphicTintedCard` (dual `Modifier.shadow`, bukan `Modifier.blur` — sengaja,
-    biar aman API 24+). Gradient-clip text (judul, value slider) → warna solid.
-  - **PENTING buat sesi depan**: kalau nambah kartu/komponen baru di
-    `MainActivity.kt`/`OnboardingScreen.kt`, WAJIB pakai `NeumorphicCard`/
-    `NeumorphicTintedCard` (bukan `Card` Material3 polos / bikin translucent baru) &
-    JANGAN pakai gradient-clip di teks — biar konsisten sama bahasa desain ini.
-  - **Belum divalidasi runtime** (device/emulator) — kalau dual-shadow-nya kurang pas
-    secara visual pas dicoba beneran, itu soal tuning angka (`elevation`, `offset` di
-    `NeumorphicCard`), laporkan biar di-adjust, bukan redesign ulang dari nol.
-
-- ✅ **Audit batch 11 (lanjutan batch 1-9) SELESAI** — diminta user eksplisit
-  ("audit/pematangan lanjutan"). Full sweep: brace/paren balance semua Kotlin (bersih),
-  XML parse-validated semua, parity string ID/EN (89/89), manifest vs fisik (sinkron),
-  scan drawable/mipmap/string orphan (0 ketemu nyata). Ketemu 2 hal nyata:
-  1. `BootReceiver.kt` start service tanpa syarat tiap boot — kontradiksi sama kontrak
-     "hormati pilihan user" yang eksplisit didesain buat `ServiceWatchdogWorker` (Batch
-     9, `PrefsHelper.getUserWantsRunning()`). User tekan "Matikan" → reboot HP → service
-     nyala lagi sendiri tanpa consent. Fix: `BootReceiver` sekarang baca flag yang sama.
-  2. `.github/workflows/build.yml` job `release` TIDAK PERNAH publish GitHub Release
-     (cuma `upload-artifact`) — melanggar aturan rilis standing user (APK harus muncul
-     di sidebar "Releases" repo, bukan cuma Actions Artifact). Fix: tambah step
-     `softprops/action-gh-release@v2`, `permissions: contents: write` di job level,
-     `README.md` diselaraskan. **PENTING buat sesi depan**: kalau nambah job/step CI
-     baru yang butuh tulis ke repo (release, tag, dst), WAJIB cek `permissions:` block —
-     default GITHUB_TOKEN di banyak org/repo settings itu read-only.
-- **LESSON dari Batch 11**: kalau nambah flag "niat user" baru (kayak
-  `getUserWantsRunning`) yang dipakai buat gating auto-restart di SATU tempat
-  (watchdog), WAJIB grep semua call-site `requestStart()`/`requestStop()` lain
-  yang juga jalan tanpa interaksi user langsung (boot receiver, alarm, dll) — jangan
-  cuma cek tempat yang lagi difokuskan pas nulis flag itu pertama kali.
-- 🎨 **REDESIGN TOTAL (v1.49, diminta user)**: tema violet/glassmorphism ("native
-ultra premium" era v1.29+) DICABUT — user bilang kesannya "neon ungu alay". Ganti
-ke **matte graphite/charcoal + aksen champagne-bronze desaturasi** (kesan alat
-audio fisik premium/brushed-metal, bukan RGB gamer). Aksen per-fitur
-(Bass/Virtualizer/Loudness/Equalizer/Battery) TIDAK diubah — sudah muted/earthy
-sejak awal, bukan sumber keluhan. Shape (rounded, struktur glass card) & typography
-TIDAK diubah, cuma palet warna. File yang kena: `Theme.kt`, `colors.xml` +
-`values-night/colors.xml`, `ic_launcher_background.xml`, `widget_background.xml`,
-`ic_shortcut_preset.xml`, `docs/preview/current.html`. **Arah desain UI aktif
-SEKARANG**: "matte premium" — lihat bagian "Riwayat pivot" di bawah, entry baru
-ditambahkan di sana.
-- ✨ **Batch 9: WorkManager watchdog** (diminta user eksplisit: "keluarkan semua trik
-biar app ini berfungsi 100% lifetime"). Lapisan kedua di luar `START_STICKY` +
-`stopWithTask="false"` yang sudah ada (keduanya sudah diverifikasi BENAR sejak
-insiden v1.34 — bukan itu yang diubah). `ServiceWatchdogWorker` jalan periodik
-(15 menit, minimum interval WorkManager) via `WorkManager`, cek apakah service
-harusnya hidup tapi ternyata mati (OS/OEM killer menang), kalau iya restart via
-`AudioEnhancerService.requestStart()`.
-  - **Penting**: watchdog ini WAJIB HORMAT ke pilihan user. Ditambahkan flag baru
-`PrefsHelper.getUserWantsRunning()`/`setUserWantsRunning()` — TERPISAH dari
-`AudioEnhancerService.isRunning` (yang cuma state runtime in-memory). Di-set
-`true` di `onStartCommand()` (jalur normal start — dipanggil dari MainActivity,
-BootReceiver, QS Tile, Widget, Shortcut, SEMUA lewat `requestStart()`), dan
-`false` di jalur `ACTION_STOP` (user tekan "Matikan" di notifikasi). Watchdog
-CUMA restart kalau flag ini `true` DAN `isRunning` ternyata `false` — kalau user
-sengaja matiin, watchdog diam, TIDAK menghidupkan paksa lagi.
-  - **Ditolak dieksekusi** (dibahas eksplisit di chat sebelum implementasi, biar
-gak diulang tanya lagi di sesi depan): AccessibilityService disalahgunakan
-sebagai watchdog, DeviceAdminReceiver, `foregroundServiceType` palsu, reflection
-ke hidden API OEM buat matiin battery manager diam-diam — semua itu pola
-"mem-bypass consent user diam-diam" yang levelnya sama kayak "trik VPN" yang
-sudah ditolak di insiden sebelumnya (lihat "Keputusan sadar" & histori QS Tile
-di bawah). TIDAK akan dikerjain lagi meski diminta ulang tanpa alasan baru yang
-kuat.
-  - **Batasan jujur (WAJIB tetap disampaikan ke user)**: ini BUKAN jaminan "100%
-lifetime" — battery/task manager OEM tetap bisa menang di device tertentu,
-watchdog cuma mempercepat "sembuh sendiri", bukan mencegah kill sepenuhnya.
-Ekspektasi user harus tetap dikalibrasi ke ini, jangan overclaim di UI/copy.
-  - **PENDING (bukan bagian batch ini, calon Batch 10 kalau user lanjut)**:
-banner in-app persistent buat battery optimization belum di-ignore (beda dari
-dialog one-shot yang sudah ada di first-open) — user minta ini juga di diskusi
-awal tapi scope batch ini sengaja dibatasi ke watchdog doang (Batch Lock, biar
-gak nyentuh >10 file dalam 1 batch).
-- ✅ **Audit batch 8 (lanjutan batch 1-7) SELESAI** — diminta user eksplisit ("audit/pematangan
-lanjutan"). Full re-read semua 12 file Kotlin (brace/paren balance via script), parity string
-ID/EN (89/89, termasuk setelah edit batch ini), `FILE_MANIFEST.txt` vs fisik (sinkron), CI/gradle
-(sinkron ke README). Ketemu 1 bug logika nyata: dialog "Simpan Preset" (`MainActivity.kt`) cuma
-cek tabrakan nama case-insensitive ke 4 preset BAWAAN (`presets`), TIDAK PERNAH dicek ke sesama
-preset CUSTOM lain (`customPresets`) — padahal `PrefsHelper.CustomPreset` eksplisit bilang "nama
-harus unik". Akibatnya user bisa bikin 2 custom preset berbeda isi tapi nama nyaris identik
-(mis. "Rock" & "rock"), chip & dynamic shortcut jadi membingungkan (isinya beda tapi labelnya
-kelihatan sama). Fix: tambah pengecekan ke `customPresets` (case-insensitive), TAPI sengaja
-kecualikan exact-match (`it.name != trimmedPresetName`) supaya "simpan ulang dengan nama PERSIS
-SAMA = timpa yang lama" (perilaku disengaja di `PrefsHelper.addCustomPreset`, BUKAN bug) tidak
-ikut ke-block. String `preset_save_name_collision_error` (ID+EN) digeneralisasi dari "sudah
-dipakai preset bawaan" jadi "sudah dipakai preset lain", karena sekarang berlaku ke dua-duanya.
-Tidak ada perubahan fungsional lain — semua fitur (QS Tile, App Shortcuts, Widget) tetap
-SELESAI, tidak ada regresi ditemukan di area lain.
-- ✅ **Audit batch 7 (lanjutan batch 1-6) SELESAI** — diminta user eksplisit:
-"gak usah update fitur baru, fokus penyempurnaan aplikasi dan debugging sampai
-tuntas". Full re-read 12 file Kotlin (brace/paren balance dicek via script),
-semua XML (parse-validated), parity string ID/EN (89/89), manifest vs file
-fisik (sinkron). Ketemu 2 hal: (1) `splash_background` di
-`values/colors.xml`+`values-night/colors.xml` MASIH warna era "Apple-style"
-lama (`#F2F2F7`/`#000000`) padahal `Theme.kt` udah lama pivot ke tema violet
-"native ultra premium" — splash kedip warna gak nyambung sebelum masuk app,
-sudah disamakan ke `#FAF7FF`/`#0A0714`. (2) `AudioEnhancerService.getEqualizer()`
-dead code (nol pemanggil), dihapus. LESSON buat sesi berikutnya: kalau ada
-pivot arah desain warna besar lagi (lihat "Riwayat pivot arah desain" di
-bawah), WAJIB cross-check `values/colors.xml` DAN `values-night/colors.xml`
-juga — bukan cuma `Theme.kt`. Splash screen gampang kelewat karena jarang
-dibuka lama-lama pas testing manual.
-- **Sebelumnya (v1.45 dst)**: audit batch 1-6 (logika Kotlin + resource +
-gradle/CI/README) sudah selesai duluan, tidak ada temuan baru dari batch itu
-di sesi ini. Fitur (QS Tile, App Shortcuts, Widget) semua tetap SELESAI, tidak
-ada perubahan fungsional di batch 7 — murni polish/debug sesuai permintaan
-eksplisit user.
-- ✅ **Audit batch 6 (lanjutan batch 1-5) SELESAI** — diminta user eksplisit,
-  kali ini file NON-KOTLIN (gradle, CI workflow, README, proguard). Gradle
-  files bersih. Ketemu 4 hal nyata: (1) CI `secret_check` cuma validasi 1 dari
-  4 secrets keystore yang dibutuhkan, resiko gagal ambigu kalau setup secrets
-  partial — sudah di-fix validasi keempat-empatnya. (2) README klaim nama
-  artifact yang SALAH (beda dari yang beneran jalan di `build.yml`). (3) README
-  masih klaim icon "placeholder" padahal Adaptive Icon custom udah lama ada.
-  (4) README "Fitur" gak nyebut QS Tile/App Shortcuts/Widget (v1.40-v1.43) sama
-  sekali. Semua sudah di-fix. Pola sama kayak Batch 1: dokumentasi gak sinkron
-  kode, cuma sekarang lokasinya di README+CI, bukan README+CHANGELOG.
-- ✅ **Audit batch 5 (lanjutan batch 1-4) SELESAI** — diminta user eksplisit.
-  Full re-read semua Kotlin + cross-check parity string ID/EN + cek resource
-  gak kepakai. Kotlin logic bersih (termasuk kode baru v1.41-v1.43, App
-  Shortcuts & Widget). Ketemu 2 resource orphan di `AndroidManifest.xml`:
-  `android:label` di-hardcode padahal `@string/app_name` udah ada gak kepakai,
-  dan `ic_launcher_round` (mipmap semua densitas, dari batch Adaptive Icon)
-  gak pernah di-wire ke `android:roundIcon`. Kedua-duanya udah di-fix.
-  Dampak sebelum fix nyaris gak kelihatan, tapi tetap defect arsitektur nyata.
-- ✨ **Fitur baru: Widget home screen** (`BoosterWidgetProvider`) — status real-time +
-  toggle sekali tap tanpa buka app. Refresh didorong dari satu hook di
-  `AudioEnhancerService` (tiap `isRunning` berubah), bukan periodic update (kelewat
-  lambat). **Kedua fitur "shortcut" yang diminta user (App Shortcuts v1.42 + Widget
-  v1.43) SELESAI** — gak ada lagi item pending dari request shortcut ini.
-- ✨ **Fitur baru: App Shortcuts** (long-press ikon launcher) — `ShortcutHelper.kt` +
-  `res/xml/shortcuts.xml`. 1 shortcut statis "Nyalakan/Matikan", + shortcut dinamis
-  (maks. 3, terbaru duluan) satu per preset custom user, tap → app kebuka & preset
-  langsung diterapkan. Konteks: user bilang eksplisit fitur macam "shortcut" ini yang
-  paling dia mau tapi sering kelupaan minta — jadi ini prioritas baru, BUKAN cuma
-  nice-to-have. Widget home screen (v1.43) nyusul langsung di batch berikutnya.
-- 🔽 **Autostart (OemAutostartHelper) DIDEPRIORITASKAN oleh user** — user bilang
-  masalahnya "perkara mudah", fokusnya sekarang ke fitur shortcut. Item PENDING di
-  bawah (konfirmasi Autostart di Infinix) TETAP dicatat (belum dihapus, belum ada
-  laporan gagal), tapi JANGAN diprioritaskan/dikerjain proaktif kecuali user
-  singgung lagi duluan.
-- ✨ **Fitur baru: Quick Settings Tile** (`QuickToggleTileService`) — toggle service
-  langsung dari notification shade, gak perlu buka app dulu (pola UX kayak tile
-  "1.1.1.1" Cloudflare). User awalnya minta "trik VPN" buat ngakalin OEM
-  battery-killer Infinix; setelah dijelaskan itu gak akan efektif (Transsion punya
-  battery manager sendiri terpisah dari Doze/VPN-whitelist Android standar) DAN
-  beresiko (bikin dialog konsen VPN sistem yang isinya menyesatkan kalau app gak
-  benar-benar pakai VPN), user klarifikasi maksudnya cuma pola UX tile shortcut —
-  BUKAN VPN sungguhan. Diimplementasikan sebagai TileService biasa, tanpa VpnService
-  apapun. **Keputusan penting**: tile ini TIDAK dan TIDAK diklaim menyelesaikan
-  masalah OEM battery-killer — itu tetap limitasi yang gak bisa diakali dari kode
-  app manapun, cuma bisa diminimalisir lewat Autostart/battery-unrestricted manual
-  di setting OEM.
-- 🔧 **Refactor kecil**: `AudioEnhancerService.requestStart()`/`requestStop()`
-  companion function baru, dipakai bareng `MainActivity`+`BootReceiver`+tile baru
-  (sebelumnya logika start/stop identik ke-copy-paste 2x).
-- ✅ **Audit kecacatan logika (batch 1-4) SELESAI** — diminta user eksplisit sesi
-  sebelumnya: "berhenti tambah fitur, fokus pematangan & audit kecacatan logika
-  hingga tuntas". Semua temuan sudah di-fix:
-  - ✅ v1.36 (Batch 1): README klaim `onTaskRemoved` restart yang sudah dicabut sejak
-    v1.34, dan README klaim APK debug CI muncul di Artifacts padahal job `build` tidak
-    upload apapun.
-  - ✅ v1.37 (Batch 2): `OnboardingScreen.kt` emoji hardcoded (🎧🔊🌐📢🛡️🔔) — lolos
-    dari pembersihan emoji v1.27 karena emoji-nya di Kotlin, bukan `strings.xml`.
-    Diganti icon vector + accent color yang SAMA PERSIS dengan fitur terkait di layar
-    utama.
-  - ✅ v1.38 (Batch 3): custom preset bisa tabrakan nama dengan preset bawaan. Fix:
-    validasi real-time di dialog simpan preset (case-insensitive).
-  - ✅ v1.39 (Batch 4, penutup): `BootReceiver` sekarang validasi `intent.action`.
-    `CrashLogger` timestamp file sekarang unik per-milidetik. Test coverage
-    `PrefsHelperTest` diperluas 8→17 test.
-  - Setelah v1.40 (fitur tile) mulai lagi masuk mode fitur normal, bukan audit lagi —
-    kalau nemu kecacatan baru pas testing manual, catat sebagai temuan baru di sini.
-- ⏳ **PENDING**: v1.35 sudah dikirim, TAPI belum dikonfirmasi user apakah
-  kandidat Infinix/Tecno di `OemAutostartHelper.kt` berhasil buka halaman
-  Autostart yang benar di device user (**Infinix Note 50 Pro 4G & Note 40
-  Pro 4G**, keduanya XOS). Kalau user balik lapor "masih ke App Info aja"
-  atau "masih ilang notifnya walau Autostart udah aktif" — lanjut dari sini,
-  JANGAN mulai investigasi dari nol (baca insiden v1.34 & v1.35 di bawah dulu).
-- **Arah desain UI aktif (Batch 37-38, ARAH DASAR; Batch 88 tambah lapisan
-  HYBRID di atasnya — lihat paragraf setelah ini)**:
-  "iOS Glassmorphism + Midnight-Blue dominan", WAJIB dark-mode. Kartu struktural =
-  genuine frosted-glass (4-stop gradient + layer sheen kedua), border gradient
-  highlight->transparan, radius besar ala iOS, background layar gradient
-  Midnight-Blue->nyaris-hitam, kontras teks dinaikkan (readability-first). **4
-  varian** tersedia via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle`
-  dari Batch 36 dipertahankan & diperluas Batch 38/43): (1) default "Midnight
-  Glass" (restrained, genuine glass), (2) "Aurora Glass" (lebih vivid/saturated,
-  genuine glass juga), (3) "Neumorphism" (Batch 46: ultra realistic+immersive,
-  BUKAN lagi "Skeuomorphism" bevel-hard Batch 38-39 — soft-UI genuine, shadow
-  sehue base panel, aksen Platinum+Ruby, radius 22dp/15dp; nama toggle/
-  persistence key di kode TETAP "Skeuomorphism"/`APP_THEME_SKEUOMORPHISM`,
-  Protected Asset, cuma label user-facing & isi visual yang berubah), (4)
-  "Studio Equalizer" (Batch 43: neumorphism juga, palet studio abu-abu + aksen
-  neon-lime, low-contrast/subtle by design — beda dari varian 3 yang "ultra
-  realistic"). **[Fixed Batch 88, item lama Fase 6 roadmap.md: paragraf ini
-  sebelumnya belum di-update ke "4 varian" sejak Batch 43]**. 1 pilihan tunggal
-  (bukan kombinasi). Warna aksen per-fitur
-  (Bass/Virtualizer/Loudness/Equalizer) TETAP dipertahankan (bukan sumber keluhan,
-  independen dari 4 varian di atas). Detail lengkap: `CHANGELOG.md` v1.76.0 & v1.77.0.
-  **Riwayat sebelum Batch 37** (biar gak nyoba ulang): "Skeuomorphism-lite (Tactile
-  UI)" (Batch 31-36, v1.70-v1.75.1) — kartu flat/minimal + tactile HANYA di power
-  button/slider — DICABUT TOTAL di Batch 37 atas permintaan eksplisit user (bukan
-  cuma ganti palet, struktur render kartu juga berubah). Lihat "Riwayat pivot" di
-  bawah buat kronologi lengkap. **Catatan penting**: varian "Skeuomorphism" Batch 38
-  BUKAN kebangkitan "Skeuomorphism-lite" Batch 31-36 — beda total (Batch 31-36 =
-  kartu flat + tactile micro di 2 komponen saja; Batch 38 = 1 varian tema penuh
-  dengan bevel-extrusion di SEMUA kartu, dipilih eksplisit lewat toggle, hidup
-  berdampingan dengan 2 varian glass, bukan menggantikannya).
-- **Lapisan "iOS Look Hybrid Rombak" (Batch 88, inisiatif BARU user, roadmap.md
-  Fase 7)**: user eksplisit minta "rombak total UI/UX jadi 100% iOS look, tanpa
-  mengorbankan theme yang telah ada sebelumnya" — diklarifikasi: PER FASE +
-  HYBRID (pola struktur/interaksi iOS ala Settings.app ditambahkan DI ATAS 4
-  varian tema di atas, TANPA mengganti warna/bevel/shadow "ciri khas" tiap
-  varian). BEDA dari "Arah desain UI aktif" di atas (yang soal WARNA/MATERIAL
-  kartu) — lapisan ini soal STRUKTUR/POLA (grouping list, tipografi, bentuk
-  komponen). Fase 1 (Batch 88, lihat CHANGELOG.md):
-  grouped-list Bass/Virtualizer/Loudness. Detail & kandidat Fase 2+:
-  `roadmap.md` Fase 7.
-- **Preview visual live**: `docs/preview/current.html` — render via
-  https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html
-  SELALU update file ini bareng perubahan Kotlin yang visual-related,
-  SEBELUM ngirim APK build — jauh lebih murah buat validasi arah desain
-  daripada muter penuh build+install+screenshot.
-
-## Riwayat pivot arah desain (biar gak nanya/nyoba ulang hal yang sama)
-1. **Apple-style minimalis** (v1.11-v1.23) — awalnya dikira sukses, ternyata
-   user gak ngerasa "beda" sama sekali. Investigasi ketemu 2 sebab:
-   (a) device user kemungkinan besar punya setting Aksesibilitas "Teks Tebal"
-       yang maksa SEMUA font bold, override apapun yang app minta — DI LUAR
-       kendali app manapun.
-   (b) fix banner pakai alpha-transparency tipis di atas dark background yang
-       HITAM PEKAT (`#000000`) — transparansi tipis + hitam pekat = hasilnya
-       ikut nyaris hitam juga, jadi nyaris invisible. LESSON: kalau mau bikin
-       tint/banner di dark theme, pakai solid color blend (`lerp()`), JANGAN
-       alpha transparan mentah kalau background di baliknya gelap pekat.
-   (c) Root cause PALING besar: app ini pakai EMOJI (🔊🌐📢) sebagai icon UI.
-       Apple/iOS gak pernah pakai emoji buat icon fungsional. Ini yang bikin
-       user ngerasa "gak pernah berubah" walau kode-nya beda tiap versi.
-2. **Neo-brutalist** (kebalikan Apple, "bukan android membosankan") — border
-   tebal (2.5dp) solid berwarna, sudut tajam (8-14dp), warna vivid per-fitur.
-   User: masih kurang "premium".
-3. **Native ultra premium / glassmorphism, palet violet** (v1.29-v1.48) —
-   kartu translucent + border gradient tipis + shadow lembut + background
-   gradient dalam + waveform motif di header. User akhirnya bilang palet
-   violet-nya kesan "neon ungu alay" walau strukturnya sendiri disukai.
-4. **Matte premium, palet graphite/bronze** (v1.49) — STRUKTUR
-   glassmorphism dari #3 dipertahankan 100% (kartu translucent, border gradient,
-   shadow, waveform header), cuma PALET WARNA diganti: primary violet neon
-   `#8B7CF6` → champagne-bronze desaturasi `#C2A26B`, background gradient
-   violet-hitam → graphite/charcoal netral `#0A0A0A`. Kesan alat audio fisik
-   premium (brushed metal, matte black), bukan RGB gamer. Aksen per-fitur TIDAK
-   disentuh. LESSON: kalau user komplain "kesan alay/norak" di masa depan, cek
-   dulu apakah masalahnya di STRUKTUR (shape/layout) atau cuma di PALET WARNA
-   sebelum redesign besar — di kasus ini cuma palet, jadi scope-nya kecil
-   (Theme.kt + 2 colors.xml + 3 drawable hardcoded hex + preview HTML).
-5. **Neumorphic Hybrid** (Batch 12, v1.51-v1.69, riwayat — DICABUT di Batch 31) —
-   kali ini STRUKTUR ikut diganti, bukan cuma palet,
-   diminta user eksplisit sambil minta legibility ditingkatkan. Translucency/
-   backdrop-blur & gradient-clip text (dua-duanya sumber inkonsistensi kontras di
-   struktur glassmorphism #3/#4) dibuang total. Kedalaman visual dari
-   dual-shadow neumorphic (extruded = "timbul", inset = "ditekan"), background
-   base dinaikkan ke abu graphite medium `#232220` (bukan hitam pekat) supaya sisi
-   highlight shadow-nya kelihatan. Warna aksen per-fitur & primary bronze TETAP,
-   cuma dipakai lebih hemat (icon/slider/ring, bukan teks).
-6. **Skeuomorphism-lite (Tactile UI)** (Batch 31, v1.70, **ARAH SEKARANG**) — user
-   kirim acuan design guide (`compose-skeuomorphism-lite.md`) minta neumorphism
-   DICABUT TOTAL + **WAJIB dark-mode** (theme mode toggle terang/ikuti-sistem
-   dihapus, `LightColors` scheme dihapus, `LocalIsDarkTheme` sekarang selalu
-   `true`). Beda kunci vs Neumorphic Hybrid:
-   (a) Kedalaman TIDAK LAGI dari dual custom-Paint shadow-layer (`neumorphicDepth`/
-       `neumorphicInnerShadow`, `NeuShadowDarkSide`/`NeuShadowLightSideDark`) — semua
-       dihapus. Sekarang dari bevel gradient (`SkeuBevelBrush` top-down light source)
-       + border highlight/shadow tipis, plus `Modifier.shadow` elevation standar
-       Compose (`animateDpAsState`) buat micro-interaction klik.
-   (b) Realisme tactile DIPERSEMPIT hanya ke komponen "physical utility" (power
-       button, slider knob) sesuai guide poin 3 — kartu struktural (`SkeuCard`/
-       `SkeuTintedCard`, ex `NeumorphicCard`/`NeumorphicTintedCard`) sekarang FLAT
-       & minimal (solid surface + border 1dp + shadow kecil), BUKAN extruded lagi.
-   (c) Slider knob pakai radial gradient metalik (`SkeuSliderThumb`), bukan dual-shadow
-       bundar lagi.
-   (d) Dark-mode adaptation guide: highlight terang diganti "primary glow" tipis
-       (`SkeuPrimaryGlow`), bukan `Color.White` alpha mentah.
-   File `NeumorphicComponents.kt` dihapus, diganti `SkeuomorphicComponents.kt`.
-   `docs/preview/current.html` & warna aksen per-fitur/primary bronze TETAP
-   dipertahankan (bukan sumber keluhan), cuma struktur kartu & shadow yang berubah.
-7. **iOS Glassmorphism + Midnight-Blue dominan** (Batch 37, v1.76.0, **ARAH
-   SEKARANG**) — user minta rewrite total sektor UI/UX, eksplisit "bukan ganti
-   pallet warna murahan", gaya iOS-style glassmorphism dominan + Midnight-Blue jadi
-   hint yang kentara, readability maksimal. Beda kunci vs Skeuomorphism-lite (poin 6):
-   (a) Kartu struktural balik jadi glass genuine (4-stop gradient + sheen kedua),
-       BUKAN lagi flat solid + border tipis.
-   (b) Border kartu jadi gradient highlight->transparan, bukan solid alpha tipis.
-   (c) Radius naik signifikan (20->26dp kartu) — lebih membulat ala iOS, bukan radius
-       standar Android era sebelumnya.
-   (d) Background layar jadi gradient Midnight-Blue->nyaris-hitam, bukan flat solid
-       — supaya kartu kaca "kebaca" sebagai kaca di atas backdrop bervariasi.
-   (e) Midnight Blue naik dari "subtle 6%" (Batch 34) jadi "dominan 20%" — instruksi
-       eksplisit user kali ini beda dari guide lama yang minta subtle.
-   (f) Kontras teks dinaikkan tegas di semua tier (Primary/Secondary/Muted) —
-       readability adalah syarat eksplisit, bukan trade-off boleh dikorbankan demi
-       estetika kaca.
-   Arsitektur 2-varian (switch Settings, Batch 36) TETAP ADA — user tidak minta
-   dihapus — tapi kedua varian sekarang glass (default "Midnight Glass" restrained,
-   opsi ke-2 "Aurora Glass" lebih vivid), bukan lagi 1 glass + 1 skeuomorphism.
-   Detail lengkap: `CHANGELOG.md` v1.76.0.
-
-## Batasan sandbox Claude (PENTING — biar gak ngulang insiden yang sama)
-- **Insiden nyata (v1.40 → v1.41, build gagal di CI)**: `ic_qs_tile.xml` (drawable
-  baru buat Quick Settings Tile) pakai `android:tint="?attr/colorControlNormal"`
-  TANPA prefix `android:` di depan `attr`. Ini bikin AAPT2 nyari attr itu di
-  namespace package sendiri (`com.audioenhancer.booster:attr/colorControlNormal`)
-  yang emang gak pernah dideklarasikan, bukan attr framework yang dimaksud →
-  `processDebugResources FAILED`, seluruh CI merah, gak ada APK ke-generate sama
-  sekali. Root cause murni typo referensi attr, bukan salah logic. LESSON: kalau
-  bikin drawable baru yang pakai `?attr/...`, WAJIB prefix `?android:attr/...`
-  (kalau maksudnya attr framework) — jangan asal `?attr/...` tanpa dicek attr
-  itu didefinisikan di mana. FIX yang dipakai: tint dihapus total dari
-  `ic_qs_tile.xml` — gak masalah karena Quick Settings tile emang di-render
-  sistem sebagai alpha-mask yang di-tint otomatis oleh Android sendiri sesuai
-  state tile, tint manual di level drawable gak pernah kepake buat konteks ini.
-- **Insiden nyata (v1.41, command Termux salah target extract)**: command
-  "standar" lama pakai `unzip -o "$LATEST_ZIP" -d ~/projects/` (bukan
-  `-d ~/projects/AudioEnhancerPro/`). Karena ZIP proyek ini SENGAJA gak
-  dibungkus folder induk (`build.gradle.kts` dkk langsung di root ZIP, sesuai
-  aturan user), hasil extract malah numpuk langsung di `~/projects/` (folder
-  induk SEMUA project Termux), BUKAN di `~/projects/AudioEnhancerPro/`.
-  Akibatnya circuit breaker (deteksi file turun >30%) salah trigger ABORT
-  karena ngitung isi folder yang file barunya gak pernah nyampe situ — file
-  baru nyasar ke folder yang salah. LESSON: kalau ZIP gak dibungkus folder
-  induk (kasus proyek ini), target `unzip -d` HARUS folder project itu
-  sendiri (`~/projects/AudioEnhancerPro/`), BUKAN parent-nya (`~/projects/`).
-  Sudah diperbaiki di command "standar" di bawah — WAJIB pakai versi ini
-  buat semua update berikutnya. User juga perlu bersihkan manual file nyasar
-  di `~/projects/` root (app/, README.md, dll — bukan punya project lain).
-- **Insiden nyata (pengiriman v1.46, packaging ZIP)**: command `zip -r -X out.zip
-  . -x ".*"` yang dipakai buat bikin ZIP pengiriman TANPA SADAR ikut membuang
-  SEMUA folder/file berawalan titik dari isi ZIP — termasuk `.github/workflows/
-  build.yml` (CI) dan `.gitignore`. Validasi "FILE_MANIFEST.txt vs isi ZIP" waktu
-  itu tetap "lolos" karena dua-duanya (manifest di dalam ZIP & isi ZIP) sama-sama
-  gak lengkap dengan cara yang konsisten — validasi model itu gak nangkep bug
-  packaging-nya sendiri. Efeknya baru ketauan setelah user push & gak ada GitHub
-  Action yang jalan sama sekali (CI-nya sendiri udah kehapus dari repo). LESSON:
-  (1) JANGAN PERNAH pakai pola exclude `-x ".*"` atau sejenisnya yang match semua
-  dotfile/dotdir saat packaging ZIP proyek ini — exclude nama spesifik satu-satu
-  kalau memang perlu. (2) WAJIB `unzip -l` pada ZIP HASIL AKHIR (bukan cuma cek isi
-  folder sumber sebelum di-zip) dan cocokkan listing itu ke `FILE_MANIFEST.txt`
-  SEBELUM present_files — supaya bug di command zip itu sendiri ketauan, bukan
-  cuma bug di isi file. Detail lengkap insiden ada di CHANGELOG.md entry "v1.46
-  (hotfix pengiriman)".
-- **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox Claude manapun (dicek
-  eksplisit, network disabled). Artinya: Claude TIDAK BISA compile-check
-  Kotlin sebelum ngirim zip. Verifikasi cuma bisa manual: baca ulang tiap
-  nama class/icon yang dipakai, cek balance brace/paren via python.
-- **Insiden nyata yang pernah kejadian**: sempat nulis
-  `Icons.AutoMirrored.Filled.VolumeUp` (TIDAK EXIST di library icon) dan baru
-  ketauan sebelum sempat ke-kirim — tapi ini nunjukkin resikonya nyata.
-  Kalau ragu 1 nama icon/class ada atau nggak, mending pakai yang udah
-  KONFIRMASI kepake di file lain, atau icon paling umum/basic.
-- **Insiden nyata (v1.34)**: user lapor notifikasi "Audio Booster aktif" ikut
-  hilang saat app di-swipe dari recent apps, padahal harusnya cuma hilang
-  kalau tekan "Matikan". Sudah diaudit menyeluruh: implementasi Android-nya
-  (`stopWithTask="false"`, service di-*start* DAN di-*bind* sekaligus,
-  `START_STICKY`, `foregroundServiceType="mediaPlayback"`) semuanya SUDAH
-  BENAR — bukan bug logika. Akar masalahnya adalah battery/task manager
-  proprietary OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Huawei/EMUI, Samsung, dst)
-  yang membunuh foreground service TANPA PEDULI `stopWithTask`/`START_STICKY`
-  kecuali user manual mengizinkan "Autostart"/"No restriction" di pengaturan
-  khusus tiap merk — ini keterbatasan platform, bukan sesuatu yang bisa
-  di-fix murni dari kode app. Mitigasi yang ditambahkan: `OemAutostartHelper.kt`
-  (deep-link ke pengaturan yang relevan). LESSON: kalau ada laporan
-  "service/notifikasi mati sendiri" lagi di masa depan, JANGAN buru-buru
-  curiga ke kode `AudioEnhancerService`/`onTaskRemoved` dulu — itu udah
-  diverifikasi benar. Cek dulu apakah user sudah aktifkan Autostart di HP-nya.
-- **Update v1.35**: kandidat Infinix/Tecno/itel (`com.transsion.phonemanager` /
-  `AutoBootMgrActivity`) ditambah ke `OemAutostartHelper.kt`, tapi CATAT: ini
-  PALING GAK TERVERIFIKASI dari semua kandidat OEM yang ada — bahkan library
-  open-source populer sekelas `judemanutd/AutoStarter` (600+ stars) masih
-  punya issue TERBUKA soal Infinix/Tecno sejak 2020, belum pernah keresolve.
-  Kalau kandidat ini gagal di device tertentu, otomatis fallback ke App Info
-  (gak crash), tapi user mungkin perlu cari manual: Settings → Apps → App
-  Management → [nama app] → Autostart, DAN Settings → Battery → Power saving
-  mode → Exceptions, DAN kunci app di recent apps (swipe-down kartu app →
-  ikon gembok).
-- **Insiden nyata (v1.32)**: `Surface`/`Card` dengan `color`/`containerColor`
-  yang gak persis match salah satu slot di `ColorScheme` (contoh: warna
-  `Color.Transparent`, atau `surface.copy(alpha=0.x)`) BIKIN Material3 gak
-  bisa nentuin `contentColor` otomatis via `contentColorFor()` — fallback ke
-  default library (hitam pekat). Semua `Text()` di dalamnya yang gak kasih
-  `color=` eksplisit ikut kena, jadi nyaris invisible di dark theme. LESSON:
-  kalau `Surface`/`Card` pakai warna custom/alpha-blend (bukan warna asli
-  dari `MaterialTheme.colorScheme.*`), WAJIB kasih `contentColor` eksplisit
-  juga — jangan andalkan auto-detect.
-- Karena gak bisa compile-check, siklus troubleshooting yang efisien:
-  1. Untuk perubahan VISUAL murni (warna/layout/shape) → update
-     `docs/preview/current.html` DULU, biar user bisa validasi lewat browser
-     HP dalam hitungan detik, BARU port ke Kotlin kalau udah oke.
-  2. Untuk perubahan LOGIC/behavior → tetap harus lewat siklus penuh
-     (zip → Termux → CI → install), gak ada jalan pintas.
-  3. Repo ini PUBLIC → GitHub Actions minutes GRATIS/unlimited. Biaya
-     sebenarnya bukan uang, tapi WAKTU per putaran (~5-10 menit all-in).
-
-## [ARSIP, USANG sejak Batch 66/67] Command Termux lama — JANGAN dipakai lagi
-Glob ZIP di bawah (`AudioEnhancerPro*.zip`) sudah TIDAK MATCH output Claude
-sejak Batch 66 (sekarang `Boomly*.zip` per koreksi Batch 67, lihat
-"Keputusan sadar"). Riwayat saja. Skrip aktif = template Immutable Box A/B/
-Daily Update user preferences, di-generate ulang Claude tiap sesi.
-```
-LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo "Pakai ZIP: $LATEST_ZIP" && mkdir -p ~/projects/AudioEnhancerPro && cd ~/projects/AudioEnhancerPro && ( [ -d .git ] || git init ) && find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + && unzip -o "$LATEST_ZIP" -d ~/projects/AudioEnhancerPro/ && git add -A && git commit -m "[ringkasan perubahan]" && git push
-```
-
-## Struktur proyek singkat
-- `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa di sini (`AudioEnhancerTheme(useDynamicColor=..., themeStyle=...)`, tanpa `darkTheme` param lagi). Batch 36: state `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum, dipass ke tema + `BoosterScreen`.
-- `BoosterScreen.kt` — layar utama Compose (BoosterScreen, FeatureControl caller, PowerToggleRow, ServiceStatusBadge, CrashBanner, ControlRecoveryBanner, EqualizerSection, Preset). Batch 36: kartu switch "Gaya Tampilan Radikal" (di bawah kartu Material You) + semua warna muted/glow di layar ini baca dari `LocalSkeuTokens.current`, bukan val hardcoded lagi. Batch 62: `ControlRecoveryBanner` baru (pola sama ServiceStatusBadge/CrashBanner) — tampil kalau ada effect CONTROL_LOST/FAILED, tombol panggil `BoosterViewModel.retryControlAcquisition()`. Batch 94-96: isi Kontrol/Tampilan/Bantuan sempat dikelompokkan jadi 3 tab (`TabRow`+`HorizontalPager`). Batch 97 (REVERT eksplisit user): isi 3 tab itu diekstrak 1:1 jadi fungsi lokal `TabPageContent(page: Int)` (0 logic diubah) — state baru `useHorizontalLayout` (baca `PrefsHelper.getUseHorizontalTabLayout()`, pola self-contained-read sama seperti `customPresets`) menentukan render: `false` (DEFAULT baru) → `TabPageContent(0/1/2)` dipanggil flat berurutan dalam 1 `Column.verticalScroll()` (struktur pra-Batch 94); `true` → `TabRow`+`HorizontalPager` Batch 94-96 (komponen tab row-nya sendiri diganti Batch 99, lihat bawah), tinggal manggil `TabPageContent(page)`. Toggle-nya ada di `SettingsScreen.kt` ("Mode Tab Horizontal"). Batch 99: `TabRow`→`ScrollableTabRow` (`edgePadding=0.dp`, fleksibel ke jumlah tab tanpa balik ke bug Batch 95) + `Column` per-halaman pager dapat `.padding(horizontal=16.dp)` (cegah shadow tema kepotong clip horizontal `HorizontalPager`). Batch 100: Column pembungkus utama sekarang scroll di KEDUA mode (dulu cuma vertikal) — `HorizontalPager` tidak lagi `weight(1f)`, sekarang tinggi eksplisit 62% tinggi layar (`LocalConfiguration`, dikunci 360–640dp) supaya ruang tampil tab tidak lagi tergantung berapa banyak banner di atasnya sedang aktif; `.navigationBarsPadding()` yang dulu di Column per-halaman pager (Batch 96) pindah ke Column pembungkus utama (sekarang scrollport sebenarnya).
-- `SkeuomorphicComponents.kt` — atom UI reusable "Skeuomorphism-lite" (`SkeuCard`, `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SectionLabel`, `FeatureControl`, `NoRippleIndication`, `Modifier.skeuGlow`). Ganti total `NeumorphicComponents.kt` (dihapus, Batch 31). `skeuGlow`+`SkeuSwitch` baru Batch 32. Batch 36: semua komponen ini theme-aware lewat `LocalSkeuTokens.current` (2 sistem desain, 1 kode komponen) — kalau nambah komponen Skeu baru, WAJIB baca token dari sini, JANGAN reference `Glass*`/`Radical*` val langsung.
-- `AudioEnhancerService.kt` — foreground service, attach BassBoost/Virtualizer/Equalizer/LoudnessEnhancer ke session 0. Batch 57: tiap effect punya `EffectState` (UNAVAILABLE/AVAILABLE/ENABLED/FAILED/CONTROL_LOST) via `bassState`/`virtualizerState`/`loudnessState`/`equalizerState` (`@Volatile`, public read). Batch 58: dikonsumsi `BoosterViewModel` (poll 1 detik). Batch 59: seluruh 4 state ini sekarang disurface penuh sampai UI (`BoosterScreen`/`EqualizerSection`). Batch 60: `getBassRoundedStrength()`/`getVirtualizerRoundedStrength()` (baca rounding device, belum dikonsumsi ViewModel/UI) — LIHAT komentar panjang di atas `setBassStrength()` soal kenapa range `0..1000` BUKAN gap, dan kenapa LoudnessEnhancer sengaja tidak disentuh. Batch 61: `attachEffects()` dipecah jadi `attachBass()`/`attachVirtualizer()`/`attachEqualizer()`/`attachLoudness()` + fungsi publik `retryControlAcquisition()` (release+recreate per-effect yang CONTROL_LOST/FAILED). Batch 62: fungsi itu sekarang PUNYA pemanggil — `BoosterViewModel.retryControlAcquisition()` → `ControlRecoveryBanner` (`BoosterScreen.kt`), tidak lagi menggantung. Batch 83 (roadmap.md Fase 0 #3): `AudioDeviceCallback` sistem di-register `onCreate()`/unregister `onDestroy()` — deteksi perpindahan sink output (speaker/Bluetooth/wired/USB DAC/HDMI/dock), tulis `lastOutputRouteDescription` (@Volatile, belum dikonsumsi ViewModel/UI) + nudge `enableEffects()` (BUKAN recreate) digate `isRunning`. Batch 84 (roadmap.md Fase 0 #5): effect BARU `DynamicsProcessing` (master limiter murni, hardcoded threshold -1dBFS/ratio 20:1) sebagai ceiling tambahan — diikutkan penuh ke `retryControlAcquisition()`/`releaseEffects()`/`disableEffects()`/`enableEffects()`, tidak merestrukturisasi urutan pipeline (itu scope #6).
-- `Theme.kt` — palet warna (dark-only), typography, shape, token bevel/glow Skeuomorphism-lite (`SkeuBevelBrush`, `SkeuPrimaryGlow`, dst) buat tema AMOLED Glass. Accent color per-fitur ada di sini (`BassAccent`, `VirtualizerAccent`, dst + varian "2" buat gradient) — TIDAK terpengaruh switch tema (guide baru gak minta accent per-fitur diubah). Batch 36: tambahan token `Radical*` (tema ke-2, Radical Literal Skeuomorphism), `SkeuTokens` data class, `LocalSkeuTokens`/`LocalAppThemeStyle` CompositionLocal, `AudioEnhancerTheme(themeStyle=...)` param baru.
-- `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence lewat sini (termasuk preset custom & timestamp crash log). Method `getThemeMode`/`setThemeMode` masih ada (dead code, sengaja TIDAK dihapus biar `PrefsHelperTest.kt` gak perlu diubah) tapi TIDAK dipanggil lagi dari UI manapun sejak Batch 31 — BEDA dari `getAppThemeStyle`/`setAppThemeStyle` (Batch 36, AKTIF dipakai, soal 2 sistem desain bukan terang/gelap). Batch 63: `CustomPreset` dapat field `eqBands: List<Int>` (default `emptyList()`, backward-compat), `getCustomPresets()` pakai `optJSONArray` (toleran field hilang di JSON lama). Batch 97: `getUseHorizontalTabLayout()`/`setUseHorizontalTabLayout()` baru — key `use_horizontal_tab_layout`, default `false` (layar utama vertikal), dibaca `BoosterScreen.kt` & `SettingsScreen.kt`.
-- `CrashLogger.kt` — tangkap uncaught exception, simpan ke `filesDir/crash_logs/` (rotasi maks 5 file).
-- `AudioEnhancerApp.kt` — Application class, cuma buat `CrashLogger.install()` sedini mungkin.
-- `OemAutostartHelper.kt` — deep-link ke pengaturan Autostart/battery manager per-OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/OnePlus/Asus/Infinix-Tecno-itel), fallback ke App Info bawaan Android kalau semua kandidat gagal.
-- `ServiceWatchdogWorker.kt` — WorkManager periodic (15 menit), restart service kalau mati padahal `PrefsHelper.getUserWantsRunning()` true. Dijadwalkan sekali di `AudioEnhancerApp.onCreate()`.
-- `OnboardingScreen.kt` — 6 halaman onboarding.
-- `UpdateManager.kt` — Batch 69, BARU. Object stateless: `checkForUpdate()` (cek
-  Release GitHub terbaru vs `versionCode` yang lagi jalan, baca `PackageManager`
-  runtime — BUKAN `BuildConfig`, kelas itu mati sejak Batch 41), `downloadApk()`
-  (unduh via chunk streaming Okio, `Source.read(Buffer,Long)`/`Sink.write(
-  Buffer,Long)` langsung — TANPA `.buffer()`, interface dasar Okio sudah cukup),
-  `installApk()` (intent `ACTION_VIEW` + FileProvider). PERTAMA KALI project ini
-  butuh `INTERNET` sama sekali — sebelumnya 100% offline. Batch 75: `fetchLatestRelease()`
-  privat return `CheckResult` sealed class (`Available`/`UpToDate`/`Failed`),
-  BUKAN `UpdateInfo?` polos lagi — fix bug "gagal cek disalahartikan sudah
-  terbaru" (lihat LOG UPDATE HARIAN Batch 75). Batch 73: logic inti
-  diekstrak ke `fetchLatestRelease()` privat (dipakai ulang `checkForUpdate()`
-  DAN `checkForUpdateManual()` baru — beda cuma soal exception ditelan/dilempar).
-  Batch 81: `UpdateInfo` dapat field `releaseNotes` (ringkasan 1-baris, diisi
-  fungsi baru privat `extractReleaseSummary()` — baca heading "## ..." paling
-  atas body Release GitHub, buang ekor "---"+link CHANGELOG.md).
-- `SettingsScreen.kt` — Batch 73, BARU. Entry point cek-update MANUAL (tombol
-  "Cek Update Sekarang" + versi app terpasang), dibuka dari ikon ⚙️ di header
-  `BoosterScreen`. Batch 81 (REVISI — user keluhkan hasil FOUND gak informatif
-  + maksa pindah tab): SEKARANG juga tampilkan komparasi versi + `releaseNotes`
-  + tombol unduh inline di sini, TETAP 0 logic unduh baru — 100% reuse state
-  (`updateDownloadProgress`/`updateDownloadFailed`) & fungsi
-  (`downloadAndInstallUpdate()`) yang sudah ada di `BoosterViewModel`, sama
-  yang dipakai `UpdateBanner` (`BoosterScreen.kt`, TETAP ada apa adanya, bukan
-  satu-satunya jalan unduh lagi). Batch 97: section baru "Navigasi Layar Utama"
-  — toggle `SkeuSwitch` "Mode Tab Horizontal" (`PrefsHelper.getUseHorizontalTabLayout`/
-  `setUseHorizontalTabLayout`, baca-tulis LANGSUNG di sini, 0 param/callback baru
-  ke `MainActivity.kt`).
-- `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
-
-## TODO / ROADMAP — backlog aktif (konsolidasi Batch 106 dari `roadmap.md` +
+---
+## 📋 TODO / ROADMAP — backlog aktif (konsolidasi Batch 106 dari `roadmap.md` +
 2x `PENDING_*.md`, ketiganya diarsipkan ke `/archive` — lihat "🔒 ATURAN
 PERMANEN" soal kebijakan arsip. Ini SEKARANG satu-satunya sumber kebenaran
 backlog, jangan biarkan pecah lagi ke file terpisah.)

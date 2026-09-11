@@ -1,14 +1,12 @@
 # AudioEnhancerPro
 
 ### [⬇️ Download APK Terbaru](https://github.com/FDzaki-dev/AudioEnhancerPro/releases/latest)
-_Langsung ke APK signed paling baru di tab Releases — link ini SELALU resolve ke rilis terbaru otomatis (URL `/releases/latest` bawaan GitHub, bukan link ke versi tertentu yang jadi basi), tanpa perlu scroll/cari manual._
+_Selalu resolve ke APK signed terbaru di tab Releases (URL `/releases/latest` bawaan GitHub)._
 
-> 🧠 **Lanjut development di sesi Claude baru?** Paste link repo ini di awal chat:
-> `https://github.com/FDzaki-dev/AudioEnhancerPro` — lalu **suruh Claude baca
-> `PROJECT_STATE.md` dulu** (bukan cuma README ini). File itu didesain khusus
-> buat AI: padat, berisi keputusan desain & alasannya, batasan teknis, dan
-> riwayat pivot — biar sesi baru gak mulai dari nol atau ngulang pertanyaan
-> yang sama.
+> 🧠 **Lanjut development di sesi Claude baru?** Paste link repo ini, lalu
+> **suruh Claude baca `PROJECT_STATE.md` dulu** (bukan cuma README ini) —
+> file itu berisi keputusan desain, batasan teknis, dan riwayat pivot,
+> didesain khusus untuk AI biar sesi baru gak mulai dari nol.
 
 Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compose.
 
@@ -16,17 +14,9 @@ Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compos
 
 **[▶ Buka Preview UI Interaktif](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html)**
 
-Link di atas render langsung file `docs/preview/current.html` di repo ini lewat
-[htmlpreview.github.io](https://htmlpreview.github.io) — live, tanpa perlu install APK
-apapun, cukup buka di browser (HP atau desktop). Setiap kali ada perubahan UI/UX yang
-cukup besar untuk didiskusikan dulu sebelum di-build jadi APK, file mockup ini di-update
-bareng commit-nya, jadi link ini SELALU mencerminkan arah desain TERBARU yang sedang
-dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
+Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https://htmlpreview.github.io) — tanpa install APK, cukup buka di browser. Diupdate bareng tiap perubahan UI/UX besar, jadi selalu mencerminkan arah desain terbaru.
 
-> Catatan: mockup ini HTML/CSS murni untuk validasi warna/layout/shape secara cepat —
-> bukan representasi 1:1 pixel-perfect dari Compose asli (terutama font & icon vector),
-> tapi cukup akurat untuk memutuskan "arah ini cocok atau enggak" sebelum menghabiskan
-> siklus build+install APK yang jauh lebih lambat.
+> Catatan: mockup HTML/CSS murni untuk validasi warna/layout/shape cepat — bukan 1:1 pixel-perfect dari Compose asli (terutama font & icon vector), tapi cukup akurat untuk keputusan "arah ini cocok atau enggak" sebelum build+install APK penuh.
 
 ## Fitur
 - Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem).
@@ -39,16 +29,7 @@ dikerjakan — bukan cuma preview sekali pakai yang hilang di riwayat chat.
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
   kalau user sengaja tekan "Matikan", watchdog TIDAK menghidupkan paksa lagi.
-- Update langsung dari dalam app — dicek otomatis tiap app dibuka ke tab Releases
-  GitHub repo ini, dan kalau ada versi lebih baru, muncul banner "Unduh & Pasang"
-  yang mengunduh APK signed lalu langsung membuka layar instalasi sistem, tanpa
-  perlu buka browser/tab Releases manual. Ada juga tombol "Cek Update Sekarang"
-  di halaman Pengaturan (ikon ⚙️ di layar utama) buat trigger cek manual kapan
-  saja — beda dari cek otomatis di atas yang diam-diam kalau gagal, tombol ini
-  kasih status jelas (sudah terbaru / gagal cek), dan kalau ketemu update
-  langsung tampilkan komparasi versi (mis. "v128 → v129") + ringkasan 1-baris
-  rilisnya (Batch 81, bukan link changelog selengkapnya) plus tombol unduh di
-  situ juga — tidak perlu lagi pindah ke layar utama buat mulai unduh.
+- Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
@@ -64,11 +45,7 @@ CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`
 
 ## Versioning APK Release (Otomatis)
 
-`versionCode` DAN `versionName` **keduanya otomatis dari `GITHUB_RUN_NUMBER`**
-(Versioning Lock, Batch 65 — diperluas ke `versionName` Batch 76) — **JANGAN**
-diubah manual di `app/build.gradle.kts`. `versionName` sekarang angka run
-number CI apa adanya (String, mis. `"78"`), PERSIS sama nilainya dengan
-`versionCode` (Int) — BUKAN lagi format semantik manual seperti `"1.5"`.
+`versionCode` DAN `versionName` **keduanya otomatis dari `GITHUB_RUN_NUMBER`** — **JANGAN** diubah manual di `app/build.gradle.kts`. `versionName` adalah angka run number CI apa adanya (String, mis. `"78"`), sama persis dengan `versionCode` (Int) — bukan format semantik seperti `"1.5"`.
 
 Cara rilis versi baru:
 
