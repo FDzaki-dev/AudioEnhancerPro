@@ -1,5 +1,49 @@
 # Changelog
 
+## Batch 109: Neumorphism — aksen Aurora diganti "Misty Pine Forest"
+
+Instruksi eksplisit user: ubah aksen warna theme Neumorphism yang sekarang
+menjadi "Misty Pine Forest" (Hutan Pinus Berkabut). Scope SENGAJA dibatasi
+hanya aksen warna — shape near-flat/angular dan typography tracked-out ala
+"Blade Runner" dari Batch 108 TIDAK ikut berubah, base palette Deep Navy
+(background/panel/border/dual-shadow tint, Batch 52) juga TIDAK disentuh.
+
+**Rename token**: `NeumoAurora`/`NeumoAuroraDeep` DIHAPUS TOTAL (bukan
+sekadar redefinisi nilai di bawah nama sama) — konsisten precedent rename
+Batch 108 (Brass→Aurora): var yang namanya literal nama hue spesifik WAJIB
+ikut berubah kalau isinya ganti hue, supaya gak menyesatkan sesi Claude
+berikutnya. Grep dikonfirmasi 0 referensi eksternal ke 2 var lama (cuma
+dipakai internal `Theme.kt`) — rename aman, 0 file lain kena dampak selain
+2 string deskripsi di bawah.
+
+**Hue baru**: `NeumoMistyPine = Color(0xFF80A891)` — sage/pine hijau
+desaturasi dengan undertone abu-kebiruan (kesan "berkabut", bukan hijau
+forest saturasi tinggi). `NeumoMistyPineDeep` diturunkan pakai formula lerp
+identik precedent Aurora (`lerp(NeumoMistyPine, NeumoPanelRecessed, 0.45f)`).
+Brightness dipilih SENGAJA disamakan dengan Aurora lama (persepsi luminance
+~153/255 vs ~152/255 Aurora) — kontras `onPrimary = NeumoBackground` (teks
+navy gelap di atas tombol/switch aktif) tetap aman tanpa perlu re-tune WCAG
+dari nol.
+
+**Pemakaian**: `NeumorphismDarkColors.primary`/`primaryContainer` dan
+`NeumoPrimaryGlow` (state-aktif glow, alpha 0.36f tidak berubah) — sama
+persis titik pakai Aurora lama, 0 titik pakai baru/dihapus. `NeumoEdgeHighlight`/
+`NeumoEdgeShadow` (dual-shadow ambient) dan `NeumoKnobHighlight` (netral,
+BUKAN aksen) TIDAK disentuh — sesuai catatan komposisi lama, aksen cuma
+buat elemen state-aktif/primary, bukan ambient shadow di semua kartu.
+
+**String deskripsi**: `theme_style_skeuo_desc` (ID "aksen biru-ungu Aurora"
+→ "aksen hijau pinus berkabut Misty Pine Forest"; EN "blue-violet Aurora
+accent" → "misty pine forest green accent") — string lain
+(`theme_style_title`/`theme_style_desc`, milik varian terpisah "Aurora
+Glass") TIDAK disentuh, beda varian tema sama sekali.
+
+**File disentuh (3, sesuai batas Micro-Batch)**: `Theme.kt`,
+`values/strings.xml`, `values-en/strings.xml`. `SkeuomorphicComponents.kt`
+0 disentuh — regresi risk ke Midnight Glass/Aurora Glass/Studio Equalizer
+NOL. Belum tervalidasi visual (sandbox tanpa compiler/render, lihat
+"Batasan sandbox" di `PROJECT_STATE.md`).
+
 ## Batch 108: Neumorphism theme dirombak total — "Blade Runner" ala + aksen Aurora
 
 Instruksi eksplisit user: "rombak total typography+shape 'Neumorphism' theme

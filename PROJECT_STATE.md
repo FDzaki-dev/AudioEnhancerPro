@@ -90,8 +90,8 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 108 (Neumorphism theme rombak total ala Blade Runner +
-  aksen Aurora — shape/typography/accent, belum tervalidasi visual).
+- **Batch terakhir**: 109 (Neumorphism aksen Aurora → Misty Pine Forest,
+  scope aksen warna saja — belum tervalidasi visual).
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -99,9 +99,10 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
   ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
 - **Tema**: 4 varian aktif via switch Settings — Midnight Glass (default),
   Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism",
-  Batch 108: shape/typography/aksen sekarang "Blade Runner" ala + aksen
-  Aurora — lihat "Riwayat pivot arah desain" poin 9), Studio Equalizer.
-  Lihat "Riwayat pivot arah desain" untuk detail tiap varian.
+  shape/typography "Blade Runner" ala dari Batch 108, aksen warna sekarang
+  "Misty Pine Forest" sejak Batch 109 — lihat "Riwayat pivot arah desain"
+  poin 9+10), Studio Equalizer. Lihat "Riwayat pivot arah desain" untuk
+  detail tiap varian.
 - **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema di
   atas): grouped-list Kontrol + Settings selesai+tervalidasi, tipografi
   Large Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
@@ -122,6 +123,13 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 109** (`Theme.kt`+strings ID/EN): aksen varian "Neumorphism" DIGANTI
+  (instruksi eksplisit user) — Aurora→"Misty Pine Forest", `NeumoAurora`/
+  `NeumoAuroraDeep` DIHAPUS ganti `NeumoMistyPine`(`0xFF80A891`)/
+  `NeumoMistyPineDeep` (lerp formula sama, 0.45f ke `NeumoPanelRecessed`), 0
+  referensi eksternal (aman). Scope HANYA aksen — shape/typography Blade
+  Runner (Batch 108) & base palette Deep Navy TIDAK disentuh. Belum
+  tervalidasi visual (sandbox tanpa render).
 - **Batch 108** (`Theme.kt`+strings ID/EN): varian "Neumorphism" DIROMBAK TOTAL
   ala Blade Runner (instruksi eksplisit user) — shape near-flat/angular
   (`NeumoCardRadius`/`NeumoIconBoxRadius` 22/15dp→4/3dp, `NeumorphismShapes`
@@ -455,6 +463,14 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
    sengaja dibatasi shape+typografi+aksen, bukan background/base palette.
    `SkeuomorphicComponents.kt` 0 disentuh. Detail lengkap: `CHANGELOG.md`
    Batch 108, komentar blok panjang di `Theme.kt`.
+10. **Neumorphism aksen → "Misty Pine Forest"** (Batch 109, HANYA aksen
+   warna varian ke-3 — shape/typography Blade Runner poin 9 TIDAK ikut
+   berubah) — `NeumoAurora`/`NeumoAuroraDeep` DIHAPUS, ganti
+   `NeumoMistyPine`(`0xFF80A891`)/`NeumoMistyPineDeep`, hijau pinus
+   desaturasi/kesan berkabut, brightness disamakan dgn Aurora lama (kontras
+   `onPrimary` tetap aman tanpa re-tune). Base palette Deep Navy & shape/
+   typography Blade Runner TIDAK disentuh. Detail lengkap: `CHANGELOG.md`
+   Batch 109, komentar blok `Theme.kt`.
 
 **Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
 bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
@@ -649,13 +665,14 @@ user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
 detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
 - 4 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer) —
   cek visual tiap varian di Settings; kandidat bug: glow/sheen gak muncul,
-  radius salah, kontras teks kurang. **Neumorphism (Batch 108, baru)**: cek
-  KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah di device
+  radius salah, kontras teks kurang. **Neumorphism (Batch 108-109, baru)**:
+  cek KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah di device
   fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi), 6 style
   typography baru (`NeumorphismTypography`) render proporsional (bukan
   overflow/kepotong — letterSpacing lebih lebar dari `AppTypography` global),
-  aksen Aurora (`NeumoAurora`) kontras cukup di atas Deep Navy (WCAG,
-  terutama `onPrimary` teks di atas tombol/switch aktif).
+  aksen Misty Pine Forest (`NeumoMistyPine`, Batch 109) kontras cukup di
+  atas Deep Navy (WCAG, terutama `onPrimary` teks di atas tombol/switch
+  aktif).
 - `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
   `Cannot create an instance of BoosterViewModel`.
 - `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab

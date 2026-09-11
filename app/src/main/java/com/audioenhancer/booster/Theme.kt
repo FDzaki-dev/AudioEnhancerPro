@@ -305,7 +305,11 @@ val NeumoTextMuted = Color(0xFF64748B)     // slate-500, 1 step lebih redup dari
 // fontWeight (tracked-out ala title card film, bukan monospace asli); (3) aksen
 // warna — Brass (Batch 52) diganti Aurora (`NeumoAurora`, SAMA PERSIS
 // `RadicalAccent` varian 2 "Aurora Glass" — literal reuse, bukan hue baru hasil
-// tebakan). TIDAK disentuh: base palette Deep Navy (`NeumoBackground`/`NeumoPanel`/
+// tebakan) — **SUPERSEDED Batch 109**: aksen Aurora diganti lagi jadi "Misty Pine
+// Forest" (`NeumoMistyPine`/`NeumoMistyPineDeep`, instruksi eksplisit user),
+// lihat blok komentar Batch 109 di dekat deklarasi var untuk detail lengkap; shape
+// & typography Blade Runner di poin (1)+(2) TIDAK ikut disentuh Batch 109 (scope
+// eksplisit hanya "aksen warna"). TIDAK disentuh: base palette Deep Navy (`NeumoBackground`/`NeumoPanel`/
 // `NeumoBorder`/dual-shadow tint) — scope user eksplisit "typography+shape"+aksen,
 // BUKAN "background"/"base palette", identitas neumorphism Deep Navy dipertahankan
 // utuh. `SkeuomorphicComponents.kt` (dipakai 3 varian lain) 0 disentuh — regresi
@@ -314,21 +318,25 @@ val NeumoTextMuted = Color(0xFF64748B)     // slate-500, 1 step lebih redup dari
 // referensi internal file ini tidak berubah/pecah, konsisten precedent Batch 52.
 // ============================================================================
 
-/** Brass — DIGANTI TOTAL Batch 108 (lihat blok komentar Batch 108 di atas section
- *  ini) → `NeumoAurora`/`NeumoAuroraDeep`. Var brass lama DIHAPUS (bukan sekadar
- *  redefinisi nilai di bawah nama sama) — beda dari precedent Batch 52 ("nama var
- *  Neumo* dipertahankan") yang soal PREFIX generik (`NeumoBackground`/`NeumoPanel`
- *  dst, netral dari hue manapun); `NeumoBrass` sendiri secara harfiah nama HUE
- *  spesifik, mempertahankan nama itu sambil isinya biru-ungu bakal menyesatkan sesi
- *  Claude berikutnya (baca nama var = asumsi warna, prinsip inti PROJECT_STATE.md).
- *  Grep dikonfirmasi 0 referensi eksternal (`NeumoBrass`/`NeumoBrassDeep` cuma
- *  dipakai internal file ini) — rename AMAN, 0 file lain kena dampak. */
-val NeumoAurora = Color(0xFF7C93FF)
-/** SAMA PERSIS `RadicalAccent` (Aurora Glass, varian 2) — bukan kebetulan/dekat,
- *  literal reuse identitas warna "Aurora" yang sudah ada di project, supaya aksen
- *  ini benar-benar traceable ke nama "Aurora" (bukan aurora-borealis-generik hasil
- *  tebakan bebas). */
-val NeumoAuroraDeep: Color = lerp(NeumoAurora, NeumoPanelRecessed, 0.45f)
+/** Aurora — DIGANTI TOTAL Batch 109 (instruksi eksplisit user: aksen ->
+ *  "Misty Pine Forest"/Hutan Pinus Berkabut) → `NeumoMistyPine`/
+ *  `NeumoMistyPineDeep`. Var Aurora lama DIHAPUS (bukan sekadar redefinisi
+ *  nilai di bawah nama sama) — konsisten precedent rename Batch 108
+ *  (Brass->Aurora): nama var yang secara harfiah nama HUE spesifik WAJIB
+ *  ikut berubah kalau isinya berubah hue, supaya gak menyesatkan sesi
+ *  berikutnya (baca nama var = asumsi warna). Grep dikonfirmasi 0 referensi
+ *  eksternal (`NeumoAurora`/`NeumoAuroraDeep` cuma dipakai internal file
+ *  ini) — rename AMAN, 0 file lain kena dampak selain 2 string desc
+ *  (`theme_style_skeuo_desc` ID+EN, diupdate terpisah). Hue baru: sage/pine
+ *  hijau desaturasi dengan undertone abu-kebiruan (kesan "berkabut", bukan
+ *  hijau forest saturasi tinggi) — brightness level SENGAJA disamakan
+ *  dengan Aurora lama (persepsi luminance ~153/255 vs ~152/255) supaya
+ *  kontras `onPrimary`=`NeumoBackground` (teks gelap di atas tombol/switch
+ *  aktif) TETAP aman tanpa perlu re-tune WCAG dari nol. */
+val NeumoMistyPine = Color(0xFF80A891)
+/** Turunan gelap — formula lerp SAMA PERSIS precedent Aurora (0.45f ke
+ *  `NeumoPanelRecessed`), cuma base hue yang beda. */
+val NeumoMistyPineDeep: Color = lerp(NeumoMistyPine, NeumoPanelRecessed, 0.45f)
 
 /** Tint dual-shadow terarah (`SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt)
  *  — SEHUE navy (bukan brass — brass dijaga cuma buat state-aktif, bukan
@@ -364,7 +372,7 @@ val NeumoSpecularBrush: Brush = SolidColor(Color.Transparent)
 /** Glow aurora — dipakai state-aktif/primary saja (aturan komposisi SAMA seperti
  *  brass dulu: maks ~10% area, JANGAN teks paragraf panjang — cek semua pemakaian
  *  tetap di primary/onPrimaryContainer/glow/ring). */
-val NeumoPrimaryGlow = NeumoAurora.copy(alpha = 0.36f)
+val NeumoPrimaryGlow = NeumoMistyPine.copy(alpha = 0.36f)
 
 /** Knob slider — highlight netral navy-terang (BUKAN brass — brass cuma buat
  *  ring accent aktif di style komponennya, dibawa terpisah lewat
@@ -691,13 +699,14 @@ private val DarkColors = darkColorScheme(
 )
 
 private val NeumorphismDarkColors = darkColorScheme(
-    // Batch 108: primary sekarang Aurora (ganti Brass Batch 52). onPrimary TETAP
-    // `NeumoBackground` (dark navy) — kontras WCAG masih aman, Aurora (0x7C93FF)
-    // mid-brightness mirip brass lama, pola sama seperti `RadicalDarkColors`
-    // (`onPrimary` dark di atas `RadicalAccent`, hue keluarga sama).
-    primary = NeumoAurora,
+    // Batch 109: primary sekarang Misty Pine (ganti Aurora Batch 108). onPrimary
+    // TETAP `NeumoBackground` (dark navy) — kontras WCAG masih aman, Misty Pine
+    // (0x80A891) mid-brightness mirip Aurora lama (lihat komentar `NeumoMistyPine`
+    // di atas), pola sama seperti `RadicalDarkColors` (`onPrimary` dark di atas
+    // `RadicalAccent`, hue keluarga sama).
+    primary = NeumoMistyPine,
     onPrimary = NeumoBackground,
-    primaryContainer = NeumoAuroraDeep,
+    primaryContainer = NeumoMistyPineDeep,
     onPrimaryContainer = NeumoTextPrimary,
     secondary = NeumoTextSecondary,
     onSecondary = NeumoBackground,

@@ -78,7 +78,7 @@
     <string name="theme_style_title">Aurora Glass Style</string>
     <string name="theme_style_desc">Turn on Aurora Glass — more vivid glass, stronger sheen and midnight-blue glow. Off = Midnight Glass (default, calmer).</string>
     <string name="theme_style_skeuo_title">Neumorphism</string>
-    <string name="theme_style_skeuo_desc">Turn on Blade Runner-style Neumorphism — near-flat HUD panels (not rounded), tracked-out typography, plus a blue-violet Aurora accent and matched dual shadows that stay immersive without a glass look. Off = Midnight Glass (default).</string>
+    <string name="theme_style_skeuo_desc">Turn on Blade Runner-style Neumorphism — near-flat HUD panels (not rounded), tracked-out typography, plus a misty pine forest green accent and matched dual shadows that stay immersive without a glass look. Off = Midnight Glass (default).</string>
     <string name="theme_style_studioeq_title">Studio Equalizer</string>
     <string name="theme_style_studioeq_desc">Turn on Studio Equalizer — a studio mixer-board neumorphism look, dark grey panels with a neon-green indicator-light accent. Off = Midnight Glass (default).</string>
 
