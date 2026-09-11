@@ -1,3 +1,7 @@
+> **[ARSIP, Batch 106]** File ini SUDAH TIDAK AKTIF — isinya dikonsolidasikan ke `PROJECT_STATE.md` bagian "TODO / ROADMAP". Dipertahankan di sini murni sebagai riwayat, JANGAN dijadikan acuan konteks lagi.
+
+---
+
 # PENDING — Sinkronkan docs/preview/current.html ke struktur tab (Batch 94)
 
 Untuk Claude (sesi berikutnya) + user. Diekstrak terpisah dari Batch 94

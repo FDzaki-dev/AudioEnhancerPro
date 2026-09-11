@@ -133,7 +133,8 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
 **Equalizer manual tidak muncul**
 - Kartu "Equalizer Manual" muncul kalau chipset HP mendukung
   `android.media.audiofx.Equalizer` dengan jumlah band > 0, **ATAU** (sejak
-  Batch 87, roadmap.md Fase 0 #6 Fase 1) lewat fallback 5-band berbasis
+  Batch 87, lihat `PROJECT_STATE.md` bagian "TODO / ROADMAP" Fase 0 #6)
+  lewat fallback 5-band berbasis
   `DynamicsProcessing` kalau `Equalizer` asli tidak tersedia sama sekali di
   chipset ini (butuh Android 9/API 28+ untuk fallback ini — di bawah itu,
   atau kalau kedua jalur sama-sama gagal, kartu tetap tidak muncul, ini

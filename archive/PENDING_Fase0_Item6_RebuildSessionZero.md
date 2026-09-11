@@ -1,3 +1,7 @@
+> **[ARSIP, Batch 106]** File ini SUDAH TIDAK AKTIF — isinya dikonsolidasikan ke `PROJECT_STATE.md` bagian "TODO / ROADMAP". Dipertahankan di sini murni sebagai riwayat, JANGAN dijadikan acuan konteks lagi.
+
+---
+
 # PENDING — roadmap.md Fase 0 #6: Rebuild arsitektur session-0 ke API modern
 
 Untuk Claude (sesi berikutnya) + user. File terisolasi (bukan bagian VIP inti)

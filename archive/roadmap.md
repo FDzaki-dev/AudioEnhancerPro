@@ -1,3 +1,7 @@
+> **[ARSIP, Batch 106]** File ini SUDAH TIDAK AKTIF — isinya dikonsolidasikan ke `PROJECT_STATE.md` bagian "TODO / ROADMAP". Dipertahankan di sini murni sebagai riwayat, JANGAN dijadikan acuan konteks lagi.
+
+---
+
 # 🗺️ ROADMAP.md — panduan menuju 100% "sempurna/tamat"
 
 Dibuat Batch 50 (v1.87.0). Isi file ini disintesis dari seluruh backlog yang

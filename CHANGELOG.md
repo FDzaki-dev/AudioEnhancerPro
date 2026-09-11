@@ -1,5 +1,50 @@
 # Changelog
 
+## Batch 106: Housekeeping dokumentasi — konsolidasi ke 4 dokumen standar SOP
+
+Instruksi eksplisit user: arsipkan semua dokumentasi lama, adaptasi
+dokumentasi latest-modified 100% sesuai standar SOP (4 dokumen resmi:
+konstitusi/SOP, `PROJECT_STATE.md`, `README.md`, `CHANGELOG.md`).
+
+**Perubahan** (0 file kode Kotlin disentuh — murni dokumentasi, di luar
+limit Micro-Batch 3 file sesuai aturan "Dokumen VIP kebal limit"):
+
+- `roadmap.md` (425 baris) + `PENDING_Batch94_SyncPreviewHTML.md` (58
+  baris) + `PENDING_Fase0_Item6_RebuildSessionZero.md` (78 baris): isi
+  aktifnya (backlog per-fase, batasan fundamental item #6, kandidat Fase 2+)
+  digabung ke `PROJECT_STATE.md` bagian "TODO / ROADMAP" (menggantikan
+  section TODO lama yang jauh lebih pendek/sebagian tumpang tindih) — 0
+  informasi hilang, dipadatkan ke gaya PDD (actionable, bukan naratif
+  panjang). Ke-3 file sumber dipindah ke folder baru `/archive` (BUKAN
+  dihapus — riwayat git tetap utuh), masing-masing diberi banner "SUDAH
+  TIDAK AKTIF" di baris pertama supaya tidak salah dibaca sebagai acuan
+  aktif kalau dibuka lagi nanti.
+- `PROJECT_STATE.md`: section baru "Kebijakan dokumentasi (PIN)" di bagian
+  ATURAN PERMANEN — mencatat 4 dokumen resmi + pengecualian
+  `FILE_MANIFEST.txt` (manifest teknis, bukan dokumentasi, TETAP di root
+  sesuai instruksi eksplisit user) + aturan "tanya dulu sebelum pecah file
+  baru lagi ke depan".
+- `README.md`: 1 referensi basi ke `roadmap.md` (bagian Troubleshooting
+  "Equalizer manual tidak muncul") diarahkan ulang ke
+  `PROJECT_STATE.md` § TODO/ROADMAP Fase 0 #6. Sisa isi README diaudit
+  penuh — sudah merefleksikan versi terkini (versioning otomatis
+  `GITHUB_RUN_NUMBER`, 4 secrets signing, fitur update in-app), 0 info lain
+  yang usang ditemukan.
+- `CHANGELOG.md` (file ini): entry lama TIDAK diubah (append-only, prinsip
+  PDD — histori tetap seperti aslinya termasuk puluhan referensi
+  `roadmap.md`/`PENDING_*.md` di entry Batch 50-94, itu VALID sebagai
+  catatan historis titik-waktu, bukan link aktif). Cuma entry baru ini yang
+  ditambahkan di paling atas.
+- Komentar historis di source `.kt` (mis. `BoosterScreen.kt` menyebut
+  "roadmap.md Fase 0 #3") SENGAJA TIDAK disentuh — ZERO-REFACTOR, itu bukan
+  bagian scope housekeeping dokumentasi & mengubahnya berisiko tanpa
+  manfaat nyata.
+
+**Hasil struktur dokumentasi root**: `PROJECT_STATE.md` (RAM instan +
+backlog aktif, sumber kebenaran tunggal sekarang) · `README.md` (wajah
+proyek) · `CHANGELOG.md` (arsip append-only) · `FILE_MANIFEST.txt`
+(manifest teknis, dikecualikan) · `/archive/*` (3 file lama, riwayat only).
+
 ## Batch 105: REVERT Batch 104 — regresi UI parah dilaporkan (klip & distorsi)
 
 User laporkan regresi UI parah di build sungguhan pasca-Batch 104 (klip &

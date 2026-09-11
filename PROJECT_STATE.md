@@ -83,6 +83,20 @@ LOG HARIAN (paling atas); (2) update Status Terkini (versi + 1-2 baris); (3)
 update Keputusan Sadar kalau relevan. JANGAN taruh narasi panjang di ATURAN
 PERMANEN.
 
+### Kebijakan dokumentasi (PIN — Batch 106, instruksi eksplisit user)
+HANYA 4 dokumen resmi diakui: konstitusi/SOP (di luar repo, instruksi custom
+user), `PROJECT_STATE.md` (RAM instan — file ini), `README.md` (wajah
+proyek), `CHANGELOG.md` (arsip append-only rilis publik, BUKAN acuan
+konteks utama). Dokumen lain yang PERNAH ADA (`roadmap.md`, 2x
+`PENDING_*.md`) sudah dikonsolidasikan isinya ke `PROJECT_STATE.md` (lihat
+"TODO / ROADMAP" di bawah) lalu file sumbernya dipindah ke `/archive`
+(BUKAN dihapus — riwayat tetap ada di git). `FILE_MANIFEST.txt`
+DIKECUALIKAN dari kebijakan ini (bukan dokumentasi, manifest teknis daftar
+file — tetap di root, instruksi eksplisit user Batch 106). Kalau ke
+depan ada kebutuhan dokumen backlog terpisah lagi (karena file ini
+kepanjangan): TANYA user dulu sebelum bikin file baru, jangan pecah lagi
+secara sepihak.
+
 ## 🧭 Status Terkini (ringkas — detail lengkap tiap batch ada di 📅 LOG UPDATE HARIAN di bawah)
 - **Versi**: versionCode DAN versionName SEKARANG SAMA-SAMA otomatis dari
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
@@ -3496,15 +3510,162 @@ LATEST_ZIP=$(ls -t ~/storage/downloads/AudioEnhancerPro*.zip | head -1) && echo 
   ke `MainActivity.kt`).
 - `docs/preview/current.html` — mockup HTML standalone, HARUS di-update kalau ada perubahan arah visual besar.
 
-## TODO / belum dikerjain (kalau user nanya "lanjut yang mana")
-- Konfirmasi hasil tombol Autostart v1.35 di Infinix Note 50 Pro 4G & Note 40
-  Pro 4G — **DIDEPRIORITASKAN oleh user** (lihat "🧭 Status Terkini"), gak perlu
-  ditanya/dikerjain proaktif. Kalau user singgung lagi: gagal → opsi (a) cari
-  kandidat ComponentName alternatif buat XOS versi device itu spesifik, atau
-  (b) terima kenyataan gak ada kandidat reliable buat Infinix/Tecno (persis
-  kayak yang dialami `AutoStarter` library) dan fokus ke instruksi manual yang
-  jelas di UI aja.
-- Rotasi layar/config change, font scaling besar, landscape phone, RTL,
-  kontras tombol biru — user bilang eksplisit TIDAK urgent, jangan dikerjain
-  duluan tanpa diminta.
+## TODO / ROADMAP — backlog aktif (konsolidasi Batch 106 dari `roadmap.md` +
+2x `PENDING_*.md`, ketiganya diarsipkan ke `/archive` — lihat "🔒 ATURAN
+PERMANEN" soal kebijakan arsip. Ini SEKARANG satu-satunya sumber kebenaran
+backlog, jangan biarkan pecah lagi ke file terpisah.)
+
+**Definisi "100%/Tamat"** (4 kondisi bareng): (1) Fungsional — semua fitur
+README ada & jalan; (2) Runtime-verified — semua perubahan sejak Batch 1
+terkonfirmasi jalan di device fisik, BUKAN cuma statis; (3) CI hijau stabil
+berkali-turut; (4) 0 TODO Medium/High tersisa (Low boleh permanen pending
+kalau sengaja dideprioritaskan user). Estimasi kasar: fungsional ~95%,
+tapi "terbukti benar di device" jauh lebih rendah — gap terbesar ada di
+Fase 1 (Runtime Validation Debt) di bawah, PRIORITAS TERTINGGI kalau user
+tanya "lanjut yang mana" tanpa fitur baru spesifik diminta.
+
+### Fase 0 — Audio Engine Robustness (audit eksternal Batch 57)
+9 item dari audit eksternal, kerjakan SATU per satu (instruksi eksplisit
+user, jangan sekaligus). Status: 4/9 selesai (#1 effect-state verification,
+#4 control ownership/lifecycle, #7 preset+EQ, #8 automated test), 4/9
+sebagian (#2 capability detection — LoudnessEnhancer secara teknis TIDAK
+bisa diquery, bukan gap; #3 output routing — deteksi ada, UI belum; #5 gain
+staging — limiter pasif ada, pipeline eksplisit TIDAK bisa dijamin urutannya
+di API publik; #6 rebuild session-0 — Fase 1 dari rebuild bertahap selesai,
+lihat "Batasan Fundamental" di bawah), 1 belum (#9 UI/error-state
+refinement — bedakan Unsupported/Unavailable/Control-lost/Failed/Output-
+changed eksplisit di UI, sekarang masih 1 helpText generik). Detail teknis
+lengkap tiap item: `CHANGELOG.md` Batch 57-63, 83-87.
+
+**BATASAN FUNDAMENTAL #6 (baca sebelum lanjut Fase 2+ rebuild)**: TIDAK ADA
+API publik Android yang beri app kontrol urutan insert effect di HAL chain
+audio session 0 — berlaku untuk `AudioEffect` legacy MAUPUN
+`DynamicsProcessing`. Pipeline eksplisit "Input→PreGain→EQ→Dynamics→
+Loudness→Output" dari audit asli SECARA HARFIAH tidak bisa dicapai 100%
+tanpa akses HAL vendor. Satu-satunya jalan kontrol penuh:
+`AudioPlaybackCaptureConfiguration` (API 29+, capture+reprocess+re-output
+manual) — ini **arsitektur & produk beda total** (effort bulanan, popup izin
+tiap start, risiko echo/latency/baterai jauh lebih tinggi), **TIDAK
+direkomendasikan diinisiasi tanpa user eksplisit minta & paham ini
+pengganti total, bukan penyempurnaan**. Kandidat Fase 2 rebuild (belum
+dikerjakan, tunggu arahan user pilih salah satu): (a) fallback shelving-gain
+buat BassBoost/Virtualizer UNAVAILABLE lewat DynamicsProcessing PreEq/PostEq
+— risiko karakter psychoacoustic beda dari BassBoost asli, perlu keputusan
+desain dulu; (b) validasi device fisik Fase 1 — SECARA ALAMI jarang
+ke-trigger (mayoritas device Equalizer legacy-nya matang), butuh device/
+emulator API rendah atau chipset eksotis buat benar-benar uji; (c) tanya
+user eksplisit apakah `AudioPlaybackCaptureConfiguration` worth dieksplorasi
+sebagai proyek TERPISAH — TIDAK diinisiasi proaktif.
+
+**Belum divalidasi runtime (Fase 1 rebuild, Batch 87)**: apakah
+`needsEqFallback` ke-trigger cuma di device yang memang butuh (belum ada
+device uji nyata yang Equalizer-nya UNAVAILABLE); apakah
+`DynamicsProcessing.EqBand` preEqBandCount=5 construct sukses di device API
+28+ nyata (variasi HAL); apakah konversi mB→dB (levelMb/100f, rentang ±12dB
+konservatif) terdengar wajar dibanding Equalizer asli.
+
+### Fase 1 — Runtime Validation Debt (PRIORITAS TERTINGGI)
+Backlog terbesar & paling berisiko — banyak perubahan besar (tema/UI Batch
+31-49, arsitektur Batch 16-18) dikirim "belum divalidasi runtime" (statis
+only). **Cara kerja disarankan**: JANGAN validasi semua sekaligus — tiap
+user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
+detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
+- 4 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer) —
+  cek visual tiap varian di Settings; kandidat bug: glow/sheen gak muncul,
+  radius salah, kontras teks kurang.
+- `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
+  `Cannot create an instance of BoosterViewModel`.
+- `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab
+  Actions.
+- Slider custom/SkeuSwitch/skeuGlow (Batch 22, 32) — render normal di device
+  asli (bukan cuma preview HTML).
+- Race condition `@Volatile isRunning` (Batch 45) — trigger skenario
+  watchdog restart, cek widget/QS Tile sinkron balik.
+- Crash Logger MediaStore (Batch 27/29) — trigger 1 crash sengaja, cek file
+  muncul `Documents/AudioEnhancerPro/logs/`, retensi FIFO maks 50 file.
+- Bind service via Application Context (Batch 17) — gak ada context-leak
+  setelah rotasi/app di-background lama.
+- `ControlRecoveryBanner`+`retryControlAcquisition()` (Batch 62) — kalau
+  `CONTROL_LOST`/`FAILED` kejadian natural: banner muncul ≤1 detik, tombol
+  gak crash, snackbar muncul, banner hilang sendiri saat state balik
+  ENABLED/AVAILABLE.
+- Preset custom simpan EQ (Batch 63) — atur EQ manual per-band, simpan
+  preset, ubah lagi EQ, terapkan preset tadi → slider balik PERSIS ke nilai
+  saat disimpan; preset LAMA (sebelum update ini) masih bisa diterapkan
+  tanpa crash & tidak mengubah EQ manual aktif.
+- **Batch 104-105 (baru)**: swipe-antar-tab via auto-height pager TERBUKTI
+  regresi UI parah di device fisik (klip & distorsi) — sudah direvert ke
+  Batch 103 (tap-tab). Kalau swipe diminta lagi ke depan: JANGAN ulangi
+  pendekatan `onSizeChanged` dinamis-per-page (siklus ukur-lalu-set-tinggi
+  circular, kemungkinan akar regresi). Kandidat lebih stabil: pager tinggi
+  tetap = tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal
+  (bukan dinamis tiap swipe) — 0 re-layout saat gesture berlangsung.
+
+### Fase 2 — Build & CI Maturity
+- [x] Gabung job build+release jadi 1 (Batch 40) · Cache Gradle dependency+
+  wrapper (Batch 40) · Cabut Hilt/kapt (Batch 49) · configuration-cache
+  (Batch 50)
+- [ ] Commit `gradlew`/`gradle-wrapper.jar` permanen ke repo — **TIDAK BISA
+  dari sandbox** (butuh binary Gradle+network). User manual:
+  `gradle wrapper --gradle-version 8.7`, commit 4 file hasilnya.
+- [ ] Evaluasi upgrade AGP 8.5.2/Kotlin 1.9.24/compose-bom 2024.06.00 — versi
+  lama sengaja dipertahankan (stabil, lolos banyak insiden kompatibilitas).
+  Kandidat KALAU user eksplisit minta, bukan inisiatif proaktif (risiko
+  regresi tanpa compiler).
+
+### Fase 3 — Audit Polish (Medium/Low, pending sejak Batch 16)
+Recomposition/reusable-component review menyeluruh · hierarki visual
+(heading/body/caption konsisten) · white space/spacing audit lintas layar ·
+micro-animation tambahan · loading/success/error state (sebagian selesai
+Batch 51 — snackbar preset/crash-log; sisa gap: preset gagal simpan storage
+penuh, ganti tema/toggle Material You masih silent, prioritas rendah) ·
+empty state UI (selain `presets_empty_hint`) · tooltip/info icon fitur
+lanjutan (Low, opsional).
+
+### Fase 4 — Kompatibilitas Device (DIDEPRIORITASKAN user, JANGAN proaktif)
+Murni biar gak hilang dari radar, BUKAN perintah segera kerjakan:
+- Konfirmasi tombol Autostart (`OemAutostartHelper`) benar-benar buka
+  halaman tepat di **Infinix Note 50 Pro 4G & Note 40 Pro 4G** (XOS) —
+  kandidat Transsion (Batch 35) paling gak terverifikasi. Kalau disinggung
+  lagi & gagal: (a) cari kandidat ComponentName alternatif versi XOS device
+  itu spesifik, atau (b) terima gak ada kandidat reliable (persis
+  `AutoStarter` library) & fokus instruksi manual jelas di UI.
+- Rotasi layar/config change (portrait-lock de facto, belum test eksplisit)
+  · font scaling besar · landscape phone · RTL · kontras tombol biru (lokasi
+  belum dicatat ulang, perlu screenshot user).
+
+### Fase 5 — Feature Backlog (maintenance mode, opsional, JANGAN proaktif)
+Custom EQ curve editor (drag-point) · export/import preset (share/backup
+antar device) · in-app update checker (SUDAH ADA sejak Batch 69/73 — ini
+sisa dari daftar lama, kemungkinan besar sudah closed, cek dulu sebelum
+kerjakan ulang).
+
+### Fase 6 — Dokumentasi & Housekeeping
+[x] Batch 106 (sesi ini): 4 dokumen non-standar (`roadmap.md`, 2x
+`PENDING_*.md`, arsip lama) dikonsolidasi ke sini + diarsipkan. `README.md`
+& `CHANGELOG.md` diaudit ulang sesuai standar SOP (deskripsi/instruksi
+build/arsitektur terkini di README, CHANGELOG tetap append-only histori).
+`docs/preview/current.html` — pastikan tetap ground-truth utk varian
+Midnight/Aurora Glass; Neumorphism & Studio Eq TIDAK punya mockup HTML
+terpisah (disengaja, Low priority kosmetik). `PrefsHelperTest.kt` — cek
+apakah coverage masih relevan pasca-ekstraksi ke ViewModel (Batch 17).
+
+### Fase 7 — iOS Look Hybrid Rombak (inisiatif user Batch 88, HYBRID method)
+**TIDAK ADA rencana ganti sistem 4-varian tema/warna signature** — semua
+fase murni STRUKTUR/POLA INTERAKSI (grouping, tipografi, bentuk komponen),
+BUKAN re-skin warna. Status: [x] Fase 1 grouped-list "Kontrol" (Batch 88-89,
+tervalidasi screenshot) · [x] Tipografi Large Title 34sp (Batch 90+92,
+tervalidasi) · [x] Grouped-list SettingsScreen (Batch 91-92, tervalidasi,
+1 bug divider fixed) · [x] Styling pill Preset Cepat outline-only (Batch 93,
+selesai kode, BELUM tervalidasi visual). **3 kandidat sisa** (urutan belum
+final, tunggu arahan user): nav bar/header large-title-collapsing (invasif,
+butuh koordinasi state scroll) · audit `OnboardingScreen.kt` (belum disentuh
+sama sekali) · SF Symbols-style icon treatment (Compose gak punya SF Symbols
+asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
+
+**Progress ringkas per fase**: 0 → 4/9 selesai+4/9 sebagian. 1 → belum
+mulai, backlog terbesar. 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja
+ditunda. 5 → sengaja ditunda. 6 → sebagian (Batch 106 ini). 7 → Fase 1+2
+opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3 kandidat
+sisa D/E/F.
 
