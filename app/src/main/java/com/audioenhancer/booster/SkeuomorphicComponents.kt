@@ -235,12 +235,19 @@ internal fun SkeuCard(
     radius: Dp = LocalSkeuTokens.current.cardRadius,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val shape = RoundedCornerShape(radius)
+    val tokens = LocalSkeuTokens.current
+    // Batch 112: shape SEKARANG `tokens.cardShape` (bukan `RoundedCornerShape(radius)`
+    // bikin sendiri) — root cause komplain user "kartu Serene M3 masih rounded biasa"
+    // adalah baris ini SEBELUMNYA 0 pernah baca shape ASLI varian (cuma radius Dp),
+    // jadi cut-corner Serene M3 gak pernah ke-render di kartu manapun. 4 varian lama
+    // (`cardShape` = `RoundedCornerShape(cardRadius-nya)`) 0 perubahan visual — CUMA
+    // kalau caller override `radius` custom (bukan default), shape tetap fallback ke
+    // `RoundedCornerShape(radius)` biar override itu tidak diam-diam diabaikan.
+    val shape = if (radius == tokens.cardRadius) tokens.cardShape else RoundedCornerShape(radius)
     // Batch 36: fill/border/elevation sekarang datang dari `LocalSkeuTokens.current`
     // (Theme.kt) — AMOLED Glass tetap frosted-glass tint (persis sebelumnya), Radical
     // Literal Skeuomorphism jadi raised-bevel surface (guide §5 "Raised object").
-    // 1 kode komponen, 3 tema, TANPA duplikasi/percabangan when() di sini.
-    val tokens = LocalSkeuTokens.current
+    // 1 kode komponen, 5 tema, TANPA duplikasi/percabangan when() di sini.
     // Batch 47: outer Box TANPA `modifier` (`modifier` caller tetap di Column persis
     // posisi lama — supaya sizing/layout existing callers TIDAK berubah sama sekali),
     // cuma wadah buat 2 layer dual-shadow opsional di belakang konten.
@@ -272,9 +279,10 @@ internal fun SkeuTintedCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val tokens = LocalSkeuTokens.current
-    // Batch 39: radius dari token per-varian (`tokens.cardRadius`), bukan const
-    // global `SkeuCardRadius` lagi (sama alasannya dengan SkeuCard di atas).
-    val shape = RoundedCornerShape(tokens.cardRadius)
+    // Batch 112: shape sekarang `tokens.cardShape` (bukan `RoundedCornerShape`
+    // bikin sendiri) — sama fix root-cause seperti `SkeuCard` di atas, 0 param
+    // override radius di fungsi ini jadi langsung pakai token, tanpa fallback.
+    val shape = tokens.cardShape
     val blended = lerp(tokens.baseSurface, tint, 0.22f)
     Box {
         SkeuDualDirectionalShadow(tokens, shape, tokens.cardElevation + 1.dp)

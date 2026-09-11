@@ -124,6 +124,17 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 112** (`Theme.kt`+`SkeuomorphicComponents.kt`): fix komplain user
+  eksplisit (screenshot) — kartu Serene M3 masih rounded biasa, cut-corner
+  shape "unique" TIDAK kepakai sama sekali. Root cause: `SkeuCard`/
+  `SkeuTintedCard` SELALU bikin `RoundedCornerShape(radius)` sendiri, 0 pernah
+  baca shape asli per-varian (`SereneShapes` cuma kepakai komponen Material3
+  default yang jarang tampil di layar ini). Fix: `SkeuTokens` +field
+  `cardShape: Shape` (4 varian lama diisi `RoundedCornerShape` SAMA PERSIS
+  radius lama = 0 perubahan visual, Serene M3 diisi `SereneCardShape` cut-corner
+  asli — const baru, di-reuse juga oleh `SereneShapes.large` biar 1 sumber
+  kebenaran). `SkeuCard`/`SkeuTintedCard` sekarang baca `tokens.cardShape`.
+  Belum tervalidasi visual (sandbox tanpa render).
 - **Batch 111** (`Theme.kt`+`PrefsHelper.kt`+`MainActivity.kt`+`BoosterScreen.kt`
   +strings ID/EN): varian tema BARU ke-5 "Serene M3" (request eksplisit user) —
   genuine Material 3 flat-tonal (0 glass/bevel/dual-shadow, `shadowLightTint`/

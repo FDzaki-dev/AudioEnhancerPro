@@ -1,5 +1,66 @@
 # Changelog
 
+## Batch 112: Fix Serene M3 — cut-corner shape akhirnya kepakai di kartu asli
+
+Komplain user eksplisit (screenshot APK Batch 111): toggle "Serene M3" aktif,
+tapi kartu di Settings masih rounded biasa — shape "unique underrated" yang
+dijanjikan (organic-asymmetric cut-corner) sama sekali tidak terlihat.
+
+**Root cause**: `SkeuCard`/`SkeuTintedCard` (`SkeuomorphicComponents.kt`) —
+komponen kartu yang dipakai LITERAL DI SEMUA LAYAR (termasuk toggle tema itu
+sendiri) — SELALU membangun `RoundedCornerShape(radius)` sendiri dari sebuah
+`Dp` (`tokens.cardRadius`), TIDAK PERNAH membaca shape asli varian aktif
+(`AppShapes`/`NeumorphismShapes`/`StudioEqShapes`/`SereneShapes` — nilai
+`MaterialTheme.shapes` yang di-provide `AudioEnhancerTheme()`). Akibatnya
+`SereneShapes.large` (cut-corner) HANYA kepakai oleh komponen Material3
+DEFAULT yang belum di-override shape manual (`AlertDialog`/`Button`/dst) —
+elemen yang jarang atau tidak pernah muncul sebagai kartu besar di
+`BoosterScreen.kt`/`SettingsScreen.kt`. Bug ini SEBENARNYA sudah ada sejak
+awal arsitektur (Batch 36-39), cuma baru KETAHUAN sekarang karena Serene M3
+varian PERTAMA yang bikin shape kartu-nya genuinely beda bentuk (bukan cuma
+beda radius) — 4 varian lama semuanya `RoundedCornerShape` juga, jadi
+perbedaan shape-vs-radius ini 0 pernah kelihatan sebelumnya.
+
+**Fix**: `SkeuTokens` (data class) +1 field baru `cardShape: Shape` — shape
+ASLI (bukan cuma radius) tiap varian. 4 instance lama (`AmoledGlassSkeuTokens`/
+`RadicalSkeuoSkeuTokens`/`NeumorphismSkeuTokens`/`StudioEqSkeuTokens`) diisi
+`RoundedCornerShape(<radius token masing-masing>)` — SAMA PERSIS bentuk yang
+sebelumnya dibikin inline di `SkeuCard`, jadi genuinely 0 perubahan visual ke
+4 varian itu (diverifikasi manual: radius sumbernya identik). `SereneSkeuTokens`
+diisi const baru `SereneCardShape` (top-level, public) — `CutCornerShape`
+1-sudut (top-end 20dp) + 3 sudut lain `SereneCardRadius` (18dp), didefinisikan
+SEKALI lalu di-reuse di 2 tempat: `SereneSkeuTokens.cardShape` (buat
+`SkeuCard`/`SkeuTintedCard`) DAN `SereneShapes.large` (buat komponen
+Material3 default) — 1 sumber kebenaran, bukan 2 literal terpisah yang bisa
+divergen di masa depan.
+
+**`SkeuCard`/`SkeuTintedCard`**: `val shape = ...` sekarang baca
+`tokens.cardShape` (bukan `RoundedCornerShape(radius)` bikin sendiri).
+`SkeuCard` punya 1 caller yang override parameter `radius` custom (icon-box
+card, `SkeuomorphicComponents.kt` baris ~468, pakai `iconBoxRadius` bukan
+`cardRadius`) — supaya override itu TIDAK diam-diam diabaikan, `SkeuCard`
+fallback ke `RoundedCornerShape(radius)` literal kalau `radius` yang di-pass
+BEDA dari `tokens.cardRadius` default, dan cuma pakai `tokens.cardShape` kalau
+caller pakai radius default (tanpa override). `SkeuTintedCard` 0 punya
+parameter radius override sama sekali, jadi langsung `tokens.cardShape`
+tanpa percabangan.
+
+**Kompatibilitas teknis**: `SkeuDualDirectionalShadow` (dipakai dual-shadow
+Neumorphism) sudah generik terhadap `Shape` apapun lewat
+`shape.createOutline()` + `when(Outline)` (`Outline.Generic` cover
+`CutCornerShape`) — 0 perlu perubahan di fungsi itu. `Modifier.shadow()`/
+`.clip()` juga native menerima `Shape` apapun. Untuk Serene M3 sendiri,
+`SkeuDualDirectionalShadow` early-return karena `shadowLightTint ==
+Color.Transparent` (by design, M3 flat) — jalur ini tidak tersentuh sama
+sekali oleh perubahan shape.
+
+**File disentuh (2)**: `Theme.kt`, `SkeuomorphicComponents.kt`. Belum
+tervalidasi visual (sandbox tanpa compiler/render) — kandidat gagal: cut-corner
+di kartu kecil (banner/status) mungkin kelihatan terlalu agresif dibanding
+kartu besar, cek proporsi di device fisik; kalau user masih merasa kurang
+kentara, kandidat next step: naikkan ukuran potongan sudut (`topEnd` 20dp ->
+lebih besar) atau tambah potongan di >1 sudut.
+
 ## Batch 111: Varian tema baru ke-5 — "Serene M3" (genuine Material 3)
 
 Request eksplisit user: tambah opsi tema baru berbasis Material 3, dengan

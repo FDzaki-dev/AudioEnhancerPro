@@ -13,6 +13,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
@@ -528,6 +529,21 @@ val SereneSpecularBrush: Brush = SolidColor(Color.Transparent) // M3 flat: 0 she
 val SereneCardRadius = 18.dp
 val SereneIconBoxRadius = 12.dp
 
+/** Batch 112: shape ASLI kartu Serene M3 (cut-corner asimetris), didefinisikan
+ *  di sini (top-level, public) supaya bisa dipakai DI 2 TEMPAT — `SereneShapes.large`
+ *  (buat komponen Material3 default) DAN `SereneSkeuTokens.cardShape` (buat
+ *  `SkeuCard`/`SkeuTintedCard`, SkeuomorphicComponents.kt) — root cause kartu toggle
+ *  screenshot user masih "rounded biasa" adalah `SkeuCard` SEBELUMNYA 0 pernah baca
+ *  shape asli varian manapun (selalu bikin `RoundedCornerShape` sendiri dari radius
+ *  Dp), jadi cut-corner ini 0% ke-render di kartu manapun. 1 sumber kebenaran shape,
+ *  bukan didefinisikan dobel beda tempat. */
+val SereneCardShape: Shape = CutCornerShape(
+    topEnd = 20.dp,
+    topStart = SereneCardRadius,
+    bottomStart = SereneCardRadius,
+    bottomEnd = SereneCardRadius
+)
+
 val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(SereneSurface, SereneBackground, Color(0xFF14170F))
 )
@@ -565,7 +581,19 @@ data class SkeuTokens(
     val cardRadius: Dp,
     val iconBoxRadius: Dp,
     val shadowLightTint: Color,
-    val shadowDarkTint: Color
+    val shadowDarkTint: Color,
+    // Batch 112: `SkeuCard`/`SkeuTintedCard` (SkeuomorphicComponents.kt) SEBELUMNYA
+    // selalu bikin `RoundedCornerShape(cardRadius)` sendiri, TIDAK PERNAH baca shape
+    // asli per-varian (`AppShapes`/`NeumorphismShapes`/`StudioEqShapes`/
+    // `SereneShapes` di bawah) — akibatnya shape "unique" Serene M3 (cut-corner)
+    // 0% kepakai di kartu manapun, cuma dipakai komponen Material3 DEFAULT yang
+    // jarang muncul di layar ini (root cause komplain user screenshot Batch 111:
+    // "kartu Serene M3 masih rounded biasa"). Field baru INI = shape ASLI tiap
+    // varian (bukan cuma radius Dp), dibaca `SkeuCard`/`SkeuTintedCard` LANGSUNG
+    // — 4 varian lama diisi `RoundedCornerShape(cardRadius)` SAMA PERSIS dgn
+    // behavior lama (0 perubahan visual), Serene M3 diisi `SereneShapes.large`
+    // (cut-corner asli) supaya AKHIRNYA kebaca di kartu.
+    val cardShape: Shape
 )
 
 /** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
@@ -586,7 +614,10 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     // Batch 47: TETAP Transparent — kartu glass sengaja "visually quiet" (guide
     // §8 lama, Batch 32), dual-shadow terarah CUMA buat Neumorphism.
     shadowLightTint = Color.Transparent,
-    shadowDarkTint = Color.Transparent
+    shadowDarkTint = Color.Transparent,
+    // Batch 112: `RoundedCornerShape(SkeuCardRadius)` — SAMA PERSIS shape yang
+    // sebelumnya dibikin inline di `SkeuCard`, 0 perubahan visual.
+    cardShape = RoundedCornerShape(SkeuCardRadius)
 )
 
 /** Varian 2: "Aurora Glass" — iOS glassmorphism lebih vivid/saturated, sheen &
@@ -607,7 +638,8 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     cardRadius = SkeuCardRadius,
     iconBoxRadius = SkeuIconBoxRadius,
     shadowLightTint = Color.Transparent,
-    shadowDarkTint = Color.Transparent
+    shadowDarkTint = Color.Transparent,
+    cardShape = RoundedCornerShape(SkeuCardRadius)
 )
 
 /** Varian 3: "Neumorphism" — Batch 52: palet Deep Navy & Classic Brass, kartu
@@ -633,7 +665,8 @@ val NeumorphismSkeuTokens = SkeuTokens(
     cardRadius = NeumoCardRadius,
     iconBoxRadius = NeumoIconBoxRadius,
     shadowLightTint = NeumoEdgeHighlight,
-    shadowDarkTint = NeumoEdgeShadow
+    shadowDarkTint = NeumoEdgeShadow,
+    cardShape = RoundedCornerShape(NeumoCardRadius)
 )
 
 /** Varian 4: "Studio Equalizer" — neumorphism soft-UI (Batch 43), palet abu-abu
@@ -656,7 +689,8 @@ val StudioEqSkeuTokens = SkeuTokens(
     // Batch 47: TETAP Transparent — Studio Eq "low-contrast/subtle by design"
     // (lihat komentar Batch 43), bukan target "ultra realistic" kayak varian 3.
     shadowLightTint = Color.Transparent,
-    shadowDarkTint = Color.Transparent
+    shadowDarkTint = Color.Transparent,
+    cardShape = RoundedCornerShape(StudioEqCardRadius)
 )
 
 /** Varian 5: "Serene M3" (Batch 111) — flat tonal Material 3, 0 bevel/dual-shadow/
@@ -679,7 +713,8 @@ val SereneSkeuTokens = SkeuTokens(
     cardRadius = SereneCardRadius,
     iconBoxRadius = SereneIconBoxRadius,
     shadowLightTint = Color.Transparent,
-    shadowDarkTint = Color.Transparent
+    shadowDarkTint = Color.Transparent,
+    cardShape = SereneCardShape
 )
 
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
@@ -1028,12 +1063,15 @@ private val StudioEqShapes = Shapes(
  *  biar komponen kecil gak "ribut" — asimetri cuma di elemen besar yang punya
  *  ruang visual buat itu, konsisten prinsip iOS-glass Batch 37 (radius besar =
  *  fokus mata utama). Konsisten `SereneCardRadius`/`SereneIconBoxRadius` (18dp/12dp)
- *  di atas. */
+ *  di atas. Batch 112: `large` sekarang REUSE `SereneCardShape` (bukan literal
+ *  terpisah lagi) — 1 sumber kebenaran shape, dipakai bareng `SereneSkeuTokens.
+ *  cardShape` (`SkeuCard`/`SkeuTintedCard`) supaya kartu di layar BENERAN kebaca
+ *  cut-corner, bukan cuma komponen Material3 default yang jarang tampil. */
 private val SereneShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(12.dp),
     medium = RoundedCornerShape(SereneIconBoxRadius),
-    large = CutCornerShape(topEnd = 20.dp, topStart = SereneCardRadius, bottomStart = SereneCardRadius, bottomEnd = SereneCardRadius),
+    large = SereneCardShape,
     extraLarge = CutCornerShape(topEnd = 26.dp, topStart = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
 )
 
