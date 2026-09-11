@@ -88,12 +88,39 @@ PERMANEN.
   `GITHUB_RUN_NUMBER` (Batch 76, diperluas eksplisit oleh user) — TIDAK ADA
   lagi label semantik manual macam "1.99.0", `versionName` = angka run number
   polos (String), sama nilainya dengan `versionCode` (Int).
-- **Validasi ZIP upload sesi ini**: `Boomly_v100.zip` — user kirim screenshot
-  device asli (mode horizontal, scroll mentok bawah): shadow kartu
-  `ServiceStatusBadge` kelihatan kepotong nested/double, bukan cuma 1 clip
-  wajar dekat notifikasi device. Root cause ditelusuri dari kode (bukan
-  tebak), lihat entry Batch 101 di LOG HARIAN di bawah.
-- **Batch terakhir**: Batch 101 (1 file kode — `BoosterScreen.kt`) — fix
+- **Batch terakhir**: Batch 103 (1 file kode — `BoosterScreen.kt`). User
+  eksplisit pilih 1 dari 2 opsi arsitektur yang ditawarkan Batch 102 (lewat
+  tappable option, BUKAN dok-only lagi): **hapus swipe-antar-tab**. `HorizontalPager`
+  + `rememberPagerState` DIHAPUS TOTAL dari Mode Tab Horizontal (0 lagi
+  dipakai file ini, import-nya ikut dihapus, `LocalConfiguration`/
+  `screenHeightDp`/`pagerHeight` ikut dihapus krn cuma dipakai buat tinggi
+  pager). Tab switch sekarang klik biasa: `selectedTabIndex` (`rememberSaveable`
+  — WAJIB survive rotasi, guard state/lifecycle) gantikan `pagerState.currentPage`
+  sebagai sumber kebenaran tab aktif; `ScrollableTabRow`/`Tab` (komponen UI-nya
+  sendiri) TIDAK disentuh, cuma binding-nya. Konten tab terpilih
+  (`TabPageContent(selectedTabIndex)`) sekarang dirender LANGSUNG sebagai child
+  Column pembungkus utama (pola identik mode vertikal) — 0 lagi Column/scroll
+  bersarang per-halaman, jadi cuma 1 scrollport di KEDUA mode. **Hasil**: 1
+  clip fisik SISA (tepi layar sungguhan dekat notifikasi device, WAJAR/sama
+  seperti header ikut ter-scroll) — 2 clip fisik dari nested pager (Batch
+  99/101) SUDAH TIDAK ADA lagi sama sekali (bukan cuma disembunyikan kayak
+  Batch 101). **Trade-off disadari**: gesture swipe-antar-tab hilang, ganti tap
+  label. **Efek samping menguntungkan** (bukan tuning terpisah): inset
+  horizontal kartu mode horizontal sekarang 22dp, sama dengan mode vertikal
+  (sebelumnya 38dp = 22+16, dicatat Batch 99). Import dihapus: `HorizontalPager`,
+  `rememberPagerState`, `LocalConfiguration`. Import ditambah: `rememberSaveable`
+  (`androidx.compose.runtime.saveable`, sudah transitif lewat Compose BOM yang
+  sudah dipakai — 0 dependency baru). Validasi statis: brace/paren/bracket
+  seimbang, diff full-file dikonfirmasi cuma nyentuh 3 region (2 blok import +
+  1 blok Mode Tab Horizontal), 0 sisa referensi `pagerState`/`HorizontalPager`
+  di luar komentar historis. **Belum divalidasi runtime/visual** (sandbox tanpa
+  compiler/emulator — user WAJIB build & coba tab-switch + rotasi device
+  sungguhan). Detail penuh: `CHANGELOG.md`.
+- **Batch 102** (0 file kode — dok-only): user push back ke fix Batch 101
+  (clip KELIHATAN sudah 1, tapi 2 clip FISIK masih ada, cuma disembunyikan) —
+  dijawab lewat 2 opsi arsitektur (auto-height pager / hapus swipe), 0 dipilih
+  sesi itu. Batch 103 di atas eksekusi salah satu opsinya.
+- **Batch 101** (1 file kode — `BoosterScreen.kt`) — fix
   laporan user (screenshot) soal nested/double clipping shadow kartu di Mode
   Tab Horizontal saat scroll mentok bawah. Root cause: bug SEJENIS Batch 99
   tapi di sumbu VERTIKAL (Batch 99 cuma nambal horizontal) — Column
@@ -220,7 +247,115 @@ tambahkan manual 2 file itu sebelum push, atau minta Claude bikinkan
 ini — di luar scope task insets yang diminta).
 
 ## 📅 LOG UPDATE HARIAN (Descending, entry terbaru PALING ATAS — BUKAN bagian permanen, boleh diarsipkan/dipangkas kalau kepanjangan)
-- 📐🩺 **Batch 101 (terbaru, 1 file kode — `BoosterScreen.kt`)**: user kirim
+- 🗑️📐 **Batch 103 (terbaru, 1 file kode — `BoosterScreen.kt`)**: eksekusi
+  keputusan user dari 2 opsi arsitektur Batch 102 (dipilih via tappable
+  option) — **hapus swipe-antar-tab**, bukan auto-height pager.
+  **Perubahan kode** (semua di dalam blok `if (useHorizontalLayout) { ... }
+  else { ... }`, `BoosterScreen.kt`):
+  - `val pagerState = rememberPagerState(...)` DIHAPUS.
+  - `val screenHeightDp = LocalConfiguration.current.screenHeightDp` +
+    `val pagerHeight = (...).coerceIn(360f, 640f).dp` DIHAPUS (cuma dipakai
+    buat tinggi `HorizontalPager`, sekarang tidak relevan).
+  - `ScrollableTabRow`/`Tab` (komponen UI-nya sendiri TIDAK diubah) —
+    `selectedTabIndex = pagerState.currentPage` → `selectedTabIndex =
+    selectedTabIndex` (state lokal baru); `onClick` SEBELUMNYA
+    `coroutineScope.launch { pagerState.animateScrollToPage(index) }` →
+    SEKARANG `selectedTabIndex = index` langsung (0 lagi butuh coroutine di
+    titik ini — `coroutineScope` var itu sendiri TETAP ada, masih dipakai
+    buat snackbar di tempat lain, TIDAK dihapus).
+  - Blok `HorizontalPager(state = pagerState, ...) { page -> Column(...) {
+    TabPageContent(page) } }` DIHAPUS TOTAL (termasuk Column per-halaman
+    dengan `.padding(16.dp)` [fix Batch 101] + `.verticalScroll(...)`
+    internal-nya) — diganti 1 baris: `TabPageContent(selectedTabIndex)`,
+    dipanggil LANGSUNG sebagai child Column pembungkus utama (pola IDENTIK
+    mode vertikal yang sudah ada, `TabPageContent(0)`/`(1)`/`(2)` flat).
+  - State baru: `var selectedTabIndex by rememberSaveable { mutableStateOf(0)
+    }` — pakai `rememberSaveable` (BUKAN `remember` polos) supaya WAJIB
+    bertahan dari rotasi/rekonfigurasi perangkat (guard state/lifecycle,
+    Int primitif → otomatis Saveable, 0 Saver custom).
+  **Import diubah**: dihapus `androidx.compose.foundation.pager.HorizontalPager`,
+  `androidx.compose.foundation.pager.rememberPagerState`,
+  `androidx.compose.ui.platform.LocalConfiguration` (dicek dulu 0 dipakai di
+  tempat lain manapun di file ini sebelum dihapus — grep, bukan asumsi).
+  Ditambah `androidx.compose.runtime.saveable.rememberSaveable` (API stabil
+  Jetpack Compose, artifact `runtime-saveable` SUDAH transitif lewat Compose
+  BOM yang project ini pakai — dikonfirmasi tidak langsung dari precedent
+  lokal krn belum pernah dipakai file lain di project ini, tapi merupakan
+  dependency transitif standar Foundation/Material3 — 0 entry baru perlu
+  ditambah ke `build.gradle.kts`).
+  **Kenapa (ringkas, detail penuh ada di komentar inline kode + `CHANGELOG.md`
+  entry Batch 103)**: Batch 101 (padding 16dp) cuma MENYEMBUNYIKAN 2 clip
+  shadow fisik — akarnya kombinasi `.verticalScroll` internal per-halaman +
+  `HorizontalPager` bertinggi tetap yang membungkusnya, SELALU menghasilkan
+  clip fisik selama kombinasi itu ada. User pilih hilangkan clip-nya secara
+  FISIK, bukan cuma sembunyikan — 1 dari 2 jalan yang mungkin (auto-height
+  pager custom measurement DITOLAK karena risiko lebih tinggi, belum pernah
+  dipakai project ini, 0 bisa dicompile-check di sandbox tanpa compiler).
+  **Hasil**: 0 lagi Column/scroll bersarang per-halaman → 1 clip fisik SISA
+  (tepi layar sungguhan dekat notifikasi device, WAJAR). **Trade-off
+  disadari**: gesture swipe HILANG, ganti tap label tab. **Efek samping
+  menguntungkan** (konsekuensi alami, bukan tuning terpisah): inset
+  horizontal kartu mode horizontal turun dari 38dp (22+16, Batch 99) jadi
+  22dp — SAMA dengan mode vertikal sekarang, krn Column per-halaman +
+  padding 16dp-nya sudah tidak ada.
+  **Validasi**: statis saja (0 compiler di sandbox, konsisten limitasi yang
+  sudah didokumentasikan project ini sejak awal) — brace/paren/bracket
+  file dikonfirmasi seimbang (243/243 `{}`, 658/658 `()`, 2/2 `[]`), diff
+  full-file vs ZIP upload dikonfirmasi HANYA menyentuh 3 region (2 blok
+  import + 1 blok Mode Tab Horizontal, 0 baris lain berubah), grep
+  dikonfirmasi 0 sisa referensi kode ke `pagerState`/`pagerHeight`/
+  `screenHeightDp`/`HorizontalPager`/`rememberPagerState`/`LocalConfiguration`
+  (yang tersisa cuma di komentar historis, sengaja DIPERTAHANKAN sebagai
+  jejak alasan Batch 94-101, bukan diedit ulang jadi seakan-akan tidak
+  pernah terjadi). **BELUM divalidasi runtime/visual sungguhan** — WAJIB
+  di-build & dicoba user: (1) tab-switch via klik di Mode Tab Horizontal,
+  (2) rotasi device saat 1 tab non-default aktif (pastikan `selectedTabIndex`
+  survive, tidak balik ke tab 0), (3) screenshot area shadow kartu (pastikan
+  emang cuma 1 clip fisik tersisa, bukan 2 lagi entah kenapa).
+- 📌🚫 **Batch 102 (0 file kode — dok-only, keputusan scope)**: user
+  push back terhadap fix Batch 101 — walau clip yang KELIHATAN sudah turun
+  jadi 1 (sesuai ekspektasi laporan sebelumnya), user tanya kenapa 2 clip
+  FISIKNYA gak dihilangkan total sekalian, bukan cuma disembunyikan lewat
+  padding.
+  **Dijawab dari struktur kode (bukan "akal-akalan kecil"), 2 clip fisik itu
+  ADA karena 2 alasan struktural BEDA, hilangin salah satu balik ke 2 bug yang
+  sudah pernah dibenerin**:
+  1. **Hapus scroll DALAM (`.verticalScroll` internal Column per-halaman
+     pager, per-tab, Batch 94)** → pager WAJIB auto-tinggi ke konten.
+     `HorizontalPager` TIDAK BISA auto-tinggi per-halaman secara native (tiap
+     tab beda panjang → animasi swipe jadi lompat-lompat tingginya). Kalau
+     tetap dipaksa tinggi tetap (`pagerHeight`, Batch 100) TANPA scroll
+     dalam, konten tab yang lebih panjang dari `pagerHeight` (mis. Equalizer
+     Manual dibuka) ke-clip PERMANEN, SAMA SEKALI TIDAK BISA DIAKSES — bukan
+     cuma soal shadow lagi, REGRESI FUNGSIONAL.
+  2. **Hapus scroll LUAR (balik Column pembungkus utama ke `weight(1f)`,
+     header/banner jadi statis di luar scroll)** → itu PERSIS struktur Batch
+     97, dan PERSIS root cause "ruang tab terasa terbatas" yang baru
+     dibenerin Batch 100. Balik ke sana = REGRESI keluhan lama.
+  Kesimpulan: 2 clip itu konsekuensi WAJIB dari kombinasi "pager swipe-able"
+  + "tinggi pager harus terbatas" — bukan bug arsitektur, cuma efek samping
+  (shadow ketabrak clip vertikal) yang SUDAH ditambal Batch 101 secara
+  visual. Padding 16dp (Batch 101) bikin clip TETAP ADA secara teknis, tapi
+  TIDAK LAGI KELIHATAN — user cuma lihat 1 clip (di tepi layar sungguhan),
+  persis sesuai yang diminta laporan Batch 101.
+  **Jalan buat 0 clip fisik ada, TAPI scope-nya lebih besar dari bugfix**:
+  auto-height pager (custom measurement, di luar API standar
+  `HorizontalPager`) atau buang swipe-antar-tab sama sekali (ganti klik
+  biasa) — KEDUANYA DITOLAK sesi ini (ubah arsitektur signifikan, di luar
+  scope task yang disetujui). Kalau user MAU salah satu dari 2 opsi itu ke
+  depan, itu Atomic Change terpisah yang butuh konfirmasi eksplisit dulu
+  (bukan bugfix kecil lagi).
+  **Keputusan final**: fix Batch 101 (`.padding(16.dp)`, 1 clip visible di
+  tepi layar) TETAP dipertahankan apa adanya — 0 perubahan kode lebih lanjut
+  batch ini. ZIP upload sesi ini (`Boomly_v101.zip`) dicek — sudah berisi fix
+  Batch 101 persis seperti didokumentasikan (`padding(16.dp)` di Column
+  per-halaman `HorizontalPager`, `BoosterScreen.kt` baris ~1389), 0 selisih
+  dari yang tercatat. **File disentuh**: 0 kode — cuma VIP docs
+  (`PROJECT_STATE.md`, `CHANGELOG.md`) buat mendokumentasikan alasan
+  penolakan scope ini (bukan basa-basi chat). Status "belum divalidasi
+  runtime/visual" dari Batch 101 TETAP berlaku — belum ada perubahan yang
+  mengubah itu.
+- 📐🩺 **Batch 101 (1 file kode — `BoosterScreen.kt`)**: user kirim
   screenshot device asli, Mode Tab Horizontal, scroll mentok bawah — shadow
   kartu `ServiceStatusBadge` (dan kartu tab lain yang nempel tepi pager)
   kepotong nested/double, bukan cuma 1 clip wajar dekat notifikasi device.

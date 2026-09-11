@@ -18,8 +18,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -48,13 +46,13 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -1251,24 +1249,44 @@ fun BoosterScreen(
 
         // Batch 94: SEBELUMNYA Kontrol/Equalizer Manual/Tampilan/Bantuan adalah sederet
         // SkeuCard vertikal panjang dalam 1 scroll raksasa (user harus scroll jauh buat
-        // sampai ke kartu baterai/autostart di paling bawah). SEKARANG dipecah jadi 3 tab
-        // horizontal-scrollable ("Kontrol" [reuse controls_title, 0 string baru] /
-        // "Tampilan" / "Bantuan") via ScrollableTabRow [DIGANTI TabRow biasa di Batch
-        // 95, lihat komentar Batch 95 di bawah] + HorizontalPager (Foundation,
-        // SUDAH dipakai OnboardingScreen.kt — 0 dependency baru). Isi tiap tab (kartu,
-        // logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan ulang: tab
-        // "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness + Equalizer Manual
-        // (persis susunan lama paling atas); tab "Tampilan" = 4 toggle tema (dynamic
-        // color/Aurora Glass/Skeuomorphism/Studio Equalizer); tab "Bantuan" = kartu
-        // baterai&autostart + tombol "Lihat penjelasan lengkap". Tiap tab scroll vertikal
-        // independen (rememberScrollState per-page, otomatis lewat slot HorizontalPager)
-        // — bukan lagi 1 scroll gabungan semua kartu.
+        // sampai ke kartu baterai/autostart di paling bawah). Dipecah jadi 3 tab
+        // ("Kontrol" [reuse controls_title, 0 string baru] / "Tampilan" / "Bantuan"). Isi
+        // tiap tab (kartu, logic, helper) TIDAK diubah sama sekali, cuma dikelompokkan
+        // ulang: tab "Kontrol" = Preset Cepat + kartu Bass/Virtualizer/Loudness +
+        // Equalizer Manual (persis susunan lama paling atas); tab "Tampilan" = 4 toggle
+        // tema (dynamic color/Aurora Glass/Skeuomorphism/Studio Equalizer); tab "Bantuan"
+        // = kartu baterai&autostart + tombol "Lihat penjelasan lengkap".
+        //
+        // Batch 103 (keputusan eksplisit user, dipilih dari 2 opsi arsitektur yang
+        // ditawarkan — bukan tuning kecil): swipe antar-tab (`HorizontalPager`, Batch
+        // 94-96) DIHAPUS TOTAL, diganti klik tab biasa. Alasan: Batch 101 (padding 16dp)
+        // cuma MENYEMBUNYIKAN 2 clip shadow fisik, bukan menghilangkannya — akarnya
+        // adalah kombinasi `.verticalScroll` INTERNAL per-halaman (Batch 94, scroll
+        // independen per tab) yang dibungkus `HorizontalPager` bertinggi TETAP
+        // (`pagerHeight`, Batch 100). Selama kombinasi itu ada, clip fisik SELALU ada
+        // (cuma bisa disembunyikan lewat padding, tidak bisa dihilangkan tanpa scope
+        // lebih besar dari bugfix: auto-height pager custom measurement ATAU hapus
+        // swipe). User pilih hapus swipe. Konsekuensinya: 0 lagi `HorizontalPager`, 0
+        // lagi Column/scroll bersarang per-halaman — konten tab yang dipilih
+        // (`selectedTabIndex`) sekarang dirender LANGSUNG sebagai child Column
+        // pembungkus utama (persis pola mode vertikal, `TabPageContent` dipanggil flat),
+        // jadi cuma ADA 1 scrollport (Column pembungkus utama) di KEDUA mode sekarang —
+        // clip fisik yang tersisa cuma 1: tepi layar sungguhan dekat notifikasi device.
+        // Trade-off yang DISADARI (bukan bug): gesture swipe-antar-tab HILANG, ganti tap
+        // label tab. Efek SAMPING yang MENGUNTUNGKAN (konsekuensi alami, bukan tuning
+        // terpisah): inset horizontal kartu mode horizontal sekarang SAMA dengan mode
+        // vertikal (22dp dari Column pembungkus utama, bukan lagi 22+16=38dp seperti
+        // dicatat Batch 99 — Column per-halaman & padding 16dp-nya sudah tidak ada lagi).
         if (useHorizontalLayout) {
         val tabLabels = listOf(
             stringResource(R.string.controls_title),
             stringResource(R.string.tab_display_label),
             stringResource(R.string.tab_help_label)
         )
+        // Batch 103: `selectedTabIndex` gantikan `pagerState.currentPage` sebagai sumber
+        // kebenaran tab aktif — `rememberSaveable` (BUKAN `remember` polos, wajib
+        // bertahan dari rotasi/rekonfigurasi perangkat, Int primitif otomatis Saveable).
+        var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
         // Batch 95 (keluhan user, 3 screenshot: label "Kontrol"/"Bantuan" kepotong
         // gantian tergantung tab mana yang aktif): SEBELUMNYA ScrollableTabRow — buat
         // cuma 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan"), lebar wajib-scroll
@@ -1280,48 +1298,22 @@ fun BoosterScreen(
         // kelihatan bareng, gak pernah kepotong apa pun tab yang aktif — cocok karena
         // jumlah tab TETAP 3 (bukan kandidat nambah tab lagi ke depan yang butuh
         // scroll sungguhan).
-        val pagerState = rememberPagerState(pageCount = { tabLabels.size })
-        // Batch 100: tinggi pager SEKARANG eksplisit (bukan lagi weight(1f) — lihat
-        // komentar panjang di Column pembungkus utama di atas soal kenapa). 62% tinggi
-        // layar dipilih supaya area tab SELALU lapang di device manapun, TAPI dikunci ke
-        // rentang [360dp, 640dp] (coerceIn) biar tidak absurd di 2 ekstrem: device sangat
-        // pendek (62% masih cukup buat lihat beberapa kartu tanpa scroll internal
-        // langsung) atau device/tablet sangat tinggi (dibatasi 640dp, sisanya biar user
-        // scroll turun dikit ke tab berikutnya/konten lain, bukan 1 pager raksasa kosong).
-        // Konten tiap tab yang lebih tinggi dari angka ini TETAP bisa dilihat penuh lewat
-        // verticalScroll internal per-halaman (Batch 94, tidak disentuh) — angka ini cuma
-        // "jendela tampil" pager, bukan batas konten.
-        val screenHeightDp = LocalConfiguration.current.screenHeightDp
-        val pagerHeight = (screenHeightDp * 0.62f).coerceIn(360f, 640f).dp
-        // Batch 99 (2 laporan user, 1 sesi):
-        // (1) "touch screen sempit/gak fleksibel buat banyak menu dalam tab" — TabRow
-        // biasa (Batch 95) BAGI RATA lebar layar ke SEMUA tab sekaligus, jadi kalau
-        // suatu saat nambah tab (menu) baru, tiap tab otomatis MENGECIL (touch target
-        // makin sempit, gak scale ke jumlah tab). Ganti ScrollableTabRow (M3, sudah
-        // kepakai sejak BOM 2024.06.00 — 0 dependency baru) supaya lebar tiap Tab
-        // NATURAL sesuai isi labelnya (gak dipaksa mengecil), dan kalau suatu saat tab
-        // bertambah banyak sampai melebihi lebar layar, otomatis jadi scrollable
-        // (bukan makin sempit). `edgePadding = 0.dp` (default M3 nyisain ruang di kedua
-        // ujung buat indikasi "bisa discroll") SENGAJA di-nolkan — root cause bug Batch
-        // 95 (label "Kontrol"/"Bantuan" kepotong) BUKAN dari ScrollableTabRow itu
-        // sendiri, tapi dari edgePadding bawaan yang bikin total lebar 3 tab PENDEK ini
-        // (Kontrol/Tampilan/Bantuan) jadi melebihi lebar layar PADAHAL harusnya muat —
-        // itu yang memicu auto-scroll-ke-tab-aktif nyembunyiin tab di ujung lain. Tanpa
-        // edgePadding, 3 tab pendek ini muat penuh tanpa perlu scroll sama sekali
-        // (perilaku identik TabRow evenly-divided buat kasus SEKARANG), tapi begitu
-        // nanti nambah tab baru & melebihi lebar layar, scroll aktif natural — TIDAK
-        // ada lagi cara auto-scroll motong tab di ujung.
+        // Batch 99: ganti lagi ke ScrollableTabRow (`edgePadding = 0.dp`, BUKAN bug Batch
+        // 95 balik — akarnya edgePadding bawaan, sudah dihilangkan, bukan komponennya).
+        // Batch 103: komponen tab-bar ini SENDIRI tidak disentuh, cuma sumber
+        // `selectedTabIndex`/`onClick`-nya yang berubah (lihat di bawah — langsung set
+        // index, TIDAK lagi lewat `pagerState.animateScrollToPage`/coroutine).
         ScrollableTabRow(
-            selectedTabIndex = pagerState.currentPage,
+            selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
             edgePadding = 0.dp,
             divider = {}
         ) {
             tabLabels.forEachIndexed { index, label ->
                 Tab(
-                    selected = pagerState.currentPage == index,
+                    selected = selectedTabIndex == index,
                     onClick = {
-                        coroutineScope.launch { pagerState.animateScrollToPage(index) }
+                        selectedTabIndex = index
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                     selectedContentColor = MaterialTheme.colorScheme.primary,
@@ -1329,81 +1321,18 @@ fun BoosterScreen(
                     text = {
                         Text(
                             label,
-                            fontWeight = if (pagerState.currentPage == index) FontWeight.Bold else FontWeight.Normal
+                            fontWeight = if (selectedTabIndex == index) FontWeight.Bold else FontWeight.Normal
                         )
                     }
                 )
             }
         }
 
-        HorizontalPager(
-            state = pagerState,
-            // Batch 100: weight(1f) DIHAPUS (lihat 2 komentar panjang di atas — Column
-            // pembungkus utama & deklarasi pagerHeight) — parent-nya sekarang scrollable,
-            // weight() di situ akan crash runtime ("infinity maximum height constraints").
-            modifier = Modifier.fillMaxWidth().height(pagerHeight)
-        ) { page ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                // Batch 99 (laporan ke-2 user, sesi sama): efek shadow tema (dual-shadow
-                // manual `SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt — bleed
-                // diagonal KELUAR bentuk kartu, paling kentara di Neumorphism, token
-                // elevation tertinggi 13dp) KEPOTONG RATA di tepi kartu HANYA saat mode
-                // horizontal. Root cause: `HorizontalPager` (Compose Foundation) clip
-                // konten ke batas kotak PAGER-nya sendiri di sumbu scroll (horizontal) —
-                // perilaku built-in library, bukan bug kode kita, 0 API publik buat
-                // matikan ini. Sebelum fix: Column halaman ini 0 padding horizontal
-                // sendiri, kartu isinya nempel PERSIS ke tepi pager -> shadow yang
-                // harusnya bleed keluar kartu gak punya ruang sama sekali, kepotong rata
-                // di garis clip. Mode vertikal TIDAK kena (Column vertikal biasa TIDAK
-                // clip horizontal, shadow bebas bleed ke zona padding 22dp Column
-                // pembungkus terluar). Fix: kasih ruang ekstra 16dp DI DALAM AREA PAGER
-                // (bukan nambah padding Column terluar, biar mode vertikal 0 kepengaruh)
-                // supaya shadow bleed (spread yang masih keliatan jelas ~15dp buat
-                // elevation 13dp terbesar, lihat SkeuDualDirectionalShadow) tetap di
-                // DALAM batas clip pager, gak ketabrak garis potongnya.
-                //
-                // Batch 101 (laporan user + screenshot, mode horizontal, scroll mentok
-                // bawah): sumbu VERTIKAL Column halaman ini (baris `.verticalScroll` di
-                // bawah) TERNYATA kena bug SEJENIS Batch 99 tapi belum kebahas — Batch 99
-                // cuma nambal sumbu horizontal. Root cause: Column ini sendiri punya
-                // `.verticalScroll` INTERNAL (independen per tab), dibungkus `HorizontalPager`
-                // bertinggi TETAP (`pagerHeight`, Batch 100) — scroll internal ini clip
-                // kontennya ke batas atas/bawah KOTAK PAGER itu sendiri (bukan cuma ke tepi
-                // layar sungguhan, yang diisi Column pembungkus utama di luar). Sebelum fix:
-                // 0 padding vertikal di Column ini, jadi kartu pertama nempel PERSIS ke tepi
-                // atas kotak pager (persis di bawah `ScrollableTabRow`) & kartu terakhir
-                // nempel PERSIS ke tepi bawahnya saat discroll penuh -> shadow bleed
-                // kartu-kartu itu kepotong rata DUA KALI: 1x oleh scroll layar utama (WAJAR,
-                // sama seperti header ikut ke-scroll ke atas dekat status bar) DAN 1x lagi
-                // oleh clip internal pager ini (TIDAK wajar — nested/double clipping yang
-                // dilaporkan user, munculnya persis di bawah tab title). Fix: `padding` diubah
-                // dari `horizontal` saja jadi UNIFORM 16dp (nilai sama, sudah terbukti cukup
-                // di Batch 99) — sekarang berlaku juga di atas/bawah, jadi kartu pertama &
-                // terakhir tiap tab punya jarak aman dari 2 tepi kotak pager, shadow-nya tidak
-                // lagi ketabrak clip internal ini di posisi scroll mana pun. Clip di tepi layar
-                // sungguhan (dekat notifikasi device, dari scroll Column pembungkus utama)
-                // TETAP ada seperti biasa — itu memang satu-satunya clip yang seharusnya
-                // kelihatan.
-                .padding(16.dp)
-                // Batch 96 punya `.navigationBarsPadding()` di sini (1 Column ini dipakai
-                // bareng KETIGA tab, jadi insetnya otomatis berlaku ke semua tab
-                // sekaligus) — DIPINDAH ke Column pembungkus utama di Batch 100 (lihat
-                // komentar panjang di sana), BUKAN dihapus tanpa pengganti. Alasan pindah:
-                // Column ini sekarang cuma "jendela" setinggi `pagerHeight` (Batch 100, di
-                // tengah layar), BUKAN lagi scrollport yang mentok ke tepi bawah layar
-                // sungguhan — nav bar sistem ada di tepi bawah LAYAR, bukan di tepi bawah
-                // kotak pager ini, jadi inset di sini sekarang salah posisi/tidak relevan.
-                // Column pembungkus utama (scrollport SEBENARNYA yang mentok ke bawah
-                // layar di kedua mode sejak Batch 100) adalah tempat yang benar buat
-                // inset ini sekarang.
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-        TabPageContent(page)
-        }
-        }
+        // Batch 103: dulu di sini ada `HorizontalPager` + Column per-halaman ber-scroll
+        // sendiri (sumber clip ganda, lihat komentar panjang di atas `if` block) —
+        // sekarang tab yang dipilih dirender langsung, ikut scroll Column pembungkus
+        // utama, 0 kotak/scroll bersarang lagi.
+        TabPageContent(selectedTabIndex)
         } else {
         TabPageContent(0)
         TabPageContent(1)

@@ -1,5 +1,101 @@
 # Changelog
 
+## Batch 103: Hapus swipe-antar-tab — 1 clip fisik sisa (bukan lagi disembunyikan)
+
+Eksekusi keputusan user dari 2 opsi arsitektur yang ditawarkan Batch 102
+(dipilih lewat tappable option): **hapus swipe-antar-tab**, bukan
+auto-height pager.
+
+**Perubahan** (1 file — `BoosterScreen.kt`, semua di dalam Mode Tab
+Horizontal):
+
+- `HorizontalPager` + `rememberPagerState` dihapus total. Tinggi pager
+  eksplisit (`pagerHeight`, dari `LocalConfiguration.current.screenHeightDp`,
+  Batch 100) ikut dihapus — sudah tidak relevan tanpa pager.
+- Tab switch sekarang klik biasa: state lokal baru `selectedTabIndex`
+  (`rememberSaveable`, survive rotasi/rekonfigurasi perangkat) gantikan
+  `pagerState.currentPage`. `ScrollableTabRow`/`Tab` sendiri tidak diubah,
+  cuma binding `selected`/`onClick`-nya.
+- Konten tab terpilih (`TabPageContent(selectedTabIndex)`) sekarang
+  dirender langsung sebagai child Column pembungkus utama — pola sama
+  persis dengan mode vertikal. Column per-halaman dengan scroll internal +
+  padding 16dp sendiri (fix Batch 101) sudah tidak ada lagi, karena
+  wadahnya (pager) sudah tidak ada.
+
+**Kenapa**: fix Batch 101 (padding 16dp) menyembunyikan 2 clip shadow
+fisik secara visual, tapi akarnya — kombinasi scroll internal per-halaman
+dan pager bertinggi tetap yang membungkusnya — tetap menghasilkan clip
+fisik selama kombinasi itu ada. Menghilangkan clip secara fisik (bukan
+cuma menyembunyikannya) butuh salah satu dari dua perubahan arsitektur:
+auto-height pager (custom measurement) atau menghapus swipe. Auto-height
+pager punya risiko lebih tinggi (belum pernah dipakai di project ini,
+tidak bisa divalidasi lewat compiler di lingkungan kerja saat ini), jadi
+opsi hapus swipe yang dijalankan.
+
+**Hasil**: hanya 1 clip fisik yang tersisa — di tepi layar sungguhan dekat
+notifikasi perangkat, sama seperti elemen lain yang ikut ter-scroll ke
+atas. Kedua clip dari pager bersarang sudah tidak ada sama sekali.
+
+**Trade-off yang disadari**: gestur swipe antar-tab hilang; navigasi tab
+sekarang lewat tap label saja.
+
+**Efek samping yang menguntungkan** (konsekuensi alami dari perubahan di
+atas, bukan penyesuaian terpisah): jarak tepi kartu ke layar pada mode
+tab horizontal sekarang sama dengan mode vertikal (sebelumnya sedikit
+lebih sempit karena padding tambahan di dalam pager).
+
+**Validasi**: pemeriksaan statis (tidak ada compiler di lingkungan kerja
+ini) — struktur kurung/kurawal file dipastikan seimbang, dan perbandingan
+penuh terhadap arsip sebelumnya dipastikan hanya menyentuh bagian yang
+relevan. Pemeriksaan build dan tampilan sesungguhnya di perangkat belum
+dilakukan dan perlu dilakukan pengguna.
+
+**File disentuh**: 1 kode (`BoosterScreen.kt`) + `PROJECT_STATE.md` +
+`CHANGELOG.md`.
+
+## Batch 102: Keputusan scope — 2 clip fisik pager TETAP ada (disengaja), ditolak dihilangkan total
+
+User push back terhadap fix Batch 101: clip yang KELIHATAN sudah turun jadi 1
+(sesuai ekspektasi), tapi ditanya kenapa 2 clip FISIKNYA (bukan cuma yang
+kelihatan) gak dihilangkan total sekalian.
+
+**Jawaban dari struktur kode, bukan reframing di chat** — 2 clip fisik ada
+karena 2 alasan struktural berbeda, menghilangkan salah satu mengembalikan 2
+bug yang sudah pernah diperbaiki:
+
+1. Menghapus `.verticalScroll` internal Column per-halaman `HorizontalPager`
+   (scroll "dalam", per-tab, Batch 94) mengharuskan pager auto-tinggi ke
+   konten — `HorizontalPager` tidak punya cara native untuk itu (tiap
+   halaman beda panjang, animasi swipe akan melompat-lompat tingginya).
+   Tanpa scroll dalam, konten tab yang lebih panjang dari `pagerHeight`
+   (Batch 100) akan ter-clip permanen dan sama sekali tidak bisa diakses —
+   bukan lagi soal shadow, tapi regresi fungsional.
+2. Menghapus scroll Column pembungkus utama (scroll "luar", balik
+   `HorizontalPager` ke `Modifier.weight(1f)`, header/banner jadi statis)
+   adalah struktur PERSIS Batch 97, dan mengembalikan root cause keluhan
+   "ruang tab terasa terbatas" yang baru ditutup Batch 100.
+
+Kedua clip itu adalah konsekuensi wajib dari kombinasi "pager yang bisa
+di-swipe" + "tinggi pager yang harus dibatasi" — bukan bug arsitektur,
+hanya efek samping (shadow ketabrak clip vertikal) yang sudah ditambal
+Batch 101 di sisi visual. Padding 16dp (Batch 101) membuat kedua clip tetap
+ada secara teknis tapi tidak lagi terlihat — hanya 1 clip yang tampak (di
+tepi layar sungguhan), sesuai ekspektasi user di laporan Batch 101.
+
+**Jalan menuju 0 clip fisik ADA, tapi scope-nya lebih besar dari bugfix**:
+auto-height pager (custom measurement di luar API standar `HorizontalPager`)
+atau menghapus swipe-antar-tab sepenuhnya (ganti navigasi klik biasa).
+Keduanya ditolak untuk sesi ini — perubahan arsitektur signifikan, di luar
+scope task yang sudah disetujui. Jika user ingin salah satu opsi ini ke
+depan, itu Atomic Change terpisah yang butuh konfirmasi eksplisit dulu.
+
+**Keputusan final**: fix Batch 101 (`.padding(16.dp)` di Column per-halaman
+`HorizontalPager`, `BoosterScreen.kt`) tetap dipertahankan apa adanya — 0
+perubahan kode lebih lanjut. ZIP upload sesi ini (`Boomly_v101.zip`) dicek
+dan sudah berisi fix Batch 101 persis seperti terdokumentasi, 0 selisih.
+
+**File disentuh**: 0 kode — hanya `PROJECT_STATE.md` + `CHANGELOG.md`.
+
 ## Batch 101: Mode Tab Horizontal — shadow kartu nested/double kepotong saat scroll mentok bawah (sumbu vertikal, lanjutan Batch 99)
 
 Laporan user kali ini disertai screenshot device asli (bukan cuma teks): di Mode
