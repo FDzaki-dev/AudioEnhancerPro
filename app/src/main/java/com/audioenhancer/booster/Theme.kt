@@ -6,6 +6,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -493,9 +494,47 @@ val StudioEqScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(StudioEqLightShadow, StudioEqBackground, StudioEqDarkShadow)
 )
 
-/** Token yang beda antar 4 varian desain (Batch 43: +1, sebelumnya 3), dibaca
+/** Varian 5: "Serene M3" — Batch 111, genuine Material 3 (BUKAN keluarga
+ *  glass/skeuo/neumorphism 4 varian di atas). Base surface FLAT M3 tonal
+ *  (bukan gradient/bevel/dual-shadow siapapun), zero baseline dishare —
+ *  warna/shape/tipografi 100% independen dari 4 varian lain. Aksen "calm":
+ *  sage hijau-abu desaturasi + lavender-abu sebagai secondary, brightness
+ *  medium (bukan neon/vivid ala Aurora/Studio Eq), dipilih spesifik biar
+ *  "memanjakan mata" sesuai request user — bukan sekadar palet M3 default. */
+val SereneBackground = Color(0xFF1B1F1C)
+val SereneSurface = Color(0xFF20241F)
+val SereneSurfaceRaised = Color(0xFF272C26)
+val SereneAccent = Color(0xFF9CB89F) // sage, primary
+val SereneAccentDeep = Color(0xFF3C4A3D) // container gelap sage
+val SereneSecondary = Color(0xFFB7AFC9) // lavender-abu, secondary
+val SereneSecondaryDeep = Color(0xFF3E3A4A)
+val SereneTextPrimary = Color(0xFFE7ECE6)
+val SereneTextSecondary = Color(0xFFAEB6AC)
+val SereneTextMuted = Color(0xFF838C81)
+val SereneOutline = Color(0xFF3A3F38)
+val SereneBorderBrush: Brush = SolidColor(Color(0xFF3A3F38))
+
+/** Card brush flat-tonal (BUKAN glass frosted, BUKAN bevel neumorphism) — 1 warna
+ *  solid `SereneSurfaceRaised` dibungkus `Brush` cuma buat kompatibel tipe field
+ *  `SkeuTokens.cardBrush` (Brush), 0 gradient/multi-stop seperti 4 varian lain. */
+val SereneCardBrush: Brush = SolidColor(SereneSurfaceRaised)
+val SereneSpecularBrush: Brush = SolidColor(Color.Transparent) // M3 flat: 0 sheen/kilau kaca
+
+/** Radius unik — organic-asymmetric (bukan rounded-uniform iOS-glass, bukan
+ *  angular Blade Runner, bukan generous-soft neumorphism). Nilai sengaja
+ *  di antara 2 ekstrem itu, dikombinasi shape M3 `CutCornerShape` sebagian
+ *  biar beneran "unique" — 1 sudut terpotong di beberapa komponen besar
+ *  (lihat `SereneShapes`), bukan cuma rounded-corner biasa berulang. */
+val SereneCardRadius = 18.dp
+val SereneIconBoxRadius = 12.dp
+
+val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(SereneSurface, SereneBackground, Color(0xFF14170F))
+)
+
+/** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
  *  lewat `LocalSkeuTokens.current` (SkeuomorphicComponents.kt) — 1 kode komponen,
- *  4 varian, TANPA duplikasi. Field baru WAJIB diisi di SEMUA instance di bawah
+ *  5 varian, TANPA duplikasi. Field baru WAJIB diisi di SEMUA instance di bawah
  *  kalau ditambah lagi.
  *  Batch 39: `cardRadius`/`iconBoxRadius` ditambah — sebelumnya radius kartu/icon-box
  *  hardcode ke const global `SkeuCardRadius`/`SkeuIconBoxRadius` (dipakai SEMUA
@@ -620,11 +659,35 @@ val StudioEqSkeuTokens = SkeuTokens(
     shadowDarkTint = Color.Transparent
 )
 
+/** Varian 5: "Serene M3" (Batch 111) — flat tonal Material 3, 0 bevel/dual-shadow/
+ *  glass sheen (`shadowLightTint`/`shadowDarkTint`/`specularBrush` semua Transparent
+ *  — genuine M3 rely ke elevation tonal, bukan custom shadow layer manapun).
+ *  `cardElevation` rendah (2dp, terendah dari 5 varian) — M3 real biasanya subtle,
+ *  bukan deep-press look. */
+val SereneSkeuTokens = SkeuTokens(
+    mutedText = SereneTextMuted,
+    bevelBrush = SereneCardBrush,
+    bevelBorderBrush = SereneBorderBrush,
+    primaryGlow = SereneAccent,
+    baseSurface = SereneSurface,
+    elevatedSurface = SereneSurfaceRaised,
+    cardBrush = SereneCardBrush,
+    cardBorderBrush = SereneBorderBrush,
+    cardElevation = 2.dp,
+    sliderKnobHighlight = SereneAccent,
+    specularBrush = SereneSpecularBrush,
+    cardRadius = SereneCardRadius,
+    iconBoxRadius = SereneIconBoxRadius,
+    shadowLightTint = Color.Transparent,
+    shadowDarkTint = Color.Transparent
+)
+
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
  *  constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, nama TIDAK diubah
  *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
- *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4). */
-enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ }
+ *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4).
+ *  Batch 111: +`SERENE_M3` (varian ke-5, genuine Material 3). */
+enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ, SERENE_M3 }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
 val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
@@ -734,6 +797,34 @@ private val NeumorphismDarkColors = darkColorScheme(
     outline = NeumoBorder
 )
 
+/** Batch 111: colorScheme M3 buat "Serene M3" (varian ke-5) — `primary` sage
+ *  (`SereneAccent`), `secondary` lavender-abu (`SereneSecondary`), keduanya calm/
+ *  desaturasi (bukan vivid ala Aurora/neon Studio Eq) sesuai request eksplisit
+ *  user "aksen warna calm yang memanjakan mata". `onPrimary`/`onSecondary` gelap
+ *  (kontras WCAG aman di atas sage/lavender mid-brightness), 0 warna dipinjam
+ *  dari 4 `darkColorScheme` lain di atas. */
+private val SereneDarkColors = darkColorScheme(
+    primary = SereneAccent,
+    onPrimary = Color(0xFF12190F),
+    primaryContainer = SereneAccentDeep,
+    onPrimaryContainer = Color(0xFFDCEEDC),
+    secondary = SereneSecondary,
+    onSecondary = Color(0xFF19141F),
+    secondaryContainer = SereneSecondaryDeep,
+    onSecondaryContainer = Color(0xFFE9E3F2),
+    background = SereneBackground,
+    onBackground = SereneTextPrimary,
+    surface = SereneSurface,
+    onSurface = SereneTextPrimary,
+    surfaceVariant = SereneSurfaceRaised,
+    onSurfaceVariant = SereneTextSecondary,
+    error = Color(0xFFFF6B6B),
+    onError = Color.White,
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = SereneOutline
+)
+
 private val AppTypography = Typography(
     // Batch 90 (roadmap.md Fase 7 Fase 2 opsi B, "Tipografi iOS"): dicek dulu
     // ke spek resmi Apple HIG (bukan tebak dari memori) — Large Title asli
@@ -840,6 +931,53 @@ private val NeumorphismTypography = Typography(
     )
 )
 
+/** Batch 111: typography KHUSUS varian Serene M3 — zero baseline dishare dengan
+ *  `AppTypography` (2 varian glass) ATAU `NeumorphismTypography` (Blade Runner).
+ *  Filosofi kebalikan keduanya: `AppTypography` tracking NEGATIF di headline,
+ *  `NeumorphismTypography` tracking POSITIF kuat rata-rata weight Bold/Black —
+ *  Serene M3 pakai tracking POSITIF tapi HALUS (0.1-0.3sp, bukan 0.6-1.2sp) +
+ *  weight lebih ringan (Medium/SemiBold dominan, headlineMedium SEMIBOLD bukan
+ *  Bold/Black manapun) — kesan tenang/lapang cocok "calm", skala ukuran juga beda
+ *  sendiri (headlineMedium 30sp, bukan 34sp iOS ATAU 32sp Blade Runner). */
+private val SereneTypography = Typography(
+    headlineMedium = TextStyle(
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 30.sp,
+        lineHeight = 37.sp,
+        letterSpacing = 0.1.sp
+    ),
+    headlineSmall = TextStyle(
+        fontWeight = FontWeight.Medium,
+        fontSize = 21.sp,
+        lineHeight = 27.sp,
+        letterSpacing = 0.15.sp
+    ),
+    titleMedium = TextStyle(
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
+        letterSpacing = 0.2.sp
+    ),
+    bodyLarge = TextStyle(
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
+        letterSpacing = 0.25.sp
+    ),
+    bodyMedium = TextStyle(
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 21.sp,
+        letterSpacing = 0.3.sp
+    ),
+    bodySmall = TextStyle(
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 17.sp,
+        letterSpacing = 0.2.sp
+    )
+)
+
 // iOS-style rounded — radius dinaikkan di semua step (dipakai otomatis oleh
 // komponen Material3 default: AlertDialog, Button, OutlinedButton, TextButton, dst
 // yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
@@ -880,6 +1018,25 @@ private val StudioEqShapes = Shapes(
     extraLarge = RoundedCornerShape(28.dp)
 )
 
+/** Batch 111: shape khusus Serene M3 (varian ke-5) — "unique underrated" sesuai
+ *  request user, BUKAN rounded-uniform (2 glass + Studio Eq) ATAU angular seragam
+ *  (Blade Runner). `large`/`extraLarge` (dipakai kartu besar/dialog) pakai
+ *  `CutCornerShape` 1-sudut-terpotong (top-end saja) DIKOMBINASI radius di 3 sudut
+ *  lain — organic-asymmetric genuinely beda dari 4 shape lain di file ini, tapi
+ *  tetap "M3-safe" (Material3 native `CornerBasedShape`, bukan custom Path/hack).
+ *  `extraSmall`/`small`/`medium` (chip/icon-box/kartu kecil) TETAP simetris rounded
+ *  biar komponen kecil gak "ribut" — asimetri cuma di elemen besar yang punya
+ *  ruang visual buat itu, konsisten prinsip iOS-glass Batch 37 (radius besar =
+ *  fokus mata utama). Konsisten `SereneCardRadius`/`SereneIconBoxRadius` (18dp/12dp)
+ *  di atas. */
+private val SereneShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(SereneIconBoxRadius),
+    large = CutCornerShape(topEnd = 20.dp, topStart = SereneCardRadius, bottomStart = SereneCardRadius, bottomEnd = SereneCardRadius),
+    extraLarge = CutCornerShape(topEnd = 26.dp, topStart = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
+)
+
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
  *  SkeuomorphicComponents.kt) tapi NILAINYA SELALU `true`, tidak ada resolusi/override
  *  light. */
@@ -893,36 +1050,42 @@ fun AudioEnhancerTheme(
 ) {
     val context = LocalContext.current
     // Material You (wallpaper) MENANG kalau opt-in aktif — independen dari pilihan
-    // Midnight/Aurora Glass/Neumorphism/Studio Equalizer.
+    // Midnight/Aurora Glass/Neumorphism/Studio Equalizer/Serene M3.
     val colors = when {
         useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> dynamicDarkColorScheme(context)
         themeStyle == AppThemeStyle.RADICAL_SKEUO -> RadicalDarkColors
         themeStyle == AppThemeStyle.SKEUOMORPHISM -> NeumorphismDarkColors
         themeStyle == AppThemeStyle.STUDIO_EQ -> StudioEqDarkColors
+        themeStyle == AppThemeStyle.SERENE_M3 -> SereneDarkColors
         else -> DarkColors
     }
     val skeuTokens = when (themeStyle) {
         AppThemeStyle.RADICAL_SKEUO -> RadicalSkeuoSkeuTokens
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismSkeuTokens
         AppThemeStyle.STUDIO_EQ -> StudioEqSkeuTokens
+        AppThemeStyle.SERENE_M3 -> SereneSkeuTokens
         else -> AmoledGlassSkeuTokens
     }
     // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
     // semua). Batch 46: varian ke-3 pakai `NeumorphismShapes` (rounded soft-UI,
     // ganti dari `SkeuomorphismShapes` sudut tegas). Batch 43: +Studio Equalizer
     // pakai `StudioEqShapes` (rounded generous neumorphism). Batch 108: varian
-    // ke-3 sekarang `NeumorphismShapes` near-flat/angular (Blade Runner).
+    // ke-3 sekarang `NeumorphismShapes` near-flat/angular (Blade Runner). Batch 111:
+    // +Serene M3 pakai `SereneShapes` (organic-asymmetric, cut-corner di elemen besar).
     val shapes = when (themeStyle) {
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismShapes
         AppThemeStyle.STUDIO_EQ -> StudioEqShapes
+        AppThemeStyle.SERENE_M3 -> SereneShapes
         else -> AppShapes
     }
     // Batch 108: typography PERTAMA KALI jadi per-varian (sebelumnya `AppTypography`
     // statis buat semua 4, sama seperti `shapes` sebelum Batch 39/43) — cuma varian
     // ke-3 (Neumorphism/"Blade Runner") yang beda, 3 varian lain TETAP `AppTypography`
-    // (0 perubahan visual buat Midnight Glass/Aurora Glass/Studio Equalizer).
+    // (0 perubahan visual buat Midnight Glass/Aurora Glass/Studio Equalizer). Batch
+    // 111: +Serene M3 pakai `SereneTypography` (0 baseline dishare dgn keduanya).
     val typography = when (themeStyle) {
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismTypography
+        AppThemeStyle.SERENE_M3 -> SereneTypography
         else -> AppTypography
     }
     CompositionLocalProvider(

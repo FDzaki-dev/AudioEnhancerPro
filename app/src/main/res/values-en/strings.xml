@@ -81,6 +81,8 @@
     <string name="theme_style_skeuo_desc">Turn on Blade Runner-style Neumorphism — near-flat HUD panels (not rounded), tracked-out typography, plus a misty pine forest green accent and matched dual shadows that stay immersive without a glass look. Off = Midnight Glass (default).</string>
     <string name="theme_style_studioeq_title">Studio Equalizer</string>
     <string name="theme_style_studioeq_desc">Turn on Studio Equalizer — a studio mixer-board neumorphism look, dark grey panels with a neon-green indicator-light accent. Off = Midnight Glass (default).</string>
+    <string name="theme_style_serene_title">Serene M3</string>
+    <string name="theme_style_serene_desc">Turn on Serene M3 — genuine Material 3, flat with no glass or bevel, roomy typography and organic-asymmetric corners, with calm sage and lavender accents easy on the eyes. Off = Midnight Glass (default).</string>
 
     <!-- Battery card -->
     <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>

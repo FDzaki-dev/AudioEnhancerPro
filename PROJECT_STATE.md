@@ -124,6 +124,19 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 111** (`Theme.kt`+`PrefsHelper.kt`+`MainActivity.kt`+`BoosterScreen.kt`
+  +strings ID/EN): varian tema BARU ke-5 "Serene M3" (request eksplisit user) —
+  genuine Material 3 flat-tonal (0 glass/bevel/dual-shadow, `shadowLightTint`/
+  `shadowDarkTint`/`specularBrush` semua Transparent), typography sendiri
+  (`SereneTypography`: 30/21/16sp, tracking positif halus 0.1-0.3sp, weight
+  Medium/SemiBold dominan — 0 baseline dishare Batch 90/108), shape
+  organic-asymmetric (`SereneShapes`: `CutCornerShape` 1-sudut di elemen besar,
+  simetris di elemen kecil), aksen "calm" sage (`SereneAccent` 0x9CB89F) +
+  lavender-abu (`SereneSecondary` 0xB7AFC9). Enum `+SERENE_M3`, const
+  `APP_THEME_SERENE_M3`, toggle ke-5 (ikon `Spa`) sejajar 4 toggle lain, 0
+  varian lain disentuh. `docs/preview/current.html` footer note disinkron
+  (tetap representasi Midnight Glass saja, sesuai preseden 3 varian
+  sebelumnya). Belum tervalidasi visual (sandbox tanpa render).
 - **Batch 110** (`Theme.kt`): komplain user eksplisit — aksen "Misty Pine
   Forest" (Batch 109) kalah dominan dari tint navy independen di
   `SkeuDualDirectionalShadow` (`NeumoEdgeHighlight`/`NeumoEdgeShadow`), yang
@@ -489,6 +502,13 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
    tiap kartu ikut kebaca pine, bukan biru. Base palette Deep Navy (fill
    kartu) & alpha depth Batch 56 TIDAK disentuh. Detail: `CHANGELOG.md`
    Batch 110.
+12. **Varian tema ke-5 baru: "Serene M3"** (Batch 111, TAMBAHAN sejajar
+   4 varian di poin 7, TIDAK mengubah satupun dari 4 varian itu) — genuine
+   Material 3 flat-tonal (bukan glass/skeuo/neumorphism), typography+shape
+   ZERO baseline dishare varian manapun (`SereneTypography` tracking positif
+   halus + weight ringan, `SereneShapes` organic-asymmetric cut-corner),
+   aksen "calm" sage+lavender desaturasi. Detail lengkap: `CHANGELOG.md`
+   Batch 111, komentar blok `Theme.kt`.
 
 **Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
 bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
@@ -585,9 +605,9 @@ preferences.
   `AudioDeviceCallback` terdaftar — nudge `enableEffects()` (bukan
   recreate) saat output route berubah, digate `isRunning`.
 - `Theme.kt` — palet dark-only, typography, shape, token bevel/glow untuk
-  ke-4 varian tema. Accent color per-fitur independen dari switch tema.
-  `SkeuTokens` data class + `LocalSkeuTokens`/`LocalAppThemeStyle`
-  CompositionLocal.
+  ke-5 varian tema (Batch 111: +Serene M3). Accent color per-fitur independen
+  dari switch tema. `SkeuTokens` data class + `LocalSkeuTokens`/
+  `LocalAppThemeStyle` CompositionLocal.
 - `PrefsHelper.kt` — SharedPreferences wrapper, semua persistence.
   `CustomPreset` punya field `eqBands: List<Int>` (default `emptyList()`,
   backward-compat via `optJSONArray`). `getUseHorizontalTabLayout()`/
@@ -681,12 +701,12 @@ Backlog terbesar & paling berisiko — banyak perubahan besar (tema/UI Batch
 only). **Cara kerja disarankan**: JANGAN validasi semua sekaligus — tiap
 user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
 detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
-- 4 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer) —
-  cek visual tiap varian di Settings; kandidat bug: glow/sheen gak muncul,
-  radius salah, kontras teks kurang. **Neumorphism (Batch 108-110, baru)**:
-  cek KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah di device
-  fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi), 6 style
-  typography baru (`NeumorphismTypography`) render proporsional (bukan
+- 5 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer/
+  Serene M3) — cek visual tiap varian di Settings; kandidat bug: glow/sheen
+  gak muncul, radius salah, kontras teks kurang. **Neumorphism (Batch
+  108-110)**: cek KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah
+  di device fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi),
+  6 style typography baru (`NeumorphismTypography`) render proporsional (bukan
   overflow/kepotong — letterSpacing lebih lebar dari `AppTypography` global),
   aksen Misty Pine Forest (`NeumoMistyPine`, Batch 109) kontras cukup di
   atas Deep Navy (WCAG, terutama `onPrimary` teks di atas tombol/switch
@@ -694,7 +714,14 @@ detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
   `NeumoEdgeShadow`, Batch 110) kebaca sebagai "pine subtle" bukan "biru
   masih dominan" di device fisik (fix ini FIX PERSEPSI VISUAL user, kandidat
   gagal: pine 15%/30% blend terlalu tipis buat device tertentu, kalau
-  disinggung lagi cek dulu apa perlu naikkan persentase blend).
+  disinggung lagi cek dulu apa perlu naikkan persentase blend). **Serene M3
+  (Batch 111, baru)**: cek KHUSUS — `SereneShapes` `large`/`extraLarge`
+  pakai `CutCornerShape` asimetris (bukan `RoundedCornerShape` seperti 4
+  varian lain) — pastikan render di kartu besar/dialog TIDAK aliasing/pecah
+  di device fisik, tipografi `SereneTypography` (tracking positif tipis
+  0.1-0.3sp, weight lebih ringan dari 4 varian lain) tetap terbaca jelas
+  meski lebih halus, kontras `onPrimary`/`onSecondary` di atas sage/lavender
+  aman WCAG.
 - `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
   `Cannot create an instance of BoosterViewModel`.
 - `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab

@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VolumeUp
@@ -1057,6 +1058,40 @@ fun BoosterScreen(
                     )
                 }
                 SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_STUDIO_EQ, onCheckedChange = null)
+            }
+        }
+
+        // Batch 111: switch "Serene M3" — varian ke-5, sejajar 3 di atas (bukan
+        // sub-opsi). Genuine Material 3 flat-tonal, typography+shape+aksen "calm"
+        // (sage+lavender desaturasi) 0 baseline dishare dari 4 varian lain.
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_SERENE_M3,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_SERENE_M3 else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Spa, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_serene_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_serene_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_SERENE_M3, onCheckedChange = null)
             }
         }
         }

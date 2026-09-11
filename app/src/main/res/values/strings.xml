@@ -81,6 +81,8 @@
     <string name="theme_style_skeuo_desc">Aktifkan tampilan Neumorphism ala Blade Runner — panel HUD nyaris tegas (bukan bulat), tipografi tracked-out, plus aksen hijau pinus berkabut Misty Pine Forest dan bayangan ganda senada yang tetap immersive tanpa kesan kaca. Nonaktif = Midnight Glass (bawaan).</string>
     <string name="theme_style_studioeq_title">Studio Equalizer</string>
     <string name="theme_style_studioeq_desc">Aktifkan Studio Equalizer — neumorphism papan mixer studio, abu-abu gelap dengan aksen lampu indikator hijau neon. Nonaktif = Midnight Glass (bawaan).</string>
+    <string name="theme_style_serene_title">Serene M3</string>
+    <string name="theme_style_serene_desc">Aktifkan Serene M3 — Material 3 asli, flat tanpa kaca/bevel, tipografi lapang dan sudut organic-asymmetric, dengan aksen sage dan lavender yang tenang di mata. Nonaktif = Midnight Glass (bawaan).</string>
 
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>

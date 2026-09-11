@@ -39,11 +39,15 @@ object PrefsHelper {
      *  atas. Const lama TIDAK diganti (persistence key user existing tetap valid).
      *  Batch 43: tambah varian ke-4 `APP_THEME_STUDIO_EQ` — "Studio Equalizer",
      *  neumorphism soft-UI (palet abu-abu studio gelap + aksen neon-lime), independen
-     *  dari 3 varian di atas. Const lama tetap TIDAK diganti. */
+     *  dari 3 varian di atas. Const lama tetap TIDAK diganti.
+     *  Batch 111: tambah varian ke-5 `APP_THEME_SERENE_M3` — genuine Material 3,
+     *  typography+shape+aksen "calm" zero baseline dishare dari 4 varian di atas.
+     *  Const lama tetap TIDAK diganti. */
     const val APP_THEME_AMOLED_GLASS = "amoled_glass"
     const val APP_THEME_RADICAL_SKEUO = "radical_skeuo"
     const val APP_THEME_SKEUOMORPHISM = "skeuomorphism"
     const val APP_THEME_STUDIO_EQ = "studio_eq"
+    const val APP_THEME_SERENE_M3 = "serene_m3"
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

@@ -1,5 +1,77 @@
 # Changelog
 
+## Batch 111: Varian tema baru ke-5 — "Serene M3" (genuine Material 3)
+
+Request eksplisit user: tambah opsi tema baru berbasis Material 3, dengan
+typography+shape unique yang zero baseline dishare dengan tema lain, dan
+kombinasi aksen warna "calm" yang memanjakan mata.
+
+**Filosofi & posisi**: TAMBAHAN varian ke-5, sejajar 4 varian existing
+(Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer), TIDAK mengubah
+satupun dari 4 varian itu. Berbeda dari semuanya — bukan glassmorphism
+(2 varian glass), bukan neumorphism/skeuomorphism (Neumorphism/Studio Eq)
+— genuine Material 3 flat-tonal: `shadowLightTint`/`shadowDarkTint`/
+`specularBrush` semua `Color.Transparent` (0 bevel/dual-shadow/sheen kaca
+apapun), `cardElevation` 2dp (terendah dari 5 varian — M3 asli biasanya
+subtle, bukan deep-press look).
+
+**Aksen "calm"**: `SereneAccent` (sage, `0xFF9CB89F`) sebagai primary,
+`SereneSecondary` (lavender-abu, `0xFFB7AFC9`) sebagai secondary — dua-duanya
+desaturasi/mid-brightness (BUKAN vivid ala Aurora Glass, BUKAN neon ala
+Studio Equalizer), dipilih spesifik untuk kesan tenang di mata sesuai
+request user. `onPrimary`/`onSecondary` gelap kontras WCAG aman.
+
+**Typography ("zero baseline dishare")**: `SereneTypography` baru filosofinya
+kebalikan 2 sistem typography existing — `AppTypography` (2 varian glass)
+tracking NEGATIF di headline, `NeumorphismTypography` (Blade Runner) tracking
+POSITIF KUAT (0.6-1.2sp) + weight Bold/Black dominan. `SereneTypography`
+pakai tracking POSITIF tapi HALUS (0.1-0.3sp) + weight lebih ringan
+(Normal/Medium/SemiBold, headlineMedium SemiBold — bukan Bold/Black manapun)
+— kesan lapang/tenang. Skala ukuran juga beda sendiri (headlineMedium 30sp,
+bukan 34sp iOS atau 32sp Blade Runner; bodyLarge/bodyMedium/bodySmall semua
+1sp lebih kecil dari `AppTypography`).
+
+**Shape ("unique underrated")**: `SereneShapes` organic-asymmetric — `large`/
+`extraLarge` (kartu besar/dialog) pakai `CutCornerShape` M3-native (1 sudut
+top-end terpotong, 3 sudut lain tetap rounded), BUKAN rounded-uniform (2
+glass + Studio Eq) atau angular-seragam (Blade Runner). `extraSmall`/`small`/
+`medium` (chip/icon-box/kartu kecil) TETAP simetris rounded — asimetri
+sengaja dibatasi ke elemen besar yang punya ruang visual, konsisten prinsip
+iOS-glass Batch 37 ("radius besar = fokus mata utama").
+
+**Arsitektur**: enum `AppThemeStyle.SERENE_M3` (+1, total 5), const
+`PrefsHelper.APP_THEME_SERENE_M3` = `"serene_m3"` (4 const lama TIDAK
+diganti — persistence key user existing tetap valid), `SereneDarkColors`
+(M3 `darkColorScheme`), `SereneSkeuTokens` (field lengkap, konsisten
+kontrak `SkeuTokens` data class), `SereneScreenBackgroundBrush` (gradient
+vertikal netral gelap, bukan biru/gunmetal/studio — nuansa sendiri).
+Semua 4 `when(themeStyle)` di `AudioEnhancerTheme()` (colors/skeuTokens/
+shapes/typography) dan 1 di `MainActivity.kt` (screenBrush) dapat cabang
+`SERENE_M3` eksplisit.
+
+**UI**: toggle ke-5 di `BoosterScreen.kt`, pola identik toggle Studio
+Equalizer (Batch 43) — `SkeuCard` + `Row` + `toggleable` + `SkeuSwitch`,
+ikon `Icons.Filled.Spa` (baru diimport, `material-icons-extended` sudah
+jadi dependency project), string `theme_style_serene_title`/
+`theme_style_serene_desc` (ID+EN).
+
+**Scope guard**: `SkeuomorphicComponents.kt` 0 disentuh (semua komponen baca
+token generik lewat `LocalSkeuTokens.current`, otomatis kompatibel varian
+baru tanpa perubahan kode komponen). 4 varian existing 0 perubahan visual/
+value — grep dikonfirmasi 0 token nama baru (`Serene*`) bentrok/overlap
+dengan token existing manapun.
+
+**File disentuh (5 kode + 2 strings + 1 docs)**: `Theme.kt`, `PrefsHelper.kt`,
+`MainActivity.kt`, `BoosterScreen.kt`, `strings.xml`+`values-en/strings.xml`,
+`docs/preview/current.html` (footer note sync, mockup HTML sendiri TETAP
+representasi Midnight Glass saja — konsisten precedent 3 varian sebelumnya
+yang juga tidak dapat mockup terpisah). Melebihi batas normal 3-file karena
+inheren ke scope "tambah varian tema baru penuh" (identik pola Batch 43
+Studio Equalizer). Belum tervalidasi visual (sandbox tanpa compiler/render)
+— kandidat gagal: `CutCornerShape` asimetris berpotensi aliasing di device
+fisik tertentu, cek juga kontras `onPrimary`/`onSecondary` di atas
+sage/lavender di berbagai kecerahan layar.
+
 ## Batch 110: Neumorphism dual-shadow ambient — navy independen jadi pine-tinted
 
 Instruksi eksplisit user (feedback screenshot APK): "warna Misty Pine Forest
