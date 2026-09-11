@@ -127,6 +127,36 @@ PERMANEN.
   coba swipe kiri/kanan antar tab + tap tab-bar + rotasi device + scroll
   konten panjang/pendek per-tab sungguhan, khususnya cek TIDAK ada clip
   shadow ganda balik seperti Batch 99-101).
+- **Batch 105** (1 file kode — `BoosterScreen.kt`, REVERT): user laporkan
+  regresi UI parah setelah Batch 104 (klip & distorsi di mana-mana, build
+  sungguhan) — Batch 104 (auto-height pager via `onSizeChanged`) DIREVERT
+  TOTAL, file kembali 100% identik byte-per-byte ke Batch 103 (diverifikasi
+  `diff` kosong). Root cause paling mungkin: pengukuran tinggi
+  `onSizeChanged` di dalam `HorizontalPager` competing dengan pager itu
+  sendiri yang butuh constraint tinggi definitif dari awal — siklus
+  ukur-lalu-set-tinggi menimbulkan layout pass tidak stabil (kemungkinan
+  re-layout loop/flicker antar page saat swipe, konsisten dengan laporan
+  "distorsi di mana-mana") — TIDAK bisa dipastikan tanpa emulator/device
+  fisik (sandbox tanpa compiler/emulator, sudah diperingatkan eksplisit di
+  entry Batch 104 sebagai "belum divalidasi runtime/visual"). **Keputusan**:
+  swipe-antar-tab TIDAK dikembalikan lagi lewat pendekatan wrap-content
+  pager — pendekatan itu TERBUKTI gagal di runtime sungguhan, JANGAN dicoba
+  ulang dengan cara yang sama tanpa perubahan strategi mendasar. Opsi kalau
+  user mau swipe lagi ke depan: (a) pager tinggi TETAP eksplisit ala Batch
+  100 tapi dikombinasi ulang dengan padding fix Batch 101 (risiko clip
+  balik, sudah pernah gagal sebelumnya) — TIDAK direkomendasikan; (b) pager
+  tinggi tetap = tinggi konten TERPANJANG dari ke-3 tab (dihitung sekali di
+  awal, bukan per-page dinamis, jadi tidak ada re-layout saat swipe) —
+  kandidat paling stabil kalau diminta lagi; (c) tetap tap-tab saja (state
+  Batch 103/105 sekarang, TERBUKTI stabil). Status sekarang: Mode Tab
+  Horizontal balik ke behavior Batch 103 (tap-tab, 1 scrollport, 0 clip
+  ganda, 0 swipe). Mode vertikal (default) 0 perubahan sepanjang Batch
+  104-105.
+- **Batch 104** (1 file kode — `BoosterScreen.kt`, DIREVERT di Batch 105 —
+  lihat entry di atas): instruksi eksplisit user kembalikan swipe-antar-tab
+  via auto-height pager. TERBUKTI regresi di runtime sungguhan (klip &
+  distorsi), JANGAN diulang dengan cara yang sama. Detail lengkap (yang
+  gagal): `CHANGELOG.md`.
 - **Batch 103** (1 file kode — `BoosterScreen.kt`). User
   eksplisit pilih 1 dari 2 opsi arsitektur yang ditawarkan Batch 102 (lewat
   tappable option, BUKAN dok-only lagi): **hapus swipe-antar-tab**. `HorizontalPager`

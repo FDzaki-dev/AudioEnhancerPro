@@ -1,5 +1,33 @@
 # Changelog
 
+## Batch 105: REVERT Batch 104 — regresi UI parah dilaporkan (klip & distorsi)
+
+User laporkan regresi UI parah di build sungguhan pasca-Batch 104 (klip &
+distorsi di mana-mana). Batch 104 (auto-height pager, `HorizontalPager` +
+pengukuran tinggi dinamis via `onSizeChanged`) DIREVERT TOTAL — file
+`BoosterScreen.kt` dikembalikan 100% identik byte-per-byte ke Batch 103
+(diverifikasi `diff` kosong terhadap arsip Batch 103).
+
+**Analisis kegagalan** (untuk referensi, BUKAN untuk dicoba ulang dengan
+cara sama): kemungkinan besar siklus ukur-lalu-set-tinggi
+(`pagerHeightPx` di-update dari `onSizeChanged` pada child yang dirender
+DI DALAM `HorizontalPager` yang tingginya sendiri bergantung pada state
+itu) menimbulkan layout pass tidak stabil — pager butuh constraint tinggi
+definitif SEBELUM children-nya diukur, bukan sirkular seperti itu.
+Konsisten dengan gejala "klip & distorsi di mana-mana" yang dilaporkan
+user. Tidak bisa dipastikan tanpa emulator/device fisik — sandbox tidak
+punya compiler/emulator, keterbatasan ini sudah dicatat eksplisit di
+entry Batch 104 sebagai "belum divalidasi runtime/visual".
+
+**Status sekarang**: Mode Tab Horizontal balik ke behavior Batch 103 murni
+(tap-tab, 1 scrollport Column pembungkus utama, 0 clip ganda, 0 swipe).
+Mode vertikal (default) 0 perubahan.
+
+**Opsi ke depan kalau swipe diminta lagi** (dicatat di PROJECT_STATE.md,
+opsi (b) — pager tinggi tetap dari konten terpanjang, dihitung sekali di
+awal bukan dinamis per-page — kandidat paling stabil karena tidak ada
+re-layout saat swipe berlangsung).
+
 ## Batch 104: Kembalikan swipe-antar-tab — auto-height pager, 0 regresi clip ganda
 
 Instruksi baru eksplisit user: kembalikan gesture swipe (dihapus Batch 103)
