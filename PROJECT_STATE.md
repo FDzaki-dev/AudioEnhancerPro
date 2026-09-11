@@ -90,7 +90,8 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 106 (housekeeping dokumentasi).
+- **Batch terakhir**: 107 (Fase 0 item #9 — OutputRouteBanner, state
+  "Output-changed" disurface ke UI, belum tervalidasi runtime).
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -120,6 +121,17 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 107** (`BoosterViewModel.kt`+`MainActivity.kt`+`BoosterScreen.kt`+
+  strings ID/EN): Fase 0 item #9 — state "Output-changed" (route audio
+  pindah) DITUTUP. `AudioEnhancerService.lastOutputRouteDescription` (Batch
+  83) sebelumnya write-only, sekarang dipoll ViewModel (loop 1 detik yang
+  sama dengan EffectState) → `OutputRouteBanner` baru (tint primary/info,
+  BEDA dari ControlRecoveryBanner merah/error). Auto-reset dismiss saat
+  route berubah lagi ke deskripsi berbeda. 4 state lain (Unsupported/
+  Strength-unsupported/Control-lost/Failed) dikonfirmasi SUDAH tersurface
+  sejak Batch 57-59 — audit ulang tidak temukan gap lain. Fase 0 sekarang
+  5/9 selesai. Belum tervalidasi runtime (banner baru, perlu trigger
+  device fisik ganti route Bluetooth/wired).
 - **Batch 106** (0 kode, dok-only): konsolidasi `roadmap.md` + 2x
   `PENDING_*.md` → `PROJECT_STATE.md` § TODO/ROADMAP, sumber lama
   dipindah ke `/archive`. README diaudit, 0 info usang lain ditemukan.
@@ -503,8 +515,8 @@ preferences.
   kartu baterai/autostart. Opsi custom: Mode Tab Horizontal
   (`TabPageContent(page)`, tap-tab via `selectedTabIndex`). Termasuk
   `PowerToggleRow`, `ServiceStatusBadge`, `CrashBanner`,
-  `ControlRecoveryBanner`, `UpdateBanner`, `EqualizerSection`, dialog
-  preset.
+  `ControlRecoveryBanner`, `OutputRouteBanner` (Batch 107, info route
+  audio), `UpdateBanner`, `EqualizerSection`, dialog preset.
 - `SkeuomorphicComponents.kt` — atom UI reusable (`SkeuCard`,
   `SkeuTintedCard`, `SkeuPowerButton`, `SkeuSwitch`, `SkeuGroupDivider`,
   `SectionLabel`, `FeatureControl`, `Modifier.skeuGlow`). Semua
@@ -563,16 +575,24 @@ tanya "lanjut yang mana" tanpa fitur baru spesifik diminta.
 
 ### Fase 0 — Audio Engine Robustness (audit eksternal Batch 57)
 9 item dari audit eksternal, kerjakan SATU per satu (instruksi eksplisit
-user, jangan sekaligus). Status: 4/9 selesai (#1 effect-state verification,
-#4 control ownership/lifecycle, #7 preset+EQ, #8 automated test), 4/9
+user, jangan sekaligus). Status: 5/9 selesai (#1 effect-state verification,
+#4 control ownership/lifecycle, #7 preset+EQ, #8 automated test, #9
+UI/error-state refinement — SELESAI Batch 107, lihat detail di bawah), 3/9
 sebagian (#2 capability detection — LoudnessEnhancer secara teknis TIDAK
-bisa diquery, bukan gap; #3 output routing — deteksi ada, UI belum; #5 gain
+bisa diquery, bukan gap; #3 output routing — deteksi ada + SEKARANG
+disurface UI (Batch 107, cek "Belum divalidasi runtime" di bawah); #5 gain
 staging — limiter pasif ada, pipeline eksplisit TIDAK bisa dijamin urutannya
-di API publik; #6 rebuild session-0 — Fase 1 dari rebuild bertahap selesai,
-lihat "Batasan Fundamental" di bawah), 1 belum (#9 UI/error-state
-refinement — bedakan Unsupported/Unavailable/Control-lost/Failed/Output-
-changed eksplisit di UI, sekarang masih 1 helpText generik). Detail teknis
-lengkap tiap item: `CHANGELOG.md` Batch 57-63, 83-87.
+di API publik), 1 hybrid (#6 rebuild session-0 — Fase 1 dari rebuild
+bertahap selesai, lihat "Batasan Fundamental" di bawah). Detail teknis
+lengkap tiap item: `CHANGELOG.md` Batch 57-63, 83-87, 107.
+
+**#9 detail (Batch 107)**: audit ulang confirm 4 dari 5 state target sudah
+tersurface sejak Batch 57-59 via `helpText` per-FeatureControl
+(`feature_help_unsupported`/`_strength_unsupported`/`_control_lost`/
+`_failed`) — TIDAK ada gap di situ. Gap SATU-SATUNYA yang nyata:
+"Output-changed" (`lastOutputRouteDescription`, Batch 83) write-only,
+tidak pernah dibaca UI. Ditutup via `OutputRouteBanner` baru (BoosterScreen.kt) —
+tint primary/info (BUKAN error), auto-dismiss-reset saat route ganti lagi.
 
 **BATASAN FUNDAMENTAL #6 (baca sebelum lanjut Fase 2+ rebuild)**: TIDAK ADA
 API publik Android yang beri app kontrol urutan insert effect di HAL chain
@@ -630,7 +650,13 @@ detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
   preset, ubah lagi EQ, terapkan preset tadi → slider balik PERSIS ke nilai
   saat disimpan; preset LAMA (sebelum update ini) masih bisa diterapkan
   tanpa crash & tidak mengubah EQ manual aktif.
-- **Batch 104-105 (baru)**: swipe-antar-tab via auto-height pager TERBUKTI
+- **Batch 107 (baru)**: `OutputRouteBanner` — ganti output audio (colokin/
+  cabut Bluetooth/wired/USB) di device fisik saat service jalan, cek banner
+  biru muncul ≤1 detik dengan deskripsi device benar, dismiss via "Oke",
+  ganti route LAGI ke device lain → banner muncul lagi (bukan permanen
+  hilang). Kandidat gagal: `AudioDeviceCallback` tidak fire di device/OEM
+  tertentu (dicatat sebagai risiko sejak Batch 83, belum ada data nyata).
+- **Batch 104-105**: swipe-antar-tab via auto-height pager TERBUKTI
   regresi UI parah di device fisik (klip & distorsi) — sudah direvert ke
   Batch 103 (tap-tab). Kalau swipe diminta lagi ke depan: JANGAN ulangi
   pendekatan `onSizeChanged` dinamis-per-page (siklus ukur-lalu-set-tinggi

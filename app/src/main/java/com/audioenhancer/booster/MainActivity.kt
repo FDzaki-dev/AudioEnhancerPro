@@ -246,6 +246,12 @@ class MainActivity : ComponentActivity() {
                             onRestartService = { viewModel.startBoosterService() },
                             // Batch 62: tombol "Coba Ambil Alih Kontrol Lagi" (ControlRecoveryBanner).
                             onRetryControl = { viewModel.retryControlAcquisition() },
+                            // Fase 0 item #9: state "Output-changed" (route audio pindah), beda
+                            // dari EffectState (CONTROL_LOST/FAILED) — SkeuTintedCard biru info,
+                            // bukan merah warning, lihat OutputRouteBanner (BoosterScreen.kt).
+                            lastOutputRouteInfo = viewModel.lastOutputRouteInfo,
+                            outputRouteInfoDismissed = viewModel.outputRouteInfoDismissed,
+                            onDismissOutputRouteInfo = { viewModel.dismissOutputRouteInfo() },
                             requestedCustomPresetName = shortcutCustomPresetName,
                             onRequestedPresetConsumed = { shortcutCustomPresetName = null },
                             // Fitur baru: in-app update (UpdateManager.kt, BoosterViewModel).

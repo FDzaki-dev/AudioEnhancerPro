@@ -1,5 +1,47 @@
 # Changelog
 
+## Batch 107: Fase 0 item #9 — state "Output-changed" disurface ke UI
+
+Audit eksternal Batch 57 minta UI membedakan 5 state effect eksplisit:
+Unsupported, Strength-unsupported, Control-lost, Failed, dan Output-changed.
+Audit ulang batch ini konfirmasi 4 state pertama SUDAH tersurface sejak
+Batch 57-59 lewat `helpText` per-`FeatureControl` (string
+`feature_help_unsupported`/`_strength_unsupported`/`_control_lost`/
+`_failed`) — tidak ada perubahan diperlukan di situ.
+
+Gap nyata: `AudioEnhancerService.lastOutputRouteDescription` (ditambah
+Batch 83, dipicu `AudioDeviceCallback` tiap route audio pindah — Bluetooth/
+wired/USB/speaker) tersimpan tapi write-only, tidak pernah dibaca komponen
+UI manapun.
+
+**Perubahan** (3 file kode + strings ID/EN, dalam limit Micro-Batch):
+- `BoosterViewModel.kt`: field baru `lastOutputRouteInfo` (String?) dan
+  `outputRouteInfoDismissed` (Boolean) + fungsi `dismissOutputRouteInfo()`.
+  Dipoll di loop `viewModelScope` yang SAMA dengan `bassEffectState` dkk
+  (Batch 58) — bukan loop baru. Deteksi route BARU (beda dari deskripsi
+  yang sudah ditampilkan) me-reset `outputRouteInfoDismissed` ke `false`,
+  supaya perpindahan route berikutnya tetap muncul lagi meski user sudah
+  dismiss route sebelumnya.
+- `MainActivity.kt`: 3 parameter baru diteruskan ke `BoosterScreen()`.
+- `BoosterScreen.kt`: composable baru `OutputRouteBanner` — pola visual
+  SAMA seperti `ControlRecoveryBanner` (`SkeuTintedCard` + Row icon+teks+
+  tombol) tapi tint `MaterialTheme.colorScheme.primary` (info netral,
+  BUKAN `colorScheme.error`) dan tombol "Oke" dismiss polos (bukan retry) —
+  ini BUKAN kegagalan, effect sudah di-nudge otomatis oleh
+  `onOutputRouteChanged()` Service (Batch 83), banner murni informasi.
+  Ditaruh setelah `ControlRecoveryBanner` di urutan render (prioritas
+  visual: warning/error > info kalau kebetulan tampil bersamaan).
+- `strings.xml` (ID+EN): `output_route_changed_message` (placeholder
+  `%1$s` diisi deskripsi device dari Service, mis. "Bluetooth A2DP
+  (terhubung)") + `output_route_changed_dismiss`.
+
+**Validasi**: brace/paren balance check (python) lolos di 3 file .kt.
+Referensi baru (`Icons.Filled.SurroundSound`, `SkeuTintedCard`, kedua
+string resource) dikonfirmasi resolve ke import/definisi yang sudah ada —
+0 import baru diperlukan. **Belum divalidasi runtime** (tidak ada
+compiler/emulator di sandbox) — masuk Fase 1 Runtime Validation Debt,
+skenario test dicatat di `PROJECT_STATE.md`.
+
 ## Batch 106: Housekeeping dokumentasi — konsolidasi ke 4 dokumen standar SOP
 
 Instruksi eksplisit user: arsipkan semua dokumentasi lama, adaptasi

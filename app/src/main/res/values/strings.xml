@@ -58,6 +58,10 @@
     <string name="feature_help_control_lost">Kontrol direbut aplikasi/sistem lain sementara.</string>
     <string name="control_recovery_message">Sebagian fitur kehilangan kontrol audio.</string>
     <string name="control_recovery_button">Coba Ambil Alih Lagi</string>
+    <!-- Fase 0 item #9: state "Output-changed" (OutputRouteBanner, BoosterScreen.kt) —
+         %1$s diisi lastOutputRouteInfo (mis. "Bluetooth A2DP (terhubung)"). -->
+    <string name="output_route_changed_message">Output audio berubah: %1$s. Efek disegarkan otomatis.</string>
+    <string name="output_route_changed_dismiss">Oke</string>
     <string name="control_recovery_snackbar">Percobaan pengambilan kontrol dikirim — tidak dijamin berhasil, tergantung aplikasi lain yang sedang memegangnya.</string>
 
     <!-- Equalizer manual -->

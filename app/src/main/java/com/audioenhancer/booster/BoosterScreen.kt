@@ -296,6 +296,57 @@ private fun ControlRecoveryBanner(
     }
 }
 
+/** Fase 0 item #9 (PROJECT_STATE.md TODO/ROADMAP): state "Output-changed" — sebelumnya
+ *  `AudioEnhancerService.lastOutputRouteDescription` (Batch 83) sudah dicatat tiap route
+ *  audio pindah (Bluetooth/wired/speaker) tapi TIDAK PERNAH disurface ke UI manapun (gap
+ *  eksplisit yang diminta ditutup). BEDA SENGAJA dari ControlRecoveryBanner: ini informasi
+ *  netral ("route berubah, effect di-nudge ulang otomatis"), BUKAN kegagalan — makanya tint
+ *  primary/info (bukan `MaterialTheme.colorScheme.error`) dan tombol "Oke" dismiss biasa
+ *  (bukan retry). Auto-muncul lagi kalau route BERUBAH LAGI ke deskripsi berbeda meski user
+ *  sudah dismiss sebelumnya (state `outputRouteInfoDismissed` di-reset oleh ViewModel saat
+ *  deteksi route baru, lihat `BoosterViewModel.kt`) — TIDAK muncul berulang untuk route yang
+ *  SAMA persis. Belum ada pemanggil `retryControlAcquisition()` di sini SENGAJA: nudge
+ *  ringan (`enableEffects()`) sudah otomatis jalan di `onOutputRouteChanged()` Service,
+ *  banner ini murni info, kalau nudge itu tidak cukup jalur CONTROL_LOST/FAILED yang
+ *  menangkap (ControlRecoveryBanner tetap muncul terpisah, tidak digantikan). */
+@Composable
+private fun OutputRouteBanner(
+    routeInfo: String?,
+    dismissed: Boolean,
+    onDismiss: () -> Unit
+) {
+    if (routeInfo == null || dismissed) return
+    val haptics = LocalHapticFeedback.current
+
+    SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
+        Row(
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                Icons.Filled.SurroundSound,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                stringResource(R.string.output_route_changed_message, routeInfo),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f)
+            )
+            CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                TextButton(onClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onDismiss()
+                }) {
+                    Text(stringResource(R.string.output_route_changed_dismiss))
+                }
+            }
+        }
+    }
+}
+
 /** Fitur baru: in-app update (UpdateManager.kt), diminta user eksplisit ("Tambahkan
  *  konfigurasi update langsung dalam aplikasinya"). Pola SAMA seperti CrashBanner/
  *  ControlRecoveryBanner di atas (SkeuTintedCard + Row icon+teks+tombol), tapi tint
@@ -416,7 +467,11 @@ fun BoosterScreen(
     updateDownloadFailed: Boolean = false,
     onDownloadUpdate: () -> Unit = {},
     onReinstallUpdate: () -> Unit = {},
-    onUpdateDownloadFailedShown: () -> Unit = {}
+    onUpdateDownloadFailedShown: () -> Unit = {},
+    // Fase 0 item #9: state "Output-changed" — lihat OutputRouteBanner di bawah.
+    lastOutputRouteInfo: String? = null,
+    outputRouteInfoDismissed: Boolean = false,
+    onDismissOutputRouteInfo: () -> Unit = {}
 ) {
     val presets = listOf(
         // Batch 64: nilai 3 preset non-flat DINAIKKAN ("perkuat efek preset", user eksplisit) —
@@ -1154,6 +1209,14 @@ fun BoosterScreen(
             hasDownloadedUpdate = hasDownloadedUpdate,
             onDownload = onDownloadUpdate,
             onReinstall = onReinstallUpdate
+        )
+        // Fase 0 item #9: ditaruh SETELAH ControlRecoveryBanner (info < warning secara
+        // prioritas visual, banner error lebih penting dilihat duluan kalau dua-duanya
+        // kebetulan tampil bersamaan — mis. route pindah DAN gagal CONTROL_LOST).
+        OutputRouteBanner(
+            routeInfo = lastOutputRouteInfo,
+            dismissed = outputRouteInfoDismissed,
+            onDismiss = onDismissOutputRouteInfo
         )
 
         when (connectionState) {

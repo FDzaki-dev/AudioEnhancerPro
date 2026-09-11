@@ -58,6 +58,10 @@
     <string name="feature_help_control_lost">Control temporarily taken over by another app/the system.</string>
     <string name="control_recovery_message">Some features lost audio control.</string>
     <string name="control_recovery_button">Try Retaking Control</string>
+    <!-- Fase 0 item #9: "Output-changed" state (OutputRouteBanner, BoosterScreen.kt) —
+         %1$s filled with lastOutputRouteInfo (e.g. "Bluetooth A2DP (connected)"). -->
+    <string name="output_route_changed_message">Audio output changed: %1$s. Effects refreshed automatically.</string>
+    <string name="output_route_changed_dismiss">OK</string>
     <string name="control_recovery_snackbar">Control recovery attempted — not guaranteed to succeed, depends on whichever app currently holds it.</string>
 
     <!-- Manual equalizer -->

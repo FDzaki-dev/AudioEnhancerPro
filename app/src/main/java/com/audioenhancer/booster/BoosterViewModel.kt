@@ -75,6 +75,23 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var loudnessEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     var equalizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
 
+    // Fase 0 item #9 (PROJECT_STATE.md TODO/ROADMAP): "Output-changed" adalah 1 dari
+    // 5 state yang diminta dibedakan eksplisit di UI — 4 lainnya (Unsupported/
+    // Strength-unsupported/Control-lost/Failed) sudah disurface sejak Batch 57-59.
+    // `AudioEnhancerService.lastOutputRouteDescription` sudah ada sejak Batch 83 tapi
+    // write-only (tidak pernah dibaca UI manapun) — dipoll di loop yang SAMA seperti
+    // EffectState di bawah, BUKAN loop baru. `null` = belum ada perpindahan route
+    // sejak service ini hidup (kondisi normal, banner tidak tampil).
+    var lastOutputRouteInfo by mutableStateOf<String?>(null); private set
+    // Dismiss manual oleh user (pola SAMA seperti "Nyalakan Lagi" ControlRecoveryBanner) —
+    // dibedakan dari `lastOutputRouteInfo` supaya banner tidak nongol lagi selama route
+    // SAMA belum berubah lagi, meski deskripsi tetap tersimpan (bukan dihapus).
+    var outputRouteInfoDismissed by mutableStateOf(false); private set
+
+    fun dismissOutputRouteInfo() {
+        outputRouteInfoDismissed = true
+    }
+
     // Info equalizer per-band, diisi begitu service konek (band count 0 = belum siap/tidak didukung).
     var equalizerSupported by mutableStateOf(false); private set
     var equalizerBandCount by mutableStateOf(0); private set
@@ -158,6 +175,14 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     virtualizerEffectState = service?.virtualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     loudnessEffectState = service?.loudnessState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     equalizerEffectState = service?.equalizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    // Fase 0 item #9: deteksi route BARU (beda dari deskripsi terakhir yang
+                    // sudah ditampilkan) — reset dismiss supaya perpindahan route BERIKUTNYA
+                    // tetap muncul lagi walau user sudah dismiss route sebelumnya.
+                    val currentRoute = service?.lastOutputRouteDescription
+                    if (currentRoute != null && currentRoute != lastOutputRouteInfo) {
+                        outputRouteInfoDismissed = false
+                    }
+                    lastOutputRouteInfo = currentRoute
                 }
                 delay(1000)
             }
