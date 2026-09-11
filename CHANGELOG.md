@@ -1,5 +1,77 @@
 # Changelog
 
+## Batch 108: Neumorphism theme dirombak total — "Blade Runner" ala + aksen Aurora
+
+Instruksi eksplisit user: "rombak total typography+shape 'Neumorphism' theme
+jadi ala Blade Runner tapi dengan aksen warna 'Aurora'". Scope sengaja
+dibatasi 3 sumbu (bukan full palette rewrite seperti Batch 52 "Deep Navy &
+Classic Brass") — base palette Deep Navy (background/panel/border/dual-shadow
+tint) TIDAK disentuh sama sekali, murni shape+typography+aksen sesuai
+instruksi persis.
+
+**1. Shape (near-flat/angular)**: `NeumoCardRadius` 22dp→4dp,
+`NeumoIconBoxRadius` 15dp→3dp, `NeumorphismShapes` (Shapes M3 dipakai
+komponen default seperti AlertDialog/Button yang belum di-override manual)
+ikut turun ke 2-6dp di semua step. Radius residual sengaja TIDAK 0dp murni —
+anti-aliasing tepi kartu besar di layar kecil bisa kebaca "pecah"/keras kalau
+benar-benar lancip, 2-4dp cukup baca sebagai "sharp/angular" (ala panel HUD
+Blade Runner — Voight-Kampff console, Tyrell Corp terminal) tanpa masalah
+render itu. Dual-shadow depth system (`NeumoEdgeHighlight`/`NeumoEdgeShadow`,
+`SkeuDualDirectionalShadow`) TIDAK disentuh — teknik neumorphism-nya
+(bayangan sepasang terarah) tetap, cuma siluet yang dibayangi sekarang tegas.
+**0 perubahan di `SkeuomorphicComponents.kt`** — shape tetap
+`RoundedCornerShape` (bukan diganti `CutCornerShape`), radius mendekati nol
+sudah cukup untuk efek visual yang diminta, TANPA perlu menambah field
+shape-type baru ke `SkeuTokens` (data class shared 4 varian) — pilihan ini
+menghilangkan total risiko regresi ke Midnight Glass/Aurora Glass/Studio
+Equalizer, karena file yang mereka pakai bersama sama sekali tidak disentuh.
+
+**2. Typography (PERTAMA KALI per-varian)**: sebelumnya `AppTypography`
+(Theme.kt) adalah satu-satunya objek `Typography` dipakai statis oleh
+`MaterialTheme()` untuk SEMUA 4 varian tema — arsitektur baru ditambahkan:
+`val typography = when(themeStyle) {...}` di `AudioEnhancerTheme()`, pola
+identik dengan `shapes`/`colors` yang sudah per-varian sejak Batch 39/43.
+`NeumorphismTypography` baru (6 TextStyle: headlineMedium/Small, titleMedium,
+bodyLarge/Medium/Small) — TIDAK embed font baru (keputusan sadar project ini
+sejak Batch 90, font sistem Android tetap dipakai untuk SEMUA varian) — efek
+"terminal/HUD film title-card" dicapai murni dari `letterSpacing` POSITIF/
+tracked-out (headlineMedium 1.2sp, kebalikan `AppTypography` yang malah
+negatif -0.4sp) + `fontWeight` rata-rata lebih berat (Black/ExtraBold untuk
+headline). `bodyMedium` (dipakai valueLabel slider Bass/Virtualizer/dll,
+mis. "450") sengaja paling tracked (0.8sp) di antara body styles — kesan
+"digital readout angka presisi". 3 varian lain (Midnight Glass/Aurora
+Glass/Studio Equalizer) TETAP `AppTypography` — 0 perubahan visual.
+
+**3. Aksen warna (Brass → Aurora)**: `NeumoBrass`/`NeumoBrassDeep` (Batch 52,
+gold `#D4AF37`) DIHAPUS TOTAL (bukan redefinisi nilai di bawah nama sama) —
+grep dikonfirmasi 0 referensi eksternal ke file lain, rename aman. Diganti
+`NeumoAurora`/`NeumoAuroraDeep` — `NeumoAurora` SAMA PERSIS nilai
+`RadicalAccent` (varian 2 "Aurora Glass", `#7C93FF` biru-ungu periwinkle) —
+literal reuse identitas warna "Aurora" yang sudah ada di codebase, bukan hue
+aurora-borealis generik hasil tebakan bebas. `NeumoAuroraDeep` diturunkan via
+`lerp(NeumoAurora, NeumoPanelRecessed, 0.45f)` (blend ke warna sumur/navy
+sendiri, bukan hex arbitrer) untuk `primaryContainer`. `NeumorphismDarkColors`
+(`primary`/`primaryContainer`) & `NeumoPrimaryGlow` diupdate ikut token baru.
+`onPrimary` tetap `NeumoBackground` (dark navy, pola sama seperti
+`RadicalDarkColors` — kontras WCAG aman, Aurora mid-brightness mirip brass
+lama). `NeumoKnobHighlight` (slider knob) SENGAJA TIDAK disentuh — tetap
+netral (prinsip existing "brass/aurora cuma buat state-aktif, bukan warna
+komponen pasif" dipertahankan).
+
+**4. Bonus fix (ditemukan saat audit, bukan diminta eksplisit)**: deskripsi
+string Settings (`theme_style_skeuo_desc`, ID+EN) ternyata SUDAH BASI sejak
+Batch 52 — masih menyebut "Platinum" dan "Ruby" padahal kode sudah Brass
+sejak Batch 52, tidak pernah diupdate 56 batch. Dikoreksi sekalian jadi
+deskripsi Blade Runner + Aurora yang akurat.
+
+**Validasi**: brace/paren balance check (python) lolos di `Theme.kt`. XML
+well-formed check lolos di `strings.xml` ID+EN. `SkeuomorphicComponents.kt`
+dikonfirmasi 0 disentuh (md5 tetap, tidak ada diff). Grep dikonfirmasi 0
+stray reference ke `NeumoBrass`/`NeumoBrassDeep` di file manapun (cuma
+disebut di komentar historis Theme.kt sendiri). **Belum tervalidasi visual**
+(sandbox tanpa render/compiler) — masuk Fase 1 Runtime Validation Debt,
+skenario test spesifik dicatat di `PROJECT_STATE.md`.
+
 ## Batch 107: Fase 0 item #9 — state "Output-changed" disurface ke UI
 
 Audit eksternal Batch 57 minta UI membedakan 5 state effect eksplisit:

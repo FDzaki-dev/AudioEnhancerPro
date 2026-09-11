@@ -291,12 +291,44 @@ val NeumoTextPrimary = Color(0xFFF8FAFC)   // txtPrimary, slate-50
 val NeumoTextSecondary = Color(0xFF94A3B8) // txtSecondary, slate-400
 val NeumoTextMuted = Color(0xFF64748B)     // slate-500, 1 step lebih redup dari secondary
 
-/** Brass — SATU-SATUNYA aksen berwarna di varian ini (ganti Platinum+Ruby),
- *  khusus CTA utama/state-aktif/glow (aturan komposisi: maks ~10% area,
- *  JANGAN dipakai teks paragraf panjang — cek semua pemakaian tetap di
- *  primary/onPrimaryContainer/glow/ring, TIDAK di teks body/secondary). */
-val NeumoBrass = Color(0xFFD4AF37)
-val NeumoBrassDeep = Color(0xFFA9862C)
+// ============================================================================
+// Batch 108 — user minta eksplisit "rombak total typography+shape 'Neumorphism'
+// theme jadi ala Blade Runner tapi dengan aksen warna 'Aurora'". Scope SENGAJA
+// dibatasi 3 sumbu (BUKAN full palette rewrite ala Batch 52): (1) shape — radius
+// kartu/icon-box + `NeumorphismShapes` (M3 default shapes) turun ke near-flat/
+// angular (lihat komentar `NeumoCardRadius` di bawah); (2) typography — sebelumnya
+// GLOBAL 1 `Typography` (`AppTypography`) dipakai SEMUA 4 varian, sekarang
+// per-varian (arsitektur baru, `NeumorphismTypography`, WAJIB diisi di
+// `AudioEnhancerTheme()` seperti `shapes`/`colors` sudah per-varian sejak Batch 39)
+// — TIDAK embed font baru (keputusan sadar project ini, font sistem Android tetap
+// dipakai), efek "terminal/HUD Blade Runner" dicapai murni dari letterSpacing/
+// fontWeight (tracked-out ala title card film, bukan monospace asli); (3) aksen
+// warna — Brass (Batch 52) diganti Aurora (`NeumoAurora`, SAMA PERSIS
+// `RadicalAccent` varian 2 "Aurora Glass" — literal reuse, bukan hue baru hasil
+// tebakan). TIDAK disentuh: base palette Deep Navy (`NeumoBackground`/`NeumoPanel`/
+// `NeumoBorder`/dual-shadow tint) — scope user eksplisit "typography+shape"+aksen,
+// BUKAN "background"/"base palette", identitas neumorphism Deep Navy dipertahankan
+// utuh. `SkeuomorphicComponents.kt` (dipakai 3 varian lain) 0 disentuh — regresi
+// risk ke Midnight Glass/Aurora Glass/Studio Eq = NOL. Nama var `Neumo*` sengaja
+// TETAP prefix generik (bukan `Blade*`/`Aurora*` literal) — persistence key +
+// referensi internal file ini tidak berubah/pecah, konsisten precedent Batch 52.
+// ============================================================================
+
+/** Brass — DIGANTI TOTAL Batch 108 (lihat blok komentar Batch 108 di atas section
+ *  ini) → `NeumoAurora`/`NeumoAuroraDeep`. Var brass lama DIHAPUS (bukan sekadar
+ *  redefinisi nilai di bawah nama sama) — beda dari precedent Batch 52 ("nama var
+ *  Neumo* dipertahankan") yang soal PREFIX generik (`NeumoBackground`/`NeumoPanel`
+ *  dst, netral dari hue manapun); `NeumoBrass` sendiri secara harfiah nama HUE
+ *  spesifik, mempertahankan nama itu sambil isinya biru-ungu bakal menyesatkan sesi
+ *  Claude berikutnya (baca nama var = asumsi warna, prinsip inti PROJECT_STATE.md).
+ *  Grep dikonfirmasi 0 referensi eksternal (`NeumoBrass`/`NeumoBrassDeep` cuma
+ *  dipakai internal file ini) — rename AMAN, 0 file lain kena dampak. */
+val NeumoAurora = Color(0xFF7C93FF)
+/** SAMA PERSIS `RadicalAccent` (Aurora Glass, varian 2) — bukan kebetulan/dekat,
+ *  literal reuse identitas warna "Aurora" yang sudah ada di project, supaya aksen
+ *  ini benar-benar traceable ke nama "Aurora" (bukan aurora-borealis-generik hasil
+ *  tebakan bebas). */
+val NeumoAuroraDeep: Color = lerp(NeumoAurora, NeumoPanelRecessed, 0.45f)
 
 /** Tint dual-shadow terarah (`SkeuDualDirectionalShadow`, SkeuomorphicComponents.kt)
  *  — SEHUE navy (bukan brass — brass dijaga cuma buat state-aktif, bukan
@@ -329,19 +361,32 @@ val NeumoBevelBorderBrush: Brush = SolidColor(NeumoBorder.copy(alpha = 0.45f))
  *  0 efek visual, cara paling aman hapus sheen tanpa ubah komponen bersama. */
 val NeumoSpecularBrush: Brush = SolidColor(Color.Transparent)
 
-/** Glow brass — dipakai state-aktif/primary saja (lihat rationale token Brass
- *  di atas), BUKAN warna permukaan pasif. */
-val NeumoPrimaryGlow = NeumoBrass.copy(alpha = 0.36f)
+/** Glow aurora — dipakai state-aktif/primary saja (aturan komposisi SAMA seperti
+ *  brass dulu: maks ~10% area, JANGAN teks paragraf panjang — cek semua pemakaian
+ *  tetap di primary/onPrimaryContainer/glow/ring). */
+val NeumoPrimaryGlow = NeumoAurora.copy(alpha = 0.36f)
 
 /** Knob slider — highlight netral navy-terang (BUKAN brass — brass cuma buat
  *  ring accent aktif di style komponennya, dibawa terpisah lewat
  *  `accentColor`/`primary`, bukan warna isi bead). */
 val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, Color.White, 0.14f)
 
-/** Radius kartu/icon-box — TIDAK diubah dari Batch 46 (bukan bagian keluhan
- *  user), tetap otonom dari 3 varian lain. */
-val NeumoCardRadius = 22.dp
-val NeumoIconBoxRadius = 15.dp
+/** Radius kartu/icon-box — Batch 108: DIROMBAK TOTAL dari soft-UI rounded (22dp/
+ *  15dp, Batch 46) ke near-flat/angular ala panel HUD Blade Runner (Deckard's
+ *  Voight-Kampff console, Tyrell Corp terminal — sudut nyaris tegas, BUKAN sudut
+ *  100% lancip: tetap 2-3dp residual biar anti-aliasing tepi gak keras/pecah di
+ *  layar kecil, prinsip yang sama dengan kenapa `NeumoBevelBorderBrush` tetap ada
+ *  1px border tipis di neumorphism "genuine" — bukan murni estetika, itu
+ *  readability tepi). Dual-shadow depth system (`NeumoEdgeHighlight`/
+ *  `NeumoEdgeShadow`, `SkeuDualDirectionalShadow`) TIDAK disentuh — technique
+ *  neumorphism-nya (bayangan sepasang terarah) TETAP, cuma bentuk siluet yang
+ *  dibayangi sekarang tegas bukan bulat. 0 perubahan di `SkeuomorphicComponents.kt`
+ *  — shape masih `RoundedCornerShape` (bukan diganti `CutCornerShape`), radius
+ *  yang mendekati nol sudah cukup baca sebagai "sharp" tanpa perlu shape-type baru
+ *  di `SkeuTokens` (lebih rendah risiko regresi ke 3 varian lain yang share
+ *  komponen sama). */
+val NeumoCardRadius = 4.dp
+val NeumoIconBoxRadius = 3.dp
 
 /** Background layar — FLAT solid `appBg` (bukan gradient vertical era Batch
  *  46). Alasan sama dengan `NeumoBevelBrush`: backdrop bergradasi bikin tint
@@ -646,12 +691,13 @@ private val DarkColors = darkColorScheme(
 )
 
 private val NeumorphismDarkColors = darkColorScheme(
-    // Batch 52: primary sekarang Brass (ganti Ruby). onPrimary WAJIB appBg
-    // gelap (bukan Color.White lagi) — syarat kontras WCAG komposisi user:
-    // teks di atas brass harus gelap, brass terlalu terang buat teks putih.
-    primary = NeumoBrass,
+    // Batch 108: primary sekarang Aurora (ganti Brass Batch 52). onPrimary TETAP
+    // `NeumoBackground` (dark navy) — kontras WCAG masih aman, Aurora (0x7C93FF)
+    // mid-brightness mirip brass lama, pola sama seperti `RadicalDarkColors`
+    // (`onPrimary` dark di atas `RadicalAccent`, hue keluarga sama).
+    primary = NeumoAurora,
     onPrimary = NeumoBackground,
-    primaryContainer = NeumoBrassDeep,
+    primaryContainer = NeumoAuroraDeep,
     onPrimaryContainer = NeumoTextPrimary,
     secondary = NeumoTextSecondary,
     onSecondary = NeumoBackground,
@@ -724,6 +770,56 @@ private val AppTypography = Typography(
     )
 )
 
+/** Batch 108: typography KHUSUS varian Neumorphism ("Blade Runner" ala, lihat blok
+ *  komentar Batch 108 di section Neumorphism). PERTAMA KALI typography jadi
+ *  per-varian — sebelumnya `AppTypography` di atas dipakai statis SEMUA 4 varian
+ *  (`MaterialTheme(typography = ...)` di `AudioEnhancerTheme()` cuma 1 pilihan).
+ *  0 font baru di-embed (keputusan sadar project, font sistem Android tetap
+ *  dipakai) — efek "terminal/HUD film title-card" dicapai murni dari
+ *  `letterSpacing` POSITIF/tracked-out (kebalikan `AppTypography` yang malah
+ *  NEGATIF/rapat di headline) + weight lebih berat rata-rata. `bodyMedium`
+ *  (dipakai valueLabel slider Bass/Virtualizer/dll, mis. "450") sengaja paling
+ *  tracked di antara body styles — kesan "digital readout angka presisi", bukan
+ *  teks paragraf biasa. */
+private val NeumorphismTypography = Typography(
+    headlineMedium = TextStyle(
+        fontWeight = FontWeight.Black,
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
+        letterSpacing = 1.2.sp
+    ),
+    headlineSmall = TextStyle(
+        fontWeight = FontWeight.ExtraBold,
+        fontSize = 22.sp,
+        lineHeight = 27.sp,
+        letterSpacing = 0.8.sp
+    ),
+    titleMedium = TextStyle(
+        fontWeight = FontWeight.Bold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.6.sp
+    ),
+    bodyLarge = TextStyle(
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.4.sp
+    ),
+    bodyMedium = TextStyle(
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.8.sp
+    ),
+    bodySmall = TextStyle(
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.6.sp
+    )
+)
+
 // iOS-style rounded — radius dinaikkan di semua step (dipakai otomatis oleh
 // komponen Material3 default: AlertDialog, Button, OutlinedButton, TextButton, dst
 // yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
@@ -740,13 +836,16 @@ private val AppShapes = Shapes(
  *  tegas Batch 39) — generous/rounded soft-UI, konsisten sama
  *  `NeumoCardRadius`/`NeumoIconBoxRadius` (22dp/15dp) di atas, supaya komponen
  *  Material3 default (AlertDialog/Button/dll) yang belum pakai shape manual JUGA
- *  otonom, gak ikut radius varian lain. */
+ *  otonom, gak ikut radius varian lain.
+ *  Batch 108: DIROMBAK TOTAL lagi — ganti dari rounded generous ke near-flat/
+ *  angular (konsisten `NeumoCardRadius`/`NeumoIconBoxRadius` yang sekarang 4dp/
+ *  3dp, lihat komentar lengkap di sana), bagian dari rombak "Blade Runner". */
 private val NeumorphismShapes = Shapes(
-    extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(15.dp),
-    medium = RoundedCornerShape(18.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(26.dp)
+    extraSmall = RoundedCornerShape(2.dp),
+    small = RoundedCornerShape(3.dp),
+    medium = RoundedCornerShape(4.dp),
+    large = RoundedCornerShape(4.dp),
+    extraLarge = RoundedCornerShape(6.dp)
 )
 
 /** Batch 43: shape khusus Studio Equalizer — rounded generous konsisten sama
@@ -791,11 +890,20 @@ fun AudioEnhancerTheme(
     // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
     // semua). Batch 46: varian ke-3 pakai `NeumorphismShapes` (rounded soft-UI,
     // ganti dari `SkeuomorphismShapes` sudut tegas). Batch 43: +Studio Equalizer
-    // pakai `StudioEqShapes` (rounded generous neumorphism).
+    // pakai `StudioEqShapes` (rounded generous neumorphism). Batch 108: varian
+    // ke-3 sekarang `NeumorphismShapes` near-flat/angular (Blade Runner).
     val shapes = when (themeStyle) {
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismShapes
         AppThemeStyle.STUDIO_EQ -> StudioEqShapes
         else -> AppShapes
+    }
+    // Batch 108: typography PERTAMA KALI jadi per-varian (sebelumnya `AppTypography`
+    // statis buat semua 4, sama seperti `shapes` sebelum Batch 39/43) — cuma varian
+    // ke-3 (Neumorphism/"Blade Runner") yang beda, 3 varian lain TETAP `AppTypography`
+    // (0 perubahan visual buat Midnight Glass/Aurora Glass/Studio Equalizer).
+    val typography = when (themeStyle) {
+        AppThemeStyle.SKEUOMORPHISM -> NeumorphismTypography
+        else -> AppTypography
     }
     CompositionLocalProvider(
         LocalIsDarkTheme provides true,
@@ -804,7 +912,7 @@ fun AudioEnhancerTheme(
     ) {
         MaterialTheme(
             colorScheme = colors,
-            typography = AppTypography,
+            typography = typography,
             shapes = shapes,
             content = content
         )

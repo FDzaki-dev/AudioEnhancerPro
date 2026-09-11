@@ -90,17 +90,18 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 107 (Fase 0 item #9 — OutputRouteBanner, state
-  "Output-changed" disurface ke UI, belum tervalidasi runtime).
+- **Batch terakhir**: 108 (Neumorphism theme rombak total ala Blade Runner +
+  aksen Aurora — shape/typography/accent, belum tervalidasi visual).
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
   custom opt-in di Settings, tap-tab (bukan swipe), 1 scrollport, 0 clip
   ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
 - **Tema**: 4 varian aktif via switch Settings — Midnight Glass (default),
-  Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism"),
-  Studio Equalizer. Lihat "Riwayat pivot arah desain" untuk detail tiap
-  varian.
+  Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism",
+  Batch 108: shape/typography/aksen sekarang "Blade Runner" ala + aksen
+  Aurora — lihat "Riwayat pivot arah desain" poin 9), Studio Equalizer.
+  Lihat "Riwayat pivot arah desain" untuk detail tiap varian.
 - **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema di
   atas): grouped-list Kontrol + Settings selesai+tervalidasi, tipografi
   Large Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
@@ -121,6 +122,17 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 108** (`Theme.kt`+strings ID/EN): varian "Neumorphism" DIROMBAK TOTAL
+  ala Blade Runner (instruksi eksplisit user) — shape near-flat/angular
+  (`NeumoCardRadius`/`NeumoIconBoxRadius` 22/15dp→4/3dp, `NeumorphismShapes`
+  ikut), typography PERTAMA KALI jadi per-varian (`NeumorphismTypography` baru,
+  tracked-out/heavier, 0 font baru di-embed), aksen Brass→Aurora
+  (`NeumoAurora`=`RadicalAccent` literal reuse, var lama `NeumoBrass`/
+  `NeumoBrassDeep` DIHAPUS — 0 referensi eksternal, aman). Base palette Deep
+  Navy TIDAK disentuh (scope eksplisit user). `SkeuomorphicComponents.kt` 0
+  disentuh — regresi risk ke 3 varian lain NOL. Bonus: desc string
+  Platinum/Ruby yang sudah basi sejak Batch 52 (gak pernah diupdate) ikut
+  dikoreksi. Belum tervalidasi visual (sandbox tanpa render).
 - **Batch 107** (`BoosterViewModel.kt`+`MainActivity.kt`+`BoosterScreen.kt`+
   strings ID/EN): Fase 0 item #9 — state "Output-changed" (route audio
   pindah) DITUTUP. `AudioEnhancerService.lastOutputRouteDescription` (Batch
@@ -435,6 +447,14 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 8. **iOS Look Hybrid Rombak** (Batch 88+, lapisan struktur/pola DI ATAS
    poin 7, TIDAK ganti warna/material) — grouped-list, tipografi Large
    Title, dst. Lihat TODO Fase 7 untuk progress.
+9. **Neumorphism → "Blade Runner + Aurora"** (Batch 108, HANYA varian
+   ke-3, 3 varian lain di poin 7 TIDAK berubah) — shape near-flat/angular
+   (radius 22/15dp→4/3dp), typography PERTAMA KALI per-varian (tracked-out/
+   heavier, 0 font baru), aksen Brass→Aurora (`NeumoAurora`=`RadicalAccent`
+   literal). Base palette Deep Navy (Batch 52) DIPERTAHANKAN utuh — scope
+   sengaja dibatasi shape+typografi+aksen, bukan background/base palette.
+   `SkeuomorphicComponents.kt` 0 disentuh. Detail lengkap: `CHANGELOG.md`
+   Batch 108, komentar blok panjang di `Theme.kt`.
 
 **Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
 bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
@@ -629,7 +649,13 @@ user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
 detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
 - 4 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer) —
   cek visual tiap varian di Settings; kandidat bug: glow/sheen gak muncul,
-  radius salah, kontras teks kurang.
+  radius salah, kontras teks kurang. **Neumorphism (Batch 108, baru)**: cek
+  KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah di device
+  fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi), 6 style
+  typography baru (`NeumorphismTypography`) render proporsional (bukan
+  overflow/kepotong — letterSpacing lebih lebar dari `AppTypography` global),
+  aksen Aurora (`NeumoAurora`) kontras cukup di atas Deep Navy (WCAG,
+  terutama `onPrimary` teks di atas tombol/switch aktif).
 - `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
   `Cannot create an instance of BoosterViewModel`.
 - `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab
