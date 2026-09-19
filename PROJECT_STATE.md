@@ -124,6 +124,12 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 114** (`PROJECT_STATE.md`, planning only, request eksplisit user
+  "planning biar lebih powerful"): tambah **Fase 8 — Powerful Upgrade
+  Roadmap** di TODO/ROADMAP (bawah Fase 7) — 5 kategori (Audio Engine/
+  Automation/Reliability/Ecosystem/Observability) + urutan rekomendasi ROI.
+  Murni dokumentasi, 0 file kode disentuh. Status: N/A (bukan kode,
+  eksekusi nunggu instruksi user per item).
 - **Batch 113** (`Theme.kt`, hotfix build, input: `log_fail_v161-debug-run161.zip`):
   fix compile error `:app:compileDebugKotlin` (`Theme.kt:1074`, "Type mismatch:
   inferred type is Shape but CornerBasedShape was expected") — regresi dari
@@ -844,4 +850,53 @@ mulai, backlog terbesar. 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja
 ditunda. 5 → sengaja ditunda. 6 → sebagian (Batch 106 ini). 7 → Fase 1+2
 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3 kandidat
 sisa D/E/F.
+
+### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
+Backlog OPSIONAL murni — bukan perintah kerjakan sekaligus. P0 tetap
+berlaku: tutup Fase 1 (validation debt) & pastikan CI hijau dulu sebelum
+garap fitur baru manapun di bawah ini. Eksekusi per-item nunggu instruksi
+eksplisit user (Tunnel Vision, maks 3 file/batch).
+
+**A. Audio Engine (nilai jual inti "Enhancer")**
+- Compressor/Limiter (`DynamicsProcessing`) — naikkan loudness tanpa
+  clipping, pelengkap Loudness Enhancer yang sudah ada.
+- Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
+  prioritas — diferensiator vs app EQ generic).
+- Reverb/Spatial toggle (`PresetReverb`/`EnvironmentalReverb`) — pelengkap
+  Virtualizer, API sekelas efek yang sudah ada.
+- Per-app profile (target session per package, bukan cuma session 0) —
+  stretch, riset API dulu, risiko kompatibilitas tinggi.
+
+**B. Automation & Intelligence**
+- Auto-profile per output device: `OutputRouteBanner` (Batch 107) sudah
+  deteksi ganti device — extend jadi auto-apply preset, bukan cuma banner
+  info.
+- Sleep timer (fade-out volume + auto-stop service terjadwal).
+- Scheduler jam/event tertentu via `WorkManager` (pola sudah ada di
+  `ServiceWatchdogWorker`, tinggal extend).
+
+**C. Reliability & Compat (extend Fase 1/4)**
+- Fallback `Equalizer` via `DynamicsProcessing` (Batch 87) — validasi
+  device fisik + expand ke 10-band kalau chipset support.
+- Database OEM battery-whitelist auto-detect (Xiaomi/Oppo/Vivo/Samsung) →
+  deep-link halaman autostart spesifik, ganti instruksi manual generik.
+
+**D. Data & Ecosystem**
+- Export/Import preset via file `.json` share — sudah di backlog lama,
+  ROI tinggi & murah, DIANGKAT prioritas.
+- Cloud backup preset (Google Drive AppData folder scope) — sync antar
+  device tanpa backend custom.
+- Android Auto / Wear OS companion tile — stretch, footprint besar.
+
+**E. Observability**
+- Mini spectrum visualizer reaktif (`Visualizer` AudioEffect, API sekelas
+  Bass Boost/Virtualizer yang sudah dipakai) — murah implementasi, wow
+  factor tinggi.
+- Extend `CrashLogger` jadi analytics lokal ringan (durasi service ON,
+  preset paling sering dipakai) — 100% on-device, tanpa cloud.
+
+**Urutan rekomendasi (ROI tertinggi dulu)**: 1) Export/Import preset (D)
+2) Spectrum visualizer (E) 3) Sleep timer + Scheduler (B) 4) Compressor/
+Limiter (A) 5) Auto-profile per output device (B) 6) EQ curve editor (A)
+7) sisanya sesuai kebutuhan user.
 
