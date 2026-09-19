@@ -189,4 +189,18 @@
     <string name="settings_layout_section_title">Navigasi Layar Utama</string>
     <string name="settings_horizontal_layout_title">Mode Tab Horizontal</string>
     <string name="settings_horizontal_layout_desc">Kelompokkan Kontrol/Tampilan/Bantuan jadi 3 tab geser. Nonaktif = 1 scroll vertikal (bawaan).</string>
+
+    <!-- Batch 114 (Fase 8 roadmap item D — Export/Import preset): belum ada terjemahan
+         EN untuk key di bawah (values-en/strings.xml belum disentuh batch ini, di luar
+         limit 3 file/tugas) — fallback otomatis ke value ID ini di locale EN, BUKAN
+         crash/missing resource. Follow-up: tambah entry sepadan di values-en/strings.xml. -->
+    <string name="settings_backup_section_title">Cadangkan Preset</string>
+    <string name="settings_backup_section_desc">Simpan semua preset custom ke file, atau pulihkan dari file cadangan. Preset dengan nama sama akan ditimpa.</string>
+    <string name="settings_export_preset_button">Ekspor Preset</string>
+    <string name="settings_import_preset_button">Impor Preset</string>
+    <string name="settings_export_preset_success">%1$d preset diekspor ke file</string>
+    <string name="settings_export_preset_empty">Belum ada preset custom untuk diekspor</string>
+    <string name="settings_export_preset_failed">Gagal menyimpan file ekspor</string>
+    <string name="settings_import_preset_success">%1$d preset berhasil diimpor</string>
+    <string name="settings_import_preset_failed">File tidak valid atau rusak, impor dibatalkan</string>
 </resources>

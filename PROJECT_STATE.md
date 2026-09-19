@@ -90,9 +90,11 @@ baru: TANYA user dulu, jangan pecah lagi sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 113 (hotfix compile error `Theme.kt:1074` dari Batch 112 —
-  `SereneCardShape` tipe `Shape`→`CornerBasedShape`; APK gagal generate total
-  sejak push Batch 112 sampai fix ini, belum tervalidasi CI hijau).
+- **Batch terakhir**: 115 (fitur baru: Export/Import preset ke file `.json`
+  via SAF, Fase 8 item D — kode selesai, **NOT VERIFIED** compile/runtime,
+  lihat LOG BATCH 115 utk detail file & instruksi test manual). Batch 113
+  (hotfix `Theme.kt:1074`) JUGA masih belum tervalidasi CI hijau — 2 batch
+  beruntun sekarang menunggu 1x push+validasi CI bareng.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -124,6 +126,20 @@ inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 115** (`PrefsHelper.kt`, `SettingsScreen.kt`,
+  `res/values/strings.xml`, request eksplisit user "mulai aja!!" pasca-
+  Batch 114): eksekusi item D Fase 8 (Export/Import preset, ROI #1) —
+  `PrefsHelper.exportCustomPresetsToJson()`/`importCustomPresetsFromJson()`
+  (envelope JSON, parsing atomik per-entry, reuse `addCustomPreset` buat
+  merge/overwrite-by-name) + UI section baru "Cadangkan Preset" di
+  `SettingsScreen.kt` (SAF `CreateDocument`/`OpenDocument`, I/O di
+  `Dispatchers.IO`). Static check lolos (brace/paren balance + XML
+  well-formed, TIDAK ADA compiler di sandbox). **Status: NOT VERIFIED** —
+  behavior compile & runtime belum diuji CI/device fisik, lihat instruksi
+  test manual di bawah sebelum dianggap stabil. `values-en/strings.xml`
+  BELUM disentuh (di luar limit 3 file kode/tugas) — 9 string baru
+  fallback ke teks ID di locale EN buat sementara, bukan crash. Follow-up:
+  tambah terjemahan EN batch depan.
 - **Batch 114** (`PROJECT_STATE.md`, planning only, request eksplisit user
   "planning biar lebih powerful"): tambah **Fase 8 — Powerful Upgrade
   Roadmap** di TODO/ROADMAP (bawah Fase 7) — 5 kategori (Audio Engine/
@@ -775,6 +791,16 @@ detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
   ganti route LAGI ke device lain → banner muncul lagi (bukan permanen
   hilang). Kandidat gagal: `AudioDeviceCallback` tidak fire di device/OEM
   tertentu (dicatat sebagai risiko sejak Batch 83, belum ada data nyata).
+- **Batch 115 (baru)**: Export/Import preset — pertama: pastikan
+  `:app:compileDebugKotlin` LOLOS (belum pernah dicek compiler/CI sejak
+  ditulis di sandbox). Kalau lolos, test device: (1) buat ≥1 preset
+  custom → Pengaturan → "Ekspor Preset" → pilih lokasi file → cek pesan
+  sukses muncul & file `.json` benar-benar tersimpan; (2) hapus/ubah
+  preset itu → "Impor Preset" → pilih file tadi → cek preset balik PERSIS
+  (termasuk `eqBands`) & pesan jumlah preset terimpor benar; (3) coba
+  ekspor saat 0 preset custom → harus muncul pesan "belum ada preset",
+  BUKAN file kosong/crash; (4) coba impor file bukan-JSON/rusak → harus
+  muncul pesan gagal, preset existing TIDAK ikut hilang/berubah.
 - **Batch 104-105**: swipe-antar-tab via auto-height pager TERBUKTI
   regresi UI parah di device fisik (klip & distorsi) — sudah direvert ke
   Batch 103 (tap-tab). Kalau swipe diminta lagi ke depan: JANGAN ulangi
@@ -882,8 +908,10 @@ eksplisit user (Tunnel Vision, maks 3 file/batch).
   deep-link halaman autostart spesifik, ganti instruksi manual generik.
 
 **D. Data & Ecosystem**
-- Export/Import preset via file `.json` share — sudah di backlog lama,
-  ROI tinggi & murah, DIANGKAT prioritas.
+- [~] Export/Import preset via file `.json` share — **kode selesai Batch
+  115** (`PrefsHelper.kt`+`SettingsScreen.kt`), NOT VERIFIED compile/
+  runtime, EN string belum ditambah. Sudah di backlog lama, ROI
+  tinggi & murah, DIANGKAT prioritas.
 - Cloud backup preset (Google Drive AppData folder scope) — sync antar
   device tanpa backend custom.
 - Android Auto / Wear OS companion tile — stretch, footprint besar.

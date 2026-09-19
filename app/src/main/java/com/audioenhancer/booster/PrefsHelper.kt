@@ -214,6 +214,77 @@ object PrefsHelper {
             .putString(KEY_CUSTOM_PRESETS, arr.toString()).apply()
     }
 
+    /** Batch 114 (Fase 8 roadmap item D — Export/Import preset): hasil operasi impor,
+     *  dipakai UI (SettingsScreen.kt) buat tampilkan status sukses/gagal + jumlah preset
+     *  tanpa exception nyasar ke Compose. */
+    data class ImportResult(val success: Boolean, val importedCount: Int)
+
+    /** Ekspor SEMUA custom preset jadi 1 string JSON (envelope, bukan array polos) —
+     *  siap ditulis ke file lewat Storage Access Framework (SettingsScreen.kt). Envelope
+     *  ("app"+"exportVersion"+"presets") dipakai (bukan array `getCustomPresets` mentah)
+     *  supaya `importCustomPresetsFromJson` bisa validasi asal file dulu sebelum parse,
+     *  dan forward-compatible kalau field baru ditambah batch depan tanpa breaking parser
+     *  lama. TIDAK mengubah format penyimpanan internal (`KEY_CUSTOM_PRESETS`) sama sekali
+     *  — murni fungsi baca+serialize terpisah, 0 risiko ke data yang sudah tersimpan. */
+    fun exportCustomPresetsToJson(context: Context): String {
+        val arr = org.json.JSONArray()
+        getCustomPresets(context).forEach { p ->
+            val obj = org.json.JSONObject()
+            obj.put("name", p.name)
+            obj.put("bass", p.bass.toDouble())
+            obj.put("virtualizer", p.virtualizer.toDouble())
+            obj.put("loudness", p.loudness.toDouble())
+            val eqArr = org.json.JSONArray()
+            p.eqBands.forEach { eqArr.put(it) }
+            obj.put("eqBands", eqArr)
+            arr.put(obj)
+        }
+        val envelope = org.json.JSONObject()
+        envelope.put("app", "Boomly")
+        envelope.put("exportVersion", 1)
+        envelope.put("presets", arr)
+        return envelope.toString(2)
+    }
+
+    /** Impor preset dari string JSON (hasil `exportCustomPresetsToJson` DI ATAS, atau
+     *  array polos lama buat kompatibilitas mundur). Parsing ATOMIK per-entry: 1 entry
+     *  korup di-skip (bukan gagalkan seluruh file, pola sama seperti `getCustomPresets`
+     *  yang toleran field hilang), tapi TIDAK ADA state ditulis sama sekali kalau file
+     *  gagal diparse total (JSON tidak valid / bukan objek atau array) — mencegah data
+     *  preset existing user ikut rusak/kepotong cuma gara-gara file impor korup. Nama
+     *  sama akan MENIMPA (reuse `addCustomPreset`, konsisten dengan simpan manual). */
+    fun importCustomPresetsFromJson(context: Context, json: String): ImportResult {
+        return try {
+            val root = org.json.JSONTokener(json).nextValue()
+            val arr: org.json.JSONArray = when (root) {
+                is org.json.JSONObject -> root.optJSONArray("presets") ?: return ImportResult(false, 0)
+                is org.json.JSONArray -> root
+                else -> return ImportResult(false, 0)
+            }
+            val imported = (0 until arr.length()).mapNotNull { i ->
+                try {
+                    val obj = arr.getJSONObject(i)
+                    val eqArr = obj.optJSONArray("eqBands")
+                    val eqBands = if (eqArr != null) (0 until eqArr.length()).map { j -> eqArr.getInt(j) } else emptyList()
+                    CustomPreset(
+                        obj.getString("name"),
+                        obj.getDouble("bass").toFloat(),
+                        obj.getDouble("virtualizer").toFloat(),
+                        obj.getDouble("loudness").toFloat(),
+                        eqBands
+                    )
+                } catch (_: Exception) {
+                    null
+                }
+            }
+            if (imported.isEmpty()) return ImportResult(false, 0)
+            imported.forEach { addCustomPreset(context, it) }
+            ImportResult(true, imported.size)
+        } catch (_: Exception) {
+            ImportResult(false, 0)
+        }
+    }
+
     // --- Crash log: timestamp file crash terakhir yang SUDAH dilihat user, biar banner
     // "sempat crash" cuma nongol sekali per insiden, bukan tiap kali app dibuka ---
     fun getLastSeenCrashTimestamp(context: Context): Long =

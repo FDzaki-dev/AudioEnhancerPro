@@ -13,6 +13,9 @@ package com.audioenhancer.booster
 // UpdateBanner — UpdateBanner tetap muncul juga kalau user balik ke layar utama
 // (state `updateInfo` dibagi bareng), cuma sekarang bukan satu-satunya jalan lagi.
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -39,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +53,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun SettingsScreen(
@@ -283,6 +290,118 @@ fun SettingsScreen(
                     )
                 }
                 SkeuSwitch(checked = useHorizontalLayout, onCheckedChange = null)
+            }
+        }
+
+        // Batch 114 (Fase 8 roadmap item D — Export/Import preset, request eksplisit
+        // user "planning biar lebih powerful"): backup/restore preset custom ke file
+        // .json lewat Storage Access Framework. State status LOKAL di composable ini
+        // (pola sama seperti `useHorizontalLayout` di atas — 0 hoist ke MainActivity/
+        // BoosterViewModel; screen ini re-entry dari awal tiap dibuka lewat percabangan
+        // if/else-if eksklusif MainActivity.kt, lihat komentar Batch 97 di atas). String
+        // template dibaca via stringResource() DI SINI (composable scope) lalu diformat
+        // manual (`String.format`) di dalam callback launcher — stringResource(id, args)
+        // TIDAK BISA dipanggil di luar composition (di dalam launcher/coroutine callback).
+        // Guard Thread Safety: baca/tulis FILE (ContentResolver stream) WAJIB
+        // Dispatchers.IO, BUKAN blocking Main thread — beda dari baca SharedPreferences
+        // polos (`getCustomPresets`, dipakai sinkron di banyak tempat lain di codebase
+        // ini termasuk cek isEmpty() di bawah, data kecil, bukan "I/O berat").
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_backup_section_title))
+        val exportSuccessTemplate = stringResource(R.string.settings_export_preset_success)
+        val exportEmptyMsg = stringResource(R.string.settings_export_preset_empty)
+        val exportFailedMsg = stringResource(R.string.settings_export_preset_failed)
+        val importSuccessTemplate = stringResource(R.string.settings_import_preset_success)
+        val importFailedMsg = stringResource(R.string.settings_import_preset_failed)
+        val scope = rememberCoroutineScope()
+        var backupStatus by remember { mutableStateOf<String?>(null) }
+        var backupStatusIsError by remember { mutableStateOf(false) }
+
+        val exportLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/json")
+        ) { uri: Uri? ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val json = PrefsHelper.exportCustomPresetsToJson(context)
+                val count = PrefsHelper.getCustomPresets(context).size
+                val ok = withContext(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(json.toByteArray(Charsets.UTF_8))
+                        }
+                        true
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
+                backupStatusIsError = !ok
+                backupStatus = if (ok) String.format(exportSuccessTemplate, count) else exportFailedMsg
+            }
+        }
+        // Batch 114: filter 2 mime type (bukan cuma "application/json") — sebagian
+        // file manager/OEM SAF provider salah tag file .json sebagai "text/plain",
+        // kalau filter cuma 1 type file hasil ekspor sendiri bisa "hilang" dari daftar
+        // picker di device tertentu (bukan hipotetis, bug SAF yang cukup umum).
+        val importLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val result = withContext(Dispatchers.IO) {
+                    try {
+                        val text = context.contentResolver.openInputStream(uri)
+                            ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                        if (text != null) PrefsHelper.importCustomPresetsFromJson(context, text)
+                        else PrefsHelper.ImportResult(false, 0)
+                    } catch (_: Exception) {
+                        PrefsHelper.ImportResult(false, 0)
+                    }
+                }
+                backupStatusIsError = !result.success
+                backupStatus = if (result.success) {
+                    String.format(importSuccessTemplate, result.importedCount)
+                } else {
+                    importFailedMsg
+                }
+            }
+        }
+
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.settings_backup_section_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalSkeuTokens.current.mutedText
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        if (PrefsHelper.getCustomPresets(context).isEmpty()) {
+                            backupStatusIsError = true
+                            backupStatus = exportEmptyMsg
+                        } else {
+                            exportLauncher.launch("boomly_presets_backup.json")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.settings_export_preset_button))
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.settings_import_preset_button))
+                }
+                if (backupStatus != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        backupStatus ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (backupStatusIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
