@@ -1,5 +1,101 @@
 # Changelog
 
+## Batch 118: Cleanup dokumentasi — status tema dikoreksi, klaim CI basi diperbaiki
+
+Cleanup dokumentasi atas permintaan eksplisit user — 0 kode/fitur berubah.
+Kelima varian tema (Midnight Glass, Aurora Glass, Neumorphism, Studio
+Equalizer, Serene M3) dikonfirmasi user sudah lama berhasil; catatan "belum
+tervalidasi" yang basi dibuang dari dokumen aktif.
+
+**Status tema (SUPERSEDES)**: entry Batch 108-113 di bawah mencatat "belum
+tervalidasi visual/CI" — itu status SAAT ITU (histori, tidak diedit; changelog
+append-only). Status terkini: Neumorphism Blade Runner + Misty Pine + shadow
+pine-tinted (Batch 108-110), Serene M3 (Batch 111, cut-corner Batch 112, hotfix
+compile Batch 113) dan 3 varian lain = **TERVALIDASI, konfirmasi user**.
+
+**`PROJECT_STATE.md`**: +tag `[BRANDING_NAME]`/`[TERMUX_ROOT]` di baris atas &
+blok `[RESUME POINT]` di akhir (wajib SOP); hierarki & format chat disinkron ke
+SOP terkini (P0-P4, 3 elemen output); Status Terkini ditulis ulang (4→5
+varian, key persist, tema tervalidasi); gate "next→validasi" (Batch 117)
+dicabut — basisnya (tema belum tervalidasi) basi, Fase 1 jadi backlog
+pasif non-blocking; dibuang: "Temuan validasi ZIP Batch 96", "ARSIP Command
+Termux lama", bullet Fase 1 duplikat/tema; log Batch 107-117 dipangkas ke ≤5
+baris, Batch 66-67 & 70-71 digabung; koreksi bullet "Preset custom" (stale
+sejak Batch 63: kini simpan `eqBands`), pivot poin 7 (Platinum+Ruby basi),
+Struktur proyek (5 toggle, file widget/tile/shortcut/test), Fase 5/6/7/8 &
+progress ringkas (Fase 0 = 5/9, limiter Batch 84 sudah ada, Export/Import
+selesai); +catatan izin `RECORD_AUDIO` utk Visualizer (dugaan, wajib dicek
+dokumentasi resmi).
+
+**`README.md`**: klaim "job `build` + job `release`" basi sejak Batch 40 →
+1 job `build-and-release`; +artifact `log_fail_v*`; +baris brand Boomly,
+Preset, Tema (5 varian), layout layar utama; catatan preview = Midnight Glass
+saja. **`docs/preview/current.html`**: HANYA teks footer (deskripsi
+Neumorphism basi "Platinum+Ruby" & label versi); 0 CSS/struktur diubah.
+
+**Arsip & manifest**: `archive/` (3 file, isi tak diubah) → `docs/archive/`
+sesuai SOP; `FILE_MANIFEST.txt` diregenerasi.
+
+**Temuan terbuka (TIDAK diubah, nunggu keputusan user)**: (1) Box B SOP set
+`ANDROID_KEYSTORE_*` sedangkan `build.yml` baca `KEYSTORE_*` (repo produksi
+aman, risiko di setup repo baru); (2) Daily Update `-lt$((...))` tanpa spasi →
+guard integritas tak pernah trigger.
+
+**Validasi**: 0 file kode/resource/CI disentuh (diff `app/`, `.github/`,
+gradle = identik); tema OK = konfirmasi user, BUKAN tes Claude (sandbox tanpa
+compiler/emulator).
+
+## Batch 116: Terjemahan EN untuk Export/Import preset (follow-up Batch 115)
+
+Follow-up dokumentasi/i18n dari Batch 115 — request eksplisit user setelah
+konfirmasi fitur Export/Import preset berfungsi normal di device fisik.
+
+**Perubahan**: 9 string baru Batch 115 (section "Cadangkan Preset" di
+Pengaturan) ditambahkan ke `values-en/strings.xml`: judul & deskripsi
+section, label tombol Ekspor/Impor, serta 4 pesan hasil (sukses/gagal
+ekspor, sukses/gagal impor). Sebelumnya locale EN fallback otomatis ke
+teks Indonesia (bukan crash, tapi tidak konsisten bahasa). Komentar stale
+di `values/strings.xml` yang menandai follow-up ini diupdate — bukan
+pending lagi.
+
+**Validasi**: diff key `values/strings.xml` vs `values-en/strings.xml`
+menunjukkan 0 selisih (parity penuh, 141 key kedua locale). XML kedua file
+well-formed. Murni resource string, 0 logic Kotlin disentuh — 0 risiko
+compile/behavior baru.
+
+**File disentuh (2)**: `values-en/strings.xml`, `values/strings.xml`.
+
+## Batch 115: Export/Import preset ke file `.json` (Fase 8 item D)
+
+Fitur baru — request eksplisit user "mulai aja!!" pasca-planning Batch 114
+(Fase 8 Powerful Upgrade Roadmap). Prioritas #1 di daftar ROI: backup/restore
+preset custom antar perangkat tanpa cloud/backend.
+
+**`PrefsHelper.kt`**: `exportCustomPresetsToJson()` membungkus seluruh
+preset custom user ke 1 file JSON (envelope versi + array entry, tiap entry
+simpan nama + parameter EQ/bass/virtualizer/loudness). `importCustomPresetsFromJson()`
+mem-parsing tiap entry secara atomik (1 entry gagal parse tidak menggagalkan
+entry lain), lalu reuse `addCustomPreset()` yang sudah ada supaya perilaku
+merge/overwrite-by-name konsisten dengan alur simpan preset manual — 0 jalur
+simpan baru yang terpisah.
+
+**`SettingsScreen.kt`**: section baru "Cadangkan Preset" — tombol Ekspor
+pakai SAF `CreateDocument` (user pilih lokasi/nama file sendiri, bukan path
+hardcode), tombol Impor pakai SAF `OpenDocument`. Baca/tulis file dijalankan
+di `Dispatchers.IO`, hasil (jumlah preset, pesan gagal/sukses/kosong)
+ditampilkan via snackbar yang sudah ada.
+
+**Validasi**: static check (brace/paren balance, XML well-formed) lolos —
+sandbox tanpa compiler. **User mengonfirmasi fitur berfungsi normal di
+device fisik (Batch 116)** — compile sukses & 4 skenario (ekspor normal,
+ekspor 0 preset, impor normal, impor file rusak) berjalan sesuai desain.
+Konfirmasi ini turut memvalidasi hotfix Batch 113 (`Theme.kt:1074`) yang
+sebelumnya menunggu run CI/device yang sama.
+
+**File disentuh (2 kode)**: `PrefsHelper.kt`, `SettingsScreen.kt`.
+Terjemahan EN (`values-en/strings.xml`) menyusul di Batch 116 (di luar
+limit 3 file/tugas batch ini).
+
 ## Batch 113: Fix build gagal (CI run #161) — tipe `SereneCardShape` di Theme.kt
 
 **Input sesi ini**: `Boomly_v112.zip` (source, hasil push Batch 112) +

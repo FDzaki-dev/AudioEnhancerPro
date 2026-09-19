@@ -189,4 +189,15 @@
     <string name="settings_layout_section_title">Main Screen Navigation</string>
     <string name="settings_horizontal_layout_title">Horizontal Tab Mode</string>
     <string name="settings_horizontal_layout_desc">Group Controls/Display/Help into 3 swipeable tabs. Off = single vertical scroll (default).</string>
+
+    <!-- Batch 116: EN translation for Batch 115 Export/Import preset section -->
+    <string name="settings_backup_section_title">Backup Presets</string>
+    <string name="settings_backup_section_desc">Save all custom presets to a file, or restore from a backup file. Presets with the same name will be overwritten.</string>
+    <string name="settings_export_preset_button">Export Presets</string>
+    <string name="settings_import_preset_button">Import Presets</string>
+    <string name="settings_export_preset_success">%1$d presets exported to file</string>
+    <string name="settings_export_preset_empty">No custom presets to export yet</string>
+    <string name="settings_export_preset_failed">Failed to save export file</string>
+    <string name="settings_import_preset_success">%1$d presets imported successfully</string>
+    <string name="settings_import_preset_failed">File is invalid or corrupted, import cancelled</string>
 </resources>

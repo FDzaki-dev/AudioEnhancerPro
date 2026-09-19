@@ -8,23 +8,27 @@ _Selalu resolve ke APK signed terbaru di tab Releases (URL `/releases/latest` ba
 > file itu berisi keputusan desain, batasan teknis, dan riwayat pivot,
 > didesain khusus untuk AI biar sesi baru gak mulai dari nol.
 
-Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compose.
+Aplikasi Android booster/penjernih audio sistem berbasis Kotlin + Jetpack Compose. Nama tampilan di HP: **Boomly** — repo, `applicationId` (`com.audioenhancer.booster`), dan nama APK CI tetap `AudioEnhancerPro`.
 
 ## 🎨 Preview UI Terkini (live, selalu update)
 
 **[▶ Buka Preview UI Interaktif](https://htmlpreview.github.io/?https://github.com/FDzaki-dev/AudioEnhancerPro/blob/main/docs/preview/current.html)**
 
-Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https://htmlpreview.github.io) — tanpa install APK, cukup buka di browser. Diupdate bareng tiap perubahan UI/UX besar, jadi selalu mencerminkan arah desain terbaru.
+Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https://htmlpreview.github.io) — tanpa install APK, cukup buka di browser. Merepresentasikan varian default **Midnight Glass** saja dan diupdate bareng perubahan UI/UX besar pada varian itu; 4 varian tema lain tidak punya mockup HTML (lihat bagian Fitur → Tema).
 
 > Catatan: mockup HTML/CSS murni untuk validasi warna/layout/shape cepat — bukan 1:1 pixel-perfect dari Compose asli (terutama font & icon vector), tapi cukup akurat untuk keputusan "arah ini cocok atau enggak" sebelum build+install APK penuh.
 
 ## Fitur
 - Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem).
+- Preset Cepat (bawaan) + preset custom — simpan pengaturan Bass/Virtualizer/Loudness (+ Equalizer manual) jadi preset sendiri.
+- Tema — 5 varian dark-only: **Midnight Glass** (default), **Aurora Glass**, **Neumorphism** (gaya "Blade Runner", aksen Misty Pine Forest), **Studio Equalizer**, dan **Serene M3** (Material 3 flat-tonal). Dipilih lewat toggle eksklusif di layar utama; semua toggle mati = Midnight Glass. Material You (dynamic color, Android 12+) opsional, default mati.
+- Layout layar utama: 1 scroll vertikal (default); Mode Tab Horizontal (Kontrol/Tampilan/Bantuan) opsional di Pengaturan.
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.
 - Bertahan saat task di-swipe (`stopWithTask="false"` + `START_STICKY`, TANPA restart manual via `onTaskRemoved` — trik itu sempat dicoba lalu dicabut di v1.34 karena tidak reliable di Android 12+) dan otomatis jalan lagi saat device boot ulang.
 - Permintaan exemption battery optimization saat pertama dibuka.
 - Quick Settings Tile — toggle on/off langsung dari notification shade, tanpa buka app.
 - App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
+- Cadangkan Preset (Pengaturan) — ekspor semua preset custom ke 1 file `.json` (SAF, pilih lokasi sendiri) dan impor kembali di device sama/baru. Preset dengan nama sama saat impor akan ditimpa.
 - Widget home screen — status real-time + toggle sekali tap, tanpa buka app sama sekali.
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
@@ -41,7 +45,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 ./gradlew assembleDebug
 ```
 
-CI otomatis build APK debug setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`), job `build` ini HANYA verifikasi kompilasi (`assembleDebug`) — tidak ada APK debug yang dipublikasikan di mana pun. APK yang beneran dirilis (signed) datang dari job `release` (lihat bagian "Versioning APK Release" di bawah), dan itu pun cuma jalan kalau secret keystore sudah diset.
+CI jalan otomatis setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`) sebagai 1 job `build-and-release`. Step "Build debug APK" (`assembleDebug`) HANYA verifikasi kompilasi — tidak ada APK debug yang dipublikasikan di mana pun. APK signed yang dirilis datang dari step release di job yang sama (lihat bagian "Versioning APK Release" di bawah), dan cuma jalan kalau secret keystore sudah diset; kalau build debug gagal, step release otomatis ke-skip. Saat build gagal, artifact `log_fail_v*` otomatis ter-upload (retensi 14 hari) buat diunduh langsung tanpa scroll log mentah.
 
 ## Versioning APK Release (Otomatis)
 
@@ -85,9 +89,9 @@ adalah cara utama distribusi APK.
    | `KEY_ALIAS` | `audioenhancerpro` (atau alias yang kamu pakai) |
    | `KEY_PASSWORD` | password key yang dibuat di langkah 1 |
 
-4. **Push ke `main`** — job `release` di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu publish sebagai GitHub Release `v{run_number}` (APK-nya jadi asset yang bisa diunduh langsung dari sidebar repo) + tetap upload artifact tambahan bernama `AudioEnhancerPro-v{run_number}-run{run_id}-release` (dinamis, ngikutin run CI saat itu — lihat bagian "Versioning APK Release" di atas).
+4. **Push ke `main`** — step release di workflow otomatis decode keystore dari secret, build `assembleRelease` dengan signing config, lalu publish sebagai GitHub Release `v{run_number}` (APK-nya jadi asset yang bisa diunduh langsung dari sidebar repo) + tetap upload artifact tambahan bernama `AudioEnhancerPro-v{run_number}-run{run_id}-release` (dinamis, ngikutin run CI saat itu — lihat bagian "Versioning APK Release" di atas).
 
-Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal — job `build` (debug) tetap jalan normal.
+Kalau secret belum diset, step release akan skip otomatis (workflow menampilkan warning) tanpa bikin build gagal — step build debug tetap jalan normal.
 
 ## Troubleshooting
 
@@ -138,4 +142,4 @@ Kalau secret belum diset, job release akan skip otomatis tanpa bikin build gagal
   dari CI) bisa saja tidak terdeteksi sesuai urutan ini.
 
 **Build gagal di GitHub Actions**
-- Cek apakah 4 secrets keystore (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) sudah diset kalau butuh APK release yang signed — kalau belum diset, job `release` di-skip otomatis (bukan gagal), tapi job `build` (debug) tetap harus sukses. Cek log job `build` dulu untuk error compile murni.
+- Cek apakah 4 secrets keystore (`KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`) sudah diset kalau butuh APK release yang signed — kalau belum diset, step release di-skip otomatis (bukan gagal), tapi step "Build debug APK" tetap harus sukses. Unduh artifact `log_fail_v*` dari run yang gagal (atau cek log step itu) untuk error compile murni.

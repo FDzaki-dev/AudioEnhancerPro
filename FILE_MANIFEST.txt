@@ -58,10 +58,10 @@ app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
-archive/PENDING_Batch94_SyncPreviewHTML.md
-archive/PENDING_Fase0_Item6_RebuildSessionZero.md
-archive/roadmap.md
 build.gradle.kts
+docs/archive/PENDING_Batch94_SyncPreviewHTML.md
+docs/archive/PENDING_Fase0_Item6_RebuildSessionZero.md
+docs/archive/roadmap.md
 docs/preview/current.html
 gradle.properties
 settings.gradle.kts

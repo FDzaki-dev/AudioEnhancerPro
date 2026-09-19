@@ -1,27 +1,44 @@
+[BRANDING_NAME: Boomly]
+[TERMUX_ROOT: AudioEnhancerPro]
+
 # 🧠 PROJECT_STATE.md — baca PALING PERTAMA
 
-Untuk Claude, bukan manusia. Padat & actionable. 2 lapis:
+Untuk Claude, bukan manusia. Padat & actionable. Lapisan:
 1. 🔒 ATURAN PERMANEN — jarang berubah, WAJIB dibaca duluan.
-2. 📅 LOG BATCH — riwayat ringkas per-batch, descending, BUKAN permanen.
+2. 🧭 Status Terkini — state akhir (bukan histori).
+3. 📅 LOG BATCH — riwayat ringkas per-batch, descending, BUKAN permanen.
+4. Referensi: pivot desain, batasan sandbox, struktur, TODO/ROADMAP.
+5. `[RESUME POINT]` — blok handoff deterministik di AKHIR file.
 
-Urutan sesi baru: ATURAN PERMANEN → Status Terkini → 5-10 entry teratas LOG
-BATCH → mulai kerja. Jangan ulang pertanyaan yang jawabannya sudah ada di sini.
+Urutan sesi baru: 2 tag di baris atas → ATURAN PERMANEN → Status Terkini →
+5-10 entry teratas LOG BATCH → `[RESUME POINT]` (akhir file) → mulai kerja.
+Jangan ulang pertanyaan yang jawabannya sudah ada di sini.
+
+`[BRANDING_NAME]` = nama ZIP output (`Boomly_v<Batch>.zip`, Batch inkremen
+dari state terbaru). `[TERMUX_ROOT]` = nama folder repo/Termux (isi
+`[NamaFolderProyek]` di skrip Termux) — BUKAN sama dengan brand.
 
 ---
 
 ## 🔒 ATURAN PERMANEN & HIERARKI (PIN — hanya berubah via instruksi baru eksplisit user)
 
-Hierarki: User Instruction > Core Protocol > file ini.
+Hierarki (SOP terkini): P0 SOP (stabilitas & zero-regression) > P1 User
+Intent & ZIP/Source > P2 file ini > P3 Guards > P4 Output. ZIP = sumber
+kebenaran tunggal; remote Git cuma mirror/continuity.
 
 Index Core Protocol (detail lengkap di instruksi custom user):
 - STABILITY > Speed. STOP → tandai BLOKER kalau info kurang, jangan nebak.
-- ZERO-REFACTOR file tak relevan ke task.
-- Micro-Batch: maks 3 file KODE/batch. Dokumen VIP (file ini, README.md,
-  CHANGELOG.md) kebal limit, WAJIB sync tiap sesi ada perubahan.
+- Eksekusi langsung & hasil SIAP PAKAI (zero-hesitation): jangan minta izin
+  atau nunggu instruksi teknis step-by-step.
+- ZERO-REFACTOR/Tunnel Vision: file tak relevan ke task DILARANG disentuh.
+- Micro-Batch: maks 3 file SOURCE/TARGET per tugas. Dokumen VIP (file ini,
+  README.md, CHANGELOG.md) + dok/`docs/archive/` kebal limit, WAJIB sync
+  tiap sesi ada perubahan.
 - Versioning Lock: versionCode DAN versionName otomatis dari
   `GITHUB_RUN_NUMBER` (sejak Batch 76). DILARANG bump manual.
-- Format chat: status 1-2 baris + 1 ZIP + skrip Termux utuh. Narasi/analisis
-  panjang → LOG BATCH (ringkas), bukan chat.
+- Format chat: HANYA 1 ZIP + skrip Termux relevan + summary 1 blok kode
+  maks 5 baris. Tanpa sapaan/penjelasan alur — penjelasan detail → dokumen
+  proyek.
 - Skrip Termux Immutable: isi placeholder `[Nama...]` saja. DILARANG ubah
   logika Bash atau gabung Box A & B.
 - **Dokumentasi WAJIB padat**: 1 entry LOG BATCH = maks 3-5 baris (file
@@ -54,8 +71,10 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 - **Dynamic color (Material You)**: default OFF, opt-in.
 - **Equalizer band individual**: `wrapInCard=false` — sudah di card
   "Equalizer Manual", hindari kaca-di-atas-kaca.
-- **Preset custom (v1.33)**: TIDAK reset equalizer manual saat diterapkan
-  (beda dari 4 preset bawaan) — cuma simpan bass/virtualizer/loudness.
+- **Preset custom (v1.33, diperluas Batch 63)**: TIDAK reset equalizer manual
+  saat diterapkan (beda dari 4 preset bawaan). Simpan bass/virtualizer/
+  loudness + `eqBands` opsional (Batch 63) — preset lama tanpa `eqBands`
+  TIDAK menyentuh EQ manual.
 - **Layout layar utama (Batch 97)**: DEFAULT = vertikal (1 `Column`
   `.verticalScroll()` flat). Mode tab horizontal (`TabRow`+`HorizontalPager`)
   TETAP ADA di kode (`TabPageContent` di `BoosterScreen.kt`) tapi HANYA opsi
@@ -75,153 +94,134 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
 di LOG BATCH (paling atas, maks 3-5 baris); (2) update Status Terkini
-(state akhir, bukan histori); (3) update Keputusan Sadar kalau relevan.
+(state akhir, bukan histori); (3) update Keputusan Sadar kalau relevan;
+(4) tulis ulang `[RESUME POINT]` di AKHIR file (wajib tiap sesi).
 JANGAN taruh root-cause/diff/rasional panjang di mana pun di file ini.
 
-### Kebijakan dokumentasi (PIN — Batch 106)
+### Kebijakan dokumentasi (PIN — Batch 106, diperbarui Batch 118)
 HANYA 4 dokumen resmi diakui: konstitusi/SOP (di luar repo, instruksi custom
 user), `PROJECT_STATE.md` (RAM instan — file ini, PADAT), `README.md`
-(wajah proyek), `CHANGELOG.md` (arsip append-only rilis publik, BUKAN
-acuan konteks utama). `FILE_MANIFEST.txt` DIKECUALIKAN (manifest teknis,
-bukan dokumentasi — tetap di root). Kebutuhan dokumen backlog terpisah
-baru: TANYA user dulu, jangan pecah lagi sepihak.
+(wajah proyek), `CHANGELOG.md` (arsip append-only rilis publik, BUKAN acuan
+konteks utama). Entry CHANGELOG baru WAJIB paling atas: heading `## ...` +
+paragraf pembuka ringkas (heading+paragraf ≤15 baris) SEBELUM baris pertama
+berawalan `**` — CI mengambil bagian itu jadi body GitHub Release.
+`FILE_MANIFEST.txt` DIKECUALIKAN (manifest teknis, bukan dokumentasi — tetap
+di root). Dokumen usang → `docs/archive/` (bukan root; sesuai SOP).
+Kebutuhan dokumen backlog terpisah baru: TANYA user dulu, jangan pecah lagi
+sepihak.
 
 ---
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 115 (fitur baru: Export/Import preset ke file `.json`
-  via SAF, Fase 8 item D — kode selesai, **NOT VERIFIED** compile/runtime,
-  lihat LOG BATCH 115 utk detail file & instruksi test manual). Batch 113
-  (hotfix `Theme.kt:1074`) JUGA masih belum tervalidasi CI hijau — 2 batch
-  beruntun sekarang menunggu 1x push+validasi CI bareng.
+- **Batch terakhir**: 118 (0 kode, dok-only cleanup — lihat LOG BATCH 118).
+  Perubahan kode terakhir: Batch 116 (string EN); logika terakhir: Batch 115.
+- **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
+  utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
+  = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
+  118 — sudah lama jalan). Status "belum tervalidasi"/"menunggu user test"
+  versi lama = BASI, JANGAN dimunculkan lagi kecuali user lapor bug baru.**
+  (1) Midnight Glass — default, glass restrained, key `amoled_glass`.
+  (2) Aurora Glass — glass vivid, key `radical_skeuo`.
+  (3) Neumorphism — key `skeuomorphism`; base Deep Navy, shape near-flat
+  4/3dp + tipografi tracked-out ala "Blade Runner" (Batch 108), aksen Misty
+  Pine Forest (109), dual-shadow ambient pine-tinted (110).
+  (4) Studio Equalizer — key `studio_eq`; neumorphism abu studio + neon-lime.
+  (5) Serene M3 — key `serene_m3` (Batch 111-113); Material 3 flat-tonal,
+  aksen sage+lavender, shape cut-corner organic-asymmetric.
+  Key persist = Protected Asset (JANGAN rename). Pivot: "Riwayat pivot".
+- **Export/Import preset** (Batch 115-116, Fase 8 D): USER-CONFIRMED WORKING
+  (compile+runtime OK, implisit memvalidasi hotfix Batch 113). SELESAI.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
   custom opt-in di Settings, tap-tab (bukan swipe), 1 scrollport, 0 clip
   ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
-- **Tema**: 4 varian aktif via switch Settings — Midnight Glass (default),
-  Aurora Glass, Neumorphism (persistence key kode tetap "Skeuomorphism",
-  shape/typography "Blade Runner" ala dari Batch 108, aksen warna "Misty
-  Pine Forest" sejak Batch 109, dual-shadow ambient ikut pine-tinted sejak
-  Batch 110 — lihat "Riwayat pivot arah desain" poin 9-11), Studio
-  Equalizer. Lihat "Riwayat pivot arah desain" untuk detail tiap varian.
-- **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema di
-  atas): grouped-list Kontrol + Settings selesai+tervalidasi, tipografi
-  Large Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
+- **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema):
+  grouped-list Kontrol + Settings selesai+tervalidasi, tipografi Large
+  Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
   tervalidasi visual). Sisa: nav bar large-title-collapsing, audit
   `OnboardingScreen.kt`, SF Symbols-style icon — lihat TODO Fase 7.
-- **Validasi runtime**: mayoritas perubahan UI/layout terkini BELUM
-  divalidasi di device fisik oleh user (sandbox tanpa compiler/emulator,
-  lihat "Batasan sandbox"). Anggap "belum tervalidasi" sebagai default
-  tiap ada perubahan baru kecuali eksplisit dicatat terkonfirmasi.
+- **Validasi runtime (default)**: perubahan baru = NOT VERIFIED sampai user
+  konfirmasi eksplisit (sandbox tanpa compiler/emulator, lihat "Batasan
+  sandbox"). Sisa validation debt NON-tema (pasif, non-blocking): Fase 1.
 
 ---
 
-## ⚠️ Temuan validasi ZIP upload (Batch 96, transparansi, bukan bloker aktif)
-Saat itu dicek `Boomly_v96.zip` vs 3 fix session sebelumnya (Batch 94-96
-inset/shadow) — semua sudah termasuk di ZIP, 0 selisih.
+## ⚠️ Temuan terbuka (Batch 118 — BELUM diubah: SOP immutable / di luar scope dok)
+- **Nama secret Box B vs CI**: Box B (SOP terkini) men-set
+  `ANDROID_KEYSTORE_BASE64`/`_PASSWORD` + `ANDROID_KEY_ALIAS`/`_PASSWORD`,
+  sedangkan `build.yml` + README membaca `KEYSTORE_BASE64`/
+  `KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` (tanpa prefix). Rilis
+  produksi jalan normal (Batch 78-79) → secret repo aktif sudah cocok CI;
+  risiko HANYA di setup repo BARU via Box B apa adanya (step release
+  ke-skip diam-diam, cuma warning). Butuh keputusan user: samakan Box B
+  atau `build.yml`.
+- **Guard integritas Daily Update**: teks SOP tertulis
+  `[ $NEW_COUNT -lt$((OLD_COUNT * 70 / 100)) ]` (tanpa spasi setelah `-lt`)
+  → bash "unary operator expected", guard rollback tidak pernah trigger
+  (jatuh ke commit+push). Diuji di sandbox Batch 118. Skrip immutable,
+  tidak diubah — butuh keputusan user.
 
 ## 📅 LOG BATCH (descending, terbaru paling atas — BUKAN bagian permanen)
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
-- **Batch 115** (`PrefsHelper.kt`, `SettingsScreen.kt`,
-  `res/values/strings.xml`, request eksplisit user "mulai aja!!" pasca-
-  Batch 114): eksekusi item D Fase 8 (Export/Import preset, ROI #1) —
-  `PrefsHelper.exportCustomPresetsToJson()`/`importCustomPresetsFromJson()`
-  (envelope JSON, parsing atomik per-entry, reuse `addCustomPreset` buat
-  merge/overwrite-by-name) + UI section baru "Cadangkan Preset" di
-  `SettingsScreen.kt` (SAF `CreateDocument`/`OpenDocument`, I/O di
-  `Dispatchers.IO`). Static check lolos (brace/paren balance + XML
-  well-formed, TIDAK ADA compiler di sandbox). **Status: NOT VERIFIED** —
-  behavior compile & runtime belum diuji CI/device fisik, lihat instruksi
-  test manual di bawah sebelum dianggap stabil. `values-en/strings.xml`
-  BELUM disentuh (di luar limit 3 file kode/tugas) — 9 string baru
-  fallback ke teks ID di locale EN buat sementara, bukan crash. Follow-up:
-  tambah terjemahan EN batch depan.
-- **Batch 114** (`PROJECT_STATE.md`, planning only, request eksplisit user
-  "planning biar lebih powerful"): tambah **Fase 8 — Powerful Upgrade
-  Roadmap** di TODO/ROADMAP (bawah Fase 7) — 5 kategori (Audio Engine/
-  Automation/Reliability/Ecosystem/Observability) + urutan rekomendasi ROI.
-  Murni dokumentasi, 0 file kode disentuh. Status: N/A (bukan kode,
-  eksekusi nunggu instruksi user per item).
-- **Batch 113** (`Theme.kt`, hotfix build, input: `log_fail_v161-debug-run161.zip`):
-  fix compile error `:app:compileDebugKotlin` (`Theme.kt:1074`, "Type mismatch:
-  inferred type is Shape but CornerBasedShape was expected") — regresi dari
-  Batch 112. Root cause: `SereneCardShape` dideklarasi tipe `Shape` (interface
-  umum) walau objek runtime (`CutCornerShape`) sebenarnya sudah `CornerBasedShape`
-  — cocok buat field `SkeuTokens.cardShape: Shape` tapi TIDAK cocok buat
-  `Shapes.large` (M3) yang butuh tipe persis `CornerBasedShape`. Fix: deklarasi
-  diperketat ke `CornerBasedShape` + 1 import baru, 0 nilai/logic diubah (upcast
-  ke `cardShape: Shape` tetap valid). Belum tervalidasi CI (perlu run hijau
-  berikutnya).
-- **Batch 112** (`Theme.kt`+`SkeuomorphicComponents.kt`): fix komplain user
-  eksplisit (screenshot) — kartu Serene M3 masih rounded biasa, cut-corner
-  shape "unique" TIDAK kepakai sama sekali. Root cause: `SkeuCard`/
-  `SkeuTintedCard` SELALU bikin `RoundedCornerShape(radius)` sendiri, 0 pernah
-  baca shape asli per-varian (`SereneShapes` cuma kepakai komponen Material3
-  default yang jarang tampil di layar ini). Fix: `SkeuTokens` +field
-  `cardShape: Shape` (4 varian lama diisi `RoundedCornerShape` SAMA PERSIS
-  radius lama = 0 perubahan visual, Serene M3 diisi `SereneCardShape` cut-corner
-  asli — const baru, di-reuse juga oleh `SereneShapes.large` biar 1 sumber
-  kebenaran). `SkeuCard`/`SkeuTintedCard` sekarang baca `tokens.cardShape`.
-  Belum tervalidasi visual (sandbox tanpa render).
-- **Batch 111** (`Theme.kt`+`PrefsHelper.kt`+`MainActivity.kt`+`BoosterScreen.kt`
-  +strings ID/EN): varian tema BARU ke-5 "Serene M3" (request eksplisit user) —
-  genuine Material 3 flat-tonal (0 glass/bevel/dual-shadow, `shadowLightTint`/
-  `shadowDarkTint`/`specularBrush` semua Transparent), typography sendiri
-  (`SereneTypography`: 30/21/16sp, tracking positif halus 0.1-0.3sp, weight
-  Medium/SemiBold dominan — 0 baseline dishare Batch 90/108), shape
-  organic-asymmetric (`SereneShapes`: `CutCornerShape` 1-sudut di elemen besar,
-  simetris di elemen kecil), aksen "calm" sage (`SereneAccent` 0x9CB89F) +
-  lavender-abu (`SereneSecondary` 0xB7AFC9). Enum `+SERENE_M3`, const
-  `APP_THEME_SERENE_M3`, toggle ke-5 (ikon `Spa`) sejajar 4 toggle lain, 0
-  varian lain disentuh. `docs/preview/current.html` footer note disinkron
-  (tetap representasi Midnight Glass saja, sesuai preseden 3 varian
-  sebelumnya). Belum tervalidasi visual (sandbox tanpa render).
-- **Batch 110** (`Theme.kt`): komplain user eksplisit — aksen "Misty Pine
-  Forest" (Batch 109) kalah dominan dari tint navy independen di
-  `SkeuDualDirectionalShadow` (`NeumoEdgeHighlight`/`NeumoEdgeShadow`), yang
-  ke-render BERULANG tiap kartu/banner (root cause: warna shadow ambient
-  paling sering diulang di layar, bukan cuma di 1 elemen aksen). Fix:
-  `NeumoEdgeHighlight` diturunkan dari `NeumoMistyPine` (lerp ke White 0.30f),
-  `NeumoEdgeShadow` dapat tint pine 15% (lerp dari `NeumoPanelRecessed`).
-  Alpha 0.72f/0.97f (Batch 56) TIDAK diubah. Base palette Deep Navy (fill
-  kartu sendiri) TIDAK disentuh — cuma tint shadow ambient. Belum
-  tervalidasi visual (sandbox tanpa render).
-- **Batch 109** (`Theme.kt`+strings ID/EN): aksen varian "Neumorphism" DIGANTI
-  (instruksi eksplisit user) — Aurora→"Misty Pine Forest", `NeumoAurora`/
-  `NeumoAuroraDeep` DIHAPUS ganti `NeumoMistyPine`(`0xFF80A891`)/
-  `NeumoMistyPineDeep` (lerp formula sama, 0.45f ke `NeumoPanelRecessed`), 0
-  referensi eksternal (aman). Scope HANYA aksen — shape/typography Blade
-  Runner (Batch 108) & base palette Deep Navy TIDAK disentuh. Belum
-  tervalidasi visual (sandbox tanpa render).
-- **Batch 108** (`Theme.kt`+strings ID/EN): varian "Neumorphism" DIROMBAK TOTAL
-  ala Blade Runner (instruksi eksplisit user) — shape near-flat/angular
-  (`NeumoCardRadius`/`NeumoIconBoxRadius` 22/15dp→4/3dp, `NeumorphismShapes`
-  ikut), typography PERTAMA KALI jadi per-varian (`NeumorphismTypography` baru,
-  tracked-out/heavier, 0 font baru di-embed), aksen Brass→Aurora
-  (`NeumoAurora`=`RadicalAccent` literal reuse, var lama `NeumoBrass`/
-  `NeumoBrassDeep` DIHAPUS — 0 referensi eksternal, aman). Base palette Deep
-  Navy TIDAK disentuh (scope eksplisit user). `SkeuomorphicComponents.kt` 0
-  disentuh — regresi risk ke 3 varian lain NOL. Bonus: desc string
-  Platinum/Ruby yang sudah basi sejak Batch 52 (gak pernah diupdate) ikut
-  dikoreksi. Belum tervalidasi visual (sandbox tanpa render).
-- **Batch 107** (`BoosterViewModel.kt`+`MainActivity.kt`+`BoosterScreen.kt`+
-  strings ID/EN): Fase 0 item #9 — state "Output-changed" (route audio
-  pindah) DITUTUP. `AudioEnhancerService.lastOutputRouteDescription` (Batch
-  83) sebelumnya write-only, sekarang dipoll ViewModel (loop 1 detik yang
-  sama dengan EffectState) → `OutputRouteBanner` baru (tint primary/info,
-  BEDA dari ControlRecoveryBanner merah/error). Auto-reset dismiss saat
-  route berubah lagi ke deskripsi berbeda. 4 state lain (Unsupported/
-  Strength-unsupported/Control-lost/Failed) dikonfirmasi SUDAH tersurface
-  sejak Batch 57-59 — audit ulang tidak temukan gap lain. Fase 0 sekarang
-  5/9 selesai. Belum tervalidasi runtime (banner baru, perlu trigger
-  device fisik ganti route Bluetooth/wired).
+- **Batch 118** (0 kode, dok-only — instruksi eksplisit user): cleanup
+  `PROJECT_STATE`/`README`/`CHANGELOG`/`FILE_MANIFEST`/preview HTML,
+  `archive/`→`docs/archive/`. Status tema dikoreksi → 5 varian USER-CONFIRMED
+  (gate "next→validasi" Batch 117 dicabut); varian 4→5 & CI 1-job
+  disinkron; section basi dibuang; log 107-117 dipangkas; +tag & RESUME POINT.
+- **Batch 117** (0 kode, gate check): user "next" generik → sempat ditahan
+  buat validasi 2 tema (Serene M3, Neumorphism pine-tint). SUPERSEDED Batch
+  118: kedua tema sudah lama berhasil (konfirmasi user) — gate itu basi.
+- **Batch 116** (`values-en/strings.xml`, `values/strings.xml`): 9 string EN
+  Export/Import preset (tertunda dari Batch 115), parity ID/EN 0 selisih.
+  Status: **VERIFIED** (resource murni, 0 logic Kotlin).
+- **Batch 115** (`PrefsHelper.kt`, `SettingsScreen.kt`, `values/strings.xml`):
+  Export/Import preset `.json` (Fase 8 D) — envelope JSON, parsing atomik
+  per-entry, reuse `addCustomPreset`; UI "Cadangkan Preset" (SAF, I/O di
+  `Dispatchers.IO`). Status: **VERIFIED** (user: compile+runtime OK, B116).
+- **Batch 114** (`PROJECT_STATE.md`, planning, request user "planning biar
+  lebih powerful"): tambah Fase 8 — Powerful Upgrade Roadmap (5 kategori +
+  urutan ROI). 0 kode. Status: N/A.
+- **Batch 113** (`Theme.kt`, hotfix build, input `log_fail_v161-debug-run161`):
+  `SereneCardShape` `Shape`→`CornerBasedShape` (+1 import) — fix
+  `Theme.kt:1074` type mismatch, regresi Batch 112; 0 nilai/logic diubah.
+  Status: **VERIFIED** (implisit: app compile+jalan di Batch 115-116).
+- **Batch 112** (`Theme.kt`, `SkeuomorphicComponents.kt`): fix komplain user
+  (screenshot) — kartu Serene M3 masih rounded biasa. `SkeuTokens` +`cardShape`;
+  `SkeuCard`/`SkeuTintedCard` baca `tokens.cardShape` (4 varian lama =
+  `RoundedCornerShape` radius sama, 0 perubahan visual). Status: **VERIFIED**
+  (user, Batch 118).
+- **Batch 111** (`Theme.kt`, `PrefsHelper.kt`, `MainActivity.kt`,
+  `BoosterScreen.kt`, strings ID/EN): varian ke-5 "Serene M3" — Material 3
+  flat-tonal, `SereneTypography`/`SereneShapes` (cut-corner) sendiri, aksen
+  sage+lavender; enum `+SERENE_M3`, toggle ke-5. Preview HTML tetap Midnight
+  Glass saja. Status: **VERIFIED** (user, Batch 118).
+- **Batch 110** (`Theme.kt`): komplain user — aksen Misty Pine kalah dominan
+  dari tint navy di `SkeuDualDirectionalShadow` (berulang tiap kartu).
+  `NeumoEdgeHighlight`/`NeumoEdgeShadow` diturunkan dari `NeumoMistyPine`;
+  alpha Batch 56 & base Deep Navy TIDAK diubah. Status: **VERIFIED** (user,
+  Batch 118).
+- **Batch 109** (`Theme.kt`, strings ID/EN): aksen Neumorphism Aurora→"Misty
+  Pine Forest" (`NeumoMistyPine` `0xFF80A891`/`NeumoMistyPineDeep`; instruksi
+  user); shape/typography Batch 108 & base Deep Navy TIDAK disentuh. Status:
+  **VERIFIED** (user, Batch 118).
+- **Batch 108** (`Theme.kt`, strings ID/EN): Neumorphism dirombak ala "Blade
+  Runner" (instruksi user) — shape near-flat 22/15dp→4/3dp,
+  `NeumorphismTypography` per-varian (pertama kali), aksen Brass→Aurora
+  (lalu Batch 109). Base Deep Navy & `SkeuomorphicComponents.kt` 0 disentuh.
+  Status: **VERIFIED** (user, Batch 118).
+- **Batch 107** (`BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`,
+  strings ID/EN): Fase 0 #9 ditutup — `lastOutputRouteDescription` (Batch 83)
+  dipoll ViewModel → `OutputRouteBanner` baru (tint info, beda dari
+  `ControlRecoveryBanner`). Fase 0 5/9. Belum tervalidasi runtime (butuh
+  ganti route BT/wired di device fisik).
 - **Batch 106** (0 kode, dok-only): konsolidasi `roadmap.md` + 2x
-  `PENDING_*.md` → `PROJECT_STATE.md` § TODO/ROADMAP, sumber lama
-  dipindah ke `/archive`. README diaudit, 0 info usang lain ditemukan.
+  `PENDING_*.md` → `PROJECT_STATE.md` § TODO/ROADMAP, sumber lama dipindah
+  ke `archive/` (Batch 118: dipindah lagi ke `docs/archive/` sesuai SOP).
+  README diaudit, "0 info usang" — audit Batch 118 nemu klaim CI 2-job basi.
 - **Batch 105** (`BoosterScreen.kt`, REVERT): swipe-antar-tab Batch 104
   (auto-height pager) regresi UI parah di device fisik (klip/distorsi) —
   direvert total, identik byte-per-byte ke Batch 103. Lihat "Keputusan
@@ -232,7 +232,7 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 - **Batch 103** (`BoosterScreen.kt`): hapus swipe-antar-tab, ganti tap-tab
   (`selectedTabIndex` + `rememberSaveable`). Hasil: 1 clip fisik sisa
   (wajar, tepi layar), 0 clip ganda. Belum tervalidasi runtime saat itu
-  (sekarang TERVALIDASI stabil, lihat Status Terkini).
+  (sekarang TERVALIDASI stabil, lihat "Keputusan sadar").
 - **Batch 102** (0 kode, keputusan scope): user tanya kenapa clip fisik
   gak dihilangkan total. Dijawab 2 opsi arsitektur (auto-height pager vs
   hapus swipe) — 0 dipilih sesi itu, dieksekusi Batch 103.
@@ -324,10 +324,9 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
   FOUND/ERROR.
 - **Batch 72** (dok-only): restrukturisasi `PROJECT_STATE.md` jadi 2 lapis
   (Aturan Permanen vs Log Harian) — 0 konten historis dihapus saat itu.
-- **Batch 71** (dok-only): rule Batch 70 dipertegas — glob Termux
-  `Boomly*.zip` di-spell-out eksplisit.
-- **Batch 70** (dok-only): PIN format ZIP output `Boomly_<versi>-<batch>.zip`
-  (kemudian direvisi lagi Batch 76/94, lihat "Keputusan sadar").
+- **Batch 70-71** (dok-only): PIN format ZIP `Boomly_<versi>-<batch>.zip` +
+  glob Termux `Boomly*.zip` eksplisit — format itu OBSOLETE (direvisi Batch
+  76/94), lihat "Keputusan sadar".
 - **Batch 69** (5 file+3 parsial, v1.99.0): fitur in-app update — cek versi
   via judul GitHub Release `(Run #N)`, unduh APK chunk-streaming Okio
   (DILARANG `readBytes()`), install via FileProvider. Permission
@@ -335,10 +334,8 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 - **Batch 68** (`strings.xml` ID/EN+preview html+README): ekspansi rebrand
   — semua string user-facing app jadi "Boomly". Path fungsional
   (`CrashLogger.APP_FOLDER`, applicationId, dll) TETAP tidak berubah.
-- **Batch 67** (dok-only): koreksi nama ZIP `AudioBooster`→`Boomly` (Batch
-  66 dianggap masih generik).
-- **Batch 66** (dok-only): rebrand kosmetik nama ZIP output
-  `AudioEnhancerPro`→`AudioBooster` (dikoreksi Batch 67). 0 kode disentuh.
+- **Batch 66-67** (dok-only): iterasi nama ZIP output `AudioEnhancerPro`→
+  `AudioBooster`→`Boomly` (0 kode); format final: "Keputusan sadar".
 - **Batch 65** (`app/build.gradle.kts`+`.github/workflows/build.yml`):
   inspeksi penuh Feature Lock CI/CD — 2 pelanggaran ketemu & fix:
   `versionCode` yang selama ini manual → otomatis `GITHUB_RUN_NUMBER`;
@@ -511,50 +508,47 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 7. **iOS Glassmorphism + Midnight-Blue dominan** (Batch 37, v1.76.0,
    ARAH DASAR SEKARANG) — kartu genuine frosted-glass (4-stop+sheen
    kedua), radius besar ala iOS, background gradient Midnight-Blue→hitam,
-   kontras teks readability-first. **4 varian tema** hidup berdampingan
-   via switch Settings (arsitektur `SkeuTokens`/`AppThemeStyle` sejak
-   Batch 36): (1) Midnight Glass (default, restrained), (2) Aurora Glass
-   (vivid), (3) Neumorphism (Batch 46, ultra realistic, palet
-   Platinum+Ruby, persistence key kode TETAP `SKEUOMORPHISM`), (4) Studio
-   Equalizer (Batch 43, palet studio + neon-lime, low-contrast by design).
-   Warna aksen per-fitur (Bass/Virtualizer/Loudness/Equalizer) TETAP
-   independen dari ke-4 varian ini.
+   kontras teks readability-first. **5 varian tema** hidup berdampingan
+   (arsitektur `SkeuTokens`/`AppThemeStyle` sejak Batch 36; semua
+   USER-CONFIRMED berhasil, Batch 118): (1) Midnight Glass (default,
+   restrained), (2) Aurora Glass (vivid), (3) Neumorphism (Batch 46, DIROMBAK
+   berkali-kali: base Deep Navy Batch 52, kondisi sekarang lihat poin 9-11;
+   key persist TETAP `SKEUOMORPHISM`), (4) Studio Equalizer (Batch 43,
+   palet studio + neon-lime, low-contrast by design), (5) Serene M3 (Batch
+   111, poin 12). Warna aksen per-fitur (Bass/Virtualizer/Loudness/
+   Equalizer) TETAP independen dari kelima varian ini.
 8. **iOS Look Hybrid Rombak** (Batch 88+, lapisan struktur/pola DI ATAS
    poin 7, TIDAK ganti warna/material) — grouped-list, tipografi Large
    Title, dst. Lihat TODO Fase 7 untuk progress.
-9. **Neumorphism → "Blade Runner + Aurora"** (Batch 108, HANYA varian
-   ke-3, 3 varian lain di poin 7 TIDAK berubah) — shape near-flat/angular
-   (radius 22/15dp→4/3dp), typography PERTAMA KALI per-varian (tracked-out/
-   heavier, 0 font baru), aksen Brass→Aurora (`NeumoAurora`=`RadicalAccent`
-   literal). Base palette Deep Navy (Batch 52) DIPERTAHANKAN utuh — scope
-   sengaja dibatasi shape+typografi+aksen, bukan background/base palette.
-   `SkeuomorphicComponents.kt` 0 disentuh. Detail lengkap: `CHANGELOG.md`
-   Batch 108, komentar blok panjang di `Theme.kt`.
-10. **Neumorphism aksen → "Misty Pine Forest"** (Batch 109, HANYA aksen
-   warna varian ke-3 — shape/typography Blade Runner poin 9 TIDAK ikut
-   berubah) — `NeumoAurora`/`NeumoAuroraDeep` DIHAPUS, ganti
-   `NeumoMistyPine`(`0xFF80A891`)/`NeumoMistyPineDeep`, hijau pinus
-   desaturasi/kesan berkabut, brightness disamakan dgn Aurora lama (kontras
-   `onPrimary` tetap aman tanpa re-tune). Base palette Deep Navy & shape/
-   typography Blade Runner TIDAK disentuh. Detail lengkap: `CHANGELOG.md`
-   Batch 109, komentar blok `Theme.kt`.
+9. **Neumorphism → "Blade Runner"** (Batch 108, HANYA varian ke-3) — shape
+   near-flat/angular (radius 22/15dp→4/3dp), typography PERTAMA KALI
+   per-varian (`NeumorphismTypography`, tracked-out/heavier, 0 font baru).
+   Aksen awal Aurora (`NeumoAurora`) — DIGANTI poin 10. Base Deep Navy
+   (Batch 52) & `SkeuomorphicComponents.kt` TIDAK disentuh. Detail:
+   `CHANGELOG.md` Batch 108, komentar blok `Theme.kt`.
+10. **Neumorphism aksen → "Misty Pine Forest"** (Batch 109, HANYA aksen) —
+   `NeumoMistyPine` (`0xFF80A891`)/`NeumoMistyPineDeep` ganti `NeumoAurora*`
+   (dihapus, 0 referensi eksternal); hijau pinus desaturasi, brightness
+   setara Aurora lama (kontras `onPrimary` aman tanpa re-tune). Detail:
+   `CHANGELOG.md` Batch 109.
 11. **Neumorphism dual-shadow ambient → pine-tinted** (Batch 110, fix
-   komplain user pasca-Batch 109) — `NeumoEdgeHighlight`/`NeumoEdgeShadow`
-   (tint `SkeuDualDirectionalShadow`, sebelumnya navy independen `0x4A6690`)
-   diturunkan dari `NeumoMistyPine` supaya efek stack-shadow berulang di
-   tiap kartu ikut kebaca pine, bukan biru. Base palette Deep Navy (fill
-   kartu) & alpha depth Batch 56 TIDAK disentuh. Detail: `CHANGELOG.md`
+   komplain user) — `NeumoEdgeHighlight`/`NeumoEdgeShadow` (tint
+   `SkeuDualDirectionalShadow`, dulu navy `0x4A6690`) diturunkan dari
+   `NeumoMistyPine` supaya shadow berulang tiap kartu ikut kebaca pine. Base
+   Deep Navy & alpha depth Batch 56 TIDAK disentuh. Detail: `CHANGELOG.md`
    Batch 110.
-12. **Varian tema ke-5 baru: "Serene M3"** (Batch 111, TAMBAHAN sejajar
-   4 varian di poin 7, TIDAK mengubah satupun dari 4 varian itu) — genuine
-   Material 3 flat-tonal (bukan glass/skeuo/neumorphism), typography+shape
-   ZERO baseline dishare varian manapun (`SereneTypography` tracking positif
-   halus + weight ringan, `SereneShapes` organic-asymmetric cut-corner),
-   aksen "calm" sage+lavender desaturasi. Detail lengkap: `CHANGELOG.md`
-   Batch 111, komentar blok `Theme.kt`.
+12. **Varian ke-5 "Serene M3"** (Batch 111-113, TAMBAHAN sejajar poin 7, 4
+   varian lain TIDAK berubah) — genuine Material 3 flat-tonal (bukan
+   glass/skeuo/neumorphism), `SereneTypography` (tracking positif halus,
+   weight ringan) & `SereneShapes` (cut-corner organic-asymmetric) zero
+   baseline dishare, aksen "calm" sage+lavender desaturasi. Batch 112:
+   `SkeuCard` baca `tokens.cardShape` supaya cut-corner benar-benar kepakai.
+   Detail: `CHANGELOG.md` Batch 111-113.
+   (Poin 9-12 USER-CONFIRMED berhasil, Batch 118.)
 
-**Preview visual live**: `docs/preview/current.html` — WAJIB disinkron
-bareng tiap perubahan Kotlin yang visual-related, SEBELUM kirim APK
+**Preview visual live**: `docs/preview/current.html` — mockup HANYA varian
+Midnight Glass (4 varian lain tanpa mockup). WAJIB disinkron bareng tiap
+perubahan Kotlin yang visual-related pada varian itu, SEBELUM kirim APK
 (validasi arah desain jauh lebih murah lewat browser daripada build
 penuh). Kalau ada guide desain baru yang KELIHATAN mirip tapi beda detail
 dari yang dipakai batch terakhir, JANGAN asumsikan itu iterasi tambahan —
@@ -582,7 +576,7 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   target `unzip -d` HARUS folder project itu sendiri, BUKAN parent-nya —
   circuit breaker integritas bisa salah trigger kalau file nyasar ke
   folder induk (insiden nyata: v1.41).
-  Value YAML yang isinya `#<...>` WAJIB di-quote — plain scalar
+- Value YAML yang isinya `#<...>` WAJIB di-quote — plain scalar
   memperlakukan spasi+`#` sebagai awal komentar bahkan di tengah baris,
   bisa diam-diam kepotong tanpa CI error apapun (insiden nyata: Batch 78,
   bug ini lolos 9 batch sebelum ketemu).
@@ -615,11 +609,6 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   (3) repo PUBLIC → GitHub Actions minutes gratis, biaya sebenarnya WAKTU
   per putaran (~5-10 menit all-in), bukan uang.
 
-## [ARSIP, USANG sejak Batch 66/67] Command Termux lama — JANGAN dipakai
-Glob `AudioEnhancerPro*.zip` sudah tidak match output Claude sejak Batch
-66 (sekarang `Boomly*.zip`). Skrip aktif = template Immutable user
-preferences.
-
 ---
 
 ## 🗂️ Struktur proyek singkat (state saat ini, bukan histori per-batch)
@@ -628,8 +617,9 @@ preferences.
   `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum.
 - `BoosterScreen.kt` — layar utama Compose. Default: 1 `Column`
   `.verticalScroll()` flat berisi Preset Cepat → kartu Bass/Virtualizer/
-  Loudness (grouped-list 1 card) → Equalizer Manual → 4 toggle tema →
-  kartu baterai/autostart. Opsi custom: Mode Tab Horizontal
+  Loudness (grouped-list 1 card) → Equalizer Manual → toggle Material You
+  (Android 12+) + 4 toggle varian tema eksklusif (semua mati = Midnight
+  Glass) → kartu baterai/autostart. Opsi custom: Mode Tab Horizontal
   (`TabPageContent(page)`, tap-tab via `selectedTabIndex`). Termasuk
   `PowerToggleRow`, `ServiceStatusBadge`, `CrashBanner`,
   `ControlRecoveryBanner`, `OutputRouteBanner` (Batch 107, info route
@@ -655,6 +645,8 @@ preferences.
   `CustomPreset` punya field `eqBands: List<Int>` (default `emptyList()`,
   backward-compat via `optJSONArray`). `getUseHorizontalTabLayout()`/
   `setUseHorizontalTabLayout()` — key `use_horizontal_tab_layout`.
+  `exportCustomPresetsToJson()`/`importCustomPresetsFromJson()` (Batch 115,
+  envelope JSON, parsing atomik per-entry, reuse `addCustomPreset`).
 - `CrashLogger.kt` — tangkap uncaught exception → MediaStore API 29+,
   rotasi FIFO maks 50 file.
 - `AudioEnhancerApp.kt` — Application class, `CrashLogger.install()`.
@@ -671,13 +663,20 @@ preferences.
 - `SettingsScreen.kt` — entry point cek-update manual (ikon ⚙️ di header),
   komparasi versi + release notes + tombol unduh inline, 100% reuse state
   `BoosterViewModel`. Section "Navigasi Layar Utama" — toggle Mode Tab
-  Horizontal.
-- `docs/preview/current.html` — mockup HTML standalone, WAJIB update
-  bareng perubahan visual besar.
+  Horizontal. Section "Cadangkan Preset" (Batch 115) — Export/Import `.json`
+  via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`).
+- `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
+  Tile), `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
+  setelah boot).
+- Test (`app/src/test`): `AudioEnhancerServiceStateTest.kt` (13 test
+  Robolectric, Batch 86), `PrefsHelperTest.kt`, `FormatFreqLabelTest.kt`.
+- `docs/preview/current.html` — mockup HTML standalone (HANYA Midnight
+  Glass), WAJIB update bareng perubahan visual besar. `docs/archive/` — dok
+  usang, JANGAN jadi acuan konteks.
 
 ---
 ## 📋 TODO / ROADMAP — backlog aktif (konsolidasi Batch 106 dari `roadmap.md` +
-2x `PENDING_*.md`, ketiganya diarsipkan ke `/archive` — lihat "🔒 ATURAN
+2x `PENDING_*.md`, ketiganya diarsipkan ke `docs/archive/` — lihat "🔒 ATURAN
 PERMANEN" soal kebijakan arsip. Ini SEKARANG satu-satunya sumber kebenaran
 backlog, jangan biarkan pecah lagi ke file terpisah.)
 
@@ -685,10 +684,11 @@ backlog, jangan biarkan pecah lagi ke file terpisah.)
 README ada & jalan; (2) Runtime-verified — semua perubahan sejak Batch 1
 terkonfirmasi jalan di device fisik, BUKAN cuma statis; (3) CI hijau stabil
 berkali-turut; (4) 0 TODO Medium/High tersisa (Low boleh permanen pending
-kalau sengaja dideprioritaskan user). Estimasi kasar: fungsional ~95%,
-tapi "terbukti benar di device" jauh lebih rendah — gap terbesar ada di
-Fase 1 (Runtime Validation Debt) di bawah, PRIORITAS TERTINGGI kalau user
-tanya "lanjut yang mana" tanpa fitur baru spesifik diminta.
+kalau sengaja dideprioritaskan user). Estimasi kasar: fungsional ~95%;
+gap "terbukti benar di device" tinggal sisa NON-tema di Fase 1 (backlog
+pasif, NON-BLOCKING — tema sudah tervalidasi, Batch 118). Kalau user bilang
+"next"/"lanjut" tanpa fitur spesifik → lanjut item berikutnya urutan ROI
+Fase 8, BUKAN ditahan buat validasi.
 
 ### Fase 0 — Audio Engine Robustness (audit eksternal Batch 57)
 9 item dari audit eksternal, kerjakan SATU per satu (instruksi eksplisit
@@ -738,76 +738,46 @@ device uji nyata yang Equalizer-nya UNAVAILABLE); apakah
 28+ nyata (variasi HAL); apakah konversi mB→dB (levelMb/100f, rentang ±12dB
 konservatif) terdengar wajar dibanding Equalizer asli.
 
-### Fase 1 — Runtime Validation Debt (PRIORITAS TERTINGGI)
-Backlog terbesar & paling berisiko — banyak perubahan besar (tema/UI Batch
-31-49, arsitektur Batch 16-18) dikirim "belum divalidasi runtime" (statis
-only). **Cara kerja disarankan**: JANGAN validasi semua sekaligus — tiap
-user install APK baru, cocokkan ke daftar, centang yang confirmed OK, catat
-detail kalau gagal (jadi bug baru, bukan "belum divalidasi" lagi):
-- 5 varian tema (Midnight Glass/Aurora Glass/Neumorphism/Studio Equalizer/
-  Serene M3) — cek visual tiap varian di Settings; kandidat bug: glow/sheen
-  gak muncul, radius salah, kontras teks kurang. **Neumorphism (Batch
-  108-110)**: cek KHUSUS — shape near-flat kebaca "sharp" bukan "rusak"/pecah
-  di device fisik (radius 4dp/3dp, bukan 100% lancip, waspada aliasing tepi),
-  6 style typography baru (`NeumorphismTypography`) render proporsional (bukan
-  overflow/kepotong — letterSpacing lebih lebar dari `AppTypography` global),
-  aksen Misty Pine Forest (`NeumoMistyPine`, Batch 109) kontras cukup di
-  atas Deep Navy (WCAG, terutama `onPrimary` teks di atas tombol/switch
-  aktif), dual-shadow ambient pine-tinted (`NeumoEdgeHighlight`/
-  `NeumoEdgeShadow`, Batch 110) kebaca sebagai "pine subtle" bukan "biru
-  masih dominan" di device fisik (fix ini FIX PERSEPSI VISUAL user, kandidat
-  gagal: pine 15%/30% blend terlalu tipis buat device tertentu, kalau
-  disinggung lagi cek dulu apa perlu naikkan persentase blend). **Serene M3
-  (Batch 111, baru)**: cek KHUSUS — `SereneShapes` `large`/`extraLarge`
-  pakai `CutCornerShape` asimetris (bukan `RoundedCornerShape` seperti 4
-  varian lain) — pastikan render di kartu besar/dialog TIDAK aliasing/pecah
-  di device fisik, tipografi `SereneTypography` (tracking positif tipis
-  0.1-0.3sp, weight lebih ringan dari 4 varian lain) tetap terbaca jelas
-  meski lebih halus, kontras `onPrimary`/`onSecondary` di atas sage/lavender
-  aman WCAG.
-- `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
+### Fase 1 — Runtime Validation Debt (backlog pasif, NON-BLOCKING)
+Sisa perubahan lama yang dikirim "belum divalidasi runtime" (statis only).
+Bukan gate untuk item baru. **Cara kerja**: tiap user install APK baru,
+cocokkan ke daftar, centang yang confirmed OK, catat detail kalau gagal
+(jadi bug baru, bukan "belum divalidasi" lagi):
+- [x] **5 varian tema** (Midnight/Aurora/Neumorphism Batch 108-110/Studio
+  Equalizer/Serene M3 Batch 111-113) — **USER-CONFIRMED BERHASIL (Batch 118,
+  sudah lama jalan)**. Kandidat bug lama (aliasing cut-corner, kontras
+  `onPrimary`, overflow tracking, persepsi pine-shadow) DITUTUP — JANGAN
+  dicek/ditanyakan ulang kecuali ada laporan bug baru dari user.
+- [x] Export/Import preset (Batch 115-116) — user-confirmed di device fisik
+  (compile + skenario ekspor/impor OK).
+- [ ] `BoosterViewModel` pasca-cabut Hilt (Batch 49) — pastikan gak ada crash
   `Cannot create an instance of BoosterViewModel`.
-- `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di tab
-  Actions.
-- Slider custom/SkeuSwitch/skeuGlow (Batch 22, 32) — render normal di device
-  asli (bukan cuma preview HTML).
-- Race condition `@Volatile isRunning` (Batch 45) — trigger skenario
+- [ ] `configuration-cache` (Batch 50) — CI tetap hijau, gak ada warning di
+  tab Actions.
+- [ ] Slider custom/SkeuSwitch/skeuGlow (Batch 22, 32) — render normal di
+  device asli (bukan cuma preview HTML).
+- [ ] Race condition `@Volatile isRunning` (Batch 45) — trigger skenario
   watchdog restart, cek widget/QS Tile sinkron balik.
-- Crash Logger MediaStore (Batch 27/29) — trigger 1 crash sengaja, cek file
-  muncul `Documents/AudioEnhancerPro/logs/`, retensi FIFO maks 50 file.
-- Bind service via Application Context (Batch 17) — gak ada context-leak
+- [ ] Crash Logger MediaStore (Batch 27/29) — trigger 1 crash sengaja, cek
+  file muncul `Documents/AudioEnhancerPro/logs/`, retensi FIFO maks 50 file.
+- [ ] Bind service via Application Context (Batch 17) — gak ada context-leak
   setelah rotasi/app di-background lama.
-- `ControlRecoveryBanner`+`retryControlAcquisition()` (Batch 62) — kalau
+- [ ] `ControlRecoveryBanner`+`retryControlAcquisition()` (Batch 62) — kalau
   `CONTROL_LOST`/`FAILED` kejadian natural: banner muncul ≤1 detik, tombol
   gak crash, snackbar muncul, banner hilang sendiri saat state balik
   ENABLED/AVAILABLE.
-- Preset custom simpan EQ (Batch 63) — atur EQ manual per-band, simpan
+- [ ] Preset custom simpan EQ (Batch 63) — atur EQ manual per-band, simpan
   preset, ubah lagi EQ, terapkan preset tadi → slider balik PERSIS ke nilai
   saat disimpan; preset LAMA (sebelum update ini) masih bisa diterapkan
   tanpa crash & tidak mengubah EQ manual aktif.
-- **Batch 107 (baru)**: `OutputRouteBanner` — ganti output audio (colokin/
-  cabut Bluetooth/wired/USB) di device fisik saat service jalan, cek banner
-  biru muncul ≤1 detik dengan deskripsi device benar, dismiss via "Oke",
-  ganti route LAGI ke device lain → banner muncul lagi (bukan permanen
-  hilang). Kandidat gagal: `AudioDeviceCallback` tidak fire di device/OEM
-  tertentu (dicatat sebagai risiko sejak Batch 83, belum ada data nyata).
-- **Batch 115 (baru)**: Export/Import preset — pertama: pastikan
-  `:app:compileDebugKotlin` LOLOS (belum pernah dicek compiler/CI sejak
-  ditulis di sandbox). Kalau lolos, test device: (1) buat ≥1 preset
-  custom → Pengaturan → "Ekspor Preset" → pilih lokasi file → cek pesan
-  sukses muncul & file `.json` benar-benar tersimpan; (2) hapus/ubah
-  preset itu → "Impor Preset" → pilih file tadi → cek preset balik PERSIS
-  (termasuk `eqBands`) & pesan jumlah preset terimpor benar; (3) coba
-  ekspor saat 0 preset custom → harus muncul pesan "belum ada preset",
-  BUKAN file kosong/crash; (4) coba impor file bukan-JSON/rusak → harus
-  muncul pesan gagal, preset existing TIDAK ikut hilang/berubah.
-- **Batch 104-105**: swipe-antar-tab via auto-height pager TERBUKTI
-  regresi UI parah di device fisik (klip & distorsi) — sudah direvert ke
-  Batch 103 (tap-tab). Kalau swipe diminta lagi ke depan: JANGAN ulangi
-  pendekatan `onSizeChanged` dinamis-per-page (siklus ukur-lalu-set-tinggi
-  circular, kemungkinan akar regresi). Kandidat lebih stabil: pager tinggi
-  tetap = tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal
-  (bukan dinamis tiap swipe) — 0 re-layout saat gesture berlangsung.
+- [ ] `OutputRouteBanner` (Batch 107) — ganti output audio (colokin/cabut
+  Bluetooth/wired/USB) di device fisik saat service jalan, cek banner biru
+  muncul ≤1 detik dengan deskripsi device benar, dismiss via "Oke", ganti
+  route LAGI ke device lain → banner muncul lagi (bukan permanen hilang).
+  Kandidat gagal: `AudioDeviceCallback` tidak fire di device/OEM tertentu
+  (risiko sejak Batch 83, belum ada data nyata).
+(Lesson swipe-antar-tab Batch 104-105 ada di "Keputusan sadar", tidak
+diulang di sini.)
 
 ### Fase 2 — Build & CI Maturity
 - [x] Gabung job build+release jadi 1 (Batch 40) · Cache Gradle dependency+
@@ -843,23 +813,22 @@ Murni biar gak hilang dari radar, BUKAN perintah segera kerjakan:
   belum dicatat ulang, perlu screenshot user).
 
 ### Fase 5 — Feature Backlog (maintenance mode, opsional, JANGAN proaktif)
-Custom EQ curve editor (drag-point) · export/import preset (share/backup
-antar device) · in-app update checker (SUDAH ADA sejak Batch 69/73 — ini
-sisa dari daftar lama, kemungkinan besar sudah closed, cek dulu sebelum
-kerjakan ulang).
+Custom EQ curve editor (drag-point) — sudah diangkat ke Fase 8 A. [x]
+Export/import preset (Batch 115-116) dan [x] in-app update checker (Batch
+69/73) SELESAI — tidak ada sisa lain di fase ini.
 
 ### Fase 6 — Dokumentasi & Housekeeping
-[x] Batch 106 (sesi ini): 4 dokumen non-standar (`roadmap.md`, 2x
-`PENDING_*.md`, arsip lama) dikonsolidasi ke sini + diarsipkan. `README.md`
-& `CHANGELOG.md` diaudit ulang sesuai standar SOP (deskripsi/instruksi
-build/arsitektur terkini di README, CHANGELOG tetap append-only histori).
-`docs/preview/current.html` — pastikan tetap ground-truth utk varian
-Midnight/Aurora Glass; Neumorphism & Studio Eq TIDAK punya mockup HTML
-terpisah (disengaja, Low priority kosmetik). `PrefsHelperTest.kt` — cek
-apakah coverage masih relevan pasca-ekstraksi ke ViewModel (Batch 17).
+[x] Batch 106: 4 dokumen non-standar (`roadmap.md`, 2x `PENDING_*.md`, arsip
+lama) dikonsolidasi ke sini + diarsipkan. [x] Batch 118: cleanup dok —
+status tema dikoreksi, section basi dibuang, `archive/`→`docs/archive/`,
+README (CI 1 job, tema, brand) & footer preview disinkron.
+`docs/preview/current.html` = ground truth HANYA utk Midnight Glass; 4
+varian lain TIDAK punya mockup HTML (disengaja, Low priority kosmetik).
+Sisa: `PrefsHelperTest.kt` — cek apakah coverage masih relevan
+pasca-ekstraksi ke ViewModel (Batch 17).
 
 ### Fase 7 — iOS Look Hybrid Rombak (inisiatif user Batch 88, HYBRID method)
-**TIDAK ADA rencana ganti sistem 4-varian tema/warna signature** — semua
+**TIDAK ADA rencana ganti sistem 5-varian tema/warna signature** — semua
 fase murni STRUKTUR/POLA INTERAKSI (grouping, tipografi, bentuk komponen),
 BUKAN re-skin warna. Status: [x] Fase 1 grouped-list "Kontrol" (Batch 88-89,
 tervalidasi screenshot) · [x] Tipografi Large Title 34sp (Batch 90+92,
@@ -871,21 +840,24 @@ butuh koordinasi state scroll) · audit `OnboardingScreen.kt` (belum disentuh
 sama sekali) · SF Symbols-style icon treatment (Compose gak punya SF Symbols
 asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 
-**Progress ringkas per fase**: 0 → 4/9 selesai+4/9 sebagian. 1 → belum
-mulai, backlog terbesar. 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja
-ditunda. 5 → sengaja ditunda. 6 → sebagian (Batch 106 ini). 7 → Fase 1+2
-opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3 kandidat
-sisa D/E/F.
+**Progress ringkas per fase**: 0 → 5/9 selesai + 3/9 sebagian + 1 hybrid
+(#6). 1 → tema + Export/Import tervalidasi; sisa item non-tema (pasif,
+non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
+selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
+Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
+kandidat sisa D/E/F. 8 → item D selesai; sisanya nunggu instruksi.
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
-Backlog OPSIONAL murni — bukan perintah kerjakan sekaligus. P0 tetap
-berlaku: tutup Fase 1 (validation debt) & pastikan CI hijau dulu sebelum
-garap fitur baru manapun di bawah ini. Eksekusi per-item nunggu instruksi
-eksplisit user (Tunnel Vision, maks 3 file/batch).
+Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
+(terakhir hijau + runtime OK: Batch 115-116); Fase 1 = backlog pasif, BUKAN
+gate. Eksekusi per-item saat user menginstruksikan (interpretasi Batch 118:
+"next" tanpa nama fitur = lanjut item berikutnya urutan ROI di bawah).
+Tunnel Vision, maks 3 file kode/batch.
 
 **A. Audio Engine (nilai jual inti "Enhancer")**
-- Compressor/Limiter (`DynamicsProcessing`) — naikkan loudness tanpa
-  clipping, pelengkap Loudness Enhancer yang sudah ada.
+- Compressor/Limiter (`DynamicsProcessing`) — limiter pasif SUDAH ada sejak
+  Batch 84; item ini = compressor yang bisa diatur user (belum ada),
+  pelengkap Loudness Enhancer.
 - Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
   prioritas — diferensiator vs app EQ generic).
 - Reverb/Spatial toggle (`PresetReverb`/`EnvironmentalReverb`) — pelengkap
@@ -908,23 +880,36 @@ eksplisit user (Tunnel Vision, maks 3 file/batch).
   deep-link halaman autostart spesifik, ganti instruksi manual generik.
 
 **D. Data & Ecosystem**
-- [~] Export/Import preset via file `.json` share — **kode selesai Batch
-  115** (`PrefsHelper.kt`+`SettingsScreen.kt`), NOT VERIFIED compile/
-  runtime, EN string belum ditambah. Sudah di backlog lama, ROI
-  tinggi & murah, DIANGKAT prioritas.
+- [x] Export/Import preset via file `.json` share — kode Batch 115
+  (`PrefsHelper.kt`+`SettingsScreen.kt`), EN string Batch 116. **USER-
+  CONFIRMED WORKING di device fisik.** SELESAI+TERVALIDASI.
 - Cloud backup preset (Google Drive AppData folder scope) — sync antar
   device tanpa backend custom.
 - Android Auto / Wear OS companion tile — stretch, footprint besar.
 
 **E. Observability**
-- Mini spectrum visualizer reaktif (`Visualizer` AudioEffect, API sekelas
-  Bass Boost/Virtualizer yang sudah dipakai) — murah implementasi, wow
-  factor tinggi.
+- Mini spectrum visualizer reaktif (`Visualizer` AudioEffect) — murah dari
+  sisi kode, TAPI ⚠️ dugaan Claude (WAJIB diverifikasi ke dokumentasi resmi
+  `developer.android.com` sebelum eksekusi): `Visualizer` butuh izin runtime
+  `RECORD_AUDIO` (+`MODIFY_AUDIO_SETTINGS` utk session 0) = popup izin baru
+  yang sekarang tidak ada — putuskan bareng user dulu.
 - Extend `CrashLogger` jadi analytics lokal ringan (durasi service ON,
   preset paling sering dipakai) — 100% on-device, tanpa cloud.
 
-**Urutan rekomendasi (ROI tertinggi dulu)**: 1) Export/Import preset (D)
-2) Spectrum visualizer (E) 3) Sleep timer + Scheduler (B) 4) Compressor/
-Limiter (A) 5) Auto-profile per output device (B) 6) EQ curve editor (A)
-7) sisanya sesuai kebutuhan user.
+**Urutan rekomendasi (ROI tertinggi dulu)**: 1) ✅ Export/Import preset (D)
+— SELESAI Batch 115-116. Berikutnya: 2) Spectrum visualizer (E) 3) Sleep
+timer + Scheduler (B) 4) Compressor (A; limiter pasif sudah ada) 5)
+Auto-profile per output device (B) 6) EQ curve editor (A) 7) sisanya sesuai
+kebutuhan user.
 
+---
+
+[RESUME POINT: Cleanup dokumentasi Batch 118 (dok-only, 0 kode, ZIP
+`Boomly_v118.zip`) → SELESAI: 5 tema USER-CONFIRMED, section basi dibuang,
+`archive/`→`docs/archive/`, README/preview/MANIFEST/CHANGELOG sinkron →
+Remaining: (a) Fase 1 sisa validasi NON-tema (pasif, non-blocking); (b) Fase
+8 item #2-#7 urutan ROI; (c) 2 temuan terbuka (secret Box B vs CI; guard
+`-lt$((` Daily Update) nunggu keputusan user → Next Action: ikuti instruksi
+user; "next" tanpa fitur spesifik = Fase 8 ROI #2 Spectrum visualizer (cek
+izin `RECORD_AUDIO` dulu — kalau tak mau popup izin baru, lompat ke #3 Sleep
+timer + Scheduler). Batch berikutnya = 119.]
