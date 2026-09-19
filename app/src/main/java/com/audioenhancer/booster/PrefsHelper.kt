@@ -310,4 +310,19 @@ object PrefsHelper {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putBoolean(KEY_USER_WANTS_RUNNING, wantsRunning).apply()
     }
+
+    // Batch 119 (Fase 8 item B, Sleep timer): waktu berakhir timer dalam epoch ms
+    // (`System.currentTimeMillis()`), 0 = tidak ada timer aktif. Disimpan di prefs (bukan
+    // cuma field Service) supaya timer bisa dilanjutkan kalau Service di-restart OS
+    // (START_STICKY) sebelum waktunya habis, dan supaya UI (SettingsScreen.kt) bisa baca
+    // sisa waktu tanpa bind ke Service. Key baru, absen = 0 = tanpa timer (0 migrasi).
+    private const val KEY_SLEEP_TIMER_END_AT = "sleep_timer_end_at"
+
+    fun getSleepTimerEndAt(context: Context): Long =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getLong(KEY_SLEEP_TIMER_END_AT, 0L)
+
+    fun setSleepTimerEndAt(context: Context, endAtMs: Long) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putLong(KEY_SLEEP_TIMER_END_AT, endAtMs).apply()
+    }
 }

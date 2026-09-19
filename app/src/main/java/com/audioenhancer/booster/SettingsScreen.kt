@@ -39,6 +39,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -293,6 +295,73 @@ fun SettingsScreen(
             }
         }
 
+        // Batch 119 (Fase 8 roadmap item B, "Sleep timer" bagian 1 — instruksi user "next"):
+        // auto-stop Boomly setelah N menit. Sumber kebenaran = `PrefsHelper` (waktu berakhir
+        // absolut) yang dibaca Service; UI cuma menulis lewat `AudioEnhancerService.
+        // requestSleepTimer()/cancelSleepTimer()` & polling 1 dtk buat tampilan sisa waktu
+        // (state LOKAL, 0 hoist ke ViewModel — pola sama seperti `backupStatus` di bawah).
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_sleep_timer_section_title))
+        var sleepEndAt by remember { mutableStateOf(PrefsHelper.getSleepTimerEndAt(context)) }
+        var sleepNow by remember { mutableStateOf(System.currentTimeMillis()) }
+        var sleepServiceRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                sleepNow = System.currentTimeMillis()
+                sleepEndAt = PrefsHelper.getSleepTimerEndAt(context)
+                sleepServiceRunning = AudioEnhancerService.isRunning
+                delay(1000L)
+            }
+        }
+        val sleepRemainingMs = sleepEndAt - sleepNow
+        val sleepTimerActive = sleepServiceRunning && sleepRemainingMs > 0L
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.settings_sleep_timer_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalSkeuTokens.current.mutedText
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                if (sleepTimerActive) {
+                    Text(
+                        stringResource(R.string.settings_sleep_timer_active, formatSleepRemaining(sleepRemainingMs)),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = {
+                            AudioEnhancerService.cancelSleepTimer(context)
+                            sleepEndAt = 0L
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.settings_sleep_timer_cancel))
+                    }
+                } else {
+                    val onPickSleep: (Int) -> Unit = { minutes ->
+                        AudioEnhancerService.requestSleepTimer(context, minutes)
+                        sleepNow = System.currentTimeMillis()
+                        sleepEndAt = PrefsHelper.getSleepTimerEndAt(context)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    }
+                    SleepTimerDurationRow(listOf(15, 30, 45), sleepServiceRunning, onPickSleep)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SleepTimerDurationRow(listOf(60, 90, 120), sleepServiceRunning, onPickSleep)
+                    if (!sleepServiceRunning) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_sleep_timer_need_running),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalSkeuTokens.current.mutedText
+                        )
+                    }
+                }
+            }
+        }
+
         // Batch 114 (Fase 8 roadmap item D — Export/Import preset, request eksplisit
         // user "planning biar lebih powerful"): backup/restore preset custom ke file
         // .json lewat Storage Access Framework. State status LOKAL di composable ini
@@ -405,4 +474,33 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+/** Batch 119: 1 baris tombol durasi Sleep timer (lebar sama rata). */
+@Composable
+private fun SleepTimerDurationRow(minutes: List<Int>, enabled: Boolean, onPick: (Int) -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        minutes.forEach { m ->
+            OutlinedButton(
+                onClick = { onPick(m) },
+                enabled = enabled,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.settings_sleep_timer_minutes_short, m))
+            }
+        }
+    }
+}
+
+/** Batch 119: sisa waktu -> "mm:ss" (< 1 jam) atau "h:mm:ss". */
+private fun formatSleepRemaining(ms: Long): String {
+    val totalSec = (ms / 1000L).coerceAtLeast(0L)
+    val h = totalSec / 3600L
+    val m = (totalSec % 3600L) / 60L
+    val sec = totalSec % 60L
+    return if (h > 0L) String.format(java.util.Locale.ROOT, "%d:%02d:%02d", h, m, sec)
+    else String.format(java.util.Locale.ROOT, "%02d:%02d", m, sec)
 }

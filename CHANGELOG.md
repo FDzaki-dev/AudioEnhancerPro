@@ -1,5 +1,44 @@
 # Changelog
 
+## Batch 119: Timer Tidur (Sleep Timer) — Boomly berhenti otomatis setelah N menit
+
+Fitur baru (roadmap Fase 8 item B, bagian 1 = auto-stop) atas instruksi user
+"next". Di Pengaturan ada section "Timer Tidur": pilih 15/30/45/60/90/120
+menit, lihat sisa waktu berjalan mundur, batalkan kapan saja. Saat waktu habis
+Boomly mati persis seperti menekan "Matikan" (efek off, widget/QS Tile ikut,
+watchdog tidak menghidupkan lagi).
+
+**Kenapa bukan Spectrum Visualizer (urutan ROI #2)**: dicek ke dokumentasi
+resmi `developer.android.com` — `Visualizer` mensyaratkan izin `RECORD_AUDIO`
+(+`MODIFY_AUDIO_SETTINGS` utk session 0), jadi akan menambah popup izin mikrofon
+baru. Itu keputusan produk/privasi, bukan teknis, jadi DILEWATI sampai user
+memutuskan; lanjut ke item #3 (Sleep timer) yang tanpa izin baru.
+
+**Desain**: waktu berakhir disimpan ABSOLUT di prefs (`PrefsHelper.
+getSleepTimerEndAt()`, epoch ms, 0 = tanpa timer), bukan hitung mundur di
+memori — sisa waktu selalu benar walau tick tertunda dan Service yang
+di-restart OS bisa melanjutkan. `AudioEnhancerService`: Handler main-thread
+ngecek tiap ≤30 dtk (tick terakhir pakai sisa waktu persis); habis →
+`requestStop()` = jalur `ACTION_STOP` yang sudah ada (0 logika stop kedua).
+Stop dari mana pun (Matikan/QS Tile/timer habis) membersihkan timer. Action
+baru `ACTION_SLEEP_TIMER_SYNC` cuma menjadwalkan ulang tick. `SettingsScreen.kt`:
+section baru (pola sama seperti "Cadangkan Preset"), poll 1 dtk buat sisa waktu,
+tombol durasi nonaktif kalau Boomly belum menyala.
+
+**Keterbatasan (dicatat, disengaja)**: Handler pakai uptime (tidak maju saat CPU
+deep-sleep) dan bukan alarm exact (butuh izin exact-alarm) → berhenti bisa
+tertunda sampai CPU bangun; timer yang sudah lewat saat Service restart
+dibersihkan diam-diam (TIDAK memaksa stop, supaya start manual baru tidak
+langsung mati). Fade-out volume & Scheduler jam/event BELUM (sisa item B).
+
+**File disentuh (3 kode + strings)**: `AudioEnhancerService.kt` (+86 baris),
+`PrefsHelper.kt` (+15), `SettingsScreen.kt` (+98), `values/strings.xml` &
+`values-en/strings.xml` (+6 key, parity 147/147). 0 baris kode dihapus.
+
+**Validasi**: static check lolos (brace/paren balance sebelum=sesudah, XML
+well-formed, 0 key ganda, semua `R.string` ada). **NOT VERIFIED** — sandbox tanpa
+compiler/emulator; butuh CI hijau + uji device (lihat `PROJECT_STATE.md` Fase 1).
+
 ## Batch 118: Cleanup dokumentasi — status tema dikoreksi, klaim CI basi diperbaiki
 
 Cleanup dokumentasi atas permintaan eksplisit user — 0 kode/fitur berubah.

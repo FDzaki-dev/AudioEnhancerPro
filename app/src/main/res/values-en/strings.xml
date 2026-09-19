@@ -200,4 +200,12 @@
     <string name="settings_export_preset_failed">Failed to save export file</string>
     <string name="settings_import_preset_success">%1$d presets imported successfully</string>
     <string name="settings_import_preset_failed">File is invalid or corrupted, import cancelled</string>
+
+    <!-- Batch 119: Sleep timer (Fase 8 item B, part 1 = auto-stop) -->
+    <string name="settings_sleep_timer_section_title">Sleep Timer</string>
+    <string name="settings_sleep_timer_desc">Turn Boomly off automatically after the chosen time. The timer is cancelled if you turn Boomly off manually.</string>
+    <string name="settings_sleep_timer_minutes_short">%1$d min</string>
+    <string name="settings_sleep_timer_active">Stops automatically in %1$s</string>
+    <string name="settings_sleep_timer_cancel">Cancel Timer</string>
+    <string name="settings_sleep_timer_need_running">Turn Boomly on first to use the timer.</string>
 </resources>

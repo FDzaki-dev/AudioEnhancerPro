@@ -29,6 +29,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Quick Settings Tile — toggle on/off langsung dari notification shade, tanpa buka app.
 - App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
 - Cadangkan Preset (Pengaturan) — ekspor semua preset custom ke 1 file `.json` (SAF, pilih lokasi sendiri) dan impor kembali di device sama/baru. Preset dengan nama sama saat impor akan ditimpa.
+- Timer Tidur (Pengaturan) — Boomly berhenti otomatis setelah 15/30/45/60/90/120 menit, sama seperti menekan "Matikan" (watchdog tidak menghidupkan lagi). Sisa waktu terlihat berjalan mundur, bisa dibatalkan kapan saja. Fase awal: belum divalidasi di device.
 - Widget home screen — status real-time + toggle sekali tap, tanpa buka app sama sekali.
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
@@ -36,6 +37,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
+- Timer Tidur memakai timer di dalam service (bukan alarm exact): kalau CPU HP sempat deep-sleep, berhenti bisa tertunda sampai CPU bangun; kalau service dibunuh OS sebelum waktunya habis, timer hilang. Belum ada fade-out volume.
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.

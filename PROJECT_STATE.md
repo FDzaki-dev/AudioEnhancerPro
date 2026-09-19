@@ -114,8 +114,9 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 118 (0 kode, dok-only cleanup — lihat LOG BATCH 118).
-  Perubahan kode terakhir: Batch 116 (string EN); logika terakhir: Batch 115.
+- **Batch terakhir**: 119 (kode: Sleep timer bagian 1 = auto-stop, Fase 8 B —
+  lihat LOG BATCH 119; **NOT VERIFIED**, compile+runtime nunggu CI/device
+  user). Sebelumnya: 118 dok-only cleanup; logika terakhir sebelum 119: B115.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -132,6 +133,9 @@ sepihak.
   Key persist = Protected Asset (JANGAN rename). Pivot: "Riwayat pivot".
 - **Export/Import preset** (Batch 115-116, Fase 8 D): USER-CONFIRMED WORKING
   (compile+runtime OK, implisit memvalidasi hotfix Batch 113). SELESAI.
+- **Sleep timer** (Batch 119, Fase 8 B bagian 1): Pengaturan → "Timer Tidur"
+  15/30/45/60/90/120 mnt; habis waktu = jalur `ACTION_STOP` (sama tombol
+  Matikan). **NOT VERIFIED**. Sisa: fade-out volume, Scheduler jam/event.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -167,6 +171,11 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 119** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`,
+  strings ID/EN; user "next"): Fase 8 B Sleep timer bag. 1 (auto-stop) —
+  section "Timer Tidur" (15-120 mnt), waktu berakhir absolut di prefs, tick
+  Handler ≤30 dtk di Service, habis → `requestStop()`. #2 Visualizer dilewati
+  (izin `RECORD_AUDIO` terverifikasi). Status: **NOT VERIFIED** (static lolos).
 - **Batch 118** (0 kode, dok-only — instruksi eksplisit user): cleanup
   `PROJECT_STATE`/`README`/`CHANGELOG`/`FILE_MANIFEST`/preview HTML,
   `archive/`→`docs/archive/`. Status tema dikoreksi → 5 varian USER-CONFIRMED
@@ -636,7 +645,10 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   `@Volatile`, dipoll `BoosterViewModel` tiap 1 detik, disurface penuh ke
   UI. `retryControlAcquisition()` publik (dipanggil `ControlRecoveryBanner`).
   `AudioDeviceCallback` terdaftar — nudge `enableEffects()` (bukan
-  recreate) saat output route berubah, digate `isRunning`.
+  recreate) saat output route berubah, digate `isRunning`. Sleep timer
+  (Batch 119): `requestSleepTimer()`/`cancelSleepTimer()` (companion), tick
+  Handler ≤30 dtk baca `PrefsHelper.getSleepTimerEndAt()`, habis →
+  `requestStop()`; `ACTION_SLEEP_TIMER_SYNC` = jadwalkan ulang tick.
 - `Theme.kt` — palet dark-only, typography, shape, token bevel/glow untuk
   ke-5 varian tema (Batch 111: +Serene M3). Accent color per-fitur independen
   dari switch tema. `SkeuTokens` data class + `LocalSkeuTokens`/
@@ -647,6 +659,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   `setUseHorizontalTabLayout()` — key `use_horizontal_tab_layout`.
   `exportCustomPresetsToJson()`/`importCustomPresetsFromJson()` (Batch 115,
   envelope JSON, parsing atomik per-entry, reuse `addCustomPreset`).
+  `getSleepTimerEndAt()`/`setSleepTimerEndAt()` (Batch 119, epoch ms, 0 =
+  tanpa timer).
 - `CrashLogger.kt` — tangkap uncaught exception → MediaStore API 29+,
   rotasi FIFO maks 50 file.
 - `AudioEnhancerApp.kt` — Application class, `CrashLogger.install()`.
@@ -664,7 +678,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   komparasi versi + release notes + tombol unduh inline, 100% reuse state
   `BoosterViewModel`. Section "Navigasi Layar Utama" — toggle Mode Tab
   Horizontal. Section "Cadangkan Preset" (Batch 115) — Export/Import `.json`
-  via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`).
+  via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`). Section
+  "Timer Tidur" (Batch 119) — tombol durasi 15-120 mnt + sisa waktu (poll 1 dtk).
 - `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
   Tile), `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
   setelah boot).
@@ -776,6 +791,13 @@ cocokkan ke daftar, centang yang confirmed OK, catat detail kalau gagal
   route LAGI ke device lain → banner muncul lagi (bukan permanen hilang).
   Kandidat gagal: `AudioDeviceCallback` tidak fire di device/OEM tertentu
   (risiko sejak Batch 83, belum ada data nyata).
+- [ ] Sleep timer (Batch 119) — Pengaturan → Timer Tidur: nyalakan Boomly,
+  pilih durasi, cek sisa waktu berjalan mundur; biarkan habis → Boomly mati
+  seperti tombol Matikan (notif hilang, widget/QS Tile off, watchdog TIDAK
+  menghidupkan lagi); batalkan di tengah → tidak mati; Matikan manual di
+  tengah → timer bersih; layar mati lama → cek keterlambatan (Handler
+  uptime, bukan alarm exact). Kandidat gagal: compile `SettingsScreen.kt`/
+  `AudioEnhancerService.kt`, `startService` ke diri sendiri ditolak OEM.
 (Lesson swipe-antar-tab Batch 104-105 ada di "Keputusan sadar", tidak
 diulang di sini.)
 
@@ -845,7 +867,7 @@ asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
 selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
 Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
-kandidat sisa D/E/F. 8 → item D selesai; sisanya nunggu instruksi.
+kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi.
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
 Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
@@ -869,7 +891,9 @@ Tunnel Vision, maks 3 file kode/batch.
 - Auto-profile per output device: `OutputRouteBanner` (Batch 107) sudah
   deteksi ganti device — extend jadi auto-apply preset, bukan cuma banner
   info.
-- Sleep timer (fade-out volume + auto-stop service terjadwal).
+- Sleep timer — [x] auto-stop (Batch 119, NOT VERIFIED); sisa: fade-out
+  volume (butuh keputusan user: fade STREAM_MUSIC + restore volume, atau
+  fade kekuatan efek saja).
 - Scheduler jam/event tertentu via `WorkManager` (pola sudah ada di
   `ServiceWatchdogWorker`, tinggal extend).
 
@@ -889,27 +913,32 @@ Tunnel Vision, maks 3 file kode/batch.
 
 **E. Observability**
 - Mini spectrum visualizer reaktif (`Visualizer` AudioEffect) — murah dari
-  sisi kode, TAPI ⚠️ dugaan Claude (WAJIB diverifikasi ke dokumentasi resmi
-  `developer.android.com` sebelum eksekusi): `Visualizer` butuh izin runtime
-  `RECORD_AUDIO` (+`MODIFY_AUDIO_SETTINGS` utk session 0) = popup izin baru
-  yang sekarang tidak ada — putuskan bareng user dulu.
+  sisi kode, TAPI ⚠️ TERVERIFIKASI dokumentasi resmi `developer.android.com`
+  (Batch 119): `Visualizer` butuh izin `RECORD_AUDIO` (+`MODIFY_AUDIO_SETTINGS`
+  utk session 0) = popup izin mic baru yang sekarang tidak ada. DILEWATI
+  sampai user putuskan mau/tidak (keputusan produk+privasi, bukan teknis).
 - Extend `CrashLogger` jadi analytics lokal ringan (durasi service ON,
   preset paling sering dipakai) — 100% on-device, tanpa cloud.
 
 **Urutan rekomendasi (ROI tertinggi dulu)**: 1) ✅ Export/Import preset (D)
-— SELESAI Batch 115-116. Berikutnya: 2) Spectrum visualizer (E) 3) Sleep
-timer + Scheduler (B) 4) Compressor (A; limiter pasif sudah ada) 5)
+— SELESAI Batch 115-116. 2) Spectrum visualizer (E) — DILEWATI (butuh izin
+`RECORD_AUDIO`, nunggu keputusan user). 3) Sleep timer + Scheduler (B) —
+Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
+Scheduler. Berikutnya: 4) Compressor (A; limiter pasif sudah ada) 5)
 Auto-profile per output device (B) 6) EQ curve editor (A) 7) sisanya sesuai
 kebutuhan user.
 
 ---
 
-[RESUME POINT: Cleanup dokumentasi Batch 118 (dok-only, 0 kode, ZIP
-`Boomly_v118.zip`) → SELESAI: 5 tema USER-CONFIRMED, section basi dibuang,
-`archive/`→`docs/archive/`, README/preview/MANIFEST/CHANGELOG sinkron →
-Remaining: (a) Fase 1 sisa validasi NON-tema (pasif, non-blocking); (b) Fase
-8 item #2-#7 urutan ROI; (c) 2 temuan terbuka (secret Box B vs CI; guard
-`-lt$((` Daily Update) nunggu keputusan user → Next Action: ikuti instruksi
-user; "next" tanpa fitur spesifik = Fase 8 ROI #2 Spectrum visualizer (cek
-izin `RECORD_AUDIO` dulu — kalau tak mau popup izin baru, lompat ke #3 Sleep
-timer + Scheduler). Batch berikutnya = 119.]
+[RESUME POINT: Sleep timer bagian 1 / auto-stop (Batch 119; kode:
+`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`, strings
+ID/EN; ZIP `Boomly_v119.zip`) → SELESAI kode, **NOT VERIFIED** (static
+lolos; nunggu CI hijau + uji device: Fase 1 bullet Sleep timer) →
+Remaining: (a) Sleep timer fade-out (keputusan user: fade volume
+STREAM_MUSIC + restore, atau fade kekuatan efek saja) & Scheduler
+jam/event (WorkManager); (b) #2 Spectrum visualizer nunggu keputusan izin
+`RECORD_AUDIO`; (c) 2 temuan terbuka (secret Box B vs CI; guard `-lt$((`);
+(d) Fase 1 validasi non-tema → Next Action: kalau CI merah → hotfix dari
+`log_fail_*` (kandidat pertama: `SettingsScreen.kt`/`AudioEnhancerService.kt`
+Batch 119); kalau "next" → Fase 8 ROI berikutnya (#4 Compressor atau
+Scheduler) TANPA nunggu validasi. Batch berikutnya = 120.]

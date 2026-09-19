@@ -201,4 +201,12 @@
     <string name="settings_export_preset_failed">Gagal menyimpan file ekspor</string>
     <string name="settings_import_preset_success">%1$d preset berhasil diimpor</string>
     <string name="settings_import_preset_failed">File tidak valid atau rusak, impor dibatalkan</string>
+
+    <!-- Batch 119: Sleep timer (Fase 8 item B, bagian 1 = auto-stop) -->
+    <string name="settings_sleep_timer_section_title">Timer Tidur</string>
+    <string name="settings_sleep_timer_desc">Matikan Boomly otomatis setelah waktu yang dipilih. Timer dibatalkan kalau kamu mematikan Boomly secara manual.</string>
+    <string name="settings_sleep_timer_minutes_short">%1$d mnt</string>
+    <string name="settings_sleep_timer_active">Berhenti otomatis dalam %1$s</string>
+    <string name="settings_sleep_timer_cancel">Batalkan Timer</string>
+    <string name="settings_sleep_timer_need_running">Nyalakan Boomly dulu untuk memakai timer.</string>
 </resources>

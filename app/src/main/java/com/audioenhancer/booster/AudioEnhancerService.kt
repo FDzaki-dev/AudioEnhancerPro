@@ -50,6 +50,12 @@ class AudioEnhancerService : Service() {
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
+        // Batch 119 (Sleep timer): minta Service (re)jadwalkan tick timer dari nilai yang
+        // SUDAH ditulis ke `PrefsHelper.getSleepTimerEndAt()` (Service = pembaca tunggal).
+        const val ACTION_SLEEP_TIMER_SYNC = "com.audioenhancer.booster.SLEEP_TIMER_SYNC"
+        // Interval tick maksimum timer tidur; tick terakhir memakai sisa waktu persis (<30 dtk)
+        // jadi berhenti tepat waktu, bukan mengikuti kelipatan interval.
+        private const val SLEEP_TICK_MAX_MS = 30_000L
 
         // Batch 87 (roadmap.md Fase 0 #6 "Rebuild arsitektur session-0", FASE 1 dari
         // rebuild bertahap — bukan seluruh item #6 sekaligus, lihat PENDING_Fase0_
@@ -115,6 +121,32 @@ class AudioEnhancerService : Service() {
         fun requestStop(context: android.content.Context) {
             val intent = Intent(context, AudioEnhancerService::class.java).apply { action = ACTION_STOP }
             context.startService(intent)
+        }
+
+        /** Batch 119 (Sleep timer): Boomly berhenti otomatis setelah [minutes] menit — lewat
+         *  jalur `ACTION_STOP` yang SAMA dengan tombol "Matikan" (efek off, watchdog TIDAK
+         *  menghidupkan lagi). Hanya bermakna kalau service lagi jalan; UI menonaktifkan
+         *  pilihan durasi kalau `isRunning == false`. */
+        fun requestSleepTimer(context: android.content.Context, minutes: Int) {
+            if (minutes <= 0) return
+            PrefsHelper.setSleepTimerEndAt(context, System.currentTimeMillis() + minutes * 60_000L)
+            syncSleepTimer(context)
+        }
+
+        /** Batch 119: batalkan timer. Cukup nol-kan prefs — tick berikutnya di Service
+         *  membaca 0 lalu berhenti sendiri; sinkron langsung kalau service hidup. */
+        fun cancelSleepTimer(context: android.content.Context) {
+            PrefsHelper.setSleepTimerEndAt(context, 0L)
+            if (isRunning) syncSleepTimer(context)
+        }
+
+        private fun syncSleepTimer(context: android.content.Context) {
+            val intent = Intent(context, AudioEnhancerService::class.java).apply { action = ACTION_SLEEP_TIMER_SYNC }
+            try {
+                context.startService(intent)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal sinkron Sleep Timer ke service", e)
+            }
         }
     }
 
@@ -191,6 +223,42 @@ class AudioEnhancerService : Service() {
         }
     }
 
+    // Batch 119 (Fase 8 item B, Sleep timer, bagian 1 = auto-stop; fade-out & Scheduler
+    // BELUM). Timer = Handler main-thread yang membaca waktu berakhir ABSOLUT dari prefs
+    // tiap tick (maks 30 dtk), bukan menghitung mundur di memori — jadi sisa waktu selalu
+    // benar walau tick tertunda, dan Service yang di-restart OS bisa melanjutkan. Habis
+    // waktu -> `requestStop()` (jalur ACTION_STOP normal, tidak ada logika stop kedua).
+    // KETERBATASAN yang disengaja/dicatat: Handler pakai uptimeMillis (tidak maju saat CPU
+    // deep-sleep) dan bukan alarm exact (butuh izin exact-alarm) — kalau CPU tidur, tick
+    // tertunda sampai CPU bangun lagi; timer hilang kalau Service dibunuh OS lalu waktunya
+    // sudah lewat saat restart (dibersihkan diam-diam, TIDAK memaksa stop).
+    private val sleepHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val sleepTick = object : Runnable {
+        override fun run() {
+            val endAt = PrefsHelper.getSleepTimerEndAt(this@AudioEnhancerService)
+            if (endAt <= 0L) return // dibatalkan / sudah dibersihkan
+            val remaining = endAt - System.currentTimeMillis()
+            if (remaining <= 0L) {
+                AudioEnhancerService.requestStop(this@AudioEnhancerService)
+                return
+            }
+            sleepHandler.postDelayed(this, remaining.coerceAtMost(SLEEP_TICK_MAX_MS))
+        }
+    }
+
+    /** Idempotent: batalkan tick lama, jadwalkan ulang kalau ada timer yang masih di masa depan. */
+    private fun scheduleSleepTick() {
+        sleepHandler.removeCallbacks(sleepTick)
+        val endAt = PrefsHelper.getSleepTimerEndAt(this)
+        if (endAt > System.currentTimeMillis()) {
+            sleepHandler.post(sleepTick)
+        } else if (endAt > 0L) {
+            // Kedaluwarsa saat service mati — bersihkan saja, JANGAN stop (hindari service
+            // yang baru dinyalakan user langsung mati gara-gara sisa timer lama).
+            PrefsHelper.setSleepTimerEndAt(this, 0L)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         // Batch 45: "kunci" service ini di prioritas penjadwalan CPU tertinggi yang
@@ -223,6 +291,17 @@ class AudioEnhancerService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Batch 119: sinkron Sleep timer — TIDAK menyentuh foreground/efek. Kalau service
+        // tidak aktif, timer tak bermakna: bersihkan & jangan biarkan instance idle.
+        if (intent?.action == ACTION_SLEEP_TIMER_SYNC) {
+            if (isRunning) {
+                scheduleSleepTick()
+                return START_STICKY
+            }
+            PrefsHelper.setSleepTimerEndAt(this, 0L)
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (intent?.action == ACTION_STOP) {
             // PENTING: tidak cukup cuma stopSelf() di sini. Kalau MainActivity masih bound
             // (app masih kebuka), Service TIDAK akan benar-benar di-destroy oleh stopSelf() —
@@ -234,6 +313,10 @@ class AudioEnhancerService : Service() {
             // Batch 9: catat ini SEBAGAI PILIHAN USER (bukan OS yang bunuh), supaya
             // ServiceWatchdogWorker gak menghidupkan paksa lagi tiap 15 menit.
             PrefsHelper.setUserWantsRunning(this, false)
+            // Batch 119: Sleep timer ikut dibersihkan di jalur berhenti ini (dipakai tombol
+            // Matikan, QS Tile, DAN habisnya timer itu sendiri).
+            sleepHandler.removeCallbacks(sleepTick)
+            PrefsHelper.setSleepTimerEndAt(this, 0L)
             BoosterWidgetProvider.refreshAll(this)
             // Batch 44 (bugfix): QS Tile SEBELUMNYA gak ikut diberi tahu di sini —
             // lihat catatan lengkap di `QuickToggleTileService.requestTileUpdate()`.
@@ -257,6 +340,8 @@ class AudioEnhancerService : Service() {
         // Batch 44 (bugfix): sama seperti cabang ACTION_STOP di atas — QS Tile ikut
         // disinkronkan di sini juga (jalur "start").
         QuickToggleTileService.requestTileUpdate(this)
+        // Batch 119: lanjutkan Sleep timer kalau masih ada (restart OS / start ulang manual).
+        scheduleSleepTick()
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
     }
@@ -284,6 +369,7 @@ class AudioEnhancerService : Service() {
         try { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal unregister AudioDeviceCallback", e)
         }
+        sleepHandler.removeCallbacks(sleepTick) // Batch 119 (prefs sengaja TIDAK dibersihkan)
         releaseEffects()
         isRunning = false
         BoosterWidgetProvider.refreshAll(this)
