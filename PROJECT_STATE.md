@@ -114,14 +114,15 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 125, hotfix URGENT — widget vs QS Tile tidak sinkron
-  setelah kill keras, diganti resync paksa tiap tick watchdog (lihat LOG
-  BATCH 125); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
-  user. Sebelumnya: 124 hotfix watchdog gagal diam-diam restart (NOT
-  VERIFIED); 123 hotfix speaker internal nempel preset Kustom (NOT
+- **Batch terakhir**: 126, hotfix — widget/QS Tile nunggu watchdog 15 menit
+  kelamaan, ditambah resync cepat di `onStartListening()`+`onResume()`
+  (lihat LOG BATCH 126); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu
+  CI/device user. Sebelumnya: 125 hotfix widget vs QS Tile desync setelah
+  kill keras (NOT VERIFIED); 124 hotfix watchdog gagal diam-diam restart
+  (NOT VERIFIED); 123 hotfix speaker internal nempel preset Kustom (NOT
   VERIFIED); 122 Auto-Profil per Output kode SELESAI (NOT VERIFIED); 121
-  Compressor (**USER-CONFIRMED WORKING** di device fisik); 120 Spectrum
-  visualizer (NOT VERIFIED); logika terakhir sebelum itu: B115/B119.
+  Compressor (**USER-CONFIRMED WORKING** di device fisik); logika terakhir
+  sebelum itu: B115/B119/B120.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -176,6 +177,12 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 126** (`QuickToggleTileService.kt`, `MainActivity.kt` — 2 file; hotfix,
+  laporan user susulan Batch 125: "kok harus nunggu lama"): tambah 2 titik resync
+  widget+tile yang jauh lebih sering dari watchdog 15 menit —
+  `onStartListening()` (tiap shade dibuka) & `onResume()` (tiap app dibuka).
+  Watchdog Batch 125 TETAP jadi jaring pengaman terakhir. Status: **NOT
+  VERIFIED** (statis only: brace/paren 0/0 x2 file; nunggu device fisik).
 - **Batch 125** (`ServiceWatchdogWorker.kt` HANYA — 1 file; hotfix URGENT, laporan
   user dari uji device Batch 124): widget "Aktif" (basi) vs QS Tile "Nonaktif"
   (benar) tidak sinkron setelah kill keras (SIGKILL, `onDestroy()` tidak
@@ -712,7 +719,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 ## 🗂️ Struktur proyek singkat (state saat ini, bukan histori per-batch)
 - `MainActivity.kt` — lifecycle Activity, permission launcher, shortcut
   Intent, glue ke ViewModel + `BoosterScreen()`. Dark theme dipaksa. State
-  `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum.
+  `appThemeStyleKey` (persisted) di-map ke `AppThemeStyle` enum. `onResume()`
+  juga resync paksa widget+tile (Batch 126, lihat `QuickToggleTileService.kt`).
 - `BoosterScreen.kt` — layar utama Compose. Default: 1 `Column`
   `.verticalScroll()` flat berisi Preset Cepat → kartu Bass/Virtualizer/
   Loudness (grouped-list 1 card) → Equalizer Manual → toggle Material You
@@ -777,7 +785,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`). Section
   "Timer Tidur" (Batch 119) — tombol durasi 15-120 mnt + sisa waktu (poll 1 dtk).
 - `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
-  Tile), `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
+  Tile — `onStartListening()` juga resync widget tiap shade dibuka, Batch 126),
+  `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
   setelah boot).
 - Test (`app/src/test`): `AudioEnhancerServiceStateTest.kt` (13 test
   Robolectric, Batch 86), `PrefsHelperTest.kt`, `FormatFreqLabelTest.kt`.
@@ -1030,33 +1039,31 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix URGENT widget/QS Tile desync (Batch 125; kode:
-`ServiceWatchdogWorker.kt` HANYA — 1 file; ZIP `Boomly_v125.zip`) → SELESAI
-kode LENGKAP: root cause kill keras (SIGKILL) bikin `onDestroy()` tidak
-terpanggil → hook refresh Batch 44 (widget+tile satu titik) tidak sempat
-jalan → widget nyangkut basi "Aktif" sementara QS Tile self-heal lewat
-`onStartListening()` tiap shade dibuka. Fix: `doWork()` SELALU panggil
-`BoosterWidgetProvider.refreshAll()` + `QuickToggleTileService.requestTileUpdate()`
-tiap tick (≤15 menit), terlepas perlu restart service atau tidak.
+[RESUME POINT: Hotfix widget/QS Tile resync speed (Batch 126; kode:
+`QuickToggleTileService.kt`, `MainActivity.kt` — 2 file; ZIP `Boomly_v126.zip`)
+→ SELESAI kode LENGKAP: susulan Batch 125 (watchdog 15 menit dianggap
+kelamaan user) — `QuickToggleTileService.onStartListening()` & 
+`MainActivity.onResume()` sekarang JUGA resync `BoosterWidgetProvider.refreshAll()`
++ `QuickToggleTileService.requestTileUpdate()`, jadi begitu shade Quick
+Settings ATAU app dibuka, widget+tile langsung sinkron ke `isRunning`
+ground truth tanpa nunggu tick watchdog. Watchdog Batch 125 TETAP ada
+sebagai jaring pengaman terakhir kalau device sama sekali tidak disentuh.
 **NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
-brace/paren 0/0; belum lolos CI ataupun device fisik) → Remaining: (a)
-validasi CI compile Batch 125; (b) kalau compile OK, uji device fisik: kill
-app via task-swipe recents (BUKAN tombol force-stop Settings — itu skenario
-Batch 124 yang sudah dikonfirmasi user WORKING), tunggu maksimal 15 menit
-TANPA menyentuh widget/tile/app sama sekali, pastikan widget berubah ikut
-QS Tile jadi "Nonaktif" (bukan sebaliknya tetap nyangkut "Aktif"); ulangi
-kalau service memang masih hidup (bukan di-kill) → pastikan keduanya tetap
-konsisten "Aktif" tanpa flicker/regresi; (c) Batch 124 (recovery notifikasi
-watchdog) SUDAH user-confirmed working saat force-stop — tetap uji ulang
-kombinasi task-swipe-kill + battery optimization BELUM di-exempt supaya 2
-fix ini (124+125) tervalidasi bareng dalam 1 siklus watchdog yang sama; (d)
-backlog lama masih terbuka (belum tersentuh 2 batch terakhir): Auto-Profil
-per Output (Batch 122/123) masih NOT VERIFIED device fisik; Compressor
-Batch 121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT
-VERIFIED; Sleep timer fade-out & Scheduler belum dikerjakan; 2 temuan lama
-(secret Box B vs CI; guard `-lt$((`) → Next Action: kalau CI/user lapor
-Batch 125 gagal compile atau (b) gagal → hotfix lanjutan
-`ServiceWatchdogWorker.kt`; kalau (b)+(c) lolos/user OK → lanjut validasi
+brace/paren 0/0 di 2 file; belum lolos CI ataupun device fisik) → Remaining:
+(a) validasi CI compile Batch 126; (b) kalau compile OK, uji device fisik:
+kill app via task-swipe → LANGSUNG buka Quick Settings (jangan tunggu) →
+widget harus SUDAH "Nonaktif" secepat tile; ulangi trigger via buka app
+(MainActivity) bukan shade; (c) pastikan TIDAK ada flicker/regresi kalau
+service memang masih hidup normal (buka shade/app saat aktif → tetap
+"Aktif" konsisten, bukan sempat kedip "Nonaktif" duluan); (d) kalau (b)+(c)
+lolos, seluruh rantai widget/tile sync (Batch 44+124+125+126) dianggap
+SELESAI+TERVALIDASI scope hotfix ini; (e) backlog lama masih terbuka (belum
+tersentuh 3 batch terakhir): Auto-Profil per Output (Batch 122/123) masih
+NOT VERIFIED device fisik; Compressor Batch 121 USER-CONFIRMED WORKING;
+Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep timer fade-out & Scheduler
+belum dikerjakan; 2 temuan lama (secret Box B vs CI; guard `-lt$((`) →
+Next Action: kalau CI/user lapor Batch 126 gagal compile atau (b)/(c) gagal
+→ hotfix lanjutan di 2 file yang sama; kalau lolos/user OK → lanjut validasi
 Auto-Profil (Batch 123) yang masih menggantung, ATAU Fase 8 ROI #6 EQ curve
 editor / Sleep timer fade-out kalau user pilih itu duluan. Batch
-berikutnya = 126.]
+berikutnya = 127.]

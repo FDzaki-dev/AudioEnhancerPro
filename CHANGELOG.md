@@ -1,5 +1,31 @@
 # Changelog
 
+## Batch 126: Hotfix — widget/QS Tile nunggu sampai 15 menit kelamaan (susulan Batch 125)
+
+Laporan user: fix Batch 125 memang bikin widget balik konsisten dengan QS
+Tile, tapi harus nunggu sampai siklus watchdog 15 menit — kelamaan buat
+kasus sehari-hari. Watchdog TETAP dipertahankan sebagai jaring pengaman
+terakhir, tapi ditambah 2 titik resync yang jauh lebih sering & murah:
+`QuickToggleTileService.onStartListening()` (jalan TIAP KALI shade Quick
+Settings dibuka — momen yang sama persis dengan user mengecek tile) dan
+`MainActivity.onResume()` (jalan tiap kali app dibuka). Kedua titik ini
+sekarang ikut memanggil `BoosterWidgetProvider.refreshAll()` /
+`QuickToggleTileService.requestTileUpdate()`, jadi begitu user buka shade
+ATAU buka app — bahkan cuma buat lihat, tanpa tap apa pun — widget & tile
+langsung sinkron ke `isRunning` yang sebenarnya, tanpa nunggu tick watchdog.
+
+**Catatan jujur**: ini BUKAN mekanisme "instan tanpa syarat" — tetap butuh
+user membuka shade ATAU app minimal sekali. Kalau user benar-benar tidak
+menyentuh device sama sekali, watchdog 15 menit (Batch 125) yang jadi
+jaring pengaman terakhir; itu sudah batas platform Android untuk background
+work tanpa exact alarm/permission baru (lihat Batasan sandbox).
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal/device fisik; lolos review
+manual (brace/paren balance 0/0 di 2 file). Uji device: kill app via
+task-swipe, LANGSUNG buka Quick Settings (tanpa tunggu 15 menit) → widget
+harus SUDAH ikut berubah "Nonaktif" secepat tile-nya; ulangi dengan buka
+app (MainActivity) sebagai pemicu.
+
 ## Batch 125: Hotfix URGENT — widget "aktif" vs QS Tile "mati" tidak sinkron setelah app di-kill
 
 Laporan user (uji device langsung setelah Batch 124): kill app via

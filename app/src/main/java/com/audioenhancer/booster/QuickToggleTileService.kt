@@ -41,6 +41,14 @@ class QuickToggleTileService : TileService() {
     override fun onStartListening() {
         super.onStartListening()
         refreshTile()
+        // Batch 126 (laporan user: "kok harus nunggu lama" soal Batch 125) —
+        // onStartListening() ini SUDAH jalan tiap kali shade dibuka (jauh lebih
+        // sering dari siklus watchdog 15 menit, dan ini PERSIS momen user ngecek
+        // tile vs widget bareng). Numpang di titik ini buat resync WIDGET juga
+        // di saat yang sama, bukan nunggu tick watchdog berikutnya. Watchdog
+        // (Batch 125) TETAP dipertahankan sebagai jaring pengaman terakhir buat
+        // kasus user gak pernah buka shade/app sama sekali.
+        BoosterWidgetProvider.refreshAll(this)
     }
 
     override fun onClick() {

@@ -308,5 +308,11 @@ class MainActivity : ComponentActivity() {
                 this, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         }
+        // Batch 126 (laporan user: nunggu 15 menit watchdog kelamaan buat widget/QS
+        // Tile sinkron balik) — buka app juga titik yang sering & murah buat resync
+        // paksa keduanya ke `isRunning` ground truth SEKARANG, gak usah nunggu tick
+        // watchdog berikutnya kalau user kebetulan buka app duluan.
+        BoosterWidgetProvider.refreshAll(this)
+        QuickToggleTileService.requestTileUpdate(this)
     }
 }
