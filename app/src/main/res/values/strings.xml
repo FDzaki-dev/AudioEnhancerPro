@@ -217,4 +217,13 @@
     <string name="settings_sleep_timer_active">Berhenti otomatis dalam %1$s</string>
     <string name="settings_sleep_timer_cancel">Batalkan Timer</string>
     <string name="settings_sleep_timer_need_running">Nyalakan Boomly dulu untuk memakai timer.</string>
+    <string name="settings_auto_profile_section_title">Auto-Profil per Output</string>
+    <string name="settings_auto_profile_title">Terapkan preset otomatis</string>
+    <string name="settings_auto_profile_desc">Ganti profil suara otomatis begitu ganti speaker/headset/Bluetooth/USB. Pakai preset custom yang sudah kamu buat.</string>
+    <string name="settings_auto_profile_need_preset">Belum ada preset custom — atur Bass/Virtualizer/Loudness di layar utama, tekan \"Simpan\", baru atur ini.</string>
+    <string name="settings_auto_profile_none">Tidak ada</string>
+    <string name="settings_auto_profile_route_speaker">Speaker Internal</string>
+    <string name="settings_auto_profile_route_wired">Headset/Headphone Kabel</string>
+    <string name="settings_auto_profile_route_bluetooth">Bluetooth</string>
+    <string name="settings_auto_profile_route_usb">USB</string>
 </resources>

@@ -10,6 +10,11 @@ object PrefsHelper {
     private const val KEY_VIRTUALIZER = "virtualizer_strength"
     private const val KEY_LOUDNESS = "loudness_gain"
     private const val KEY_COMPRESSOR_AMOUNT = "compressor_amount" // Batch 121, Fase 8 ROI #4
+    // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
+    // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
+    // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
+    private const val KEY_AUTO_PROFILE_ENABLED = "auto_profile_enabled"
+    private const val KEY_AUTO_PROFILE_ROUTE_PREFIX = "auto_profile_route_"
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
@@ -89,6 +94,30 @@ object PrefsHelper {
 
     fun setCompressorAmount(context: Context, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_COMPRESSOR_AMOUNT, value).apply()
+    }
+
+    // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): opt-in, default MATI —
+    // fitur ini mengubah Bass/Virtualizer/Loudness/EQ user TANPA sentuhan tangan (dipicu
+    // ganti output audio), jadi TIDAK boleh aktif diam-diam tanpa persetujuan eksplisit
+    // (beda dari fitur lain di file ini yang aman default-on karena cuma efek 1 slider).
+    fun getAutoProfileEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_AUTO_PROFILE_ENABLED, false)
+
+    fun setAutoProfileEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_AUTO_PROFILE_ENABLED, enabled).apply()
+    }
+
+    /** Null = belum diatur ("Tidak ada" di UI) ATAU preset yang tersimpan di sini sudah
+     *  DIHAPUS user lewat layar utama (BoosterScreen.kt) — `AudioEnhancerService.
+     *  applyCustomPresetByName()` sengaja no-op aman kalau nama sudah tidak ada, jadi
+     *  TIDAK perlu logic cleanup tambahan di sini saat preset dihapus. */
+    fun getAutoProfileForRoute(context: Context, category: String): String? =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_AUTO_PROFILE_ROUTE_PREFIX + category, null)
+
+    fun setAutoProfileForRoute(context: Context, category: String, presetName: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (presetName == null) prefs.edit().remove(KEY_AUTO_PROFILE_ROUTE_PREFIX + category).apply()
+        else prefs.edit().putString(KEY_AUTO_PROFILE_ROUTE_PREFIX + category, presetName).apply()
     }
 
     // --- Preset aktif: supaya chip preset yang terpilih tidak hilang saat app dibuka ulang ---

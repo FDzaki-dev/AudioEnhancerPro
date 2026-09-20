@@ -216,4 +216,13 @@
     <string name="settings_sleep_timer_active">Stops automatically in %1$s</string>
     <string name="settings_sleep_timer_cancel">Cancel Timer</string>
     <string name="settings_sleep_timer_need_running">Turn Boomly on first to use the timer.</string>
+    <string name="settings_auto_profile_section_title">Auto-Profile per Output</string>
+    <string name="settings_auto_profile_title">Apply preset automatically</string>
+    <string name="settings_auto_profile_desc">Switch sound profile automatically when you switch speaker/headset/Bluetooth/USB. Uses a custom preset you\'ve already created.</string>
+    <string name="settings_auto_profile_need_preset">No custom presets yet — adjust Bass/Virtualizer/Loudness on the main screen, tap \"Save\", then set this up.</string>
+    <string name="settings_auto_profile_none">None</string>
+    <string name="settings_auto_profile_route_speaker">Internal Speaker</string>
+    <string name="settings_auto_profile_route_wired">Wired Headset/Headphones</string>
+    <string name="settings_auto_profile_route_bluetooth">Bluetooth</string>
+    <string name="settings_auto_profile_route_usb">USB</string>
 </resources>

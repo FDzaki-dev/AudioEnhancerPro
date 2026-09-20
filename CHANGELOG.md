@@ -1,5 +1,30 @@
 # Changelog
 
+## Batch 122: Auto-Profil per Output — preset custom otomatis ganti device
+
+Fitur baru (roadmap Fase 8 ROI #5), lanjutan instruksi user "next" setelah
+Compressor (Batch 121, dikonfirmasi kerasa jelas oleh user). Extend
+`onOutputRouteChanged()` (Batch 82/83, sebelumnya cuma banner info) jadi
+BENERAN auto-apply preset custom saat output audio berpindah — speaker,
+headset kabel, Bluetooth, atau USB.
+
+**Opt-in, default MATI** — di Pengaturan ada toggle "Terapkan preset
+otomatis" + 4 baris kategori (Speaker/Kabel/Bluetooth/USB), tiap kategori
+dipasangkan ke 1 preset custom (atau "Tidak ada"). Preset BUILT-IN (4 preset
+bawaan) tidak didukung — definisinya cuma ada di layar utama.
+
+**Teknis**: `AudioEnhancerService.applyCustomPresetByName()` baru, reuse 100%
+setter yang sudah ada (Bass/Virtualizer/Loudness/EQ) — dipanggil Service saat
+device BARU tersambung (bukan saat lepas, karena tidak ada cara andal tahu
+device pengganti dari event lepas doang). Digerbang `isRunning` sama seperti
+`enableEffects()` di atasnya.
+
+**Keterbatasan jujur**: kalau app UI sedang terbuka pas route berubah,
+slider di layar TIDAK live-refresh (arsitektur baca nilai awal sekali saat
+dibuka) — suara berubah benar real-time, cuma tampilan slider ketinggalan
+sampai app ditutup-buka lagi. **NOT VERIFIED** — sandbox batch ini tanpa
+toolchain lokal, nunggu CI + uji device fisik.
+
 ## Batch 121: Compressor — kompresor audio user-adjustable (Fase 8 ROI #4)
 
 Fitur baru (roadmap Fase 8 item A), lanjutan urutan ROI setelah Sleep timer.

@@ -16,6 +16,8 @@ package com.audioenhancer.booster
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,11 +30,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +52,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -362,6 +368,109 @@ fun SettingsScreen(
             }
         }
 
+        // Batch 122 (Fase 8 roadmap item B, ROI #5 "Auto-profile per output device" —
+        // instruksi user "next"): extend `OutputRouteBanner`/`onOutputRouteChanged()`
+        // (Service, Batch 82/83, SUDAH ADA) dari sekadar info banner jadi BENERAN
+        // auto-apply preset custom. Opt-in (default MATI, lihat PrefsHelper.
+        // getAutoProfileEnabled) — mengubah efek TANPA sentuhan user butuh persetujuan
+        // eksplisit. Sumber kebenaran = `PrefsHelper` per kategori (`ROUTE_CATEGORY_*`
+        // di AudioEnhancerService), dibaca Service saat route berubah; UI di sini CUMA
+        // baca/tulis prefs langsung (pola SAMA `useHorizontalLayout` di atas, 0 hoist ke
+        // ViewModel/MainActivity). Preset BUILT-IN (4 preset bawaan) TIDAK didukung —
+        // definisinya cuma ada di `BoosterScreen.kt` (private, UI-only), SENGAJA di luar
+        // scope biar tidak perlu refactor pindahin preset table ke layer Service
+        // (Tunnel Vision).
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_auto_profile_section_title))
+        var autoProfileEnabled by remember { mutableStateOf(PrefsHelper.getAutoProfileEnabled(context)) }
+        // Snapshot sekali (pola sama `customPresets` di BoosterScreen.kt tapi TANPA
+        // remember-state reaktif — user yang mau assign preset yang BARU dibuat cukup
+        // balik ke layar utama simpan preset, lalu ke sini lagi, re-entry re-read prefs
+        // otomatis, SAMA seperti `useHorizontalLayout`).
+        val autoProfilePresetNames = remember { PrefsHelper.getCustomPresets(context).map { it.name } }
+        var autoProfileSpeaker by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_SPEAKER)) }
+        var autoProfileWired by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_WIRED)) }
+        var autoProfileBluetooth by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_BLUETOOTH)) }
+        var autoProfileUsb by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_USB)) }
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = autoProfileEnabled,
+                            onValueChange = {
+                                autoProfileEnabled = it
+                                PrefsHelper.setAutoProfileEnabled(context, it)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                            role = Role.Switch
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_auto_profile_title),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            stringResource(R.string.settings_auto_profile_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalSkeuTokens.current.mutedText
+                        )
+                    }
+                    SkeuSwitch(checked = autoProfileEnabled, onCheckedChange = null)
+                }
+                if (autoProfileEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    if (autoProfilePresetNames.isEmpty()) {
+                        Text(
+                            stringResource(R.string.settings_auto_profile_need_preset),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalSkeuTokens.current.mutedText
+                        )
+                    } else {
+                        AutoProfileRouteRow(
+                            stringResource(R.string.settings_auto_profile_route_speaker),
+                            autoProfilePresetNames, autoProfileSpeaker
+                        ) { picked ->
+                            autoProfileSpeaker = picked
+                            PrefsHelper.setAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_SPEAKER, picked)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        AutoProfileRouteRow(
+                            stringResource(R.string.settings_auto_profile_route_wired),
+                            autoProfilePresetNames, autoProfileWired
+                        ) { picked ->
+                            autoProfileWired = picked
+                            PrefsHelper.setAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_WIRED, picked)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        AutoProfileRouteRow(
+                            stringResource(R.string.settings_auto_profile_route_bluetooth),
+                            autoProfilePresetNames, autoProfileBluetooth
+                        ) { picked ->
+                            autoProfileBluetooth = picked
+                            PrefsHelper.setAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_BLUETOOTH, picked)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        AutoProfileRouteRow(
+                            stringResource(R.string.settings_auto_profile_route_usb),
+                            autoProfilePresetNames, autoProfileUsb
+                        ) { picked ->
+                            autoProfileUsb = picked
+                            PrefsHelper.setAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_USB, picked)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
+                }
+            }
+        }
+
         // Batch 114 (Fase 8 roadmap item D — Export/Import preset, request eksplisit
         // user "planning biar lebih powerful"): backup/restore preset custom ke file
         // .json lewat Storage Access Framework. State status LOKAL di composable ini
@@ -471,6 +580,52 @@ fun SettingsScreen(
                         color = if (backupStatusIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                 }
+            }
+        }
+    }
+}
+
+/** Batch 122: 1 baris kategori route — chip "Tidak ada" + 1 chip per preset custom,
+ *  scroll horizontal (bisa banyak preset). Styling FilterChip disamakan persis dengan
+ *  chip preset di `BoosterScreen.kt` (selected = filled primary, unselected = outline
+ *  transparan) — 0 token warna baru. */
+@Composable
+private fun AutoProfileRouteRow(label: String, presetNames: List<String>, selected: String?, onSelect: (String?) -> Unit) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = { Text(stringResource(R.string.settings_auto_profile_none)) },
+                shape = RoundedCornerShape(50),
+                border = if (selected == null) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Color.Transparent,
+                    labelColor = LocalSkeuTokens.current.mutedText,
+                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                    selectedLabelColor = Color.White
+                )
+            )
+            presetNames.forEach { name ->
+                val isSelected = selected == name
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onSelect(name) },
+                    label = { Text(name) },
+                    shape = RoundedCornerShape(50),
+                    border = if (isSelected) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = Color.Transparent,
+                        labelColor = LocalSkeuTokens.current.mutedText,
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = Color.White
+                    )
+                )
             }
         }
     }

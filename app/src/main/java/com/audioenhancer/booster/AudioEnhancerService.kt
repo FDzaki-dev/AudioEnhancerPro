@@ -109,6 +109,19 @@ class AudioEnhancerService : Service() {
         private const val COMPRESSOR_KNEE_DB = 6f
         private const val COMPRESSOR_NOISE_GATE_DB = -90f
 
+        // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): 4 bucket kategori
+        // output yang DIEKSPOS ke UI (SettingsScreen.kt) buat auto-profile, dipakai SEBAGAI
+        // KEY PrefsHelper — JANGAN diubah string-nya tanpa migrasi (akan memutus mapping
+        // yang sudah disimpan user). Lihat `routeCategoryOf()` buat mapping dari
+        // `AudioDeviceInfo.type` mentah. `TYPE_HDMI`/`TYPE_DOCK`/dll masuk kategori "other"
+        // via `routeCategoryOf()` TAPI SENGAJA TIDAK diekspos sebagai pilihan di Settings
+        // (jarang relevan buat app audio booster) — `onOutputRouteChanged()` otomatis skip
+        // kategori ini (tidak ada `ROUTE_CATEGORY_OTHER` yang bisa di-lookup user).
+        const val ROUTE_CATEGORY_SPEAKER = "speaker"
+        const val ROUTE_CATEGORY_WIRED = "wired"
+        const val ROUTE_CATEGORY_BLUETOOTH = "bluetooth"
+        const val ROUTE_CATEGORY_USB = "usb"
+
         // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat RESUME POINT):
         // jumlah bar spectrum yang di-ekspos ke UI. Ditaruh di companion (bukan cuma
         // konstanta lokal fungsi capture) supaya Part 2 (UI, belum dikerjakan) bisa baca
@@ -848,6 +861,24 @@ class AudioEnhancerService : Service() {
         android.util.Log.i(TAG, "Output route berubah: $label $suffix")
         if (isRunning) {
             enableEffects()
+            // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): HANYA saat device
+            // BARU TERSAMBUNG (added=true) DAN toggle "Auto-Profil per Output" aktif
+            // (opt-in, default MATI — lihat PrefsHelper.getAutoProfileEnabled()). SENGAJA
+            // TIDAK ditangani saat added=false (device lepas): tidak ada cara ANDAL tahu
+            // device APA yang jadi aktif berikutnya dari event "lepas" doang (variasi HAL
+            // vendor, kelas masalah SAMA seperti disclaimer besar di atas fungsi ini) —
+            // auto-apply cuma dipicu event yang JELAS ("device X baru nyambung -> pakai
+            // profil X"), BUKAN ditebak dari device yang hilang. Digerbang `isRunning`
+            // SAMA PERSIS alasan `enableEffects()` di atas: user matiin Boomly = jangan
+            // diam-diam ubah apa pun.
+            if (added && PrefsHelper.getAutoProfileEnabled(this)) {
+                val category = routeCategoryOf(outputDevices.first().type)
+                PrefsHelper.getAutoProfileForRoute(this, category)?.let { presetName ->
+                    if (applyCustomPresetByName(presetName)) {
+                        android.util.Log.i(TAG, "Auto-profile: route=$category -> preset '$presetName'")
+                    }
+                }
+            }
         }
     }
 
@@ -870,6 +901,21 @@ class AudioEnhancerService : Service() {
         AudioDeviceInfo.TYPE_HDMI -> "HDMI"
         AudioDeviceInfo.TYPE_DOCK -> "Dock"
         else -> "device tipe $type"
+    }
+
+    /** Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): reduksi tipe device
+     *  MENTAH (banyak varian, lihat `describeOutputDeviceType()` di atas) jadi 4 bucket
+     *  stabil buat KEY mapping preset (`ROUTE_CATEGORY_*` companion) — user atur "kalau
+     *  Bluetooth nyambung, pakai preset X" di Settings, BUKAN per-tipe-device individual
+     *  (terlalu granular buat berguna, mis. Bluetooth A2DP vs SCO vs BLE headset SEMUA
+     *  tetap "earbuds/speaker Bluetooth" dari sudut pandang user awam). */
+    private fun routeCategoryOf(type: Int): String = when (type) {
+        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> ROUTE_CATEGORY_SPEAKER
+        AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> ROUTE_CATEGORY_WIRED
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
+        AudioDeviceInfo.TYPE_BLE_HEADSET, AudioDeviceInfo.TYPE_BLE_SPEAKER -> ROUTE_CATEGORY_BLUETOOTH
+        AudioDeviceInfo.TYPE_USB_DEVICE, AudioDeviceInfo.TYPE_USB_HEADSET, AudioDeviceInfo.TYPE_USB_ACCESSORY -> ROUTE_CATEGORY_USB
+        else -> "other" // HDMI/Dock/dll — SENGAJA tidak ada konstanta publik, lihat komentar companion object
     }
 
     /** Batch 120 (Fase 8E, part 1/2 - lihat RESUME POINT): pasang `Visualizer` ke session
@@ -1207,6 +1253,42 @@ class AudioEnhancerService : Service() {
             }
         }
         PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
+    }
+
+    /** Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): terapkan 1
+     *  `PrefsHelper.CustomPreset` LANGSUNG dari Service (BUKAN UI) — dipanggil
+     *  `onOutputRouteChanged()` di atas, tapi ditulis reusable buat calon caller
+     *  otomatis lain nanti (mis. Scheduler jam/event, roadmap Fase 8 B berikutnya).
+     *  Reuse SEMUA setter publik yang SUDAH ADA (`setBassStrength`/
+     *  `setVirtualizerStrength`/`setLoudnessGain`/`setEqualizerBand`) — 0 logic baru
+     *  buat "cara apply", cuma orkestrasi lookup by name. `eqBands.isEmpty()` = preset
+     *  lama TIDAK sentuh EQ SAMA SEKALI (pola HARUS SAMA seperti `applyCustomPreset()`
+     *  lokal di `BoosterScreen.kt` — kalau itu berubah, cek fungsi ini juga).
+     *  `PrefsHelper.setActivePreset()` ikut dipanggil (BUKAN preset built-in) — SAMA
+     *  seperti UI, biar chip preset yang benar ke-highlight kalau user buka app.
+     *
+     *  KETERBATASAN JUJUR (Tunnel Vision — di luar scope batch ini): kalau app UI
+     *  SEDANG TERBUKA pas ini terpanggil, slider Bass/Virtualizer/Loudness/EQ di layar
+     *  TIDAK live-refresh ke nilai baru (arsitektur slider `BoosterScreen.kt` baca
+     *  `initial*` SEKALI saat composition, bukan polling nilai efek real-time) — user
+     *  harus tutup-buka app buat lihat slider ke-update. Suara/efek ITU SENDIRI tetap
+     *  benar berubah real-time; ini MURNI keterbatasan tampilan. Extend polling
+     *  `BoosterViewModel` buat live-refresh slider = kandidat batch berikutnya kalau
+     *  user komplain soal ini.
+     *
+     *  Return `false` kalau preset [name] tidak ditemukan (no-op aman — mis. preset
+     *  sudah dihapus user tapi masih ter-assign di `PrefsHelper.getAutoProfileForRoute`,
+     *  lihat komentar di sana). */
+    fun applyCustomPresetByName(name: String): Boolean {
+        val preset = PrefsHelper.getCustomPresets(this).firstOrNull { it.name == name } ?: return false
+        setBassStrength(preset.bass.toInt().toShort())
+        setVirtualizerStrength(preset.virtualizer.toInt().toShort())
+        setLoudnessGain(preset.loudness)
+        if (preset.eqBands.isNotEmpty()) {
+            preset.eqBands.forEachIndexed { index, mb -> setEqualizerBand(index.toShort(), mb.toShort()) }
+        }
+        PrefsHelper.setActivePreset(this, preset.name)
+        return true
     }
 
     // ---- Info tambahan untuk UI: bedakan "efek tidak ada sama sekali" vs "ada tapi

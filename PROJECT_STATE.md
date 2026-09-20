@@ -114,10 +114,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 121 (kode: Compressor, Fase 8 A — lihat LOG BATCH 121;
-  **NOT VERIFIED**, tidak ada toolchain lokal buat compile-check sesi ini,
-  nunggu CI/device user). Sebelumnya: 120 Spectrum visualizer (NOT VERIFIED);
-  119 Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum itu: B115.
+- **Batch terakhir**: 122 (kode: Auto-Profil per Output, Fase 8 ROI #5 — lihat
+  LOG BATCH 122; **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
+  user). Sebelumnya: 121 Compressor (**USER-CONFIRMED WORKING** di device
+  fisik); 120 Spectrum visualizer (NOT VERIFIED); 119 Sleep timer bag. 1 (NOT
+  VERIFIED); logika terakhir sebelum itu: B115.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -172,6 +173,21 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 122** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`,
+  strings ID/EN; user "next" → Fase 8 ROI #5): Auto-Profil per Output — extend
+  `onOutputRouteChanged()` (Batch 82/83, dulu cuma banner info) jadi auto-apply
+  preset CUSTOM (bukan built-in — definisinya cuma ada di UI, di luar scope)
+  saat device output BARU tersambung (bukan saat lepas — tidak andal tebak
+  device pengganti). Opt-in default MATI (`PrefsHelper.getAutoProfileEnabled`).
+  4 kategori (`ROUTE_CATEGORY_*`): speaker/kabel/bluetooth/usb, UI chip picker
+  di Settings (0 hoist ViewModel/MainActivity, baca/tulis prefs langsung, pola
+  `useHorizontalLayout`). `applyCustomPresetByName()` baru di Service (reuse
+  100% setter lama) — reusable buat Scheduler (Fase 8 B) nanti. Keterbatasan
+  didokumentasikan: slider UI TIDAK live-refresh kalau app terbuka pas route
+  berubah (suara tetap benar berubah). Status: **NOT VERIFIED** (no toolchain
+  lokal — sandbox tanpa Android SDK/Gradle/network; static manual lolos:
+  brace/paren balance + XML well-formed + parity string ID/EN 162=162; nunggu
+  CI + device fisik).
 - **Batch 121** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `BoosterViewModel.kt`,
   `MainActivity.kt`, `BoosterScreen.kt`, `Theme.kt`, strings ID/EN; user "next" →
   Fase 8 ROI #4): Compressor — 1 band `DynamicsProcessing.MbcBand` full-range
@@ -180,12 +196,12 @@ Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
   0-100% (`setCompressorAmount()`) menyetir ratio 1:1→6:1 + threshold -1→-24dB
   + postGain makeup 0→+6dB sekaligus. State ikut `dynamicsState` (pola sama
   `equalizerFallbackActive`), masuk `ControlRecoveryBanner`. SENGAJA TIDAK ikut
-  sistem preset (Tunnel Vision — di luar scope). Status: **NOT VERIFIED** (no
-  toolchain lokal buat compile-check — sandbox tanpa Android SDK/Gradle/network;
-  static manual lolos: brace/paren balance + XML well-formed + parity string
-  ID/EN 153=153; nunggu CI + device fisik. Kandidat pertama kalau gagal
-  compile: signature `DynamicsProcessing.MbcBand` — urutan 11 parameter diambil
-  dari dokumentasi resmi diingat, TIDAK bisa di-cross-check langsung batch ini).
+  sistem preset (Tunnel Vision — di luar scope). Status: **USER-CONFIRMED
+  WORKING di device fisik** (user: "makin dinaikin compressor nya makin
+  jelas" — compile OK + kompresi kerasa sesuai desain kurva 0-100%; SEBELUMNYA
+  NOT VERIFIED, dikoreksi Batch 122). Kurva threshold/ratio/makeup persis
+  belum di-fine-tune/diukur (subjektif "kerasa jelas" ≠ terukur) — biarkan
+  apa adanya kecuali user lapor masalah spesifik.
 - **Batch 120** (`AndroidManifest.xml`, `AudioEnhancerService.kt`,
   `BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`, strings
   ID/EN; user pilih "Asli" atas keputusan tertunda Fase 8E): Spectrum
@@ -919,9 +935,11 @@ Tunnel Vision, maks 3 file kode/batch.
   stretch, riset API dulu, risiko kompatibilitas tinggi.
 
 **B. Automation & Intelligence**
-- Auto-profile per output device: `OutputRouteBanner` (Batch 107) sudah
-  deteksi ganti device — extend jadi auto-apply preset, bukan cuma banner
-  info.
+- [x] Auto-profile per output device: `OutputRouteBanner` (Batch 107) sudah
+  deteksi ganti device — extend jadi auto-apply preset custom (opt-in,
+  default mati), bukan cuma banner info. Kode SELESAI Batch 122. Status:
+  **NOT VERIFIED** — no toolchain lokal, belum diuji device fisik (lihat LOG
+  BATCH Batch 122).
 - Sleep timer — [x] auto-stop (Batch 119, NOT VERIFIED); sisa: fade-out
   volume (butuh keputusan user: fade STREAM_MUSIC + restore volume, atau
   fade kekuatan efek saja).
@@ -954,30 +972,36 @@ Tunnel Vision, maks 3 file kode/batch.
 — SELESAI Batch 115-116. 2) ✅ Spectrum visualizer (E) — kode SELESAI Batch
 120, NOT VERIFIED. 3) Sleep timer + Scheduler (B) —
 Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
-Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, NOT VERIFIED.
-Berikutnya: 5) Auto-profile per output device (B) 6) EQ curve editor (A) 7)
-sisanya sesuai kebutuhan user.
+Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, USER-CONFIRMED
+WORKING. 5) ✅ Auto-profile per output device (B) — kode SELESAI Batch 122,
+NOT VERIFIED. Berikutnya: 6) EQ curve editor (A) 7) Sleep timer fade-out +
+Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Compressor (Batch 121; kode: `AudioEnhancerService.kt`,
-`PrefsHelper.kt`, `BoosterViewModel.kt`, `MainActivity.kt`,
-`BoosterScreen.kt`, `Theme.kt`, strings ID/EN; ZIP `Boomly_v121.zip`) →
-SELESAI kode LENGKAP (1 band MBC di `DynamicsProcessing` yang sama dengan
-limiter, slider Amount 0-100%, persist, recovery banner), **NOT VERIFIED**
-(sandbox batch ini TANPA toolchain lokal — no Android SDK/Gradle/network,
-jadi HANYA lolos review manual brace/paren+XML; belum lolos CI ataupun
-device fisik) → Remaining: (a) validasi CI compile Batch 121 di atas —
-risiko tertinggi: urutan 11 parameter constructor
-`DynamicsProcessing.MbcBand` (diingat dari training, TIDAK di-cross-check
-API resmi sesi ini — kalau CI merah di titik ini, itu kandidat pertama);
-(b) kalau compile OK, validasi device fisik: kompresi kerasa/tidak,
-threshold/ratio/makeup 0-100% kandidat pertama kalau "terlalu
-halus/agresif" (lihat `setCompressorAmount()`); (c) Spectrum Visualizer
-Batch 120 masih NOT VERIFIED (belum ada update user); (d) Sleep timer
-fade-out & Scheduler (poin b lama, belum dikerjakan); (e) 2 temuan terbuka
-lama (secret Box B vs CI; guard `-lt$((`) → Next Action: kalau CI/user
-lapor Batch 121 gagal compile/kerasa aneh → hotfix `setCompressorAmount()`/
-`attachDynamicsProcessing()` (`AudioEnhancerService.kt`); kalau "next"/OK →
-lanjut Fase 8 ROI #5 Auto-profile per output device (B) ATAU Sleep timer
-fade-out+Scheduler kalau user pilih itu duluan. Batch berikutnya = 122.]
+[RESUME POINT: Auto-Profil per Output (Batch 122; kode:
+`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`, strings
+ID/EN; ZIP `Boomly_v122.zip`) → SELESAI kode LENGKAP (toggle opt-in +
+4 kategori speaker/kabel/bluetooth/usb, chip picker preset custom,
+`applyCustomPresetByName()` reusable, hook di `onOutputRouteChanged()`
+digerbang `isRunning` + toggle), **NOT VERIFIED** (sandbox batch ini TANPA
+toolchain lokal — no Android SDK/Gradle/network, HANYA lolos review manual
+brace/paren+XML+parity string 162=162; belum lolos CI ataupun device fisik)
+→ Remaining: (a) validasi CI compile Batch 122 di atas — risiko: 6 import
+baru di `SettingsScreen.kt` (BorderStroke/horizontalScroll/RoundedCornerShape/
+FilterChip/FilterChipDefaults/Color), belum di-cross-check compiler; (b)
+kalau compile OK, validasi device fisik: nyalakan toggle, assign preset per
+kategori, colokin/lepas headset/Bluetooth/USB, cek preset ke-apply + Logcat
+"Auto-profile: route=... -> preset..."; (c) keterbatasan SUDAH
+didokumentasikan (slider UI tidak live-refresh kalau app terbuka pas route
+berubah) — BUKAN bug kalau user lapor itu, jelaskan bukan hotfix; (d)
+Compressor Batch 121 sudah USER-CONFIRMED WORKING; (e) Spectrum Visualizer
+Batch 120 masih NOT VERIFIED (belum ada update user); (f) Sleep timer
+fade-out & Scheduler (masih belum dikerjakan — `applyCustomPresetByName()`
+baru ini SENGAJA ditulis reusable buat Scheduler nanti); (g) 2 temuan
+terbuka lama (secret Box B vs CI; guard `-lt$((`) → Next Action: kalau
+CI/user lapor Batch 122 gagal compile/tidak ke-trigger → hotfix
+`onOutputRouteChanged()`/`applyCustomPresetByName()` (`AudioEnhancerService.kt`)
+atau import `SettingsScreen.kt`; kalau "next"/OK → lanjut Fase 8 ROI #6 EQ
+curve editor drag-point (A) ATAU Sleep timer fade-out+Scheduler kalau user
+pilih itu duluan. Batch berikutnya = 123.]
