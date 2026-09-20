@@ -275,6 +275,27 @@ class AudioEnhancerService : Service() {
     // dari device — kandidat kuat buat roadmap.md Fase 0 #9 "UI/error-state lanjutan").
     @Volatile var lastOutputRouteDescription: String? = null; private set
 
+    /** Batch 123 (hotfix regresi speaker internal, lapor user setelah Batch 122): snapshot
+     *  Bass/Virtualizer/Loudness/EQ tepat SEBELUM preset auto-profile PERTAMA kali
+     *  diterapkan dalam 1 "sesi keterhubungan" (di-set null lagi setelah restore). Root
+     *  cause bug: `onOutputRouteChanged()` versi lama HANYA menangani `added=true` — saat
+     *  device eksternal (wired/Bluetooth/USB) LEPAS, nilai Bass/Virtualizer/Loudness/EQ
+     *  yang sudah ditimpa custom preset kategori device itu TIDAK PERNAH direvert, jadi
+     *  nempel ke speaker internal walau speaker sama sekali TIDAK diatur ke preset
+     *  tersebut. Dipulihkan via `restoreAutoProfileBaseline()` saat route balik ke
+     *  kategori TANPA preset ter-assign (termasuk speaker internal). `null` = belum ada
+     *  snapshot aktif (setting SUDAH sinkron dengan manual user, tidak ada yang perlu
+     *  direstore). @Volatile: ditulis dari callback sistem, sama alasan seperti state
+     *  effect lain di file ini. */
+    @Volatile private var autoProfileBaseline: AutoProfileBaseline? = null
+
+    private data class AutoProfileBaseline(
+        val bass: Short,
+        val virtualizer: Short,
+        val loudness: Float,
+        val eqBands: List<Short>
+    )
+
     private var audioManager: AudioManager? = null
 
     // Batch 82: listener perubahan device audio SISTEM (bukan cuma sesi app ini) — cara
@@ -851,7 +872,20 @@ class AudioEnhancerService : Service() {
      *  BELUM divalidasi runtime — kandidat pertama dicurigai kalau nanti ada laporan
      *  "kok Logcat gak pernah kecatat pas ganti Bluetooth/headset": kemungkinan device
      *  tertentu tidak fire `AudioDeviceCallback` untuk tipe device tertentu (variasi HAL
-     *  vendor, sama kelas masalah dengan capability lain di file ini). */
+     *  vendor, sama kelas masalah dengan capability lain di file ini).
+     *
+     *  Batch 123 (hotfix regresi speaker internal): `added=false` (device lepas) SEKARANG
+     *  ikut ditangani untuk auto-profile — TAPI HANYA kalau setelah lepas TIDAK ADA lagi
+     *  device output eksternal lain yang masih nyambung (dicek via `getDevices()`), jadi
+     *  route baru bisa dipastikan balik ke speaker internal. Kalau MASIH ada device
+     *  eksternal lain nyambung (mis. wired+Bluetooth nyambung bareng, lalu salah satu
+     *  lepas), fungsi ini SENGAJA skip (sama seperti perilaku lama) — tidak ada cara ANDAL
+     *  tahu device MANA yang jadi aktif berikutnya, menebak salah lebih berisiko daripada
+     *  diam. Kategori (baik dari device yang baru nyambung MAUPUN speaker yang dipastikan
+     *  aktif) tanpa preset ter-assign SEKARANG memicu `restoreAutoProfileBaseline()` kalau
+     *  ada snapshot aktif — mencegah setting preset kategori SEBELUMNYA "nempel" ke
+     *  kategori yang tidak diatur (root cause laporan user: speaker internal ikut pakai
+     *  preset Kustom padahal tidak pernah diatur ke situ). */
     private fun onOutputRouteChanged(devices: Array<AudioDeviceInfo>, added: Boolean) {
         val outputDevices = devices.filter { it.isSink }
         if (outputDevices.isEmpty()) return // semua device di batch callback ini INPUT, bukan urusan fungsi ini
@@ -861,24 +895,53 @@ class AudioEnhancerService : Service() {
         android.util.Log.i(TAG, "Output route berubah: $label $suffix")
         if (isRunning) {
             enableEffects()
-            // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): HANYA saat device
-            // BARU TERSAMBUNG (added=true) DAN toggle "Auto-Profil per Output" aktif
-            // (opt-in, default MATI — lihat PrefsHelper.getAutoProfileEnabled()). SENGAJA
-            // TIDAK ditangani saat added=false (device lepas): tidak ada cara ANDAL tahu
-            // device APA yang jadi aktif berikutnya dari event "lepas" doang (variasi HAL
-            // vendor, kelas masalah SAMA seperti disclaimer besar di atas fungsi ini) —
-            // auto-apply cuma dipicu event yang JELAS ("device X baru nyambung -> pakai
-            // profil X"), BUKAN ditebak dari device yang hilang. Digerbang `isRunning`
-            // SAMA PERSIS alasan `enableEffects()` di atas: user matiin Boomly = jangan
-            // diam-diam ubah apa pun.
-            if (added && PrefsHelper.getAutoProfileEnabled(this)) {
-                val category = routeCategoryOf(outputDevices.first().type)
-                PrefsHelper.getAutoProfileForRoute(this, category)?.let { presetName ->
-                    if (applyCustomPresetByName(presetName)) {
-                        android.util.Log.i(TAG, "Auto-profile: route=$category -> preset '$presetName'")
+            // Batch 122/123 (Fase 8 ROI #5 "Auto-profile per output device"): hanya kalau
+            // toggle "Auto-Profil per Output" aktif (opt-in, default MATI — lihat
+            // PrefsHelper.getAutoProfileEnabled()). Digerbang `isRunning` SAMA PERSIS
+            // alasan `enableEffects()` di atas: user matiin Boomly = jangan diam-diam ubah
+            // apa pun.
+            if (PrefsHelper.getAutoProfileEnabled(this)) {
+                val category: String? = if (added) {
+                    routeCategoryOf(outputDevices.first().type)
+                } else if (hasNoExternalOutputDeviceLeft()) {
+                    ROUTE_CATEGORY_SPEAKER // dipastikan balik ke speaker, lihat doc di atas
+                } else {
+                    null // ambigu (device eksternal lain masih nyambung) -> skip, jangan nebak
+                }
+                if (category != null) {
+                    val presetName = PrefsHelper.getAutoProfileForRoute(this, category)
+                    if (presetName != null) {
+                        if (applyCustomPresetByName(presetName)) {
+                            android.util.Log.i(TAG, "Auto-profile: route=$category -> preset '$presetName'")
+                        }
+                    } else if (autoProfileBaseline != null) {
+                        // Kategori aktif TIDAK diatur ("Tidak ada") TAPI ada snapshot manual
+                        // aktif dari route sebelumnya -> pulihkan, jangan biarkan nempel.
+                        restoreAutoProfileBaseline()
+                        android.util.Log.i(TAG, "Auto-profile: route=$category tidak diatur -> restore manual")
                     }
                 }
             }
+        }
+    }
+
+    /** Batch 123: true kalau, setelah 1 device output LEPAS, TIDAK ADA lagi device output
+     *  eksternal lain (Bluetooth/wired/USB/HDMI/dock/dll) yang masih terdaftar tersambung
+     *  — artinya route audio bisa dipastikan balik ke speaker (atau earpiece) internal.
+     *  Query `getDevices()` LANGSUNG ke `AudioManager` (bukan cuma dari payload callback
+     *  `removedDevices`) supaya dapat state TERKINI, bukan snapshot device yang baru lepas
+     *  saja. Aman no-op (return false = jangan asumsikan speaker) kalau `audioManager`
+     *  null (belum sempat di-init). */
+    private fun hasNoExternalOutputDeviceLeft(): Boolean {
+        val manager = audioManager ?: return false
+        val remaining = try {
+            manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        } catch (e: Exception) {
+            return false
+        }
+        return remaining.none {
+            it.isSink && it.type != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER &&
+                it.type != AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
         }
     }
 
@@ -1281,6 +1344,7 @@ class AudioEnhancerService : Service() {
      *  lihat komentar di sana). */
     fun applyCustomPresetByName(name: String): Boolean {
         val preset = PrefsHelper.getCustomPresets(this).firstOrNull { it.name == name } ?: return false
+        captureAutoProfileBaselineIfNeeded()
         setBassStrength(preset.bass.toInt().toShort())
         setVirtualizerStrength(preset.virtualizer.toInt().toShort())
         setLoudnessGain(preset.loudness)
@@ -1289,6 +1353,42 @@ class AudioEnhancerService : Service() {
         }
         PrefsHelper.setActivePreset(this, preset.name)
         return true
+    }
+
+    /** Batch 123 (hotfix regresi speaker internal — lihat doc `autoProfileBaseline` di
+     *  atas): snapshot nilai Bass/Virtualizer/Loudness/EQ SAAT INI (dari `PrefsHelper`,
+     *  sumber kebenaran yang sama dipakai slider manual) HANYA kalau belum ada snapshot
+     *  aktif. No-op kalau `autoProfileBaseline` sudah terisi — mencegah snapshot kedua
+     *  menimpa nilai manual asli dengan nilai preset kategori SEBELUMNYA (mis. Bluetooth
+     *  nyambung dulu baru USB, baseline HARUS tetap nilai manual dari sebelum Bluetooth,
+     *  bukan nilai preset Bluetooth). */
+    private fun captureAutoProfileBaselineIfNeeded() {
+        if (autoProfileBaseline != null) return
+        val bandCount = getEqualizerBandCount()
+        autoProfileBaseline = AutoProfileBaseline(
+            bass = PrefsHelper.getBass(this).toShort(),
+            virtualizer = PrefsHelper.getVirtualizer(this).toShort(),
+            loudness = PrefsHelper.getLoudness(this),
+            eqBands = if (bandCount > 0) (0 until bandCount).map { getEqualizerBandLevel(it) } else emptyList()
+        )
+    }
+
+    /** Batch 123: kebalikan `captureAutoProfileBaselineIfNeeded()` — pulihkan Bass/
+     *  Virtualizer/Loudness/EQ ke nilai manual user SEBELUM preset auto-profile pertama
+     *  kali diterapkan, lalu kosongkan snapshot (`autoProfileBaseline = null`) supaya
+     *  siklus connect/disconnect berikutnya capture snapshot BARU yang benar. Dipanggil
+     *  dari `onOutputRouteChanged()` saat route balik ke kategori tanpa preset ter-assign.
+     *  `PrefsHelper.setActivePreset(null)` ikut dipanggil — balik ke manual = tidak ada
+     *  chip preset custom yang seharusnya ter-highlight (preset built-in di BoosterScreen.kt
+     *  tidak dipengaruhi field ini). No-op aman kalau tidak ada snapshot. */
+    private fun restoreAutoProfileBaseline() {
+        val baseline = autoProfileBaseline ?: return
+        setBassStrength(baseline.bass)
+        setVirtualizerStrength(baseline.virtualizer)
+        setLoudnessGain(baseline.loudness)
+        baseline.eqBands.forEachIndexed { index, mb -> setEqualizerBand(index.toShort(), mb) }
+        PrefsHelper.setActivePreset(this, null)
+        autoProfileBaseline = null
     }
 
     // ---- Info tambahan untuk UI: bedakan "efek tidak ada sama sekali" vs "ada tapi

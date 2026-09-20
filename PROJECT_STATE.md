@@ -114,11 +114,12 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 122 (kode: Auto-Profil per Output, Fase 8 ROI #5 — lihat
-  LOG BATCH 122; **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
-  user). Sebelumnya: 121 Compressor (**USER-CONFIRMED WORKING** di device
-  fisik); 120 Spectrum visualizer (NOT VERIFIED); 119 Sleep timer bag. 1 (NOT
-  VERIFIED); logika terakhir sebelum itu: B115.
+- **Batch terakhir**: 123, hotfix regresi Batch 122 — speaker internal nempel
+  preset Kustom (lihat LOG BATCH 123); **NOT VERIFIED**, tidak ada toolchain
+  lokal, nunggu CI/device user. Sebelumnya: 122 Auto-Profil per Output kode
+  SELESAI (NOT VERIFIED sebelum hotfix ini); 121 Compressor (**USER-CONFIRMED
+  WORKING** di device fisik); 120 Spectrum visualizer (NOT VERIFIED); 119
+  Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum itu: B115.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -173,6 +174,20 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 123** (`AudioEnhancerService.kt`; hotfix, laporan user pasca-122):
+  regresi "speaker internal ikut pakai preset Kustom padahal tidak disetel
+  kesitu". Root cause: `onOutputRouteChanged()` hanya menangani device BARU
+  tersambung, jadi saat device ber-preset LEPAS, Bass/Virtualizer/Loudness/EQ
+  yang sudah ditimpa preset itu tidak pernah direvert. Fix: snapshot
+  (`autoProfileBaseline`) sebelum preset pertama diterapkan (di
+  `applyCustomPresetByName()`), restore (`restoreAutoProfileBaseline()`) saat
+  route balik ke kategori tanpa preset — termasuk speaker, dideteksi via
+  `hasNoExternalOutputDeviceLeft()` (cek `getDevices()`, bukan cuma payload
+  callback). Device lepas dengan device eksternal LAIN masih nyambung tetap
+  di-skip (ambigu, sama seperti sebelumnya — lihat CHANGELOG). 1 file
+  disentuh, 0 API publik/UI berubah. Status: **NOT VERIFIED** (no toolchain
+  lokal; static manual lolos: brace 215=215, paren 906=906; nunggu CI +
+  device fisik — skenario test di RESUME POINT).
 - **Batch 122** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`,
   strings ID/EN; user "next" → Fase 8 ROI #5): Auto-Profil per Output — extend
   `onOutputRouteChanged()` (Batch 82/83, dulu cuma banner info) jadi auto-apply
@@ -979,29 +994,31 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Auto-Profil per Output (Batch 122; kode:
-`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`, strings
-ID/EN; ZIP `Boomly_v122.zip`) → SELESAI kode LENGKAP (toggle opt-in +
-4 kategori speaker/kabel/bluetooth/usb, chip picker preset custom,
-`applyCustomPresetByName()` reusable, hook di `onOutputRouteChanged()`
-digerbang `isRunning` + toggle), **NOT VERIFIED** (sandbox batch ini TANPA
-toolchain lokal — no Android SDK/Gradle/network, HANYA lolos review manual
-brace/paren+XML+parity string 162=162; belum lolos CI ataupun device fisik)
-→ Remaining: (a) validasi CI compile Batch 122 di atas — risiko: 6 import
-baru di `SettingsScreen.kt` (BorderStroke/horizontalScroll/RoundedCornerShape/
-FilterChip/FilterChipDefaults/Color), belum di-cross-check compiler; (b)
-kalau compile OK, validasi device fisik: nyalakan toggle, assign preset per
-kategori, colokin/lepas headset/Bluetooth/USB, cek preset ke-apply + Logcat
-"Auto-profile: route=... -> preset..."; (c) keterbatasan SUDAH
-didokumentasikan (slider UI tidak live-refresh kalau app terbuka pas route
-berubah) — BUKAN bug kalau user lapor itu, jelaskan bukan hotfix; (d)
-Compressor Batch 121 sudah USER-CONFIRMED WORKING; (e) Spectrum Visualizer
-Batch 120 masih NOT VERIFIED (belum ada update user); (f) Sleep timer
-fade-out & Scheduler (masih belum dikerjakan — `applyCustomPresetByName()`
-baru ini SENGAJA ditulis reusable buat Scheduler nanti); (g) 2 temuan
-terbuka lama (secret Box B vs CI; guard `-lt$((`) → Next Action: kalau
-CI/user lapor Batch 122 gagal compile/tidak ke-trigger → hotfix
-`onOutputRouteChanged()`/`applyCustomPresetByName()` (`AudioEnhancerService.kt`)
-atau import `SettingsScreen.kt`; kalau "next"/OK → lanjut Fase 8 ROI #6 EQ
-curve editor drag-point (A) ATAU Sleep timer fade-out+Scheduler kalau user
-pilih itu duluan. Batch berikutnya = 123.]
+[RESUME POINT: Hotfix regresi speaker internal (Batch 123; kode:
+`AudioEnhancerService.kt` HANYA — 1 file; ZIP `Boomly_v123.zip`) → SELESAI
+kode LENGKAP: `autoProfileBaseline` (snapshot+restore manual settings),
+`captureAutoProfileBaselineIfNeeded()`/`restoreAutoProfileBaseline()` baru,
+`onOutputRouteChanged()` sekarang tangani `added=false` via
+`hasNoExternalOutputDeviceLeft()` (confident-speaker-detection, skip kalau
+ambigu). **NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos
+review manual brace 215=215/paren 906=906; belum lolos CI ataupun device
+fisik) → Remaining: (a) validasi CI compile Batch 123; (b) kalau compile OK,
+validasi device fisik 2 skenario: (1) assign preset custom ke kategori
+Wired/Bluetooth/USB (BUKAN speaker) → sambung device itu → cek preset
+ke-apply (Logcat "Auto-profile: route=... -> preset...") → LEPAS device itu
+→ cek Bass/Virtualizer/Loudness/EQ balik ke nilai manual SEBELUM preset
+(Logcat "...tidak diatur -> restore manual"), BUKAN nempel nilai preset; (2)
+assign preset KE kategori Speaker juga → ulangi lepas device → cek speaker
+pakai preset Speaker (bukan restore manual). (c) Auto-Profil per Output
+(Batch 122) sisanya: kalau (b) lolos, fitur ini dianggap SELESAI+TERVALIDASI
+scope hotfix ini; (d) keterbatasan SUDAH didokumentasikan dari Batch 122
+(slider UI tidak live-refresh kalau app terbuka pas route berubah) — BUKAN
+bug kalau user lapor itu lagi; (e) Compressor Batch 121 USER-CONFIRMED
+WORKING; (f) Spectrum Visualizer Batch 120 masih NOT VERIFIED (belum ada
+update user); (g) Sleep timer fade-out & Scheduler (belum dikerjakan); (h) 2
+temuan terbuka lama (secret Box B vs CI; guard `-lt$((`) → Next Action:
+kalau CI/user lapor Batch 123 gagal compile atau (b) masih gagal → hotfix
+lanjutan `onOutputRouteChanged()`/`hasNoExternalOutputDeviceLeft()`
+(`AudioEnhancerService.kt`); kalau (b) lolos/user OK → lanjut Fase 8 ROI #6
+EQ curve editor drag-point (A) ATAU Sleep timer fade-out+Scheduler kalau
+user pilih itu duluan. Batch berikutnya = 124.]

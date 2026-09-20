@@ -1,5 +1,25 @@
 # Changelog
 
+## Batch 123: Hotfix — speaker internal ikut nempel preset Kustom (regresi Batch 122)
+
+Laporan user: Auto-Profil per Output (Batch 122) berfungsi, TAPI speaker
+internal ikut memakai preset Kustom walau kategori Speaker tidak pernah
+diatur ke preset itu. Root cause: `onOutputRouteChanged()` hanya menangani
+device BARU tersambung, jadi saat headset/Bluetooth/USB yang punya preset
+ter-assign LEPAS, nilai Bass/Virtualizer/Loudness/EQ yang sudah ditimpa
+preset itu tidak pernah direvert — nempel ke speaker.
+
+**Perbaikan**: `AudioEnhancerService.kt` sekarang snapshot nilai manual
+SEBELUM preset auto-profile pertama diterapkan, dan memulihkannya begitu
+route balik ke kategori tanpa preset ter-assign (termasuk speaker internal,
+dideteksi via cek device output eksternal yang masih nyambung). Device lepas
+dengan device eksternal LAIN yang masih nyambung tetap di-skip (ambigu,
+sama seperti perilaku lama) — tidak menebak.
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal, nunggu CI + uji device
+fisik (skenario: sambung device ber-preset → lepas → cek speaker balik ke
+nilai manual, bukan nilai preset).
+
 ## Batch 122: Auto-Profil per Output — preset custom otomatis ganti device
 
 Fitur baru (roadmap Fase 8 ROI #5), lanjutan instruksi user "next" setelah
