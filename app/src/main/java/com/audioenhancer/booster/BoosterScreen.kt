@@ -12,7 +12,13 @@ package com.audioenhancer.booster
 // Batch 31: ThemeModeToggle DIHAPUS — app WAJIB dark-mode, tidak ada lagi pilihan
 // terang/ikuti sistem (lihat PROJECT_STATE.md).
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -411,6 +417,38 @@ private fun UpdateBanner(
     }
 }
 
+/** Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): render [levels] (0f..1f per
+ *  elemen, panjang = [AudioEnhancerService.SPECTRUM_BAND_COUNT]) sebagai bar vertikal
+ *  rapat. BUKAN `animate*AsState` — [levels] sendiri sudah berubah ~20x/detik dari loop
+ *  poll ViewModel (lihat BoosterViewModel), animasi tambahan di sini cuma nambah lag,
+ *  bukan bikin lebih halus. Murni `Canvas` primitif, TIDAK ada state/remember di dalam
+ *  fungsi ini sendiri — semua sumber data dari parameter, aman dipanggil ulang tiap
+ *  recomposition tanpa efek samping.
+ */
+@Composable
+private fun SpectrumBars(
+    levels: FloatArray,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        if (levels.isEmpty()) return@Canvas
+        val gapFraction = 0.25f
+        val barWidth = size.width / (levels.size + (levels.size - 1) * gapFraction)
+        val gapWidth = barWidth * gapFraction
+        levels.forEachIndexed { i, raw ->
+            val level = raw.coerceIn(0f, 1f)
+            val barHeight = (size.height * level).coerceAtLeast(2f) // Batch 120: minimal 2px biar bar diam tetap kelihatan, bukan hilang total
+            drawRoundRect(
+                color = color,
+                topLeft = androidx.compose.ui.geometry.Offset(i * (barWidth + gapWidth), size.height - barHeight),
+                size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 3f, barWidth / 3f)
+            )
+        }
+    }
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -431,6 +469,12 @@ fun BoosterScreen(
     virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): default UNAVAILABLE (bukan
+    // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
+    // jatuh ke kartu "minta izin", BUKAN diam-diam nganggap fitur aktif.
+    visualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.UNAVAILABLE,
+    spectrumLevels: FloatArray = FloatArray(AudioEnhancerService.SPECTRUM_BAND_COUNT),
+    onRecordAudioPermissionResult: () -> Unit = {},
     equalizerSupported: Boolean = false,
     equalizerBandCount: Int = 0,
     equalizerLevelMin: Short = -1500,
@@ -1322,6 +1366,69 @@ fun BoosterScreen(
                         }) {
                             Text(stringResource(R.string.notif_perm_button))
                         }
+                    }
+                }
+            }
+        }
+
+        // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md RESUME POINT): kartu
+        // spectrum visualizer. 3 kondisi tampilan: (a) izin RECORD_AUDIO belum ada ->
+        // tombol minta izin, (b) izin ada tapi Visualizer gagal/tidak didukung device
+        // (FAILED/UNAVAILABLE) -> pesan singkat, (c) ENABLED -> render bar live. Cek izin
+        // dibaca LANGSUNG di sini (bukan lewat parameter tambahan dari MainActivity) —
+        // `ContextCompat.checkSelfPermission` murni baca state OS, tidak perlu utuh
+        // dari ViewModel/Service seperti `visualizerEffectState`/`spectrumLevels`.
+        val recordAudioLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { onRecordAudioPermissionResult() }
+        val recordAudioGranted = ContextCompat.checkSelfPermission(
+            context, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+
+        SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    Text(
+                        stringResource(R.string.spectrum_title),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+                when {
+                    !recordAudioGranted -> {
+                        Text(
+                            stringResource(R.string.spectrum_perm_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
+                        )
+                        CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+                            Button(onClick = {
+                                recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }) {
+                                Text(stringResource(R.string.spectrum_perm_button))
+                            }
+                        }
+                    }
+                    visualizerEffectState == AudioEnhancerService.EffectState.ENABLED -> {
+                        SpectrumBars(
+                            levels = spectrumLevels,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(64.dp)
+                                .padding(top = 8.dp)
+                        )
+                    }
+                    else -> {
+                        // FAILED atau UNAVAILABLE-padahal-izin-ada = device/effect tidak
+                        // didukung — bukan lagi soal izin (recordAudioGranted true di sini).
+                        Text(
+                            stringResource(R.string.spectrum_failed_body),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
                 }
             }

@@ -30,6 +30,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
 - Cadangkan Preset (Pengaturan) — ekspor semua preset custom ke 1 file `.json` (SAF, pilih lokasi sendiri) dan impor kembali di device sama/baru. Preset dengan nama sama saat impor akan ditimpa.
 - Timer Tidur (Pengaturan) — Boomly berhenti otomatis setelah 15/30/45/60/90/120 menit, sama seperti menekan "Matikan" (watchdog tidak menghidupkan lagi). Sisa waktu terlihat berjalan mundur, bisa dibatalkan kapan saja. Fase awal: belum divalidasi di device.
+- Spectrum Visualizer (layar utama) — 24 bar reaktif mengikuti audio yang sedang diputar (device manapun, session 0), butuh izin mikrofon (`RECORD_AUDIO`) untuk baca sinyalnya (bukan merekam suara). Belum divalidasi di device fisik.
 - Widget home screen — status real-time + toggle sekali tap, tanpa buka app sama sekali.
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:

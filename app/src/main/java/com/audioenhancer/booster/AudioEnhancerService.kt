@@ -1,7 +1,9 @@
 package com.audioenhancer.booster
 
+import android.Manifest
 import android.app.*
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -10,10 +12,12 @@ import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
 import android.media.audiofx.Virtualizer
+import android.media.audiofx.Visualizer
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 
 /**
  * Service utama: menempelkan efek audio ke sesi output global (session 0)
@@ -83,6 +87,12 @@ class AudioEnhancerService : Service() {
         // effect yang SAMA, jadi walau user set semua band fallback ke +12 dB sekaligus,
         // limiter di bawahnya tetap jadi pengaman terakhir).
         private const val FALLBACK_EQ_RANGE_MB: Short = 1200
+
+        // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat RESUME POINT):
+        // jumlah bar spectrum yang di-ekspos ke UI. Ditaruh di companion (bukan cuma
+        // konstanta lokal fungsi capture) supaya Part 2 (UI, belum dikerjakan) bisa baca
+        // ukuran array `spectrumLevels` tanpa hard-code angka kedua kalinya di file lain.
+        const val SPECTRUM_BAND_COUNT = 24
         // Batch 45: RACE CONDITION nyata ketemu. Field ini ditulis di main thread
         // (onStartCommand/onDestroy Service, dijamin main thread oleh framework),
         // TAPI dibaca dari THREAD LAIN juga: ServiceWatchdogWorker.doWork() jalan
@@ -166,6 +176,22 @@ class AudioEnhancerService : Service() {
     // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa.
     private var dynamicsProcessing: DynamicsProcessing? = null
 
+    // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat RESUME POINT): BEDA dari
+    // 4 effect di atas — `Visualizer` cuma OBSERVER pasif (baca sinyal, tidak memproses/
+    // mengubah audio), jadi TIDAK ikut chain DSP session-0. Butuh `RECORD_AUDIO` runtime
+    // permission (terverifikasi dokumentasi resmi developer.android.com Batch 119) karena
+    // ini menempel session 0 (mixer global), BUKAN sesi App sendiri — beda dari kasus
+    // Visualizer di app pemutar musik biasa yang boleh tempel ke sesi sendiri tanpa izin
+    // itu. Callback capture jalan di thread yang MEMBUAT object ini (dokumentasi resmi:
+    // Looper thread pembuat, atau thread baru kalau tidak ada Looper) — di sini itu main
+    // thread Service (Service dijamin Android selalu punya Looper). SENGAJA tidak dibuat
+    // di HandlerThread terpisah: API `setDataCaptureListener()` TIDAK punya parameter
+    // pilih-thread (SEMPAT salah asumsi ada overload +`Handler`, dicek ulang ke
+    // dokumentasi resmi — tidak ada), dan komputasi per-frame (`computeSpectrumBands()`,
+    // ~500 sample, capture rate rendah ~10 Hz karena `/2` di bawah) jauh di bawah
+    // ambang "komputasi berat" — non-blocking, aman di main thread.
+    private var visualizer: Visualizer? = null
+
     // Batch 87: true kalau `dynamicsProcessing` di atas SEDANG berfungsi ganda sebagai
     // pengganti `Equalizer` (fallback, lihat `FALLBACK_EQ_BANDS_HZ`/`attachDynamicsProcessing()`)
     // KARENA `equalizer` (field di atas) UNAVAILABLE di device ini — false di mayoritas
@@ -195,6 +221,13 @@ class AudioEnhancerService : Service() {
     @Volatile var loudnessState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var equalizerState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var dynamicsState: EffectState = EffectState.UNAVAILABLE; private set
+    // Batch 120: UNAVAILABLE di sini overload 2 arti (beda dari 4 EffectState di atas
+    // yang UNAVAILABLE-nya murni "chipset tidak support") — bisa berarti "izin
+    // RECORD_AUDIO belum diberikan" ATAU "Visualizer gagal/tidak didukung device".
+    // Part 2 (UI) HARUS cek `hasRecordAudioPermission()` terpisah kalau mau bedakan
+    // 2 kasus itu buat teks yang tepat ke user (minta izin vs "tidak didukung device").
+    @Volatile var visualizerState: EffectState = EffectState.UNAVAILABLE; private set
+    @Volatile var spectrumLevels: FloatArray = FloatArray(SPECTRUM_BAND_COUNT); private set
 
     // Batch 82 (roadmap.md Fase 0 #3, "Output routing awareness"): deskripsi ringkas
     // sink output TERAKHIR yang terdeteksi (mis. "Bluetooth A2DP (terhubung)") — diisi
@@ -408,6 +441,9 @@ class AudioEnhancerService : Service() {
         // 0 #6 ("Rebuild session-0 architecture") ada sebagai item terpisah yang jauh
         // lebih besar. Lihat komentar panjang di `attachDynamicsProcessing()` untuk detail.
         attachDynamicsProcessing()
+        // Batch 120: dipanggil PALING TERAKHIR — Visualizer cuma observer pasif, urutan
+        // relatif ke 5 effect di atas tidak relevan (tidak ikut chain DSP apa pun).
+        attachVisualizer()
 
         // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
         // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
@@ -784,6 +820,84 @@ class AudioEnhancerService : Service() {
         else -> "device tipe $type"
     }
 
+    /** Batch 120 (Fase 8E, part 1/2 - lihat RESUME POINT): pasang `Visualizer` ke session
+     *  0 buat capture data spectrum. Gagal-aman kalau izin `RECORD_AUDIO` belum ada —
+     *  TIDAK melempar exception ke pemanggil, cuma set `visualizerState = UNAVAILABLE`
+     *  (Service tetap hidup normal tanpa spectrum, 4 effect audio lain tidak terpengaruh
+     *  sama sekali). Aman dipanggil ulang (dari `retryVisualizerPermission()`) — no-op
+     *  kalau sudah ENABLED, coba pasang ulang dari nol kalau belum. */
+    private fun attachVisualizer() {
+        if (visualizerState == EffectState.ENABLED) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            visualizerState = EffectState.UNAVAILABLE
+            return
+        }
+        try {
+            visualizer = Visualizer(0).apply {
+                captureSize = Visualizer.getCaptureSizeRange().getOrElse(1) { 1024 }
+                // Batch 120: setengah max capture rate SENGAJA (bukan max) — konsisten
+                // dengan filosofi hemat baterai project ini (lihat komentar `onCreate()`
+                // soal wakelock), animasi bar tetap halus tanpa perlu rate tertinggi.
+                setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
+                    override fun onWaveFormDataCapture(v: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
+                        // Tidak dipakai — spectrum bar butuh domain frekuensi (FFT), bukan waveform mentah.
+                    }
+                    override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {
+                        fft ?: return
+                        spectrumLevels = computeSpectrumBands(fft)
+                    }
+                }, Visualizer.getMaxCaptureRate() / 2, false, true)
+                enabled = true
+            }
+            visualizerState = EffectState.ENABLED
+        } catch (e: Exception) {
+            try { visualizer?.release() } catch (_: Exception) { }
+            visualizer = null
+            visualizerState = EffectState.FAILED
+            android.util.Log.e(TAG, "Gagal attach Visualizer (spectrum)", e)
+        }
+    }
+
+    /** Batch 120: reduksi array FFT mentah (format packed resmi Android — lihat dokumentasi
+     *  `Visualizer.getFft()`: fft[0]=Re(0), fft[1]=Re(N/2), lalu fft[2k]/fft[2k+1]=Re(k)/Im(k)
+     *  buat k=1..N/2-1) jadi [SPECTRUM_BAND_COUNT] magnitude 0f..1f. Grouping bin PAKAI skala
+     *  kuadratik (bukan linear) supaya band rendah/bass — yang jumlah bin FFT-nya jauh lebih
+     *  sedikit dari treble — tidak keteken visual jadi cuma 1-2 bar pertama. Normalisasi
+     *  `/90f` ANGKA PERKIRAAN (byte magnitude teoretis maks sekitar 180 kalau Re=Im=127) —
+     *  BELUM divalidasi audio nyata di device fisik, kandidat pertama kalau user lapor bar
+     *  "terlalu pendek"/"selalu mentok atas" begitu Part 2 (UI) selesai. */
+    private fun computeSpectrumBands(fft: ByteArray): FloatArray {
+        val n = fft.size
+        val bands = FloatArray(SPECTRUM_BAND_COUNT)
+        if (n < 4) return bands
+        val magCount = n / 2 + 1
+        val mags = FloatArray(magCount)
+        mags[0] = kotlin.math.abs(fft[0].toInt()).toFloat()
+        mags[magCount - 1] = kotlin.math.abs(fft[1].toInt()).toFloat()
+        var k = 1
+        var idx = 2
+        while (idx + 1 < n && k < magCount - 1) {
+            val re = fft[idx].toInt()
+            val im = fft[idx + 1].toInt()
+            mags[k] = kotlin.math.sqrt((re * re + im * im).toFloat())
+            idx += 2
+            k += 1
+        }
+        for (b in 0 until SPECTRUM_BAND_COUNT) {
+            val startFrac = b.toFloat() / SPECTRUM_BAND_COUNT
+            val endFrac = (b + 1).toFloat() / SPECTRUM_BAND_COUNT
+            val startBin = (startFrac * startFrac * (magCount - 1)).toInt().coerceIn(0, magCount - 2)
+            val endBin = (endFrac * endFrac * (magCount - 1)).toInt().coerceIn(startBin + 1, magCount - 1)
+            var sum = 0f
+            for (i in startBin..endBin) sum += mags[i]
+            val avg = sum / (endBin - startBin + 1)
+            bands[b] = (avg / 90f).coerceIn(0f, 1f)
+        }
+        return bands
+    }
+
     private fun restoreSavedSettings() {
         setBassStrength(PrefsHelper.getBass(this).toShort())
         setVirtualizerStrength(PrefsHelper.getVirtualizer(this).toShort())
@@ -809,6 +923,8 @@ class AudioEnhancerService : Service() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
         dynamicsProcessing?.release()
+        try { visualizer?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release Visualizer", e) }
+        visualizer = null
         // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
         // dibiarkan ENABLED/CONTROL_LOST, pembaca state (ke depan: ViewModel/UI) bisa
         // salah kira effect masih hidup padahal Service ini sendiri sudah di-destroy.
@@ -817,6 +933,8 @@ class AudioEnhancerService : Service() {
         loudnessState = EffectState.UNAVAILABLE
         equalizerState = EffectState.UNAVAILABLE
         dynamicsState = EffectState.UNAVAILABLE // Batch 84
+        visualizerState = EffectState.UNAVAILABLE // Batch 120
+        spectrumLevels = FloatArray(SPECTRUM_BAND_COUNT) // Batch 120
         equalizerFallbackActive = false // Batch 87
     }
 
@@ -834,6 +952,9 @@ class AudioEnhancerService : Service() {
         // Batch 84: limiter ikut mati bareng — kalau booster "Matikan", tidak ada lagi
         // sinyal yang di-boost, jadi tidak ada lagi yang perlu di-limit.
         try { dynamicsProcessing?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable DynamicsProcessing", e) }
+        // Batch 120: spectrum ikut berhenti saat "Matikan" — tidak ada gunanya capture
+        // audio kalau booster sendiri lagi off, murni hemat CPU/baterai.
+        try { visualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Visualizer", e) }
     }
 
     /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan".
@@ -860,12 +981,28 @@ class AudioEnhancerService : Service() {
         try { dynamicsProcessing?.enabled = true } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable DynamicsProcessing", e)
         }
+        try { visualizer?.enabled = true } catch (e: Exception) {
+            visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
+        }
     }
 
     // ---- Kontrol dari UI ----
     fun isBassSupported(): Boolean = bassBoost != null
     fun isVirtualizerSupported(): Boolean = virtualizer != null
     fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
+
+    /** Batch 120 (Fase 8E, part 1/2): dipakai UI (Part 2, belum dikerjakan) buat tahu
+     *  apakah perlu munculkan tombol/dialog minta izin RECORD_AUDIO, TERPISAH dari
+     *  `visualizerState` (yang UNAVAILABLE-nya overload 2 arti, lihat komentar field). */
+    fun hasRecordAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    /** Dipanggil UI (Part 2) SETELAH dialog izin RECORD_AUDIO dijawab user (granted
+     *  maupun ditolak) — no-op aman kalau dipanggil saat sudah ENABLED atau saat izin
+     *  ternyata masih belum granted (balik ke UNAVAILABLE apa adanya, tidak crash). */
+    fun retryVisualizerPermission() {
+        attachVisualizer()
+    }
 
     // Batch 57 (audit Gap #14 "setting tetap disimpan walau engine gagal"): PrefsHelper
     // TETAP disimpan tanpa syarat di 4 fungsi ini SENGAJA — kalau save digagalkan pas

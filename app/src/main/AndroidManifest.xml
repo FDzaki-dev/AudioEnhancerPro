@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- Batch 120 (Fase 8E, spectrum visualizer): WAJIB untuk Visualizer AudioEffect di
+         session 0 (mixer global) - beda dari Visualizer di sesi App sendiri yang tidak
+         butuh izin ini. Runtime request ada di Part 2 (UI, belum dikerjakan) - deklarasi
+         manifest saja TIDAK memunculkan dialog izin ke user. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />

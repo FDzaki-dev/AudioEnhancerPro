@@ -216,6 +216,11 @@ class MainActivity : ComponentActivity() {
                             virtualizerEffectState = viewModel.virtualizerEffectState,
                             loudnessEffectState = viewModel.loudnessEffectState,
                             equalizerEffectState = viewModel.equalizerEffectState,
+                            // Batch 120 (Fase 8E, part 2/2): sama pola poll seperti 4 EffectState
+                            // di atas, cuma sumbernya loop 50ms terpisah (lihat BoosterViewModel).
+                            visualizerEffectState = viewModel.visualizerEffectState,
+                            spectrumLevels = viewModel.spectrumLevels,
+                            onRecordAudioPermissionResult = { viewModel.onRecordAudioPermissionResult() },
                             equalizerSupported = viewModel.equalizerSupported,
                             equalizerBandCount = viewModel.equalizerBandCount,
                             equalizerLevelMin = viewModel.equalizerLevelMin,

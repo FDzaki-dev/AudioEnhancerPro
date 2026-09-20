@@ -30,6 +30,12 @@
     <string name="notif_perm_body">Tanpa izin ini, notifikasi \'Boomly aktif\' tidak akan muncul (service tetap jalan, tapi kamu tidak lihat indikatornya di status bar).</string>
     <string name="notif_perm_button">Buka Pengaturan Notifikasi</string>
 
+    <!-- Batch 120: Spectrum Visualizer -->
+    <string name="spectrum_title">Spectrum Visualizer</string>
+    <string name="spectrum_perm_body">Butuh izin akses mikrofon untuk membaca sinyal audio dari mixer sistem (bukan merekam suara kamu) supaya bar spectrum bisa bergerak sesuai musik yang diputar.</string>
+    <string name="spectrum_perm_button">Izinkan Akses</string>
+    <string name="spectrum_failed_body">Spectrum visualizer tidak didukung chipset/HP ini. Efek audio lain tetap berfungsi normal.</string>
+
     <!-- Banner dukungan chipset -->
     <string name="unsupported_banner">Sebagian efek tidak didukung chipset/HP ini dan otomatis dinonaktifkan di bawah. Efek lain tetap berfungsi normal.</string>
     <string name="strength_unsupported_banner">Chipset HP ini mendukung sebagian efek hanya sebagai on/off, tanpa kontrol kekuatan bertingkat (slider). Efek itu sudah otomatis diaktifkan penuh — slidernya dinonaktifkan karena memang tidak ada gunanya di HP ini.</string>

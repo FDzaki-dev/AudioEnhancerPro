@@ -1,5 +1,34 @@
 # Changelog
 
+## Batch 120: Spectrum Visualizer — bar audio reaktif di layar utama
+
+Fitur baru (roadmap Fase 8 item E), diaktifkan atas keputusan eksplisit user
+setelah ditahan sejak Batch 119 karena implikasi izin. Boomly memasang audio
+efek ke session 0 (mixer sistem, bukan sesi App sendiri) supaya EQ/Bass/
+Virtualizer bekerja untuk SEMUA audio, bukan cuma musik dari Boomly sendiri —
+konsekuensinya, spectrum visualizer yang "ikut dengar" audio itu juga perlu
+menempel session 0 yang sama, dan Android mewajibkan izin mikrofon
+(`RECORD_AUDIO`) untuk itu meskipun tidak benar-benar merekam suara pengguna.
+
+**Kartu baru di layar utama** ada 3 kondisi: (1) izin belum diberikan → tombol
+"Izinkan Akses" + penjelasan singkat kenapa izin itu dibutuhkan; (2) izin ada
+tapi chipset/HP tidak mendukung `Visualizer` → pesan singkat, fitur lain tetap
+normal; (3) izin ada & didukung → 24 bar vertikal bergerak real-time mengikuti
+musik yang diputar (di device manapun, bukan cuma dari Boomly).
+
+**Teknis**: `Visualizer` di-attach ke session 0 di `AudioEnhancerService`,
+gagal-aman (tidak crash) kalau izin belum ada. Data FFT mentah direduksi jadi
+24 nilai magnitude per frame (`computeSpectrumBands`, skala kuadratik supaya
+bass tidak keteken treble), di-poll `BoosterViewModel` tiap 50ms (terpisah
+dari loop status efek 1 detik yang sudah ada) lalu digambar `SpectrumBars`
+(Canvas custom, bukan library pihak ketiga). Dialog izin memakai
+`rememberLauncherForActivityResult` langsung di layar (pola Compose standar),
+tidak mengubah alur permission notifikasi yang sudah ada.
+
+**Belum divalidasi di device fisik** — normalisasi kekuatan bar (`/90f`) angka
+perkiraan dari teori, kemungkinan perlu disetel ulang setelah dicoba langsung
+dengan musik nyata.
+
 ## Batch 119: Timer Tidur (Sleep Timer) — Boomly berhenti otomatis setelah N menit
 
 Fitur baru (roadmap Fase 8 item B, bagian 1 = auto-stop) atas instruksi user

@@ -74,6 +74,14 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var virtualizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     var loudnessEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     var equalizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat PROJECT_STATE.md RESUME
+    // POINT): DIPOLL TERPISAH di init block (interval jauh lebih pendek dari loop
+    // EffectState 1 detik di atas — lihat komentar loop-nya). `visualizerEffectState`
+    // UNAVAILABLE bisa berarti izin RECORD_AUDIO belum ada ATAU device tidak didukung;
+    // Part 2 (UI, belum dikerjakan) cek `service.hasRecordAudioPermission()` terpisah
+    // buat bedakan 2 kasus itu.
+    var visualizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    var spectrumLevels by mutableStateOf(FloatArray(AudioEnhancerService.SPECTRUM_BAND_COUNT)); private set
 
     // Fase 0 item #9 (PROJECT_STATE.md TODO/ROADMAP): "Output-changed" adalah 1 dari
     // 5 state yang diminta dibedakan eksplisit di UI — 4 lainnya (Unsupported/
@@ -190,6 +198,33 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         // Cek update sekali tiap ViewModel ini dibuat (~sekali per sesi app dibuka) —
         // diam-diam, lihat komentar checkForUpdate() soal kenapa gagalnya ditelan.
         viewModelScope.launch { updateInfo = UpdateManager.checkForUpdate(getApplication()) }
+
+        // Batch 120: loop KEDUA, TERPISAH dari loop EffectState 1000ms di atas — delay
+        // 1 detik terlalu lambat buat animasi bar spectrum yang butuh terlihat halus.
+        // 50ms (~20fps) dipilih SEPADAN dengan capture rate Service (`getMaxCaptureRate()
+        // / 2`, lihat AudioEnhancerService.attachVisualizer()) — polling lebih cepat dari
+        // itu cuma buang siklus CPU tanpa data baru buat dibaca. PERTAMA KALI dipakai di
+        // file ini — belum divalidasi runtime (NOT VERIFIED, sama seperti loop pertama
+        // Batch 58 dulu sebelum tervalidasi).
+        viewModelScope.launch {
+            while (true) {
+                if (bound) {
+                    visualizerEffectState = service?.visualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    if (visualizerEffectState == AudioEnhancerService.EffectState.ENABLED) {
+                        spectrumLevels = service?.spectrumLevels ?: spectrumLevels
+                    }
+                }
+                delay(50)
+            }
+        }
+    }
+
+    /** Batch 120 (Fase 8E, part 1/2): dipanggil UI (Part 2, belum dikerjakan) setelah
+     *  dialog sistem izin RECORD_AUDIO dijawab user (granted maupun ditolak) — no-op
+     *  aman kalau service belum bound (state `visualizerEffectState` tetap UNAVAILABLE
+     *  apa adanya, tersinkron ulang otomatis begitu service konek). */
+    fun onRecordAudioPermissionResult() {
+        service?.retryVisualizerPermission()
     }
 
     /** Bisa dipanggil ulang kapan saja (bukan cuma sekali) — misal dari tombol

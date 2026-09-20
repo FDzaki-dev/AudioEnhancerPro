@@ -30,6 +30,12 @@
     <string name="notif_perm_body">Without this permission, the \'Boomly active\' notification won\'t appear (the service still runs, you just won\'t see the status bar indicator).</string>
     <string name="notif_perm_button">Open Notification Settings</string>
 
+    <!-- Batch 120: Spectrum Visualizer -->
+    <string name="spectrum_title">Spectrum Visualizer</string>
+    <string name="spectrum_perm_body">Needs microphone access to read the audio signal from the system mixer (it does not record your voice) so the spectrum bars can move along with whatever is playing.</string>
+    <string name="spectrum_perm_button">Allow Access</string>
+    <string name="spectrum_failed_body">Spectrum visualizer isn\'t supported by this device\'s chipset. Other audio effects still work normally.</string>
+
     <!-- Chipset support banners -->
     <string name="unsupported_banner">Some effects aren\'t supported by this device\'s chipset and are automatically disabled below. Other effects still work normally.</string>
     <string name="strength_unsupported_banner">This chipset supports some effects only as on/off, without granular strength control (slider). Those effects are already enabled at full strength — their sliders are disabled because they wouldn\'t do anything on this device anyway.</string>

@@ -171,6 +171,20 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 120** (`AndroidManifest.xml`, `AudioEnhancerService.kt`,
+  `BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`, strings
+  ID/EN; user pilih "Asli" atas keputusan tertunda Fase 8E): Spectrum
+  Visualizer — `Visualizer` AudioEffect session 0 (permission-gated,
+  gagal-aman kalau `RECORD_AUDIO` belum granted), FFT→24-band di
+  `computeSpectrumBands()`, poll 50ms terpisah dari loop EffectState 1dtk,
+  kartu UI (minta izin/gagal/bar live) + `SpectrumBars` Canvas. Koreksi
+  diri saat coding: sempat salah asumsi `setDataCaptureListener` punya
+  overload `Handler` (TIDAK ADA di API resmi) — diperbaiki sebelum commit,
+  balik ke callback thread default (main, murah, non-blocking). Status:
+  **NOT VERIFIED** (static lolos: brace/paren balance + XML well-formed +
+  parity string ID/EN 151=151; belum diuji device fisik — dialog izin,
+  capture rate riil, kalibrasi `/90f` di `computeSpectrumBands()` kandidat
+  pertama kalau bar "terlalu pendek/mentok atas").
 - **Batch 119** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`,
   strings ID/EN; user "next"): Fase 8 B Sleep timer bag. 1 (auto-stop) —
   section "Timer Tidur" (15-120 mnt), waktu berakhir absolut di prefs, tick
@@ -912,17 +926,16 @@ Tunnel Vision, maks 3 file kode/batch.
 - Android Auto / Wear OS companion tile — stretch, footprint besar.
 
 **E. Observability**
-- Mini spectrum visualizer reaktif (`Visualizer` AudioEffect) — murah dari
-  sisi kode, TAPI ⚠️ TERVERIFIKASI dokumentasi resmi `developer.android.com`
-  (Batch 119): `Visualizer` butuh izin `RECORD_AUDIO` (+`MODIFY_AUDIO_SETTINGS`
-  utk session 0) = popup izin mic baru yang sekarang tidak ada. DILEWATI
-  sampai user putuskan mau/tidak (keputusan produk+privasi, bukan teknis).
+- [x] Mini spectrum visualizer reaktif (`Visualizer` AudioEffect, session 0)
+  — keputusan izin `RECORD_AUDIO` (Fase 8E, Batch 119) DIPUTUSKAN user:
+  "Asli" (izin real, bukan sintetis). Kode SELESAI Batch 120. Status:
+  **NOT VERIFIED** — belum diuji device fisik (lihat LOG BATCH Batch 120).
 - Extend `CrashLogger` jadi analytics lokal ringan (durasi service ON,
   preset paling sering dipakai) — 100% on-device, tanpa cloud.
 
 **Urutan rekomendasi (ROI tertinggi dulu)**: 1) ✅ Export/Import preset (D)
-— SELESAI Batch 115-116. 2) Spectrum visualizer (E) — DILEWATI (butuh izin
-`RECORD_AUDIO`, nunggu keputusan user). 3) Sleep timer + Scheduler (B) —
+— SELESAI Batch 115-116. 2) ✅ Spectrum visualizer (E) — kode SELESAI Batch
+120, NOT VERIFIED. 3) Sleep timer + Scheduler (B) —
 Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
 Scheduler. Berikutnya: 4) Compressor (A; limiter pasif sudah ada) 5)
 Auto-profile per output device (B) 6) EQ curve editor (A) 7) sisanya sesuai
@@ -930,15 +943,19 @@ kebutuhan user.
 
 ---
 
-[RESUME POINT: Sleep timer bagian 1 / auto-stop (Batch 119; kode:
-`AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`, strings
-ID/EN; ZIP `Boomly_v119.zip`) → SELESAI kode, **NOT VERIFIED** (static
-lolos; nunggu CI hijau + uji device: Fase 1 bullet Sleep timer) →
-Remaining: (a) Sleep timer fade-out (keputusan user: fade volume
-STREAM_MUSIC + restore, atau fade kekuatan efek saja) & Scheduler
-jam/event (WorkManager); (b) #2 Spectrum visualizer nunggu keputusan izin
-`RECORD_AUDIO`; (c) 2 temuan terbuka (secret Box B vs CI; guard `-lt$((`);
-(d) Fase 1 validasi non-tema → Next Action: kalau CI merah → hotfix dari
-`log_fail_*` (kandidat pertama: `SettingsScreen.kt`/`AudioEnhancerService.kt`
-Batch 119); kalau "next" → Fase 8 ROI berikutnya (#4 Compressor atau
-Scheduler) TANPA nunggu validasi. Batch berikutnya = 120.]
+[RESUME POINT: Spectrum Visualizer (Batch 120; kode: `AndroidManifest.xml`,
+`AudioEnhancerService.kt`, `BoosterViewModel.kt`, `MainActivity.kt`,
+`BoosterScreen.kt`, strings ID/EN; ZIP `Boomly_v120.zip`) → SELESAI kode
+LENGKAP (permission + capture + UI), **NOT VERIFIED** (static lolos;
+nunggu uji device fisik: dialog izin RECORD_AUDIO, gerakan bar riil,
+kalibrasi normalisasi `/90f`) → Remaining: (a) validasi device Batch 120
+di atas — kandidat fix kalau bar salah: angka `/90f` di
+`computeSpectrumBands()` (AudioEnhancerService.kt); (b) Sleep timer
+fade-out (keputusan user: fade STREAM_MUSIC+restore, atau fade kekuatan
+efek saja) & Scheduler jam/event (WorkManager) — sisa dari Batch 119; (c)
+2 temuan terbuka lama (secret Box B vs CI; guard `-lt$((`); (d) Fase 1
+validasi non-tema → Next Action: kalau user lapor bar spectrum
+bermasalah → hotfix `computeSpectrumBands()`/`attachVisualizer()`
+(`AudioEnhancerService.kt`); kalau "next"/OK → lanjut Sleep timer
+fade-out+Scheduler (poin b) ATAU Fase 8 ROI berikutnya (#4 Compressor).
+Batch berikutnya = 121.]
