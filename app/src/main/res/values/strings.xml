@@ -55,6 +55,8 @@
     <string name="feature_virtualizer_help_normal">Membuat suara terasa lebih lebar, paling terasa saat pakai earphone/headset.</string>
     <string name="feature_loudness_title">Loudness Gain</string>
     <string name="feature_loudness_help_normal">Boost volume tambahan di atas batas normal HP. Turunkan kalau suara mulai pecah.</string>
+    <string name="feature_compressor_title">Compressor</string>
+    <string name="feature_compressor_help_normal">Merapatkan jarak suara pelan dan kencang biar volume terasa lebih rata. 0 = mati.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —

@@ -9,6 +9,7 @@ object PrefsHelper {
     private const val KEY_BASS = "bass_strength"
     private const val KEY_VIRTUALIZER = "virtualizer_strength"
     private const val KEY_LOUDNESS = "loudness_gain"
+    private const val KEY_COMPRESSOR_AMOUNT = "compressor_amount" // Batch 121, Fase 8 ROI #4
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
@@ -79,6 +80,15 @@ object PrefsHelper {
 
     fun setLoudness(context: Context, value: Float) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putFloat(KEY_LOUDNESS, value).apply()
+    }
+
+    // Batch 121 (Fase 8 ROI #4 "Compressor"): 0..100, default 0 = mati/bypass (lihat
+    // AudioEnhancerService.setCompressorAmount()).
+    fun getCompressorAmount(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_COMPRESSOR_AMOUNT, 0)
+
+    fun setCompressorAmount(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_COMPRESSOR_AMOUNT, value).apply()
     }
 
     // --- Preset aktif: supaya chip preset yang terpilih tidak hilang saat app dibuka ulang ---

@@ -103,6 +103,9 @@ import androidx.compose.ui.unit.sp
 val BassAccent = Color(0xFFE0865B); val BassAccent2 = Color(0xFFF0B48F)
 val VirtualizerAccent = Color(0xFF4FB8C9); val VirtualizerAccent2 = Color(0xFF8DD3DE)
 val LoudnessAccent = Color(0xFF4CB88A); val LoudnessAccent2 = Color(0xFF94D4B4)
+// Batch 121 (Fase 8 ROI #4 "Compressor"): ungu-lembut, sengaja beda hue dari 3 accent
+// di atas (oranye/teal/hijau) supaya kartu baru ini gampang dibedakan sekilas.
+val CompressorAccent = Color(0xFF8B6FD9); val CompressorAccent2 = Color(0xFFC2AEEF)
 val EqualizerAccent = Color(0xFFD97AA6); val EqualizerAccent2 = Color(0xFFE8A8C6)
 val BatteryAccent = Color(0xFFD9A54A); val BatteryAccent2 = Color(0xFFE8C687)
 

@@ -1,5 +1,27 @@
 # Changelog
 
+## Batch 121: Compressor — kompresor audio user-adjustable (Fase 8 ROI #4)
+
+Fitur baru (roadmap Fase 8 item A), lanjutan urutan ROI setelah Sleep timer.
+Boomly sudah punya master limiter pasif sejak Batch 84 (ceiling anti-clipping,
+tidak bisa diatur) — sekarang ditambah kompresor asli yang BISA diatur user,
+pelengkap Loudness Enhancer: merapatkan jarak suara pelan dan kencang supaya
+musik terasa lebih rata.
+
+**Kartu baru** di layar utama, di bawah Loudness Gain: 1 slider "Compressor"
+0-100%. 0 = mati total (bypass, 0 beda audible dari sebelum fitur ini ada),
+makin tinggi makin merapatkan dinamika + makeup gain otomatis supaya loudness
+tidak terasa turun saat kompresi aktif.
+
+**Teknis**: dipasang sebagai 1 band `DynamicsProcessing.MbcBand` full-range di
+objek `DynamicsProcessing` YANG SAMA dengan master limiter (bukan effect
+terpisah) — syarat device sama seperti limiter (Android 9+/API 28), device di
+bawah itu otomatis tampil "Tidak didukung di HP ini".
+
+**Belum divalidasi di device fisik** — kurva threshold/ratio/makeup gain per
+persen slider adalah perkiraan (tidak ada API resmi query kurva ideal per
+device), kandidat pertama kalau user lapor kompresi kurang/lewat agresif.
+
 ## Batch 120: Spectrum Visualizer — bar audio reaktif di layar utama
 
 Fitur baru (roadmap Fase 8 item E), diaktifkan atas keputusan eksplisit user

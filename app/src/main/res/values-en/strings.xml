@@ -55,6 +55,8 @@
     <string name="feature_virtualizer_help_normal">Makes sound feel wider — most noticeable when using earphones/headsets.</string>
     <string name="feature_loudness_title">Loudness Gain</string>
     <string name="feature_loudness_help_normal">Extra volume boost above the phone\'s normal limit. Lower it if the sound starts clipping.</string>
+    <string name="feature_compressor_title">Compressor</string>
+    <string name="feature_compressor_help_normal">Narrows the gap between quiet and loud parts so volume feels more even. 0 = off.</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —

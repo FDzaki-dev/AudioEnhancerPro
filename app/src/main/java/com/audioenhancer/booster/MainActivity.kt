@@ -201,12 +201,14 @@ class MainActivity : ComponentActivity() {
                             onBass = { viewModel.setBass(it) },
                             onVirtualizer = { viewModel.setVirtualizer(it) },
                             onLoudness = { viewModel.setLoudness(it) },
+                            onCompressor = { viewModel.setCompressor(it) },
                             onEqualizerBand = { band, level -> viewModel.setEqualizerBand(band, level) },
                             onOpenHelp = { showOnboarding = true },
                             onOpenSettings = { showSettings = true },
                             bassSupported = viewModel.bassSupported,
                             virtualizerSupported = viewModel.virtualizerSupported,
                             loudnessSupported = viewModel.loudnessSupported,
+                            compressorSupported = viewModel.compressorSupported,
                             bassStrengthSupported = viewModel.bassStrengthSupported,
                             virtualizerStrengthSupported = viewModel.virtualizerStrengthSupported,
                             // Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57)
@@ -215,6 +217,7 @@ class MainActivity : ComponentActivity() {
                             bassEffectState = viewModel.bassEffectState,
                             virtualizerEffectState = viewModel.virtualizerEffectState,
                             loudnessEffectState = viewModel.loudnessEffectState,
+                            compressorEffectState = viewModel.compressorEffectState,
                             equalizerEffectState = viewModel.equalizerEffectState,
                             // Batch 120 (Fase 8E, part 2/2): sama pola poll seperti 4 EffectState
                             // di atas, cuma sumbernya loop 50ms terpisah (lihat BoosterViewModel).
@@ -230,6 +233,7 @@ class MainActivity : ComponentActivity() {
                             initialBass = PrefsHelper.getBass(this@MainActivity).toFloat(),
                             initialVirtualizer = PrefsHelper.getVirtualizer(this@MainActivity).toFloat(),
                             initialLoudness = PrefsHelper.getLoudness(this@MainActivity),
+                            initialCompressorAmount = PrefsHelper.getCompressorAmount(this@MainActivity).toFloat(),
                             initialActivePreset = PrefsHelper.getActivePreset(this@MainActivity),
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,

@@ -56,6 +56,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var bassSupported by mutableStateOf(true); private set
     var virtualizerSupported by mutableStateOf(true); private set
     var loudnessSupported by mutableStateOf(true); private set
+    // Batch 121 (Fase 8 ROI #4 "Compressor"): pola SAMA PERSIS 3 field *Supported di
+    // atas — dibaca sekali saat konek (onServiceConnected), lihat `compressorEffectState`
+    // di bawah untuk state yang BISA berubah selagi service jalan.
+    var compressorSupported by mutableStateOf(true); private set
     var bassStrengthSupported by mutableStateOf(true); private set
     var virtualizerStrengthSupported by mutableStateOf(true); private set
 
@@ -74,6 +78,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var virtualizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     var loudnessEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     var equalizerEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    // Batch 121: band MBC kompresor berbagi `dynamicsState` di sisi Service (lihat
+    // `AudioEnhancerService.compressorState`) — dipoll di loop 1 detik yang SAMA seperti
+    // 4 EffectState di atas, BUKAN loop terpisah.
+    var compressorEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
     // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat PROJECT_STATE.md RESUME
     // POINT): DIPOLL TERPISAH di init block (interval jauh lebih pendek dari loop
     // EffectState 1 detik di atas — lihat komentar loop-nya). `visualizerEffectState`
@@ -114,6 +122,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingBass: Short? = null
     private var pendingVirtualizer: Short? = null
     private var pendingLoudness: Float? = null
+    private var pendingCompressor: Int? = null // Batch 121
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
     // Fitur baru: in-app update (UpdateManager.kt, diminta user eksplisit). `updateInfo`
@@ -144,6 +153,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             bassSupported = service?.isBassSupported() ?: true
             virtualizerSupported = service?.isVirtualizerSupported() ?: true
             loudnessSupported = service?.isLoudnessSupported() ?: true
+            compressorSupported = service?.isCompressorSupported() ?: true
             bassStrengthSupported = service?.isBassStrengthSupported() ?: true
             virtualizerStrengthSupported = service?.isVirtualizerStrengthSupported() ?: true
 
@@ -161,6 +171,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingBass?.let { service?.setBassStrength(it) }; pendingBass = null
             pendingVirtualizer?.let { service?.setVirtualizerStrength(it) }; pendingVirtualizer = null
             pendingLoudness?.let { service?.setLoudnessGain(it) }; pendingLoudness = null
+            pendingCompressor?.let { service?.setCompressorAmount(it) }; pendingCompressor = null
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
         }
@@ -183,6 +194,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     virtualizerEffectState = service?.virtualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     loudnessEffectState = service?.loudnessState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     equalizerEffectState = service?.equalizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    compressorEffectState = service?.compressorState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     // Fase 0 item #9: deteksi route BARU (beda dari deskripsi terakhir yang
                     // sudah ditampilkan) — reset dismiss supaya perpindahan route BERIKUTNYA
                     // tetap muncul lagi walau user sudah dismiss route sebelumnya.
@@ -260,6 +272,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun setLoudness(value: Float) {
         if (bound) service?.setLoudnessGain(value) else pendingLoudness = value
+    }
+
+    fun setCompressor(value: Int) {
+        if (bound) service?.setCompressorAmount(value) else pendingCompressor = value
     }
 
     fun setEqualizerBand(band: Int, level: Short) {

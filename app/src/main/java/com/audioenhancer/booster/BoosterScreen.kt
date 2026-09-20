@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -455,11 +456,16 @@ fun BoosterScreen(
     onVirtualizer: (Short) -> Unit,
     onLoudness: (Float) -> Unit,
     onEqualizerBand: (Int, Short) -> Unit = { _, _ -> },
+    // Batch 121 (Fase 8 ROI #4 "Compressor"): pola parameter SAMA PERSIS onLoudness/
+    // loudnessSupported/loudnessEffectState/initialLoudness di atas — kartu baru,
+    // BUKAN pengganti effect lain manapun.
+    onCompressor: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
     virtualizerSupported: Boolean = true,
     loudnessSupported: Boolean = true,
+    compressorSupported: Boolean = true,
     bassStrengthSupported: Boolean = true,
     virtualizerStrengthSupported: Boolean = true,
     // Batch 58: EffectState (Batch 57) di-poll ViewModel, dipass ke sini buat helpText
@@ -468,6 +474,7 @@ fun BoosterScreen(
     bassEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    compressorEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): default UNAVAILABLE (bukan
     // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
@@ -484,6 +491,7 @@ fun BoosterScreen(
     initialBass: Float = 500f,
     initialVirtualizer: Float = 500f,
     initialLoudness: Float = 0f,
+    initialCompressorAmount: Float = 0f,
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -535,6 +543,7 @@ fun BoosterScreen(
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
     var loudness by remember { mutableStateOf(initialLoudness) }
+    var compressorAmount by remember { mutableStateOf(initialCompressorAmount) }
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -932,6 +941,36 @@ fun BoosterScreen(
                     enabled = loudnessSupported,
                     wrapInCard = false
                 )
+
+                SkeuGroupDivider()
+
+                // Batch 121 (Fase 8 ROI #4 "Compressor"): SENGAJA TIDAK ikut preset
+                // built-in/custom (applyPreset()/applyCustomPreset() di atas TIDAK diubah)
+                // — kartu independen, pola sama seperti EqualizerSection band manual yang
+                // juga tidak ikut ter-reset preset ANGKA-nya sendiri (cuma dipaksa flat via
+                // eqOverrideLevels terpisah). Micro-batch/Tunnel Vision: menambah Compressor
+                // ke sistem preset butuh sentuh applyPreset()+applyCustomPreset()+struktur
+                // data Preset/CustomPreset — di luar scope batch ini.
+                FeatureControl(
+                    title = stringResource(R.string.feature_compressor_title),
+                    icon = Icons.Filled.Compress,
+                    accentColor = CompressorAccent,
+                    accentColor2 = CompressorAccent2,
+                    helpText = when {
+                        !compressorSupported -> stringResource(R.string.feature_help_unsupported)
+                        compressorEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        else -> stringResource(R.string.feature_compressor_help_normal)
+                    },
+                    value = compressorAmount,
+                    valueLabel = "${compressorAmount.toInt()}%",
+                    onValueChange = { compressorAmount = it; onCompressor(it.toInt()) },
+                    valueRange = 0f..100f,
+                    enabled = compressorSupported,
+                    wrapInCard = false
+                )
             }
         }
 
@@ -1278,7 +1317,7 @@ fun BoosterScreen(
         ServiceStatusBadge(onRestartService = onRestartService)
         CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
         ControlRecoveryBanner(
-            states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState),
+            states = listOf(bassEffectState, virtualizerEffectState, loudnessEffectState, equalizerEffectState, compressorEffectState),
             onRetryControl = onRetryControl,
             onRetryAttempted = { showSnackbar(context.getString(R.string.control_recovery_snackbar)) }
         )

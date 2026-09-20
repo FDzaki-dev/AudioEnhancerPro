@@ -114,9 +114,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 119 (kode: Sleep timer bagian 1 = auto-stop, Fase 8 B —
-  lihat LOG BATCH 119; **NOT VERIFIED**, compile+runtime nunggu CI/device
-  user). Sebelumnya: 118 dok-only cleanup; logika terakhir sebelum 119: B115.
+- **Batch terakhir**: 121 (kode: Compressor, Fase 8 A — lihat LOG BATCH 121;
+  **NOT VERIFIED**, tidak ada toolchain lokal buat compile-check sesi ini,
+  nunggu CI/device user). Sebelumnya: 120 Spectrum visualizer (NOT VERIFIED);
+  119 Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum itu: B115.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -171,6 +172,20 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 121** (`AudioEnhancerService.kt`, `PrefsHelper.kt`, `BoosterViewModel.kt`,
+  `MainActivity.kt`, `BoosterScreen.kt`, `Theme.kt`, strings ID/EN; user "next" →
+  Fase 8 ROI #4): Compressor — 1 band `DynamicsProcessing.MbcBand` full-range
+  DITAMBAHKAN ke objek `DynamicsProcessing` yang SAMA dengan master limiter
+  (`mbcInUse=true, mbcBandCount=1`), bukan effect terpisah. Slider "Amount"
+  0-100% (`setCompressorAmount()`) menyetir ratio 1:1→6:1 + threshold -1→-24dB
+  + postGain makeup 0→+6dB sekaligus. State ikut `dynamicsState` (pola sama
+  `equalizerFallbackActive`), masuk `ControlRecoveryBanner`. SENGAJA TIDAK ikut
+  sistem preset (Tunnel Vision — di luar scope). Status: **NOT VERIFIED** (no
+  toolchain lokal buat compile-check — sandbox tanpa Android SDK/Gradle/network;
+  static manual lolos: brace/paren balance + XML well-formed + parity string
+  ID/EN 153=153; nunggu CI + device fisik. Kandidat pertama kalau gagal
+  compile: signature `DynamicsProcessing.MbcBand` — urutan 11 parameter diambil
+  dari dokumentasi resmi diingat, TIDAK bisa di-cross-check langsung batch ini).
 - **Batch 120** (`AndroidManifest.xml`, `AudioEnhancerService.kt`,
   `BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`, strings
   ID/EN; user pilih "Asli" atas keputusan tertunda Fase 8E): Spectrum
@@ -891,9 +906,11 @@ gate. Eksekusi per-item saat user menginstruksikan (interpretasi Batch 118:
 Tunnel Vision, maks 3 file kode/batch.
 
 **A. Audio Engine (nilai jual inti "Enhancer")**
-- Compressor/Limiter (`DynamicsProcessing`) — limiter pasif SUDAH ada sejak
-  Batch 84; item ini = compressor yang bisa diatur user (belum ada),
-  pelengkap Loudness Enhancer.
+- [x] Compressor/Limiter (`DynamicsProcessing`) — limiter pasif SUDAH ada
+  sejak Batch 84; item ini = compressor yang bisa diatur user, pelengkap
+  Loudness Enhancer. Kode SELESAI Batch 121. Status: **NOT VERIFIED** — no
+  toolchain lokal buat compile-check, belum diuji device fisik (lihat LOG
+  BATCH Batch 121).
 - Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
   prioritas — diferensiator vs app EQ generic).
 - Reverb/Spatial toggle (`PresetReverb`/`EnvironmentalReverb`) — pelengkap
@@ -937,25 +954,30 @@ Tunnel Vision, maks 3 file kode/batch.
 — SELESAI Batch 115-116. 2) ✅ Spectrum visualizer (E) — kode SELESAI Batch
 120, NOT VERIFIED. 3) Sleep timer + Scheduler (B) —
 Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
-Scheduler. Berikutnya: 4) Compressor (A; limiter pasif sudah ada) 5)
-Auto-profile per output device (B) 6) EQ curve editor (A) 7) sisanya sesuai
-kebutuhan user.
+Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, NOT VERIFIED.
+Berikutnya: 5) Auto-profile per output device (B) 6) EQ curve editor (A) 7)
+sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Spectrum Visualizer (Batch 120; kode: `AndroidManifest.xml`,
-`AudioEnhancerService.kt`, `BoosterViewModel.kt`, `MainActivity.kt`,
-`BoosterScreen.kt`, strings ID/EN; ZIP `Boomly_v120.zip`) → SELESAI kode
-LENGKAP (permission + capture + UI), **NOT VERIFIED** (static lolos;
-nunggu uji device fisik: dialog izin RECORD_AUDIO, gerakan bar riil,
-kalibrasi normalisasi `/90f`) → Remaining: (a) validasi device Batch 120
-di atas — kandidat fix kalau bar salah: angka `/90f` di
-`computeSpectrumBands()` (AudioEnhancerService.kt); (b) Sleep timer
-fade-out (keputusan user: fade STREAM_MUSIC+restore, atau fade kekuatan
-efek saja) & Scheduler jam/event (WorkManager) — sisa dari Batch 119; (c)
-2 temuan terbuka lama (secret Box B vs CI; guard `-lt$((`); (d) Fase 1
-validasi non-tema → Next Action: kalau user lapor bar spectrum
-bermasalah → hotfix `computeSpectrumBands()`/`attachVisualizer()`
-(`AudioEnhancerService.kt`); kalau "next"/OK → lanjut Sleep timer
-fade-out+Scheduler (poin b) ATAU Fase 8 ROI berikutnya (#4 Compressor).
-Batch berikutnya = 121.]
+[RESUME POINT: Compressor (Batch 121; kode: `AudioEnhancerService.kt`,
+`PrefsHelper.kt`, `BoosterViewModel.kt`, `MainActivity.kt`,
+`BoosterScreen.kt`, `Theme.kt`, strings ID/EN; ZIP `Boomly_v121.zip`) →
+SELESAI kode LENGKAP (1 band MBC di `DynamicsProcessing` yang sama dengan
+limiter, slider Amount 0-100%, persist, recovery banner), **NOT VERIFIED**
+(sandbox batch ini TANPA toolchain lokal — no Android SDK/Gradle/network,
+jadi HANYA lolos review manual brace/paren+XML; belum lolos CI ataupun
+device fisik) → Remaining: (a) validasi CI compile Batch 121 di atas —
+risiko tertinggi: urutan 11 parameter constructor
+`DynamicsProcessing.MbcBand` (diingat dari training, TIDAK di-cross-check
+API resmi sesi ini — kalau CI merah di titik ini, itu kandidat pertama);
+(b) kalau compile OK, validasi device fisik: kompresi kerasa/tidak,
+threshold/ratio/makeup 0-100% kandidat pertama kalau "terlalu
+halus/agresif" (lihat `setCompressorAmount()`); (c) Spectrum Visualizer
+Batch 120 masih NOT VERIFIED (belum ada update user); (d) Sleep timer
+fade-out & Scheduler (poin b lama, belum dikerjakan); (e) 2 temuan terbuka
+lama (secret Box B vs CI; guard `-lt$((`) → Next Action: kalau CI/user
+lapor Batch 121 gagal compile/kerasa aneh → hotfix `setCompressorAmount()`/
+`attachDynamicsProcessing()` (`AudioEnhancerService.kt`); kalau "next"/OK →
+lanjut Fase 8 ROI #5 Auto-profile per output device (B) ATAU Sleep timer
+fade-out+Scheduler kalau user pilih itu duluan. Batch berikutnya = 122.]

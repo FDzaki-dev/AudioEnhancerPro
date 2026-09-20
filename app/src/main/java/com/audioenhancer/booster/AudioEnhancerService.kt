@@ -88,6 +88,27 @@ class AudioEnhancerService : Service() {
         // limiter di bawahnya tetap jadi pengaman terakhir).
         private const val FALLBACK_EQ_RANGE_MB: Short = 1200
 
+        // Batch 121 (Fase 8 ROI #4 "Compressor", PROJECT_STATE.md): parameter tetap
+        // kompresor MBC 1-band full-range, TIDAK di-expose ke UI granular — SENGAJA 1
+        // slider "Amount" 0..100 (lihat setCompressorAmount() di bawah) yang menyetir
+        // ratio+threshold+postGain sekaligus, bukan attack/release/knee terpisah,
+        // konsisten filosofi "1 kontrol per effect baru" seperti Loudness/Bass/
+        // Virtualizer. cutoffFrequency 20000 Hz = band TUNGGAL cover seluruh rentang
+        // audible (mbcBandCount=1, tidak ada "band kedua" yang butuh batas). Angka
+        // attack/release/knee dipilih dari rentang umum kompresor "program"/vocal-safe
+        // — TIDAK ADA API resmi query kurva ideal per device (sama filosofi seperti
+        // FALLBACK_EQ_RANGE_MB di atas) — NOT VERIFIED di device fisik, kandidat
+        // pertama kalau user lapor kompresi kurang/lewat agresif. noiseGateThreshold
+        // sangat rendah + expanderRatio 1:1 SENGAJA menonaktifkan noise-gate/expander
+        // bawaan MbcBand (fitur ini murni kompresor, bukan gate) — constructor
+        // `DynamicsProcessing.MbcBand` TIDAK punya varian tanpa parameter itu, jadi
+        // harus tetap diisi walau tidak dipakai fungsinya.
+        private const val COMPRESSOR_BAND_CUTOFF_HZ = 20000f
+        private const val COMPRESSOR_ATTACK_MS = 10f
+        private const val COMPRESSOR_RELEASE_MS = 150f
+        private const val COMPRESSOR_KNEE_DB = 6f
+        private const val COMPRESSOR_NOISE_GATE_DB = -90f
+
         // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat RESUME POINT):
         // jumlah bar spectrum yang di-ekspos ke UI. Ditaruh di companion (bukan cuma
         // konstanta lokal fungsi capture) supaya Part 2 (UI, belum dikerjakan) bisa baca
@@ -173,7 +194,9 @@ class AudioEnhancerService : Service() {
 
     // Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
     // TAMBAHAN, bukan pengganti 4 effect di atas — lihat komentar panjang di
-    // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa.
+    // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa. Batch 121: objek
+    // YANG SAMA ini sekarang JUGA membawa 1 band MBC (kompresor user-adjustable, lihat
+    // `setCompressorAmount()`) — bukan effect/instance terpisah.
     private var dynamicsProcessing: DynamicsProcessing? = null
 
     // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat RESUME POINT): BEDA dari
@@ -532,8 +555,8 @@ class AudioEnhancerService : Service() {
 
     /** Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
      *  TAMBAHAN (bukan pengganti 4 effect di atas) — dipasang sebagai `DynamicsProcessing`
-     *  BERISI HANYA stage limiter (0 pre-EQ band, 0 MBC band, 0 post-EQ band,
-     *  `limiterInUse=true` saja), fungsi SATU-SATUNYA: jadi "ceiling" pengaman terakhir
+     *  BERISI stage limiter (0 pre-EQ band kecuali fallback EQ Batch 87, 0 post-EQ band,
+     *  `limiterInUse=true`), fungsi UTAMA: jadi "ceiling" pengaman terakhir
      *  supaya kombinasi Bass+Virtualizer+EQ+Loudness yang di-set user TINGGI BERBARENGAN
      *  tidak numpuk sampai lewat 0 dBFS (clipping/distorsi) — SEBELUMNYA nol proteksi
      *  apa pun terhadap skenario ini (audit: "belum ada master limiter/compressor
@@ -559,6 +582,15 @@ class AudioEnhancerService : Service() {
      *    muncul kalau release limiter kelewat cepat.
      *  - postGain 0 dB — SENGAJA tidak menambah volume; ini ceiling pasif, bukan
      *    pengganti/duplikat `LoudnessEnhancer` yang MEMANG untuk menaikkan loudness.
+     *
+     *  Batch 121 (Fase 8 ROI #4 "Compressor"): objek `DynamicsProcessing` YANG SAMA di
+     *  atas SEKARANG JUGA membawa 1 band MBC (`mbcInUse=true, mbcBandCount=1`,
+     *  full-range, `cutoffFrequency` 20000 Hz) — kompresor yang BENERAN bisa diatur
+     *  user (beda dari limiter di atas yang hardcoded/tidak ada slider), pelengkap
+     *  `LoudnessEnhancer`. Band ini dipasang `enabled=false` di sini (netral) — nilai
+     *  asli diterapkan belakangan lewat `restoreSavedSettings()` -> `setCompressorAmount()`
+     *  (fungsi publik di bawah, dipanggil UI), pola SAMA seperti PreEq fallback di atas.
+     *  Konstanta tuning ada di companion (`COMPRESSOR_*`).
      *
      *  channelCount di-hardcode 2 (stereo): `DynamicsProcessing.Config.Builder` (beda
      *  dari BassBoost/Virtualizer/Equalizer/LoudnessEnhancer di atas) BUTUH channelCount
@@ -607,7 +639,7 @@ class AudioEnhancerService : Service() {
                 DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
                 2,                                                // channelCount (stereo, lihat catatan panjang di atas)
                 needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
-                false, 0, // multi-band compressor: di luar scope "master limiter"/"EQ fallback" batch ini
+                true, 1, // Batch 121: 1 band MBC full-range = kompresor user-adjustable baru (lihat setCompressorAmount()); SEBELUMNYA "false, 0" (di luar scope Batch 84)
                 false, 0, // post-EQ: tidak dipakai
                 true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
@@ -634,6 +666,26 @@ class AudioEnhancerService : Service() {
                         /* ratio        = */ 20f,
                         /* threshold    = */ -1f,
                         /* postGain     = */ 0f
+                    )
+                )
+                // Batch 121: band kompresor mulai NONAKTIF (enabled=false, netral) — nilai
+                // asli (kalau ada) diterapkan belakangan lewat restoreSavedSettings() ->
+                // setCompressorAmount(), SAMA pola seperti PreEq fallback di atas (jangan
+                // duplikat logic restore di sini).
+                setMbcBandAllChannelsTo(
+                    0,
+                    DynamicsProcessing.MbcBand(
+                        /* enabled            = */ false,
+                        /* cutoffFrequency    = */ COMPRESSOR_BAND_CUTOFF_HZ,
+                        /* attackTime         = */ COMPRESSOR_ATTACK_MS,
+                        /* releaseTime        = */ COMPRESSOR_RELEASE_MS,
+                        /* ratio              = */ 1f,
+                        /* threshold          = */ 0f,
+                        /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
+                        /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
+                        /* expanderRatio      = */ 1f,
+                        /* preGain            = */ 0f,
+                        /* postGain           = */ 0f
                     )
                 )
                 enabled = true
@@ -902,6 +954,9 @@ class AudioEnhancerService : Service() {
         setBassStrength(PrefsHelper.getBass(this).toShort())
         setVirtualizerStrength(PrefsHelper.getVirtualizer(this).toShort())
         setLoudnessGain(PrefsHelper.getLoudness(this))
+        // Batch 121: no-op aman kalau dynamicsProcessing null/API<28 (setCompressorAmount()
+        // sudah dibungkus try-catch generic, sama pola seperti 3 baris di atas).
+        setCompressorAmount(PrefsHelper.getCompressorAmount(this))
 
         // Batch 87: SEBELUMNYA baca `equalizer.numberOfBands` + tulis `eq.setBandLevel()`
         // LANGSUNG di sini (duplikat logic dari `setEqualizerBand()` di bawah). Sekarang
@@ -991,6 +1046,17 @@ class AudioEnhancerService : Service() {
     fun isVirtualizerSupported(): Boolean = virtualizer != null
     fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
 
+    /** Batch 121 (Fase 8 ROI #4 "Compressor"): band MBC kompresor hidup di objek
+     *  `dynamicsProcessing` YANG SAMA dengan master limiter — availability-nya makanya
+     *  ikut objek itu (device API<28/gagal construct = sama-sama tidak ada), BUKAN
+     *  effect terpisah seperti 3 fungsi `isXxxSupported()` di atas. */
+    fun isCompressorSupported(): Boolean = dynamicsProcessing != null
+
+    /** State kontrol kompresor ikut 1:1 `dynamicsState` (lihat `isCompressorSupported()`
+     *  di atas soal kenapa) — TIDAK ada `EffectState` terpisah untuk band ini, pola sama
+     *  seperti `equalizerFallbackActive` berbagi `dynamicsState` di jalur fallback EQ. */
+    val compressorState: EffectState get() = dynamicsState
+
     /** Batch 120 (Fase 8E, part 1/2): dipakai UI (Part 2, belum dikerjakan) buat tahu
      *  apakah perlu munculkan tombol/dialog minta izin RECORD_AUDIO, TERPISAH dari
      *  `visualizerState` (yang UNAVAILABLE-nya overload 2 arti, lihat komentar field). */
@@ -1078,6 +1144,43 @@ class AudioEnhancerService : Service() {
             loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set LoudnessEnhancer gain", e)
         }
         PrefsHelper.setLoudness(this, gainMb)
+    }
+
+    /** Batch 121 (Fase 8 ROI #4 "Compressor"): 1 slider "Amount" 0..100 menyetir band
+     *  MBC full-range di `dynamicsProcessing` (lihat `attachDynamicsProcessing()` &
+     *  konstanta `COMPRESSOR_*` di companion). [amount] 0 = band di-nonaktifkan (bypass
+     *  total, 0 beda audible dari sebelum fitur ini ada); >0 menaikkan ratio + menurunkan
+     *  threshold BERSAMAAN, `postGain` makeup ikut naik supaya loudness tidak terasa
+     *  drop drastis saat kompresi aktif. Kurva 0..100 di bawah PERKIRAAN (tidak ada API
+     *  resmi query "kurva ideal" per device) — NOT VERIFIED di device fisik, kandidat
+     *  pertama kalau user lapor kompresi terlalu halus/agresif. `dynamicsProcessing`
+     *  null (API<28 atau gagal construct) = no-op aman, sama pola seperti `setLoudnessGain()`
+     *  di atas — setting TETAP disimpan ke `PrefsHelper` tanpa syarat (Batch 57, audit Gap
+     *  #14: user tidak boleh kehilangan preferensi slider walau apply gagal). */
+    fun setCompressorAmount(amount: Int) {
+        val clamped = amount.coerceIn(0, 100)
+        val fraction = clamped / 100f
+        try {
+            dynamicsProcessing?.setMbcBandAllChannelsTo(
+                0,
+                DynamicsProcessing.MbcBand(
+                    /* enabled            = */ clamped > 0,
+                    /* cutoffFrequency    = */ COMPRESSOR_BAND_CUTOFF_HZ,
+                    /* attackTime         = */ COMPRESSOR_ATTACK_MS,
+                    /* releaseTime        = */ COMPRESSOR_RELEASE_MS,
+                    /* ratio              = */ 1f + fraction * 5f,   // 1:1 (off) .. 6:1 (max)
+                    /* threshold          = */ -1f - fraction * 23f, // -1 dB (off) .. -24 dB (max)
+                    /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
+                    /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
+                    /* expanderRatio      = */ 1f,
+                    /* preGain            = */ 0f,
+                    /* postGain           = */ fraction * 6f         // 0 dB (off) .. +6 dB makeup (max)
+                )
+            )
+        } catch (e: Exception) {
+            dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Compressor MBC band", e)
+        }
+        PrefsHelper.setCompressorAmount(this, clamped)
     }
 
     fun setEqualizerBand(band: Short, levelMb: Short) {
