@@ -39,7 +39,10 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
   kalau user sengaja tekan "Matikan", watchdog TIDAK menghidupkan paksa lagi.
   Kalau restart otomatis ini diblokir sistem (Android 12+ background start
   restriction, lihat "Batasan jujur"), watchdog mengirim 1 notifikasi terpisah
-  "Boomly berhenti" — cukup 1 ketukan untuk aktifkan lagi (Batch 124).
+  "Boomly berhenti" — cukup 1 ketukan untuk aktifkan lagi (Batch 124). Widget home
+  screen & Quick Settings Tile juga di-resync paksa tiap siklus watchdog ini, jadi
+  kalau app sempat di-kill keras (widget stale) keduanya balik konsisten dalam
+  ≤15 menit walau tidak disentuh sama sekali (Batch 125).
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
@@ -48,6 +51,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
 - Sejak Android 12, app TIDAK diizinkan menyalakan ulang service dari latar belakang begitu saja (batasan resmi OS) kecuali sudah diberi exemption battery optimization — kalau belum, restart otomatis watchdog akan gagal diam-diam dan diganti notifikasi "Boomly berhenti" yang bisa diketuk langsung (Batch 124). Menonaktifkan battery optimization untuk Boomly (diminta saat pertama buka app) membuat restart otomatis benar-benar tanpa sentuhan.
+- Widget home screen bisa nyangkut menampilkan status basi (mis. tetap "Aktif" walau service sudah mati) kalau app di-kill keras (tidak ada hook OS setara `TileService.onStartListening()` buat widget) — balik konsisten sendiri maksimal 15 menit lewat watchdog (Batch 125), atau langsung kalau widget-nya di-tap.
 
 ## Build
 ```

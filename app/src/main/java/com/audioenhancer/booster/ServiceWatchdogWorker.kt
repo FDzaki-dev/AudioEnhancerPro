@@ -34,6 +34,24 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
     override suspend fun doWork(): Result {
         val context = applicationContext
         val userWantsRunning = PrefsHelper.getUserWantsRunning(context)
+        // Laporan user: kill via task-swipe/OEM (BUKAN force-stop biasa) -> widget
+        // "aktif" (stale) tapi QS Tile "mati" (benar). Beda root cause dari Batch 44
+        // (lihat komentar `requestTileUpdate`, itu nyambungin refresh WIDGET+TILE di
+        // SATU hook `isRunning`-berubah, tapi hook itu HANYA jalan kalau ada kode yang
+        // SEMPAT jalan). Kill keras (SIGKILL, onDestroy TIDAK terpanggil) = tidak ada
+        // kode yang sempat jalan sama sekali -> hook itu tidak pernah terpicu. QS Tile
+        // tetap "sembuh sendiri" karena `onStartListening()` dipanggil sistem TIAP kali
+        // shade dibuka (proses baru, `isRunning` fresh default false = benar). Widget
+        // TIDAK punya hook setara itu — RemoteViews cuma berubah kalau ADA yang push
+        // (`refreshAll()`) atau `onUpdate()` (OS enforce minimum ~30 menit), jadi bisa
+        // nyangkut stale TANPA BATAS WAKTU kalau tidak pernah di-tap. Fix: watchdog ini
+        // (sudah jalan tiap 15 menit apa pun kondisinya) SELALU resync widget+tile ke
+        // ground truth `isRunning` SEKARANG, bukan cuma pas mau restart service — ini
+        // jadi jaring pengaman kedua surface itu balik konsisten dalam ≤15 menit,
+        // sama seperti recovery notifikasi Batch 124. BUKAN instan (limitasi
+        // AppWidgetProvider, tidak ada hook "on-demand" setara TileService).
+        BoosterWidgetProvider.refreshAll(context)
+        QuickToggleTileService.requestTileUpdate(context)
         if (userWantsRunning && !AudioEnhancerService.isRunning) {
             // Batch 124 hotfix (URGENT, laporan user - lihat komentar lengkap di
             // AudioEnhancerService.NOTIF_ID_RECOVERY): SEBELUMNYA baris ini 0 try-catch.

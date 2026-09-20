@@ -114,15 +114,14 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 124, hotfix URGENT — watchdog periodik gagal diam-diam
-  restart service (Android 12+ background-start restriction, tidak ditangkap),
-  diganti fallback notifikasi tap-to-restart (lihat LOG BATCH 124);
-  **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user.
-  Sebelumnya: 123 hotfix speaker internal nempel preset Kustom (NOT VERIFIED);
-  122 Auto-Profil per Output kode SELESAI (NOT VERIFIED); 121 Compressor
-  (**USER-CONFIRMED WORKING** di device fisik); 120 Spectrum visualizer (NOT
-  VERIFIED); 119 Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum
-  itu: B115.
+- **Batch terakhir**: 125, hotfix URGENT — widget vs QS Tile tidak sinkron
+  setelah kill keras, diganti resync paksa tiap tick watchdog (lihat LOG
+  BATCH 125); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
+  user. Sebelumnya: 124 hotfix watchdog gagal diam-diam restart (NOT
+  VERIFIED); 123 hotfix speaker internal nempel preset Kustom (NOT
+  VERIFIED); 122 Auto-Profil per Output kode SELESAI (NOT VERIFIED); 121
+  Compressor (**USER-CONFIRMED WORKING** di device fisik); 120 Spectrum
+  visualizer (NOT VERIFIED); logika terakhir sebelum itu: B115/B119.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -177,6 +176,13 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 125** (`ServiceWatchdogWorker.kt` HANYA — 1 file; hotfix URGENT, laporan
+  user dari uji device Batch 124): widget "Aktif" (basi) vs QS Tile "Nonaktif"
+  (benar) tidak sinkron setelah kill keras (SIGKILL, `onDestroy()` tidak
+  terpanggil, hook refresh Batch 44 tidak sempat jalan). Fix: watchdog tiap
+  tick SELALU paksa resync widget+tile ke `isRunning` ground truth, terlepas
+  perlu restart atau tidak. Status: **NOT VERIFIED** (statis only: brace/paren
+  0/0; nunggu device fisik — skenario di RESUME POINT).
 - **Batch 124** (`AudioEnhancerService.kt`, `ServiceWatchdogWorker.kt`, strings ID/EN;
   hotfix URGENT, laporan user): watchdog gagal diam-diam restart service karena
   Android 12+ background-start restriction (`ForegroundServiceStartNotAllowedException`
@@ -753,7 +759,11 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 - `OemAutostartHelper.kt` — deep-link Autostart/battery manager per-OEM,
   fallback ke App Info.
 - `ServiceWatchdogWorker.kt` — WorkManager periodic 15 menit, restart
-  service kalau mati padahal user tidak minta mati.
+  service kalau mati padahal user tidak minta mati (Batch 124: try-catch +
+  `postRecoveryNotification()` fallback). Tiap tick JUGA selalu paksa resync
+  `BoosterWidgetProvider.refreshAll()` + `QuickToggleTileService.requestTileUpdate()`
+  ke `isRunning` ground truth (Batch 125 — widget gak punya hook on-demand
+  setara `onStartListening()` tile, jadi bisa nyangkut basi kalau kill keras).
 - `OnboardingScreen.kt` — 6 halaman onboarding (belum diaudit gaya iOS).
 - `UpdateManager.kt` — cek Release GitHub terbaru vs `versionCode`
   runtime, unduh APK chunk-streaming Okio (`Source.read`/`Sink.write`
@@ -1020,31 +1030,33 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix URGENT watchdog auto-restart (Batch 124; kode:
-`AudioEnhancerService.kt`, `ServiceWatchdogWorker.kt`, strings ID/EN — 2 file+strings;
-ZIP `Boomly_v124.zip`) → SELESAI kode LENGKAP: root cause Android 12+
-background-start restriction (`ForegroundServiceStartNotAllowedException` di
-`ServiceWatchdogWorker` tidak ditangkap) diverifikasi ke dokumentasi resmi
-developer.android.com; fix try-catch + `postRecoveryNotification()`
-(channel `CHANNEL_ID_RECOVERY` HIGH, `PendingIntent.getForegroundService`
-tap-to-restart, jalur exempted resmi). **NOT VERIFIED** (sandbox TANPA
-toolchain lokal — HANYA lolos review manual: brace/paren balance kedua file
-0/0, XML well-formed, parity string ID/EN 166=166; belum lolos CI ataupun
-device fisik) → Remaining: (a) validasi CI compile Batch 124; (b) kalau
-compile OK, uji device fisik: force-stop Boomly (atau biarkan OEM battery
-manager membunuhnya) SAAT battery optimization BELUM di-exempt → tunggu
-watchdog jalan (≤15 menit) → cek notifikasi "Boomly berhenti" muncul → tap →
-cek booster nyala lagi dengan Bass/Virtualizer/Loudness/EQ/Compressor SAMA
-seperti sebelum dibunuh (bukan reset default); ulangi test yang sama dengan
-battery optimization SUDAH di-exempt → pastikan watchdog restart langsung
-tanpa notifikasi sama sekali (jalur lama, harus tetap non-regresi); (c)
-backlog lama masih terbuka (belum tersentuh batch ini): Auto-Profil per
-Output (Batch 122/123) masih NOT VERIFIED di device fisik (skenario lengkap
-di histori LOG BATCH 123 sebelum overwrite ini); Compressor Batch 121
-USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep
-timer fade-out & Scheduler belum dikerjakan; 2 temuan lama (secret Box B vs
-CI; guard `-lt$((`) → Next Action: kalau CI/user lapor Batch 124 gagal
-compile atau (b) gagal → hotfix lanjutan di 2 file yang sama; kalau (b)
-lolos/user OK → lanjut validasi Auto-Profil (b) dari Batch 123 yang masih
-menggantung, ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out
-kalau user pilih itu duluan. Batch berikutnya = 125.]
+[RESUME POINT: Hotfix URGENT widget/QS Tile desync (Batch 125; kode:
+`ServiceWatchdogWorker.kt` HANYA — 1 file; ZIP `Boomly_v125.zip`) → SELESAI
+kode LENGKAP: root cause kill keras (SIGKILL) bikin `onDestroy()` tidak
+terpanggil → hook refresh Batch 44 (widget+tile satu titik) tidak sempat
+jalan → widget nyangkut basi "Aktif" sementara QS Tile self-heal lewat
+`onStartListening()` tiap shade dibuka. Fix: `doWork()` SELALU panggil
+`BoosterWidgetProvider.refreshAll()` + `QuickToggleTileService.requestTileUpdate()`
+tiap tick (≤15 menit), terlepas perlu restart service atau tidak.
+**NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
+brace/paren 0/0; belum lolos CI ataupun device fisik) → Remaining: (a)
+validasi CI compile Batch 125; (b) kalau compile OK, uji device fisik: kill
+app via task-swipe recents (BUKAN tombol force-stop Settings — itu skenario
+Batch 124 yang sudah dikonfirmasi user WORKING), tunggu maksimal 15 menit
+TANPA menyentuh widget/tile/app sama sekali, pastikan widget berubah ikut
+QS Tile jadi "Nonaktif" (bukan sebaliknya tetap nyangkut "Aktif"); ulangi
+kalau service memang masih hidup (bukan di-kill) → pastikan keduanya tetap
+konsisten "Aktif" tanpa flicker/regresi; (c) Batch 124 (recovery notifikasi
+watchdog) SUDAH user-confirmed working saat force-stop — tetap uji ulang
+kombinasi task-swipe-kill + battery optimization BELUM di-exempt supaya 2
+fix ini (124+125) tervalidasi bareng dalam 1 siklus watchdog yang sama; (d)
+backlog lama masih terbuka (belum tersentuh 2 batch terakhir): Auto-Profil
+per Output (Batch 122/123) masih NOT VERIFIED device fisik; Compressor
+Batch 121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT
+VERIFIED; Sleep timer fade-out & Scheduler belum dikerjakan; 2 temuan lama
+(secret Box B vs CI; guard `-lt$((`) → Next Action: kalau CI/user lapor
+Batch 125 gagal compile atau (b) gagal → hotfix lanjutan
+`ServiceWatchdogWorker.kt`; kalau (b)+(c) lolos/user OK → lanjut validasi
+Auto-Profil (Batch 123) yang masih menggantung, ATAU Fase 8 ROI #6 EQ curve
+editor / Sleep timer fade-out kalau user pilih itu duluan. Batch
+berikutnya = 126.]

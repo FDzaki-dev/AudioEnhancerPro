@@ -1,5 +1,31 @@
 # Changelog
 
+## Batch 125: Hotfix URGENT — widget "aktif" vs QS Tile "mati" tidak sinkron setelah app di-kill
+
+Laporan user (uji device langsung setelah Batch 124): kill app via
+task-swipe/OEM (bukan force-stop biasa) membuat widget home screen tetap
+menampilkan "Aktif" (basi) sementara Quick Settings Tile sudah benar
+menampilkan "Nonaktif". Root cause BEDA dari bug Batch 44 (yang menyambungkan
+refresh widget+tile di satu hook `isRunning`-berubah): kill keras (SIGKILL)
+membuat `onDestroy()` TIDAK PERNAH terpanggil sama sekali, jadi hook Batch 44
+itu tidak sempat jalan. Quick Settings Tile tetap "sembuh sendiri" karena
+`onStartListening()` dipanggil sistem tiap kali shade dibuka (query state
+segar), sedangkan widget TIDAK punya hook setara — `RemoteViews`-nya cuma
+berubah kalau ada yang eksplisit push, jadi bisa nyangkut basi tanpa batas
+waktu kalau tidak pernah di-tap.
+
+**Perbaikan**: `ServiceWatchdogWorker.kt` (siklus 15 menit yang sama dengan
+Batch 124) sekarang SELALU memaksa resync widget+tile ke `isRunning` yang
+sebenarnya di setiap tick, terlepas dari apakah restart service dibutuhkan
+atau tidak. Ini bukan perbaikan instan — dibatasi siklus watchdog yang sama
+(≤15 menit) karena `AppWidgetProvider` memang tidak punya hook "on-demand"
+setara `TileService.onStartListening()`. Tidak ada file lain yang disentuh.
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal/device fisik; lolos review
+manual (brace/paren balance 0/0). Uji device: kill app via task-swipe (bukan
+tombol force-stop Settings), tunggu maksimal 15 menit, pastikan widget ikut
+berubah ke "Nonaktif" mengikuti QS Tile (bukan sebaliknya tetap nyangkut).
+
 ## Batch 124: Hotfix URGENT — watchdog gagal diam-diam menghidupkan ulang booster
 
 Laporan user: booster kehilangan kendali/pengaruh ke output audio saat
