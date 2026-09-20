@@ -1,5 +1,34 @@
 # Changelog
 
+## Batch 124: Hotfix URGENT — watchdog gagal diam-diam menghidupkan ulang booster
+
+Laporan user: booster kehilangan kendali/pengaruh ke output audio saat
+di-kill sistem, dan cuma bisa aktif lagi lewat aksi eksternal manual
+(widget, Quick Settings Tile, atau buka app). Root cause terverifikasi ke
+dokumentasi resmi Android: sejak Android 12 (minSdk project ini selalu
+31+), app dilarang menyalakan foreground service dari context latar
+belakang kecuali masuk daftar pengecualian resmi OS. Watchdog periodik
+(`ServiceWatchdogWorker`, tiap 15 menit) TIDAK termasuk pengecualian itu —
+beda dari boot/update app (`BootReceiver`) atau tap widget/Quick Settings
+Tile yang memang dikecualikan — jadi kalau battery optimization belum
+diberi izin khusus, percobaan restart watchdog gagal dilempar sistem
+secara diam-diam, tanpa jejak apa pun ke user.
+
+**Perbaikan**: `ServiceWatchdogWorker.kt` sekarang menangkap kegagalan itu
+dan mengirim 1 notifikasi baru "Boomly berhenti" (channel terpisah,
+prioritas tinggi) yang tinggal diketuk untuk menyalakan ulang booster —
+tap notifikasi termasuk jalur yang resmi dikecualikan Android, jadi
+dijamin berhasil. Pengaturan Bass/Virtualizer/Loudness/Equalizer/
+Compressor otomatis pulih penuh seperti biasa begitu booster aktif lagi.
+Tidak ada permission baru, tidak ada perubahan arsitektur.
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal/device fisik; lolos
+review manual (brace/paren balance, XML well-formed, parity string
+ID/EN). Nunggu CI + uji device: matikan paksa app (force-stop atau
+biarkan OEM membunuhnya), pastikan notifikasi "Boomly berhenti" muncul
+dalam ≤15 menit dan tap-nya benar-benar menyalakan ulang booster dengan
+pengaturan yang sama seperti sebelum dibunuh.
+
 ## Batch 123: Hotfix — speaker internal ikut nempel preset Kustom (regresi Batch 122)
 
 Laporan user: Auto-Profil per Output (Batch 122) berfungsi, TAPI speaker

@@ -35,7 +35,20 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
         val context = applicationContext
         val userWantsRunning = PrefsHelper.getUserWantsRunning(context)
         if (userWantsRunning && !AudioEnhancerService.isRunning) {
-            AudioEnhancerService.requestStart(context)
+            // Batch 124 hotfix (URGENT, laporan user - lihat komentar lengkap di
+            // AudioEnhancerService.NOTIF_ID_RECOVERY): SEBELUMNYA baris ini 0 try-catch.
+            // Worker ini jalan di background TANPA exemption Android 12+ background-start
+            // restriction (beda dari BootReceiver/widget/QS Tile yang exempted) - kalau
+            // battery optimization belum di-exempt user, requestStart() lempar
+            // ForegroundServiceStartNotAllowedException DIAM-DIAM, effect audio TIDAK
+            // PERNAH balik sampai user ketemu widget/tile/app sendiri. Fallback sekarang:
+            // notifikasi tap-to-restart (jalur exempted resmi), BUKAN cuma diam.
+            try {
+                AudioEnhancerService.requestStart(context)
+            } catch (e: Exception) {
+                android.util.Log.e("ServiceWatchdogWorker", "requestStart() diblokir sistem (kemungkinan battery optimization belum di-exempt) - fallback ke notifikasi recovery", e)
+                AudioEnhancerService.postRecoveryNotification(context)
+            }
         }
         // Selalu SUCCESS (bukan RETRY) — kalau `requestStart` di atas ternyata gagal
         // (mis. attachEffects gagal di chipset tertentu), gak ada gunanya WorkManager

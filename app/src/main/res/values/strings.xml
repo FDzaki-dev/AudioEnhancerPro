@@ -165,6 +165,13 @@
     <string name="notif_title">Boomly aktif</string>
     <string name="notif_text">Meningkatkan kualitas &amp; volume audio sistem</string>
     <string name="notif_action_stop">Matikan</string>
+    <!-- Batch 124: notifikasi fallback watchdog saat auto-restart diblokir sistem
+         (Android 12+ background start restriction) - tap notifikasi ini = jalur
+         resmi yang exempted, restart booster + effect langsung dipulihkan penuh. -->
+    <string name="notif_recovery_channel_name">Boomly Perlu Diaktifkan</string>
+    <string name="notif_recovery_channel_desc">Muncul saat booster dihentikan sistem dan butuh 1 ketukan untuk aktif lagi</string>
+    <string name="notif_recovery_title">Boomly berhenti</string>
+    <string name="notif_recovery_body">Sistem menghentikan booster di latar belakang. Ketuk untuk aktifkan lagi.</string>
     <string name="qs_tile_label">Boomly</string>
     <string name="qs_tile_subtitle_on">Aktif</string>
     <string name="qs_tile_subtitle_off">Nonaktif</string>

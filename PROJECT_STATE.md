@@ -114,12 +114,15 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 123, hotfix regresi Batch 122 — speaker internal nempel
-  preset Kustom (lihat LOG BATCH 123); **NOT VERIFIED**, tidak ada toolchain
-  lokal, nunggu CI/device user. Sebelumnya: 122 Auto-Profil per Output kode
-  SELESAI (NOT VERIFIED sebelum hotfix ini); 121 Compressor (**USER-CONFIRMED
-  WORKING** di device fisik); 120 Spectrum visualizer (NOT VERIFIED); 119
-  Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum itu: B115.
+- **Batch terakhir**: 124, hotfix URGENT — watchdog periodik gagal diam-diam
+  restart service (Android 12+ background-start restriction, tidak ditangkap),
+  diganti fallback notifikasi tap-to-restart (lihat LOG BATCH 124);
+  **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user.
+  Sebelumnya: 123 hotfix speaker internal nempel preset Kustom (NOT VERIFIED);
+  122 Auto-Profil per Output kode SELESAI (NOT VERIFIED); 121 Compressor
+  (**USER-CONFIRMED WORKING** di device fisik); 120 Spectrum visualizer (NOT
+  VERIFIED); 119 Sleep timer bag. 1 (NOT VERIFIED); logika terakhir sebelum
+  itu: B115.
 - **Tema**: 5 varian dark-only. Dipilih lewat 4 toggle eksklusif di layar
   utama (`BoosterScreen.kt`: Aurora/Neumorphism/Studio Eq/Serene; semua mati
   = Midnight Glass default). **SEMUA 5 varian USER-CONFIRMED BERHASIL (Batch
@@ -174,6 +177,14 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 124** (`AudioEnhancerService.kt`, `ServiceWatchdogWorker.kt`, strings ID/EN;
+  hotfix URGENT, laporan user): watchdog gagal diam-diam restart service karena
+  Android 12+ background-start restriction (`ForegroundServiceStartNotAllowedException`
+  tidak ditangkap) — root cause SAMA PERSIS kenapa widget/QS Tile "selalu berhasil"
+  (exempted) sementara watchdog tidak. Fix: try-catch + fallback notifikasi
+  tap-to-restart channel terpisah (`CHANNEL_ID_RECOVERY`, HIGH). 0 permission baru.
+  Status: **NOT VERIFIED** (static lolos: brace/paren balance, XML well-formed, parity
+  string ID/EN 166=166; nunggu CI + device fisik — skenario di RESUME POINT).
 - **Batch 123** (`AudioEnhancerService.kt`; hotfix, laporan user pasca-122):
   regresi "speaker internal ikut pakai preset Kustom padahal tidak disetel
   kesitu". Root cause: `onOutputRouteChanged()` hanya menangani device BARU
@@ -667,6 +678,18 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   `foregroundServiceType`) — akar masalah SELALU battery/task manager
   OEM (MIUI/ColorOS/EMUI/dll), bukan bug kode. Cek dulu Autostart device
   sebelum curiga ke `AudioEnhancerService`.
+- **Android 12+ background foreground-service-start restriction (Batch 124,
+  terverifikasi developer.android.com/about/versions/12/foreground-services)**:
+  `context.startForegroundService()` dari context latar belakang TANPA masuk
+  daftar exemption resmi (activity transition, tap notifikasi/widget/QS Tile,
+  broadcast `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`/timezone-locale, exact
+  alarm, FCM high-priority, dll — WorkManager `CoroutineWorker` BIASA TIDAK
+  termasuk) melempar `ForegroundServiceStartNotAllowedException`. minSdk
+  project ini SELALU 31+ jadi SEMUA device kena. Pola aman WAJIB dipakai tiap
+  ada pemanggil `AudioEnhancerService.requestStart()` baru dari context
+  non-UI/non-exempted: bungkus try-catch, fallback notifikasi tap-to-restart
+  (`postRecoveryNotification()`, sudah ada sejak Batch 124) — JANGAN asumsikan
+  `requestStart()` selalu sukses tanpa try-catch di context background baru.
 - Kandidat OEM Autostart Infinix/Tecno/itel (`OemAutostartHelper.kt`)
   PALING TIDAK TERVERIFIKASI dari semua kandidat — bahkan library
   populer sekelas `judemanutd/AutoStarter` (600+ stars) masih punya issue
@@ -709,6 +732,9 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   (Batch 119): `requestSleepTimer()`/`cancelSleepTimer()` (companion), tick
   Handler ≤30 dtk baca `PrefsHelper.getSleepTimerEndAt()`, habis →
   `requestStop()`; `ACTION_SLEEP_TIMER_SYNC` = jadwalkan ulang tick.
+  `postRecoveryNotification()` (companion, Batch 124) — fallback tap-to-restart
+  (channel `CHANNEL_ID_RECOVERY`, HIGH) kalau `requestStart()` diblokir Android
+  12+ background-start restriction, dipanggil `ServiceWatchdogWorker`.
 - `Theme.kt` — palet dark-only, typography, shape, token bevel/glow untuk
   ke-5 varian tema (Batch 111: +Serene M3). Accent color per-fitur independen
   dari switch tema. `SkeuTokens` data class + `LocalSkeuTokens`/
@@ -994,31 +1020,31 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix regresi speaker internal (Batch 123; kode:
-`AudioEnhancerService.kt` HANYA — 1 file; ZIP `Boomly_v123.zip`) → SELESAI
-kode LENGKAP: `autoProfileBaseline` (snapshot+restore manual settings),
-`captureAutoProfileBaselineIfNeeded()`/`restoreAutoProfileBaseline()` baru,
-`onOutputRouteChanged()` sekarang tangani `added=false` via
-`hasNoExternalOutputDeviceLeft()` (confident-speaker-detection, skip kalau
-ambigu). **NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos
-review manual brace 215=215/paren 906=906; belum lolos CI ataupun device
-fisik) → Remaining: (a) validasi CI compile Batch 123; (b) kalau compile OK,
-validasi device fisik 2 skenario: (1) assign preset custom ke kategori
-Wired/Bluetooth/USB (BUKAN speaker) → sambung device itu → cek preset
-ke-apply (Logcat "Auto-profile: route=... -> preset...") → LEPAS device itu
-→ cek Bass/Virtualizer/Loudness/EQ balik ke nilai manual SEBELUM preset
-(Logcat "...tidak diatur -> restore manual"), BUKAN nempel nilai preset; (2)
-assign preset KE kategori Speaker juga → ulangi lepas device → cek speaker
-pakai preset Speaker (bukan restore manual). (c) Auto-Profil per Output
-(Batch 122) sisanya: kalau (b) lolos, fitur ini dianggap SELESAI+TERVALIDASI
-scope hotfix ini; (d) keterbatasan SUDAH didokumentasikan dari Batch 122
-(slider UI tidak live-refresh kalau app terbuka pas route berubah) — BUKAN
-bug kalau user lapor itu lagi; (e) Compressor Batch 121 USER-CONFIRMED
-WORKING; (f) Spectrum Visualizer Batch 120 masih NOT VERIFIED (belum ada
-update user); (g) Sleep timer fade-out & Scheduler (belum dikerjakan); (h) 2
-temuan terbuka lama (secret Box B vs CI; guard `-lt$((`) → Next Action:
-kalau CI/user lapor Batch 123 gagal compile atau (b) masih gagal → hotfix
-lanjutan `onOutputRouteChanged()`/`hasNoExternalOutputDeviceLeft()`
-(`AudioEnhancerService.kt`); kalau (b) lolos/user OK → lanjut Fase 8 ROI #6
-EQ curve editor drag-point (A) ATAU Sleep timer fade-out+Scheduler kalau
-user pilih itu duluan. Batch berikutnya = 124.]
+[RESUME POINT: Hotfix URGENT watchdog auto-restart (Batch 124; kode:
+`AudioEnhancerService.kt`, `ServiceWatchdogWorker.kt`, strings ID/EN — 2 file+strings;
+ZIP `Boomly_v124.zip`) → SELESAI kode LENGKAP: root cause Android 12+
+background-start restriction (`ForegroundServiceStartNotAllowedException` di
+`ServiceWatchdogWorker` tidak ditangkap) diverifikasi ke dokumentasi resmi
+developer.android.com; fix try-catch + `postRecoveryNotification()`
+(channel `CHANNEL_ID_RECOVERY` HIGH, `PendingIntent.getForegroundService`
+tap-to-restart, jalur exempted resmi). **NOT VERIFIED** (sandbox TANPA
+toolchain lokal — HANYA lolos review manual: brace/paren balance kedua file
+0/0, XML well-formed, parity string ID/EN 166=166; belum lolos CI ataupun
+device fisik) → Remaining: (a) validasi CI compile Batch 124; (b) kalau
+compile OK, uji device fisik: force-stop Boomly (atau biarkan OEM battery
+manager membunuhnya) SAAT battery optimization BELUM di-exempt → tunggu
+watchdog jalan (≤15 menit) → cek notifikasi "Boomly berhenti" muncul → tap →
+cek booster nyala lagi dengan Bass/Virtualizer/Loudness/EQ/Compressor SAMA
+seperti sebelum dibunuh (bukan reset default); ulangi test yang sama dengan
+battery optimization SUDAH di-exempt → pastikan watchdog restart langsung
+tanpa notifikasi sama sekali (jalur lama, harus tetap non-regresi); (c)
+backlog lama masih terbuka (belum tersentuh batch ini): Auto-Profil per
+Output (Batch 122/123) masih NOT VERIFIED di device fisik (skenario lengkap
+di histori LOG BATCH 123 sebelum overwrite ini); Compressor Batch 121
+USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep
+timer fade-out & Scheduler belum dikerjakan; 2 temuan lama (secret Box B vs
+CI; guard `-lt$((`) → Next Action: kalau CI/user lapor Batch 124 gagal
+compile atau (b) gagal → hotfix lanjutan di 2 file yang sama; kalau (b)
+lolos/user OK → lanjut validasi Auto-Profil (b) dari Batch 123 yang masih
+menggantung, ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out
+kalau user pilih itu duluan. Batch berikutnya = 125.]

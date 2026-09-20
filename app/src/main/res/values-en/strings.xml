@@ -165,6 +165,13 @@
     <string name="notif_title">Boomly active</string>
     <string name="notif_text">Enhancing system audio quality &amp; volume</string>
     <string name="notif_action_stop">Stop</string>
+    <!-- Batch 124: watchdog fallback notification when auto-restart is blocked by the
+         system (Android 12+ background start restriction) - tapping this notification
+         is an officially exempted path, fully restoring the booster + effects. -->
+    <string name="notif_recovery_channel_name">Boomly Needs Reactivating</string>
+    <string name="notif_recovery_channel_desc">Shown when the system stops the booster and it needs 1 tap to turn back on</string>
+    <string name="notif_recovery_title">Boomly stopped</string>
+    <string name="notif_recovery_body">The system stopped the booster in the background. Tap to turn it back on.</string>
     <string name="qs_tile_label">Boomly</string>
     <string name="qs_tile_subtitle_on">Active</string>
     <string name="qs_tile_subtitle_off">Inactive</string>

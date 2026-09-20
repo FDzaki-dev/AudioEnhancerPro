@@ -53,6 +53,33 @@ class AudioEnhancerService : Service() {
         private const val TAG = "AudioEnhancerService"
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
+        // Batch 124 (hotfix URGENT, laporan user): app kehilangan kendali/pengaruh ke
+        // output Audio saat di-kill, cuma bisa nyala lagi via widget/QS Tile/buka app
+        // manual. Root cause TERVERIFIKASI ke dokumentasi resmi developer.android.com/
+        // about/versions/12/foreground-services: sejak Android 12 (minSdk project ini
+        // SELALU 31+), app DILARANG start foreground service dari context background
+        // KECUALI masuk daftar exemption resmi. `ServiceWatchdogWorker` (CoroutineWorker,
+        // jalan background) TIDAK masuk exemption itu (beda dari BOOT_COMPLETED/
+        // MY_PACKAGE_REPLACED broadcast di BootReceiver yang MEMANG exempted, atau tap
+        // widget/QS Tile yang MEMANG exempted kategori "user interacts with a UI element
+        // related to your app" - INILAH SEBAB widget/QS Tile "selalu berhasil" sementara
+        // watchdog diam-diam gagal kalau battery optimization belum di-exempt user).
+        // requestStart() dari watchdog SEBELUMNYA 0 try-catch -> ForegroundServiceStart-
+        // NotAllowedException lolos diam-diam, effect TIDAK PERNAH balik sampai user
+        // ketemu widget/tile/app sendiri. Fix: notifikasi biasa (BUKAN foreground, jadi
+        // BOLEH dipost dari background context apa pun - cuma butuh POST_NOTIFICATIONS
+        // yang sudah ada) dengan `PendingIntent.getForegroundService()` - tap notifikasi
+        // ini SENDIRI masuk exemption resmi ("the user performs an action on a UI element
+        // ... notification"), jadi restart via tap notifikasi ini DIJAMIN tidak kena
+        // exception yang sama. 0 permission baru, 0 perubahan arsitektur.
+        private const val NOTIF_ID_RECOVERY = 1002
+        // Channel TERPISAH dari CHANNEL_ID (IMPORTANCE_LOW, dipakai notifikasi ongoing
+        // "Boomly aktif") - notifikasi recovery ini BUTUH tindakan user (bukan cuma info
+        // status pasif), IMPORTANCE_HIGH (heads-up+bunyi) supaya kelihatan walau layar
+        // mati/notif shade tertutup, sesuai tujuan hotfix ini (jangan sampai user gak
+        // sadar butuh tap). User tetap bisa silent-kan channel ini terpisah dari channel
+        // ongoing kalau mau, tanpa saling ganggu (best practice Android multi-channel).
+        private const val CHANNEL_ID_RECOVERY = "audio_booster_recovery_channel"
         const val ACTION_STOP = "com.audioenhancer.booster.STOP"
         // Batch 119 (Sleep timer): minta Service (re)jadwalkan tick timer dari nilai yang
         // SUDAH ditulis ke `PrefsHelper.getSleepTimerEndAt()` (Service = pembaca tunggal).
@@ -154,6 +181,37 @@ class AudioEnhancerService : Service() {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
+            }
+        }
+
+        /** Batch 124 hotfix: dipanggil `ServiceWatchdogWorker` HANYA kalau `requestStart()`
+         *  di atas gagal dilempar sistem (background start restriction, lihat komentar
+         *  `NOTIF_ID_RECOVERY`). Notifikasi BIASA (bukan foreground) - aman dipost dari
+         *  context background mana pun. `PendingIntent.getForegroundService()` bikin tap
+         *  notifikasi ini restart Service via jalur yang OFFICIALLY exempted (tap user di
+         *  notifikasi), effect otomatis lengkap balik lewat attachEffects()->
+         *  restoreSavedSettings() yang sudah ada, 0 logic baru di jalur itu. Pakai
+         *  `CHANNEL_ID_RECOVERY` (dibuat bareng `CHANNEL_ID` di `createNotificationChannel()`
+         *  - channel sudah pasti ada di sistem sejak service pernah jalan sekali,
+         *  notification channel persist lintas proses/restart). Dibungkus
+         *  try-catch total: kalau POST_NOTIFICATIONS belum granted atau gagal apa pun,
+         *  gagal diam-diam ke Log.e (BUKAN crash Worker), konsisten pola file ini. */
+        fun postRecoveryNotification(context: android.content.Context) {
+            try {
+                val startIntent = Intent(context, AudioEnhancerService::class.java)
+                val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                val restartPending = PendingIntent.getForegroundService(context, 1, startIntent, pendingFlags)
+                val notification = NotificationCompat.Builder(context, CHANNEL_ID_RECOVERY)
+                    .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
+                    .setContentTitle(context.getString(R.string.notif_recovery_title))
+                    .setContentText(context.getString(R.string.notif_recovery_body))
+                    .setContentIntent(restartPending)
+                    .setAutoCancel(true)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .build()
+                androidx.core.app.NotificationManagerCompat.from(context).notify(NOTIF_ID_RECOVERY, notification)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal kirim notifikasi recovery watchdog", e)
             }
         }
 
@@ -1445,8 +1503,17 @@ class AudioEnhancerService : Service() {
                 CHANNEL_ID, getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_LOW
             ).apply { description = getString(R.string.notif_channel_desc) }
+            // Batch 124: channel kedua khusus notifikasi recovery watchdog (lihat
+            // komentar CHANNEL_ID_RECOVERY) - dibuat di sini juga (bukan cuma lazy-create
+            // di postRecoveryNotification()) supaya konsisten 1 tempat pembuatan channel,
+            // sama pola seperti channel utama di atas.
+            val recoveryChannel = NotificationChannel(
+                CHANNEL_ID_RECOVERY, getString(R.string.notif_recovery_channel_name),
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply { description = getString(R.string.notif_recovery_channel_desc) }
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
+            manager.createNotificationChannel(recoveryChannel)
         }
     }
 

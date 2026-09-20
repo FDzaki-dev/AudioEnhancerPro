@@ -37,6 +37,9 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Watchdog periodik (`WorkManager`, tiap 15 menit) — restart service otomatis kalau
   ternyata mati padahal user tidak pernah minta dimatikan. Menghormati pilihan user:
   kalau user sengaja tekan "Matikan", watchdog TIDAK menghidupkan paksa lagi.
+  Kalau restart otomatis ini diblokir sistem (Android 12+ background start
+  restriction, lihat "Batasan jujur"), watchdog mengirim 1 notifikasi terpisah
+  "Boomly berhenti" — cukup 1 ketukan untuk aktifkan lagi (Batch 124).
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
@@ -44,6 +47,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
+- Sejak Android 12, app TIDAK diizinkan menyalakan ulang service dari latar belakang begitu saja (batasan resmi OS) kecuali sudah diberi exemption battery optimization — kalau belum, restart otomatis watchdog akan gagal diam-diam dan diganti notifikasi "Boomly berhenti" yang bisa diketuk langsung (Batch 124). Menonaktifkan battery optimization untuk Boomly (diminta saat pertama buka app) membuat restart otomatis benar-benar tanpa sentuhan.
 
 ## Build
 ```
