@@ -91,8 +91,9 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
   dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
 
-- **Fast Recovery exact alarm (Batch 127 → DIREVISI Batch 128, instruksi eksplisit
-  user)**: `SCHEDULE_EXACT_ALARM` SEKARANG punya UI minta izin — kartu "Pemulihan
+- **Fast Recovery exact alarm (Batch 127 → DIREVISI Batch 128 → DIMATIKAN
+  PERMANEN Batch 132, instruksi eksplisit user)**: `SCHEDULE_EXACT_ALARM` SEKARANG punya UI minta
+  izin — kartu "Pemulihan
   Cepat" di `SettingsScreen.kt` (status + deep-link
   `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, fallback App Info), opt-in murni, TIDAK ada
   dialog otomatis/onboarding. Desain = HEARTBEAT PROAKTIF (bukan reaktif Batch 127):
@@ -106,6 +107,24 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   "Alarms & reminders" → kontradiksi UI izin; kebijakan Play cuma alarm/kalender) dan
   `setAlarmClock()` (tanpa izin, tapi memunculkan ikon alarm/"next alarm" palsu di
   system UI). Kandidat kalau user mau zero-friction: `USE_EXACT_ALARM` (keputusan baru).
+  **STATUS Batch 132: DIMATIKAN PERMANEN** (`scheduleExactRecovery()` no-op, kartu
+  "Pemulihan Cepat" dihapus) — histori di atas = KONTEKS desain, BUKAN behavior aktif.
+  Alasan: heartbeat = exact alarm terus-menerus = ongkos baterai nyata, user
+  prioritaskan baterai di atas kecepatan pulih tambahan (~1-9mnt vs ~15mnt watchdog).
+  `canUseExactAlarm()` dibiarkan (dead code, gampang diaktifkan lagi 1 baris).
+
+- **Watchdog 15mnt + Fast Recovery heartbeat 1mnt (Batch 131, TOLAK instruksi
+  hapus TOTAL keduanya)**: user minta hapus demi "0% background activity kustom",
+  premis: keduanya cuma buat nutup celah widget basi. TIDAK AKURAT — fungsi
+  UTAMA `ServiceWatchdogWorker`/`WatchdogAlarmReceiver` = restart otomatis
+  `AudioEnhancerService` kalau dibunuh OS/OEM (hotfix URGENT Batch 124);
+  resync widget/tile cuma efek SAMPINGAN siklus yang sama. Hapus TOTAL (watchdog
+  IKUT dihapus) = regresi bug Batch 124, TIDAK ADA hubungan dengan target aslinya
+  (widget staleness, sudah tertutup via `updatePeriodMillis` 30mnt, Batch 131).
+  **JANGAN hapus/kurangi WATCHDOG 15mnt** dengan alasan "widget staleness" — kalau
+  user ulang minta, tunjukkan entry ini dulu sebelum eksekusi. **Beda dgn Batch 132**:
+  matikan HEARTBEAT SAJA (watchdog TETAP jalan) atas alasan BATERAI itu DIEKSEKUSI,
+  bukan ditolak — target & alasan beda, watchdog tidak disentuh sama sekali.
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -130,7 +149,14 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 130, tuning heartbeat Fast Recovery 2→1 menit — lantai
+- **Batch terakhir**: 132, Fast Recovery heartbeat (1mnt exact alarm) DIMATIKAN
+  PERMANEN demi baterai — watchdog 15mnt TIDAK disentuh. `ServiceWatchdogWorker.kt`
+  (schedule jadi no-op) + `SettingsScreen.kt` (kartu "Pemulihan Cepat" dihapus).
+  Lihat "Keputusan sadar" & LOG BATCH 132. **NOT VERIFIED** device, review manual OK.
+  Sebelumnya: 131, widget `updatePeriodMillis` 0→30 menit (Opsi B) —
+  watchdog+heartbeat DITOLAK dihapus TOTAL (regresi bug Batch 124), lihat "Keputusan
+  sadar" & LOG BATCH 131. Sebelumnya:
+  130 tuning heartbeat Fast Recovery 2→1 menit — lantai
   praktis (user konfirmasi 129 <3 mnt di device, minta "mentokin"; lihat LOG
   BATCH 130); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
   user. Sebelumnya: 129 tuning 5→2 menit (NOT VERIFIED); 128
@@ -192,6 +218,22 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 132** (`ServiceWatchdogWorker.kt`, `SettingsScreen.kt` — 2 file;
+  instruksi eksplisit user, alasan baterai): `scheduleExactRecovery()` jadi
+  no-op permanen (heartbeat 1mnt exact alarm dimatikan), kartu "Pemulihan
+  Cepat" dihapus dari Settings. Watchdog 15mnt TIDAK disentuh — auto-recovery
+  OS-kill tetap ada, cuma lebih lambat (~15mnt vs ~1-9mnt). Beda dgn
+  penolakan Batch 131 (lihat "Keputusan sadar"): target & alasan beda, bukan
+  kontradiksi. NOT VERIFIED device, review manual OK (brace/paren seimbang,
+  0 import orphan).
+- **Batch 131** (`widget_booster_info.xml` — 1 file; + README/CHANGELOG;
+  instruksi eksplisit user "Opsi A+B Hybrid"): `updatePeriodMillis` 0→30mnt
+  (Opsi B, native, 0 izin/wakelock baru). Opsi A: 0 kode — `onReceive()`
+  toggle SUDAH baca `isRunning` live sejak awal, diverifikasi bukan diubah.
+  **TOLAK** instruksi hapus watchdog+heartbeat total — premis user (keduanya
+  cuma buat widget) tidak akurat, fungsi utama = auto-recovery service dari
+  OS-kill (Batch 124); hapus = regresi. Lihat "Keputusan sadar". NOT VERIFIED
+  device, review manual OK (XML well-formed, 1 atribut).
 - **Batch 130** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
   konfirmasi Batch 129 pulih <3 menit di device, minta "mentokin"):
   `FAST_RECOVERY_INTERVAL_MS` 2→1 menit + sinkron komentar/KDoc +
@@ -1098,27 +1140,36 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Tuning heartbeat Fast Recovery 2→1 menit, lantai praktis (Batch 130;
-kode: `ServiceWatchdogWorker.kt` + strings ID/EN — 2 file; ZIP `Boomly_v130.zip`)
-→ SELESAI kode LENGKAP: `FAST_RECOVERY_INTERVAL_MS` 2→1 menit, komentar kelas/KDoc
-disinkron, `settings_fast_recovery_desc` ID/EN "±2 menit"→"±1 menit". User Batch 129
-konfirmasi pulih <3 mnt di device (lebih baik dari estimasi ≤~2-3 mnt) lalu minta
-"mentokin". 1 menit dipilih SEBAGAI LANTAI PRAKTIS (bukan tes teknis satu-satunya
-kemungkinan lebih rendah) — heartbeat ini jalan TERUS-MENERUS (bukan sekali tembak)
-selama service nyala, jadi di bawah ini murni nambah ongkos wake-up/baterai tanpa
-manfaat pulih yang terasa. **NOT VERIFIED** (sandbox TANPA toolchain: brace/paren
-balance tetap 19/19+124/124, XML well-formed, parity string 173=173; belum lolos
-CI/device dengan interval baru) →
-Remaining: (a) CI compile Batch 130; (b) device fisik: kill Boomly via task-swipe/OEM
-tanpa sentuh device → pulih terasa makin cepat kondisi non-Doze (bandingkan vs Batch
-129, Doze dalam tetap floor OS ~9 mnt, TIDAK regresi); (c) PANTAU baterai — kalau user
-lapor boros, kandidat balik naikkan konstanta lagi (1 baris, bukan regresi arsitektur)
-ATAU eksplorasi `USE_EXACT_ALARM`/battery-exempt utk lepas floor Doze beneran (lihat
-Keputusan sadar); (d) backlog lama: Auto-Profil (B122/123) & Spectrum (B120) NOT
-VERIFIED device; Sleep timer fade-out & Scheduler belum dikerjakan →
-Next Action: kalau user lanjut minta lebih cepat lagi → TEGASKAN ke user bahwa di bawah
-1 mnt trade-off baterai makin nyata utk heartbeat terus-menerus (bukan otomatis nurut
-tanpa disebutkan, sesuai SOP objective honesty) sebelum eksekusi; kalau user OK &
-device test Batch 130 lolos → tutup SELESAI+TERVALIDASI, lanjut validasi Auto-Profil
-ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out sesuai pilihan user.
-Batch berikutnya = 131.]
+[RESUME POINT: Fast Recovery heartbeat dimatikan permanen demi baterai (Batch 132;
+kode: `ServiceWatchdogWorker.kt`, `SettingsScreen.kt` — 2 file; ZIP `Boomly_v132.zip`)
+→ SELESAI: `scheduleExactRecovery()` no-op permanen (KDoc status di puncak kelas),
+`FAST_RECOVERY_INTERVAL_MS` dihapus, kartu "Pemulihan Cepat" dihapus dari
+`SettingsScreen.kt` (izin alarm sudah tak berpengaruh apa pun). Watchdog 15mnt
+(`ServiceWatchdogWorker`/`performWatchdogCheck`) TIDAK disentuh sama sekali — auto-
+recovery OS/OEM-kill (Batch 124) tetap ada, cuma lebih lambat (~15mnt, bukan ~1-9mnt).
+Beda dengan penolakan Batch 131 (hapus TOTAL watchdog+heartbeat, DITOLAK, masih
+berlaku) — sesi ini user klarifikasi tujuan asli (baterai, bukan "0% background"
+sebagai prinsip), jadi matikan HEARTBEAT SAJA itu tepat & DIEKSEKUSI, watchdog aman.
+`canUseExactAlarm()` dibiarkan dead code (gampang diaktifkan lagi kalau user berubah
+pikiran). Alarm exact lama di device existing (kalau ada) fire sekali terakhir lalu
+berhenti sendiri, 0 migrasi manual. **NOT VERIFIED** device fisik (sandbox tanpa
+toolchain; review manual: brace/paren 3 file seimbang, 0 import/simbol orphan) →
+Remaining: (a) CI compile Batch 132; (b) device fisik: konfirmasi baterai membaik
+vs sebelum Batch 132 (subjektif, user yang menilai); (c) device fisik: kill Boomly
+task-swipe → TIDAK disentuh sama sekali → cek masih pulih sendiri dalam ~15mnt lewat
+watchdog (regression-check paling penting sesi ini — memastikan auto-recovery beneran
+belum hilang, cuma melambat); (d) device fisik: buka Pengaturan → pastikan kartu
+"Pemulihan Cepat" sudah tidak muncul; (e) Batch 131 masih NOT VERIFIED juga (widget
+30mnt refresh + tap verify-live) — lihat RESUME sebelumnya di CHANGELOG/LOG BATCH 131
+kalau perlu detail test-nya lagi; (f) backlog lama tak tersentuh: Auto-Profil
+(B122/123) & Spectrum (B120) NOT VERIFIED device, Sleep timer fade-out & Scheduler
+belum dikerjakan, doc-debt KDoc `WatchdogAlarmReceiver.kt`+`AndroidManifest.xml`
+(Batch 127 stale) belum disentuh, string `settings_fast_recovery_*` di strings.xml
+jadi orphan (0 dampak fungsional, cleanup opsional lain sesi) →
+Next Action: user konfirmasi (b)+(c)+(d) di device fisik → tutup SELESAI+TERVALIDASI
+(sekalian Batch 131 kalau belum). Kalau baterai TETAP jadi masalah setelah ini →
+kandidat berikutnya turunkan watchdog dari 15mnt (floor WorkManager periodic, TIDAK
+BISA lebih jarang dari 15mnt — itu limit OS keras, bukan pilihan app) atau evaluasi
+sumber baterai lain (audio effect processing itu sendiri, dsb) — BUKAN watchdog lagi,
+itu sudah di floor OS. Kalau tidak ada respons → lanjut backlog Fase 8 ROI #6 EQ curve
+editor / Sleep timer fade-out sesuai pilihan user berikutnya. Batch berikutnya = 133.]

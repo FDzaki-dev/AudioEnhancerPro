@@ -301,99 +301,15 @@ fun SettingsScreen(
             }
         }
 
-        // Batch 128 (laporan user: "izin alarm tidak ada di pengaturan aplikasi, waktu
-        // pulih sama saja dengan watchdog"): kartu status + tombol izin "Alarms &
-        // reminders" (`SCHEDULE_EXACT_ALARM`) yang dipakai Fast Recovery (heartbeat exact
-        // alarm, lihat `ServiceWatchdogWorker.kt`). Root cause: targetSdk 34 → di Android
-        // 14+ izin ini DEFAULT DITOLAK untuk app baru, Batch 127 sengaja tanpa UI minta izin
-        // → fast-recovery no-op selamanya. Ini SATU-SATUNYA jalur minta izin itu (opt-in
-        // user, tidak ada dialog otomatis). Status di-poll 1,5 dtk (pola sama Sleep timer di
-        // bawah, 0 API lifecycle baru): begitu user balik dari halaman izin sistem, kartu
-        // ikut berubah sendiri; kalau baru granted saat service jalan, heartbeat langsung
-        // dipasang (tak nunggu tick 15 menit). State LOKAL, 0 hoist ViewModel.
-        Spacer(modifier = Modifier.height(20.dp))
-        SectionLabel(text = stringResource(R.string.settings_fast_recovery_section_title))
-        var exactAlarmGranted by remember { mutableStateOf(ServiceWatchdogWorker.canUseExactAlarm(context)) }
-        LaunchedEffect(Unit) {
-            while (true) {
-                val grantedNow = ServiceWatchdogWorker.canUseExactAlarm(context)
-                if (grantedNow && !exactAlarmGranted &&
-                    PrefsHelper.getUserWantsRunning(context) && AudioEnhancerService.isRunning
-                ) {
-                    ServiceWatchdogWorker.scheduleExactRecovery(context)
-                }
-                exactAlarmGranted = grantedNow
-                delay(1500L)
-            }
-        }
-        SkeuCard {
-            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.settings_fast_recovery_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalSkeuTokens.current.mutedText
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        stringResource(R.string.settings_fast_recovery_status_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        stringResource(
-                            if (exactAlarmGranted) R.string.settings_fast_recovery_status_on
-                            else R.string.settings_fast_recovery_status_off
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (exactAlarmGranted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
-                }
-                if (!exactAlarmGranted) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        stringResource(R.string.settings_fast_recovery_off_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = LocalSkeuTokens.current.mutedText
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedButton(
-                        onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            // ACTION_REQUEST_SCHEDULE_EXACT_ALARM = API 31+ (kartu ini cuma
-                            // menampilkan tombol kalau izin belum granted, yang mustahil di
-                            // API < 31 — guard SDK tetap dipasang buat lint). Gagal buka
-                            // (OEM tanpa halaman itu) → fallback App Info (pola sama
-                            // OemAutostartHelper.openAppInfoFallback).
-                            try {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    val exactAlarmIntent = android.content.Intent(
-                                        android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
-                                    ).apply { data = Uri.parse("package:${context.packageName}") }
-                                    context.startActivity(exactAlarmIntent)
-                                }
-                            } catch (_: Exception) {
-                                try {
-                                    val appInfoIntent = android.content.Intent(
-                                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                                    ).apply { data = Uri.parse("package:${context.packageName}") }
-                                    context.startActivity(appInfoIntent)
-                                } catch (_: Exception) { }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(stringResource(R.string.settings_fast_recovery_button))
-                    }
-                }
-            }
-        }
-
+        // Batch 132 (instruksi eksplisit user, alasan baterai): kartu "Pemulihan Cepat"
+        // (izin Alarm & pengingat, Batch 128) DIHAPUS — heartbeat exact-alarm di
+        // baliknya sudah dimatikan permanen (`ServiceWatchdogWorker.scheduleExactRecovery()`
+        // sekarang no-op). Mempertahankan kartu ini akan menampilkan status/tombol izin
+        // yang TIDAK LAGI berpengaruh ke behavior apa pun — UI bohong, lebih baik dihapus
+        // daripada dibiarkan. String `settings_fast_recovery_*` di strings.xml sengaja
+        // TIDAK dihapus batch ini (di luar scope Tunnel Vision, 0 dampak fungsional
+        // dibiarkan — lihat "Temuan terbuka"). Pemulihan otomatis sekarang: watchdog 15
+        // menit saja (`ServiceWatchdogWorker`, tidak berubah).
         // Batch 119 (Fase 8 roadmap item B, "Sleep timer" bagian 1 — instruksi user "next"):
         // auto-stop Boomly setelah N menit. Sumber kebenaran = `PrefsHelper` (waktu berakhir
         // absolut) yang dibaca Service; UI cuma menulis lewat `AudioEnhancerService.

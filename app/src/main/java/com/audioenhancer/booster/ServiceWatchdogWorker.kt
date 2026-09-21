@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.SystemClock
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -16,6 +15,13 @@ import androidx.work.WorkerParameters
 import java.util.concurrent.TimeUnit
 
 /**
+ * **STATUS (Batch 132): heartbeat Fast Recovery (exact alarm ±1 menit, histori Batch
+ * 127-130 di bawah) DINONAKTIFKAN permanen — `scheduleExactRecovery()` sekarang no-op,
+ * instruksi eksplisit user demi baterai (alarm ini bangun CPU terus-menerus selama
+ * service hidup). Pemulihan dari OS/OEM-kill SEKARANG HANYA lewat watchdog 15 menit di
+ * bawah (TIDAK berubah) — histori Batch 127-130 dipertahankan sebagai KONTEKS desain,
+ * BUKAN deskripsi behavior aktif saat ini.**
+ *
  * Lapisan kedua di luar `START_STICKY` + `stopWithTask="false"` (Batch 9). Kedua
  * mekanisme itu diverifikasi SUDAH BENAR (lihat insiden v1.34 di PROJECT_STATE.md),
  * tapi tetap bisa kalah lawan battery/task manager proprietary OEM (MIUI, ColorOS,
@@ -87,8 +93,11 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
 
     companion object {
         private const val UNIQUE_WORK_NAME = "audio_booster_service_watchdog"
+        // Batch 132: FAST_RECOVERY_INTERVAL_MS (dulu 60*1000L) dihapus — heartbeat
+        // dimatikan (lihat scheduleExactRecovery()), konstanta interval tak lagi
+        // dipakai. REQUEST_CODE tetap perlu, dipakai cancelExactRecovery() buat
+        // mencabut alarm lama yang mungkin masih nyangkut di device existing.
         private const val FAST_RECOVERY_REQUEST_CODE = 9401
-        private const val FAST_RECOVERY_INTERVAL_MS = 60 * 1000L
 
         /** Panggil sekali di Application.onCreate(). `KEEP` supaya jadwal yang sudah
          *  ada TIDAK di-reset ulang tiap kali process app baru dibuat (app dibuka
@@ -172,25 +181,22 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
          *  128): dipanggil `AudioEnhancerService.onStartCommand` (service mulai), tick sehat
          *  `performWatchdogCheck`, dan caller saat recovery masih dibutuhkan. No-op total
          *  kalau `SCHEDULE_EXACT_ALARM` belum granted (API < 31 selalu diizinkan). */
+        /** Batch 132 (instruksi eksplisit user, alasan baterai): heartbeat exact-alarm
+         *  DIMATIKAN — fungsi ini sekarang no-op permanen. Beda dari watchdog 15 menit
+         *  `WorkManager` di bawah (di-batch OS, murah baterai, TIDAK diubah): alarm ini
+         *  `setExactAndAllowWhileIdle` bangunin CPU TERUS-MENERUS tiap ±1 menit selama
+         *  service hidup (bisa berjam-jam) — itu sumber baterai NYATA yang diminta
+         *  dihemat. Trade-off SADAR: pulih dari OS/OEM-kill sekarang HANYA lewat watchdog
+         *  15 menit (`performWatchdogCheck` di bawah, TIDAK diubah) — bukan hilang, cuma
+         *  lebih lambat (~15mnt vs ~1-9mnt sebelumnya). Semua caller (onStartCommand
+         *  service, tick sehat watchdog, `WatchdogAlarmReceiver`) TETAP manggil fungsi
+         *  ini aman (no-op) — 0 file lain perlu disentuh untuk logic ini. Alarm lama yang
+         *  mungkin masih ter-pasang di device existing (sebelum update ini) akan fire
+         *  SEKALI terakhir, `performWatchdogCheck` tetap jalan normal (resync + restart
+         *  kalau perlu), lalu berhenti sendiri karena reschedule berikutnya no-op — 0
+         *  alarm yatim permanen. */
         fun scheduleExactRecovery(context: Context) {
-            try {
-                if (!canUseExactAlarm(context)) return
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                val intent = Intent(context, WatchdogAlarmReceiver::class.java)
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    FAST_RECOVERY_REQUEST_CODE,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-                val triggerAt = SystemClock.elapsedRealtime() + FAST_RECOVERY_INTERVAL_MS
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent)
-            } catch (e: Exception) {
-                // Race: izin dicabut user tepat setelah canScheduleExactAlarms() true di
-                // atas (SecurityException), atau OEM restriction lain saat runtime. Aman
-                // diam — watchdog 15 menit WorkManager TETAP jalan sebagai jaring pengaman.
-                android.util.Log.w("ServiceWatchdogWorker", "setExactAndAllowWhileIdle gagal, lanjut andalkan watchdog 15 menit", e)
-            }
+            // Sengaja kosong — lihat KDoc di atas (Batch 132).
         }
 
         /** Batch 128. Cabut heartbeat — dipanggil jalur ACTION_STOP (user/QS Tile/Widget/

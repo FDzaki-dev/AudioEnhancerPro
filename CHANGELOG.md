@@ -1,5 +1,65 @@
 # Changelog
 
+## Batch 132: Fast Recovery heartbeat dimatikan permanen — hemat baterai, watchdog 15mnt tetap jalan
+
+User menegaskan tujuan asli: hemat baterai, bukan "0% background" sebagai
+prinsip abstrak. Ini mengubah kalkulasinya dari sesi sebelumnya (Batch 131):
+watchdog 15 menit (`WorkManager`) MURAH secara baterai — di-batch OS,
+bukan exact alarm — sementara heartbeat Fast Recovery (`AlarmManager`
+`setExactAndAllowWhileIdle`, ±1 menit, Batch 127-130) MEMANG mahal — bangun
+CPU terus-menerus selama service hidup, bisa berjam-jam. Fix yang tepat:
+matikan heartbeat SAJA, watchdog tetap jalan sebagai jaring pengaman
+auto-recovery (bukan dihapus seperti sempat diminta Batch 131 — itu tetap
+ditolak, alasannya tidak berubah).
+
+**Perubahan** (2 file kode): `ServiceWatchdogWorker.kt` —
+`scheduleExactRecovery()` jadi no-op permanen (KDoc status ditambah di
+puncak kelas), `FAST_RECOVERY_INTERVAL_MS` dihapus (tak terpakai),
+`cancelExactRecovery()`/`canUseExactAlarm()`/watchdog 15mnt TIDAK diubah.
+`SettingsScreen.kt` — kartu "Pemulihan Cepat" (izin Alarm & pengingat)
+dihapus total (mempertahankannya = UI menampilkan status/tombol yang tak
+lagi berpengaruh ke behavior apa pun).
+
+**Trade-off jujur**: pulih dari OS/OEM-kill sekarang HANYA lewat watchdog
+15 menit (bisa ±15 menit, sama seperti sebelum Batch 127) — bukan hilang,
+cuma lebih lambat dari heartbeat 1 menit yang dilepas. Alarm exact lama
+yang mungkin masih terpasang di device existing (sebelum update ini) akan
+fire sekali terakhir lalu berhenti sendiri (reschedule berikutnya no-op) —
+0 alarm yatim permanen, 0 migrasi manual dibutuhkan.
+
+**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual:
+brace/paren balance 3 file tersentuh tetap seimbang, 0 import/simbol
+orphan (`canUseExactAlarm` jadi dead code publik, sengaja dibiarkan —
+gampang diaktifkan lagi 1 baris kalau user berubah pikiran).
+
+## Batch 131: Widget dapat refresh pasif native 30 menit (Opsi B) — watchdog/heartbeat TETAP dipertahankan
+
+User minta hapus total watchdog (15 menit) + heartbeat Fast Recovery (1 menit)
+demi "0% background activity kustom", dengan alasan keduanya cuma perlu buat
+nutup celah widget home screen yang bisa nampilin status basi tanpa batas
+waktu. Setelah dicek ke kode: premis itu TIDAK akurat — fungsi UTAMA
+`ServiceWatchdogWorker`/`WatchdogAlarmReceiver` adalah restart otomatis
+`AudioEnhancerService` kalau dibunuh OS/OEM (hotfix URGENT Batch 124, laporan
+user), resync widget/tile cuma efek SAMPINGAN dari siklus yang sama. Hapus
+total = regresi ke bug Batch 124 (efek audio mati diam-diam, tak pernah
+pulih sendiri) — TIDAK dieksekusi, dilaporkan ke user (lihat chat).
+
+**Perubahan** (1 file kode): `widget_booster_info.xml` —
+`updatePeriodMillis` 0→1800000 (lantai 30 menit Android, native, 0
+wakelock/izin baru). Ini jaring pengaman TERAKHIR untuk tampilan pasif;
+jalur utama tetap push instan (`refreshAll()`) + resync
+`onStartListening()`/`onResume()` (Batch 126) + watchdog 15 menit (Batch
+125), semua TIDAK diubah.
+
+**Diverifikasi (Opsi A, 0 perubahan kode)**: `BoosterWidgetProvider.onReceive()`
+sudah SEJAK AWAL membaca `AudioEnhancerService.isRunning` (live, `@Volatile`)
+langsung sebelum eksekusi start/stop — bukan dari teks widget yang mungkin
+basi. Jadi tap widget sudah 0% salah aksi walau tampilan sempat basi; tidak
+ada regresi behavior untuk ditutup di jalur ini.
+
+**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual: XML
+well-formed, 1 atribut diubah, 0 logic Kotlin disentuh.
+
 ## Batch 130: Fast Recovery ditekan ke lantai praktis — heartbeat 2 menit jadi 1 menit
 
 User konfirmasi Batch 129 pulih di bawah 3 menit di device (lebih baik dari

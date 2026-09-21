@@ -44,14 +44,8 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
   (jaring pengaman terakhir, ≤15 menit — Batch 125), DAN setiap kali shade Quick
   Settings atau app dibuka (jauh lebih sering, Batch 126) — jadi praktiknya
   hampir selalu sinkron seketika begitu device disentuh, bukan nunggu 15 menit.
-  Fast Recovery (Batch 127-130): selama Boomly aktif, app memasang alarm
-  pengecekan tiap ±1 menit (heartbeat `AlarmManager` exact). Kalau sistem
-  mematikan service, alarm ini menyalakannya lagi otomatis ≤~1-9 menit —
-  tanpa nunggu watchdog 15 menit. Butuh izin "Alarm & pengingat": kartu
-  "Pemulihan Cepat" di Pengaturan (ikon ⚙️) menampilkan status izin + tombol
-  langsung ke halaman izinnya (Android 14+: default belum diizinkan). Tanpa
-  izin ini, watchdog 15 menit jalan seperti biasa. Belum divalidasi di device
-  fisik.
+  (Fast Recovery heartbeat ±1 menit, Batch 127-130, DIMATIKAN Batch 132 demi
+  baterai — lihat "Batasan jujur".)
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
@@ -59,9 +53,9 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
-- Fast Recovery (Batch 127-130) butuh izin "Alarm & pengingat" — Android 14+ default BELUM diizinkan, aktifkan lewat kartu "Pemulihan Cepat" di Pengaturan. Heartbeat ±1 menit — lantai praktis (bukan limit OS) dipilih demi baterai, karena alarm ini jalan terus-menerus selama service hidup (sampai ~9 menit saat Doze kalau Boomly belum dikecualikan dari optimasi baterai; lantai itu tidak tembus meski request dipercepat). Kalau OEM/pengguna melakukan Force Stop, Android menghapus SEMUA alarm app (tidak ada API yang bisa mencegah) — pulih baru saat app dibuka lagi. Belum diverifikasi di device fisik.
+- Fast Recovery heartbeat (±1 menit, Batch 127-130) DIMATIKAN permanen sejak Batch 132 (instruksi eksplisit user, alasan baterai) — alarm exact itu bangun CPU terus-menerus selama service hidup, ongkos baterai nyata untuk percepatan pulih ~1-9mnt vs watchdog 15mnt. Kartu "Pemulihan Cepat" di Pengaturan ikut dihapus (izin alarm sudah tak berpengaruh ke behavior apa pun). Pemulihan otomatis sekarang murni watchdog 15 menit (di atas).
 - Sejak Android 12, app TIDAK diizinkan menyalakan ulang service dari latar belakang begitu saja (batasan resmi OS) kecuali sudah diberi exemption battery optimization — kalau belum, restart otomatis watchdog akan gagal diam-diam dan diganti notifikasi "Boomly berhenti" yang bisa diketuk langsung (Batch 124). Menonaktifkan battery optimization untuk Boomly (diminta saat pertama buka app) membuat restart otomatis benar-benar tanpa sentuhan.
-- Widget home screen bisa nyangkut menampilkan status basi (mis. tetap "Aktif" walau service sudah mati) kalau app di-kill keras (tidak ada hook OS setara `TileService.onStartListening()` buat widget) — sejak Batch 126 balik konsisten begitu shade Quick Settings ATAU app dibuka (paling sering dipakai), watchdog 15 menit (Batch 125) cuma jaring pengaman kalau device sama sekali tidak disentuh.
+- Widget home screen tidak punya hook OS setara `TileService.onStartListening()` — tampilan pasif tetap bisa basi sesaat kalau app di-kill keras, TAPI dibatasi ≤30 menit sejak Batch 131 (`updatePeriodMillis` native Android, lantai OS, 0 wakelock/izin tambahan) sebagai jaring pengaman TERAKHIR; praktiknya jauh lebih cepat lewat resync begitu shade Quick Settings/app dibuka (Batch 126) atau watchdog 15 menit (Batch 125). Tap toggle widget SENDIRI tidak pernah salah aksi akibat ini — keputusan start/stop selalu baca `AudioEnhancerService.isRunning` langsung (live), bukan teks widget yang mungkin basi.
 
 ## Build
 ```
