@@ -149,7 +149,12 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 133, EQ curve editor drag-point (Fase 8 A, ROI #6) —
+- **Batch terakhir**: 135, tombol "Reset Equalizer" (semua band → 0 mB) di kartu
+  Equalizer Manual — `BoosterScreen.kt` + strings ID/EN. **NOT VERIFIED**.
+  Sebelumnya: 134, Scheduler harian nyala/mati (Fase 8 B, ROI #7;
+  fade-out Timer Tidur DILEWATI atas pilihan user) — `ScheduleWorker.kt` (baru) +
+  `PrefsHelper.kt` + `SettingsScreen.kt` + strings ID/EN. **NOT VERIFIED**.
+  Sebelumnya: 133, EQ curve editor drag-point (Fase 8 A, ROI #6) —
   `EqCurveEditor.kt` (baru) + `BoosterScreen.kt` (sisip ke `EqualizerSection`).
   0 perubahan backend. **NOT VERIFIED** device, review manual OK. Sebelumnya:
   132, Fast Recovery heartbeat (1mnt exact alarm) DIMATIKAN PERMANEN demi
@@ -191,7 +196,8 @@ sepihak.
   (compile+runtime OK, implisit memvalidasi hotfix Batch 113). SELESAI.
 - **Sleep timer** (Batch 119, Fase 8 B bagian 1): Pengaturan → "Timer Tidur"
   15/30/45/60/90/120 mnt; habis waktu = jalur `ACTION_STOP` (sama tombol
-  Matikan). **NOT VERIFIED**. Sisa: fade-out volume, Scheduler jam/event.
+  Matikan). **NOT VERIFIED**. Sisa: fade-out volume (BLOCKED keputusan user;
+  user pilih SKIP di Batch 134). Scheduler harian: lihat Batch 134.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -220,6 +226,20 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 135** (`BoosterScreen.kt` + strings ID/EN — 1 file+strings; user
+  "urgent"): `EqualizerSection` (saat expanded) dapat `OutlinedButton` "Reset
+  Equalizer" → tiap band `levels[band]=0` + `onBandChange` (jalur sama slider/kurva
+  & reset preset Flat; 0 sentuh Service/ViewModel). Nonaktif kalau sudah flat.
+  NOT VERIFIED (brace/paren seimbang, parity strings 184=184).
+- **Batch 134** (`ScheduleWorker.kt` baru, `PrefsHelper.kt`, `SettingsScreen.kt` +
+  strings ID/EN — 3 file+strings; Fase 8 B ROI #7, user pilih "Skip fade-out,
+  kerjakan Scheduler dulu"): Pengaturan → "Jadwal Otomatis": toggle + jam nyala/
+  mati harian (TimePickerDialog). Rantai `OneTimeWork` unik (event terdekat),
+  persist lintas reboot; event telat >60 mnt dilewati. Start diblokir Android
+  12+ → notifikasi ketuk-untuk-nyalakan. 0 sentuh Service/Manifest/BootReceiver.
+  NOT VERIFIED (review manual: brace/paren 3 file seimbang, parity strings
+  183=183, R.string ter-resolve). Screenshot user (device): kurva↔slider EQ
+  terlihat sinkron; label "14 kHz" terpotong tepi kanan (belum diperbaiki).
 - **Batch 133** (`EqCurveEditor.kt` baru, `BoosterScreen.kt` — 2 file; Fase 8
   A ROI #6, instruksi user pilih dari backlog ROI): kurva EQ drag-point,
   pelengkap slider `EqualizerSection` (share state `levels`/callback yang
@@ -890,7 +910,11 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`). Section
   "Timer Tidur" (Batch 119) — tombol durasi 15-120 mnt + sisa waktu (poll 1 dtk).
   Section "Pemulihan Cepat" (Batch 128) — status izin "Alarm & pengingat" + tombol
-  deep-link (poll 1,5 dtk).
+  deep-link (poll 1,5 dtk) — DIHAPUS Batch 132. Section "Jadwal Otomatis" (Batch 134) —
+  toggle + 2 tombol jam (`ScheduleTimeRow`), tulis `PrefsHelper` lalu `ScheduleWorker.reschedule()`.
+- `ScheduleWorker.kt` (Batch 134) — rantai `OneTimeWork` unik `boomly_daily_schedule`,
+  event terdekat nyala/mati; `requestStart()`/`requestStop()`; fallback notifikasi channel
+  sendiri (id 1003). `nextOccurrence()` internal (belum ada unit test).
 - `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
   Tile — `onStartListening()` juga resync widget tiap shade dibuka, Batch 126),
   `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
@@ -1116,8 +1140,9 @@ Tunnel Vision, maks 3 file kode/batch.
 - Sleep timer — [x] auto-stop (Batch 119, NOT VERIFIED); sisa: fade-out
   volume (butuh keputusan user: fade STREAM_MUSIC + restore volume, atau
   fade kekuatan efek saja).
-- Scheduler jam/event tertentu via `WorkManager` (pola sudah ada di
-  `ServiceWatchdogWorker`, tinggal extend).
+- [x] Scheduler harian nyala/mati via `WorkManager` (`ScheduleWorker.kt`, Batch
+  134, NOT VERIFIED). Sisa: preset per jadwal (butuh intent baru di Service),
+  hari tertentu, event non-jam.
 
 **C. Reliability & Compat (extend Fase 1/4)**
 - Fallback `Equalizer` via `DynamicsProcessing` (Batch 87) — validasi
@@ -1148,36 +1173,21 @@ Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
 Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, USER-CONFIRMED
 WORKING. 5) ✅ Auto-profile per output device (B) — kode SELESAI Batch 122,
 NOT VERIFIED. 6) ✅ EQ curve editor (A) — kode SELESAI Batch 133, NOT
-VERIFIED. Berikutnya: 7) Sleep timer fade-out + Scheduler (sisa poin 3,
-BLOCKED: butuh keputusan user fade STREAM_MUSIC vs fade kekuatan efek) 8)
-sisanya sesuai kebutuhan user.
+VERIFIED. 7) ✅ Scheduler harian — kode SELESAI Batch 134, NOT VERIFIED
+(fade-out Timer Tidur masih BLOCKED/di-skip user: fade STREAM_MUSIC vs kekuatan
+efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: EQ curve editor drag-point (Batch 133; kode: `EqCurveEditor.kt` BARU +
-`BoosterScreen.kt` — 2 file; ZIP `Boomly_v133.zip`) → SELESAI kode: composable
-"controlled" murni (0 state gain internal, baca `levels` yang sama dipakai slider
-`EqualizerSection`, tulis lewat `onBandChange` — drag kurva ↔ slider real-time sinkron,
-0 duplikasi source-of-truth). Titik per band drag VERTIKAL saja (gain; frekuensi tetap,
-bukan parametric EQ). Interpolasi cubic bezier titik-tengah antar segmen, area fill ke
-garis 0 gain, label freq (`formatFreqLabel`, reuse) + nilai mB saat drag aktif. 0
-perubahan ke `AudioEnhancerService.kt`/`BoosterViewModel.kt` — backend band get/set/
-range sudah lengkap sejak Batch 87. **NOT VERIFIED** device fisik (sandbox tanpa
-toolchain; review manual: brace/paren 2 file seimbang, API — `PointerInputScope`/
-`DrawScope` sbg `Density`, `Color.toArgb()`, `getOrElse` literal Short — diverifikasi
-terhadap pola yang SUDAH terbukti jalan di file lain, bukan tebakan) →
-Remaining: (a) CI compile Batch 133; (b) device fisik: buka Equalizer Manual (expand
-kartu), drag tiap titik kurva naik/turun → cek audio ikut berubah + slider di bawah
-ikut gerak real-time (regression-check paling penting: shared-state sinkron); (c)
-device fisik: drag slider → cek titik kurva di atas ikut gerak (arah sebaliknya); (d)
-cek label freq/nilai mB kebaca jelas di layar kecil (density tinggi) — belum dites di
-device fisik manapun; (e) Batch 131 & 132 juga masih NOT VERIFIED — lihat RESUME/LOG
-BATCH masing-masing kalau perlu detail test-nya lagi (widget 30mnt refresh, watchdog
-auto-recovery ~15mnt) →
-Next Action: user konfirmasi (b)+(c)+(d) di device fisik → tutup SELESAI+TERVALIDASI
-(sekalian 131+132 kalau belum, backlog device-test makin menumpuk — prioritaskan sesi
-device-test kalau memungkinkan, bukan nambah fitur baru terus tanpa validasi). Kalau
-lolos → lanjut ROI #7 Sleep timer fade-out + Scheduler, TAPI fade-out BLOCKED: perlu
-keputusan user dulu (fade `STREAM_MUSIC` volume + restore, ATAU fade kekuatan efek
-Boomly saja) — tanya user sebelum eksekusi, jangan tebak (2 pendekatan beda behavior
-signifikan, salah pilih = rework). Batch berikutnya = 134.]
+[RESUME POINT: Reset Equalizer (Batch 135; kode: `BoosterScreen.kt` + strings ID/EN; ZIP
+`Boomly_v135.zip`) → SELESAI kode, **NOT VERIFIED** (sandbox tanpa toolchain; review manual).
+Sebelumnya Batch 134 (Scheduler harian, `ScheduleWorker.kt`) juga NOT VERIFIED →
+Remaining: (a) CI compile Batch 134+135; (b) device fisik Batch 135: buka Equalizer Manual,
+geser beberapa band/kurva → tap "Reset Equalizer" → cek semua slider+titik kurva balik ke 0 mB,
+suara ikut flat, tombol nonaktif saat sudah flat; (c) device fisik Batch 134: Pengaturan → Jadwal
+Otomatis (set jam nyala/mati +2-3 mnt, app ditutup; Android 12+ cek notifikasi ketuk-untuk-nyalakan;
+cek tahan reboot); (d) label "14 kHz" di kurva EQ terpotong tepi kanan (screenshot user Batch 133),
+belum diperbaiki; (e) Batch 131-133 masih NOT VERIFIED →
+Next Action: user konfirmasi (b)+(c) → tutup SELESAI+TERVALIDASI; prioritaskan device-test daripada
+fitur baru. Opsi lanjutan (butuh keputusan user): fade-out Timer Tidur (STREAM_MUSIC vs kekuatan efek),
+preset per jadwal, hari tertentu. Batch berikutnya = 136.]

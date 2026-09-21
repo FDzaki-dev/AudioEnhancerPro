@@ -1649,6 +1649,27 @@ private fun EqualizerSection(
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
+                // Batch 135: tombol reset SEMUA band ke 0 mB (flat). Jalur sama persis dgn
+                // slider/kurva (`levels[band] = ...` + `onBandChange`) dan reset preset
+                // Flat (`onEqualizerBand(band, 0)`) — 0 logic baru di Service/ViewModel.
+                // Nonaktif kalau semua band sudah flat.
+                val resetLevel = 0.coerceIn(levelMin.toInt(), levelMax.toInt()).toShort()
+                val allFlat = levels.all { it == resetLevel }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    OutlinedButton(
+                        onClick = {
+                            for (band in 0 until bandCount) {
+                                levels[band] = resetLevel
+                                onBandChange(band, resetLevel)
+                            }
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        enabled = !allFlat
+                    ) {
+                        Text(stringResource(R.string.eq_reset))
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
                 // Batch 133: kurva drag-point di atas slider — pelengkap, bukan
                 // pengganti (lihat KDoc EqCurveEditor.kt). Share instance `levels`
                 // yang sama dgn slider di bawah: drag kurva langsung nge-update

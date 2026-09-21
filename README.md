@@ -19,7 +19,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 > Catatan: mockup HTML/CSS murni untuk validasi warna/layout/shape cepat — bukan 1:1 pixel-perfect dari Compose asli (terutama font & icon vector), tapi cukup akurat untuk keputusan "arah ini cocok atau enggak" sebelum build+install APK penuh.
 
 ## Fitur
-- Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem). Equalizer manual: kurva drag-point (Batch 133) + slider per-pita, dua-duanya share state yang sama (real-time sinkron).
+- Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem). Equalizer manual: kurva drag-point (Batch 133) + slider per-pita, dua-duanya share state yang sama (real-time sinkron). Tombol "Reset Equalizer" mengembalikan semua band ke 0 mB.
 - Preset Cepat (bawaan) + preset custom — simpan pengaturan Bass/Virtualizer/Loudness (+ Equalizer manual) jadi preset sendiri.
 - Tema — 5 varian dark-only: **Midnight Glass** (default), **Aurora Glass**, **Neumorphism** (gaya "Blade Runner", aksen Misty Pine Forest), **Studio Equalizer**, dan **Serene M3** (Material 3 flat-tonal). Dipilih lewat toggle eksklusif di layar utama; semua toggle mati = Midnight Glass. Material You (dynamic color, Android 12+) opsional, default mati.
 - Layout layar utama: 1 scroll vertikal (default); Mode Tab Horizontal (Kontrol/Tampilan/Bantuan) opsional di Pengaturan.
@@ -46,10 +46,12 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
   hampir selalu sinkron seketika begitu device disentuh, bukan nunggu 15 menit.
   (Fast Recovery heartbeat ±1 menit, Batch 127-130, DIMATIKAN Batch 132 demi
   baterai — lihat "Batasan jujur".)
+- Jadwal Otomatis (Pengaturan) — nyalakan/matikan Boomly otomatis tiap hari di jam pilihanmu. Default mati. Lihat "Batasan jujur" soal ketepatan jam & Android 12+.
 - Update langsung dari dalam app — dicek otomatis tiap app dibuka, muncul banner "Unduh & Pasang" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
 - Timer Tidur memakai timer di dalam service (bukan alarm exact): kalau CPU HP sempat deep-sleep, berhenti bisa tertunda sampai CPU bangun; kalau service dibunuh OS sebelum waktunya habis, timer hilang. Belum ada fade-out volume.
+- Jadwal Otomatis memakai WorkManager (bukan alarm exact): jam bisa tertunda beberapa menit saat HP hemat daya, dan event yang telat lebih dari 60 menit dilewati. Di Android 12+ penyalaan otomatis dari latar belakang bisa diblokir sistem — kalau begitu muncul notifikasi "Waktunya menyalakan Boomly", ketuk untuk nyala (nonaktifkan battery optimization untuk Boomly supaya nyala tanpa sentuhan). Belum ada pilihan preset per jadwal / hari tertentu.
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.

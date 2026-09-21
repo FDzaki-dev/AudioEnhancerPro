@@ -377,6 +377,91 @@ fun SettingsScreen(
             }
         }
 
+        // Batch 134 (Fase 8 B, ROI #7 "Scheduler", instruksi user "kerjakan Scheduler dulu"
+        // — fade-out Timer Tidur DILEWATI atas pilihan user): jadwal harian nyala/mati.
+        // UI cuma baca/tulis `PrefsHelper` lalu panggil `ScheduleWorker.reschedule()` (pola
+        // sama Auto-profile di bawah: state lokal, 0 hoist ke ViewModel/MainActivity).
+        // Jam nyala == jam mati DITOLAK (event bertabrakan), bukan diam-diam diubah.
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_schedule_section_title))
+        var scheduleEnabled by remember { mutableStateOf(PrefsHelper.getScheduleEnabled(context)) }
+        var scheduleStartMin by remember { mutableStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
+        var scheduleStopMin by remember { mutableStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
+        var scheduleTimeConflict by remember { mutableStateOf(false) }
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = scheduleEnabled,
+                            onValueChange = {
+                                scheduleEnabled = it
+                                PrefsHelper.setScheduleEnabled(context, it)
+                                ScheduleWorker.reschedule(context)
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            },
+                            role = Role.Switch
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.settings_schedule_title),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            stringResource(R.string.settings_schedule_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalSkeuTokens.current.mutedText
+                        )
+                    }
+                    SkeuSwitch(checked = scheduleEnabled, onCheckedChange = null)
+                }
+                if (scheduleEnabled) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ScheduleTimeRow(stringResource(R.string.settings_schedule_start_label), scheduleStartMin) { picked ->
+                        if (picked == scheduleStopMin) {
+                            scheduleTimeConflict = true
+                        } else {
+                            scheduleTimeConflict = false
+                            scheduleStartMin = picked
+                            PrefsHelper.setScheduleStartMinutes(context, picked)
+                            ScheduleWorker.reschedule(context)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    ScheduleTimeRow(stringResource(R.string.settings_schedule_stop_label), scheduleStopMin) { picked ->
+                        if (picked == scheduleStartMin) {
+                            scheduleTimeConflict = true
+                        } else {
+                            scheduleTimeConflict = false
+                            scheduleStopMin = picked
+                            PrefsHelper.setScheduleStopMinutes(context, picked)
+                            ScheduleWorker.reschedule(context)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
+                    if (scheduleTimeConflict) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_schedule_same_time),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.settings_schedule_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+            }
+        }
+
         // Batch 122 (Fase 8 roadmap item B, ROI #5 "Auto-profile per output device" —
         // instruksi user "next"): extend `OutputRouteBanner`/`onOutputRouteChanged()`
         // (Service, Batch 82/83, SUDAH ADA) dari sekadar info banner jadi BENERAN
@@ -655,6 +740,35 @@ private fun SleepTimerDurationRow(minutes: List<Int>, enabled: Boolean, onPick: 
             ) {
                 Text(stringResource(R.string.settings_sleep_timer_minutes_short, m))
             }
+        }
+    }
+}
+
+/** Batch 134: 1 baris jadwal — label kiri, tombol jam kanan (TimePickerDialog platform,
+ *  format 12/24 jam ikut setelan sistem). Hasil dikembalikan sebagai menit-dalam-hari. */
+@Composable
+private fun ScheduleTimeRow(label: String, minutesOfDay: Int, onPick: (Int) -> Unit) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f)
+        )
+        OutlinedButton(onClick = {
+            android.app.TimePickerDialog(
+                context,
+                { _, hour, minute -> onPick(hour * 60 + minute) },
+                minutesOfDay / 60,
+                minutesOfDay % 60,
+                android.text.format.DateFormat.is24HourFormat(context)
+            ).show()
+        }) {
+            Text(String.format(java.util.Locale.ROOT, "%02d:%02d", minutesOfDay / 60, minutesOfDay % 60))
         }
     }
 }

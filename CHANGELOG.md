@@ -1,5 +1,38 @@
 # Changelog
 
+## Batch 135: Tombol Reset Equalizer
+
+Kartu Equalizer Manual (saat dibuka) punya tombol **Reset Equalizer** — semua band
+kembali ke 0 mB (flat) sekali ketuk; slider dan titik kurva ikut kembali. Tombol nonaktif
+kalau semua band sudah flat.
+
+**Perubahan** (1 file kode + strings ID/EN): `BoosterScreen.kt` — `EqualizerSection`
+menulis 0 ke tiap band lewat jalur yang sama dengan slider/kurva (`onBandChange`).
+0 perubahan Service/ViewModel. **NOT VERIFIED** device fisik — review manual: brace/paren
+seimbang, parity strings ID/EN 184=184.
+
+## Batch 134: Jadwal Otomatis harian — nyala/mati Boomly di jam pilihan (Fase 8 B, ROI #7)
+
+Pengaturan → **Jadwal Otomatis**: toggle + jam "Nyalakan" dan jam "Matikan" (tiap hari).
+Default mati (opt-in); jam nyala dan jam mati tidak boleh sama. Fade-out Timer Tidur
+sengaja dilewati (pilihan user), tetap belum ada.
+
+**Perubahan** (3 file kode + strings ID/EN): `ScheduleWorker.kt` (BARU) — rantai
+`OneTimeWork` unik untuk event terdekat, lanjut sendiri tiap event selesai, tahan reboot
+(WorkManager). Nyala = `requestStart()`, mati = `requestStop()` (jalur yang sama dengan tombol
+"Matikan", watchdog tidak menghidupkan lagi). `PrefsHelper.kt` — 3 key jadwal.
+`SettingsScreen.kt` — kartu jadwal + `ScheduleTimeRow` (TimePickerDialog sistem).
+0 perubahan Service/Manifest/BootReceiver.
+
+**Batasan jujur**: WorkManager tidak exact — jam bisa tertunda saat hemat daya; event telat
+>60 menit dilewati (HP mati semalaman tidak boleh mematikan service yang baru dinyalakan). Di
+Android 12+ penyalaan dari latar belakang bisa diblokir sistem → muncul notifikasi "Waktunya
+menyalakan Boomly", ketuk untuk nyala (exemption battery optimization = nyala tanpa sentuhan).
+Belum ada: preset per jadwal, hari tertentu.
+
+**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual: brace/paren 3 file
+seimbang, parity strings ID/EN 183=183, semua `R.string` ter-resolve.
+
 ## Batch 133: EQ curve editor drag-point (Fase 8 A, ROI #6)
 
 Diferensiator vs app EQ generic — kurva visual di atas slider EQ manual yang
