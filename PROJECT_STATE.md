@@ -149,11 +149,13 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 132, Fast Recovery heartbeat (1mnt exact alarm) DIMATIKAN
-  PERMANEN demi baterai — watchdog 15mnt TIDAK disentuh. `ServiceWatchdogWorker.kt`
-  (schedule jadi no-op) + `SettingsScreen.kt` (kartu "Pemulihan Cepat" dihapus).
-  Lihat "Keputusan sadar" & LOG BATCH 132. **NOT VERIFIED** device, review manual OK.
-  Sebelumnya: 131, widget `updatePeriodMillis` 0→30 menit (Opsi B) —
+- **Batch terakhir**: 133, EQ curve editor drag-point (Fase 8 A, ROI #6) —
+  `EqCurveEditor.kt` (baru) + `BoosterScreen.kt` (sisip ke `EqualizerSection`).
+  0 perubahan backend. **NOT VERIFIED** device, review manual OK. Sebelumnya:
+  132, Fast Recovery heartbeat (1mnt exact alarm) DIMATIKAN PERMANEN demi
+  baterai — watchdog 15mnt TIDAK disentuh (`ServiceWatchdogWorker.kt` +
+  `SettingsScreen.kt`, lihat "Keputusan sadar" & LOG BATCH 132). Sebelumnya:
+  131, widget `updatePeriodMillis` 0→30 menit (Opsi B) —
   watchdog+heartbeat DITOLAK dihapus TOTAL (regresi bug Batch 124), lihat "Keputusan
   sadar" & LOG BATCH 131. Sebelumnya:
   130 tuning heartbeat Fast Recovery 2→1 menit — lantai
@@ -218,6 +220,13 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 133** (`EqCurveEditor.kt` baru, `BoosterScreen.kt` — 2 file; Fase 8
+  A ROI #6, instruksi user pilih dari backlog ROI): kurva EQ drag-point,
+  pelengkap slider `EqualizerSection` (share state `levels`/callback yang
+  sama, 0 duplikasi). 0 perubahan backend (`AudioEnhancerService.kt`/
+  `BoosterViewModel.kt` tidak disentuh — API band get/set sudah lengkap
+  sejak Batch 87). NOT VERIFIED device, review manual OK (brace/paren
+  seimbang, API diverifikasi terhadap pola yang sudah terbukti di file lain).
 - **Batch 132** (`ServiceWatchdogWorker.kt`, `SettingsScreen.kt` — 2 file;
   instruksi eksplisit user, alasan baterai): `scheduleExactRecovery()` jadi
   no-op permanen (heartbeat 1mnt exact alarm dimatikan), kartu "Pemulihan
@@ -1088,8 +1097,11 @@ Tunnel Vision, maks 3 file kode/batch.
   Loudness Enhancer. Kode SELESAI Batch 121. Status: **NOT VERIFIED** — no
   toolchain lokal buat compile-check, belum diuji device fisik (lihat LOG
   BATCH Batch 121).
-- Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
-  prioritas — diferensiator vs app EQ generic).
+- [x] Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
+  prioritas — diferensiator vs app EQ generic). Kode SELESAI Batch 133
+  (`EqCurveEditor.kt`, pelengkap slider `EqualizerSection` yang sudah ada,
+  bukan pengganti). Status: **NOT VERIFIED** — belum diuji device fisik
+  (lihat LOG BATCH 133).
 - Reverb/Spatial toggle (`PresetReverb`/`EnvironmentalReverb`) — pelengkap
   Virtualizer, API sekelas efek yang sudah ada.
 - Per-app profile (target session per package, bukan cuma session 0) —
@@ -1135,41 +1147,37 @@ Tunnel Vision, maks 3 file kode/batch.
 Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
 Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, USER-CONFIRMED
 WORKING. 5) ✅ Auto-profile per output device (B) — kode SELESAI Batch 122,
-NOT VERIFIED. Berikutnya: 6) EQ curve editor (A) 7) Sleep timer fade-out +
-Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
+NOT VERIFIED. 6) ✅ EQ curve editor (A) — kode SELESAI Batch 133, NOT
+VERIFIED. Berikutnya: 7) Sleep timer fade-out + Scheduler (sisa poin 3,
+BLOCKED: butuh keputusan user fade STREAM_MUSIC vs fade kekuatan efek) 8)
+sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Fast Recovery heartbeat dimatikan permanen demi baterai (Batch 132;
-kode: `ServiceWatchdogWorker.kt`, `SettingsScreen.kt` — 2 file; ZIP `Boomly_v132.zip`)
-→ SELESAI: `scheduleExactRecovery()` no-op permanen (KDoc status di puncak kelas),
-`FAST_RECOVERY_INTERVAL_MS` dihapus, kartu "Pemulihan Cepat" dihapus dari
-`SettingsScreen.kt` (izin alarm sudah tak berpengaruh apa pun). Watchdog 15mnt
-(`ServiceWatchdogWorker`/`performWatchdogCheck`) TIDAK disentuh sama sekali — auto-
-recovery OS/OEM-kill (Batch 124) tetap ada, cuma lebih lambat (~15mnt, bukan ~1-9mnt).
-Beda dengan penolakan Batch 131 (hapus TOTAL watchdog+heartbeat, DITOLAK, masih
-berlaku) — sesi ini user klarifikasi tujuan asli (baterai, bukan "0% background"
-sebagai prinsip), jadi matikan HEARTBEAT SAJA itu tepat & DIEKSEKUSI, watchdog aman.
-`canUseExactAlarm()` dibiarkan dead code (gampang diaktifkan lagi kalau user berubah
-pikiran). Alarm exact lama di device existing (kalau ada) fire sekali terakhir lalu
-berhenti sendiri, 0 migrasi manual. **NOT VERIFIED** device fisik (sandbox tanpa
-toolchain; review manual: brace/paren 3 file seimbang, 0 import/simbol orphan) →
-Remaining: (a) CI compile Batch 132; (b) device fisik: konfirmasi baterai membaik
-vs sebelum Batch 132 (subjektif, user yang menilai); (c) device fisik: kill Boomly
-task-swipe → TIDAK disentuh sama sekali → cek masih pulih sendiri dalam ~15mnt lewat
-watchdog (regression-check paling penting sesi ini — memastikan auto-recovery beneran
-belum hilang, cuma melambat); (d) device fisik: buka Pengaturan → pastikan kartu
-"Pemulihan Cepat" sudah tidak muncul; (e) Batch 131 masih NOT VERIFIED juga (widget
-30mnt refresh + tap verify-live) — lihat RESUME sebelumnya di CHANGELOG/LOG BATCH 131
-kalau perlu detail test-nya lagi; (f) backlog lama tak tersentuh: Auto-Profil
-(B122/123) & Spectrum (B120) NOT VERIFIED device, Sleep timer fade-out & Scheduler
-belum dikerjakan, doc-debt KDoc `WatchdogAlarmReceiver.kt`+`AndroidManifest.xml`
-(Batch 127 stale) belum disentuh, string `settings_fast_recovery_*` di strings.xml
-jadi orphan (0 dampak fungsional, cleanup opsional lain sesi) →
+[RESUME POINT: EQ curve editor drag-point (Batch 133; kode: `EqCurveEditor.kt` BARU +
+`BoosterScreen.kt` — 2 file; ZIP `Boomly_v133.zip`) → SELESAI kode: composable
+"controlled" murni (0 state gain internal, baca `levels` yang sama dipakai slider
+`EqualizerSection`, tulis lewat `onBandChange` — drag kurva ↔ slider real-time sinkron,
+0 duplikasi source-of-truth). Titik per band drag VERTIKAL saja (gain; frekuensi tetap,
+bukan parametric EQ). Interpolasi cubic bezier titik-tengah antar segmen, area fill ke
+garis 0 gain, label freq (`formatFreqLabel`, reuse) + nilai mB saat drag aktif. 0
+perubahan ke `AudioEnhancerService.kt`/`BoosterViewModel.kt` — backend band get/set/
+range sudah lengkap sejak Batch 87. **NOT VERIFIED** device fisik (sandbox tanpa
+toolchain; review manual: brace/paren 2 file seimbang, API — `PointerInputScope`/
+`DrawScope` sbg `Density`, `Color.toArgb()`, `getOrElse` literal Short — diverifikasi
+terhadap pola yang SUDAH terbukti jalan di file lain, bukan tebakan) →
+Remaining: (a) CI compile Batch 133; (b) device fisik: buka Equalizer Manual (expand
+kartu), drag tiap titik kurva naik/turun → cek audio ikut berubah + slider di bawah
+ikut gerak real-time (regression-check paling penting: shared-state sinkron); (c)
+device fisik: drag slider → cek titik kurva di atas ikut gerak (arah sebaliknya); (d)
+cek label freq/nilai mB kebaca jelas di layar kecil (density tinggi) — belum dites di
+device fisik manapun; (e) Batch 131 & 132 juga masih NOT VERIFIED — lihat RESUME/LOG
+BATCH masing-masing kalau perlu detail test-nya lagi (widget 30mnt refresh, watchdog
+auto-recovery ~15mnt) →
 Next Action: user konfirmasi (b)+(c)+(d) di device fisik → tutup SELESAI+TERVALIDASI
-(sekalian Batch 131 kalau belum). Kalau baterai TETAP jadi masalah setelah ini →
-kandidat berikutnya turunkan watchdog dari 15mnt (floor WorkManager periodic, TIDAK
-BISA lebih jarang dari 15mnt — itu limit OS keras, bukan pilihan app) atau evaluasi
-sumber baterai lain (audio effect processing itu sendiri, dsb) — BUKAN watchdog lagi,
-itu sudah di floor OS. Kalau tidak ada respons → lanjut backlog Fase 8 ROI #6 EQ curve
-editor / Sleep timer fade-out sesuai pilihan user berikutnya. Batch berikutnya = 133.]
+(sekalian 131+132 kalau belum, backlog device-test makin menumpuk — prioritaskan sesi
+device-test kalau memungkinkan, bukan nambah fitur baru terus tanpa validasi). Kalau
+lolos → lanjut ROI #7 Sleep timer fade-out + Scheduler, TAPI fade-out BLOCKED: perlu
+keputusan user dulu (fade `STREAM_MUSIC` volume + restore, ATAU fade kekuatan efek
+Boomly saja) — tanya user sebelum eksekusi, jangan tebak (2 pendekatan beda behavior
+signifikan, salah pilih = rework). Batch berikutnya = 134.]

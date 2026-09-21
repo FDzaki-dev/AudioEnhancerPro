@@ -1,5 +1,27 @@
 # Changelog
 
+## Batch 133: EQ curve editor drag-point (Fase 8 A, ROI #6)
+
+Diferensiator vs app EQ generic — kurva visual di atas slider EQ manual yang
+sudah ada, titik per band bisa di-drag langsung (vertikal = gain, horizontal
+tetap/tidak bisa diubah, bukan parametric EQ). Curve smooth via cubic bezier
+titik-tengah antar segmen, area fill ke garis 0 gain, label frekuensi +
+nilai mB saat drag aktif.
+
+**Perubahan** (2 file kode): `EqCurveEditor.kt` (BARU) — composable
+"controlled" murni, 0 state internal untuk gain (baca `levels` yang sama
+dipakai slider, tulis lewat `onBandChange`). `BoosterScreen.kt` —
+`EqualizerSection` sisipkan `EqCurveEditor` di atas loop slider, share
+instance `levels`/callback yang sama persis (drag kurva ↔ slider real-time
+sinkron, 0 duplikasi source-of-truth). **0 perubahan** ke
+`AudioEnhancerService.kt`/`BoosterViewModel.kt` — backend band get/set/range
+sudah lengkap sejak Batch 87, ini murni tambahan visual.
+
+**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual:
+brace/paren 2 file seimbang, tipe & API (`getOrElse` literal Short,
+`PointerInputScope`/`DrawScope` sebagai `Density`, `Color.toArgb()`) diverifikasi
+manual terhadap pola yang SUDAH terbukti jalan di file lain (bukan tebakan).
+
 ## Batch 132: Fast Recovery heartbeat dimatikan permanen — hemat baterai, watchdog 15mnt tetap jalan
 
 User menegaskan tujuan asli: hemat baterai, bukan "0% background" sebagai

@@ -1649,6 +1649,22 @@ private fun EqualizerSection(
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
+                // Batch 133: kurva drag-point di atas slider — pelengkap, bukan
+                // pengganti (lihat KDoc EqCurveEditor.kt). Share instance `levels`
+                // yang sama dgn slider di bawah: drag kurva langsung nge-update
+                // slider (dan sebaliknya), 0 state kedua.
+                EqCurveEditor(
+                    bandCount = bandCount,
+                    levelMin = levelMin,
+                    levelMax = levelMax,
+                    centerFreqsHz = centerFreqsHz,
+                    levels = levels,
+                    onBandChange = { band, level ->
+                        levels[band] = level
+                        onBandChange(band, level)
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 for (band in 0 until bandCount) {
                     FeatureControl(
                         title = formatFreqLabel(centerFreqsHz.getOrElse(band) { 0 }),
