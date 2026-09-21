@@ -1,5 +1,31 @@
 # Changelog
 
+## Batch 129: Fast Recovery lebih cepat — heartbeat 5 menit jadi 2 menit
+
+User konfirmasi heartbeat Batch 128 sudah aktif dan pulih dalam ~5 menit,
+lalu minta dipercepat kalau memungkinkan. Interval exact alarm heartbeat
+diturunkan dari 5 menit ke 2 menit — perubahan satu konstanta, tanpa ubah
+mekanisme (masih `setExactAndAllowWhileIdle`, masih dipasang ulang tiap
+fire/tick sehat, masih dicabut di `ACTION_STOP`).
+
+**Perubahan**: `ServiceWatchdogWorker.kt` — `FAST_RECOVERY_INTERVAL_MS` 5→2
+menit, komentar kelas & KDoc disinkron. `settings_fast_recovery_desc` (ID+EN)
+— "±5 menit"/"5 minutes" jadi "±2 menit"/"2 minutes".
+
+**Batas jujur**: Android tetap membatasi `setExactAndAllowWhileIdle` ke lantai
+sistem ±9 menit per app kalau device sudah masuk Doze dalam dan app belum
+di-exempt dari battery optimization — menurunkan angka request TIDAK menembus
+lantai itu. Percepatan terasa nyata di kondisi non-Doze / awal Doze (app baru
+di-background, jendela maintenance awal), bukan di semua kondisi. Alarm lebih
+sering = wake-up lebih sering; kalau user lapor baterai lebih boros, kandidat
+baliknya cukup naikkan lagi konstanta ini (bukan regresi arsitektur).
+
+**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
+paren balance tetap seimbang, XML well-formed, parity string ID/EN 173=173).
+Uji device: nyalakan Boomly, kill via task-swipe/OEM tanpa sentuh device lagi
+→ bandingkan waktu pulih vs pengalaman Batch 128 (harus terasa lebih cepat di
+kondisi layar mati biasa, bukan Doze dalam berkepanjangan).
+
 ## Batch 128: Fix Fast Recovery — izin "Alarm & pengingat" bisa diminta dari app + heartbeat proaktif
 
 Laporan user: izin "Alarm & pengingat" tidak ada di pengaturan aplikasi, dan

@@ -44,9 +44,9 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
   (jaring pengaman terakhir, ≤15 menit — Batch 125), DAN setiap kali shade Quick
   Settings atau app dibuka (jauh lebih sering, Batch 126) — jadi praktiknya
   hampir selalu sinkron seketika begitu device disentuh, bukan nunggu 15 menit.
-  Fast Recovery (Batch 127-128): selama Boomly aktif, app memasang alarm
-  pengecekan tiap ±5 menit (heartbeat `AlarmManager` exact). Kalau sistem
-  mematikan service, alarm ini menyalakannya lagi otomatis ≤~5-9 menit —
+  Fast Recovery (Batch 127-129): selama Boomly aktif, app memasang alarm
+  pengecekan tiap ±2 menit (heartbeat `AlarmManager` exact). Kalau sistem
+  mematikan service, alarm ini menyalakannya lagi otomatis ≤~2-9 menit —
   tanpa nunggu watchdog 15 menit. Butuh izin "Alarm & pengingat": kartu
   "Pemulihan Cepat" di Pengaturan (ikon ⚙️) menampilkan status izin + tombol
   langsung ke halaman izinnya (Android 14+: default belum diizinkan). Tanpa
@@ -59,7 +59,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
-- Fast Recovery (Batch 127-128) butuh izin "Alarm & pengingat" — Android 14+ default BELUM diizinkan, aktifkan lewat kartu "Pemulihan Cepat" di Pengaturan. Heartbeat ±5 menit (sampai ~9 menit saat Doze kalau Boomly belum dikecualikan dari optimasi baterai). Kalau OEM/pengguna melakukan Force Stop, Android menghapus SEMUA alarm app (tidak ada API yang bisa mencegah) — pulih baru saat app dibuka lagi. Belum diverifikasi di device fisik.
+- Fast Recovery (Batch 127-129) butuh izin "Alarm & pengingat" — Android 14+ default BELUM diizinkan, aktifkan lewat kartu "Pemulihan Cepat" di Pengaturan. Heartbeat ±2 menit (sampai ~9 menit saat Doze kalau Boomly belum dikecualikan dari optimasi baterai — lantai OS ini tidak tembus meski request dipercepat). Kalau OEM/pengguna melakukan Force Stop, Android menghapus SEMUA alarm app (tidak ada API yang bisa mencegah) — pulih baru saat app dibuka lagi. Belum diverifikasi di device fisik.
 - Sejak Android 12, app TIDAK diizinkan menyalakan ulang service dari latar belakang begitu saja (batasan resmi OS) kecuali sudah diberi exemption battery optimization — kalau belum, restart otomatis watchdog akan gagal diam-diam dan diganti notifikasi "Boomly berhenti" yang bisa diketuk langsung (Batch 124). Menonaktifkan battery optimization untuk Boomly (diminta saat pertama buka app) membuat restart otomatis benar-benar tanpa sentuhan.
 - Widget home screen bisa nyangkut menampilkan status basi (mis. tetap "Aktif" walau service sudah mati) kalau app di-kill keras (tidak ada hook OS setara `TileService.onStartListening()` buat widget) — sejak Batch 126 balik konsisten begitu shade Quick Settings ATAU app dibuka (paling sering dipakai), watchdog 15 menit (Batch 125) cuma jaring pengaman kalau device sama sekali tidak disentuh.
 

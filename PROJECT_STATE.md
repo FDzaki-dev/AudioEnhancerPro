@@ -96,8 +96,10 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   Cepat" di `SettingsScreen.kt` (status + deep-link
   `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, fallback App Info), opt-in murni, TIDAK ada
   dialog otomatis/onboarding. Desain = HEARTBEAT PROAKTIF (bukan reaktif Batch 127):
-  alarm ~5 mnt dipasang saat service start, dipasang ulang tiap fire/tick sehat, dicabut
-  di ACTION_STOP. Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
+  alarm ~2 mnt (Batch 129, turun dari ~5 mnt — instruksi eksplisit user) dipasang saat
+  service start, dipasang ulang tiap fire/tick sehat, dicabut di ACTION_STOP. Floor OS
+  ~9 mnt/app non-exempt tetap berlaku pas Doze dalam (turunin request tak nembus floor).
+  Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
   (fast-recovery Batch 127 no-op total) + desain reaktif (pulih ≥ watchdog 15 mnt).
   SENGAJA TIDAK dipakai: `USE_EXACT_ALARM` (auto-grant tapi app hilang dari daftar
   "Alarms & reminders" → kontradiksi UI izin; kebijakan Play cuma alarm/kalender) dan
@@ -127,9 +129,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 128, fix Fast Recovery — kartu izin "Alarm & pengingat" di
-  Settings + heartbeat exact alarm proaktif (lihat LOG BATCH 128); **NOT
-  VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user. Sebelumnya: 127
+- **Batch terakhir**: 129, tuning heartbeat Fast Recovery 5→2 menit (user
+  konfirmasi 128 jalan, minta lebih cepat — lihat LOG BATCH 129); **NOT
+  VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user. Sebelumnya: 128
+  fix Fast Recovery — kartu izin "Alarm & pengingat" di Settings + heartbeat
+  exact alarm proaktif (NOT VERIFIED); 127
   fitur fast-recovery exact alarm (NOT VERIFIED, desain reaktif — direvisi 128);
   126 hotfix widget/QS
   Tile nunggu watchdog 15 menit kelamaan, ditambah resync cepat di
@@ -186,6 +190,14 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 129** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
+  konfirmasi Batch 128 jalan "~5 menit", minta lebih cepat kalau bisa):
+  `FAST_RECOVERY_INTERVAL_MS` 5→2 menit + sinkron komentar kelas/KDoc +
+  `settings_fast_recovery_desc` ID/EN "±5 menit"→"±2 menit". Catatan jujur:
+  floor OS ~9 mnt/app non-exempt di Doze DALAM tetap berlaku (turunin request
+  gak nembus floor itu) — benefit nyata di kondisi non-Doze/Doze awal. Status:
+  **NOT VERIFIED** (statis: brace/paren 19/19+123/123 tetap balance, XML
+  well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
 - **Batch 128** (`ServiceWatchdogWorker.kt`, `AudioEnhancerService.kt`,
   `SettingsScreen.kt`, strings ID/EN; laporan user "izin alarm tak ada di
   pengaturan app + waktu pulih sama dgn watchdog"): 2 root cause — izin default
@@ -1074,23 +1086,22 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Fix Fast Recovery — izin alarm + heartbeat proaktif (Batch 128;
-kode: `ServiceWatchdogWorker.kt`, `AudioEnhancerService.kt`, `SettingsScreen.kt` +
-strings ID/EN — 3 file; ZIP `Boomly_v128.zip`)
-→ SELESAI kode LENGKAP: (a) kartu "Pemulihan Cepat" di Settings (status izin
-`canScheduleExactAlarms()` + tombol `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`); (b)
-heartbeat exact alarm ~5 mnt dipasang di `onStartCommand`, dipasang ulang tiap
-fire/tick sehat, dicabut di ACTION_STOP. **NOT VERIFIED** (sandbox TANPA toolchain:
-cuma brace/paren balance 3 file, XML well-formed, parity string 173=173; belum
-lolos CI/device) →
-Remaining: (a) CI compile Batch 128; (b) device fisik: buka kartu, beri izin, status
-jadi "Diizinkan"; nyalakan Boomly, kill via task-swipe/OEM tanpa sentuh device → pulih
-≤~9 mnt (bandingkan tanpa izin = 15 mnt, tidak boleh regresi); (c) DOC-DEBT: sinkronkan
-komentar basi `WatchdogAlarmReceiver.kt` KDoc + `AndroidManifest.xml` (Batch 127) —
-komentar saja; (d) backlog lama: Auto-Profil (B122/123) & Spectrum (B120) NOT VERIFIED
-device; Sleep timer fade-out & Scheduler belum dikerjakan →
-Next Action: kalau CI/device gagal → hotfix di file yang sama (maks 3); kalau lolos →
-tutup Batch 127-128 SELESAI+TERVALIDASI, lanjut (c) lalu validasi Auto-Profil ATAU Fase 8
-ROI #6 EQ curve editor / Sleep timer fade-out sesuai pilihan user. Kandidat
-zero-friction izin: `USE_EXACT_ALARM` (butuh keputusan user, lihat Keputusan sadar).
-Batch berikutnya = 129.]
+[RESUME POINT: Tuning heartbeat Fast Recovery 5→2 menit (Batch 129; kode:
+`ServiceWatchdogWorker.kt` + strings ID/EN — 2 file; ZIP `Boomly_v129.zip`)
+→ SELESAI kode LENGKAP: `FAST_RECOVERY_INTERVAL_MS` 5→2 menit, komentar kelas/KDoc
+disinkron, `settings_fast_recovery_desc` ID/EN "±5 menit"→"±2 menit". User Batch 128
+sudah konfirmasi heartbeat ~5 mnt AKTIF di device (izin granted, recovery jalan) — ini
+murni tuning kecepatan, bukan fix bug baru. **NOT VERIFIED** (sandbox TANPA toolchain:
+brace/paren balance tetap 19/19+123/123, XML well-formed, parity string 173=173; belum
+lolos CI/device dengan interval baru) →
+Remaining: (a) CI compile Batch 129; (b) device fisik: kill Boomly via task-swipe/OEM
+tanpa sentuh device → pulih terasa ≤~2-3 mnt kondisi non-Doze (Doze dalam tetap floor OS
+~9 mnt, TIDAK regresi vs Batch 128 di kondisi itu); (c) backlog lama: Auto-Profil
+(B122/123) & Spectrum (B120) NOT VERIFIED device; Sleep timer fade-out & Scheduler belum
+dikerjakan →
+Next Action: kalau CI/device gagal (mis. floor OS bikin user gak ngerasa beda sama
+sekali, atau battery complaint) → user putuskan balik ke 5 mnt atau coba
+`USE_EXACT_ALARM` (zero-friction, lihat Keputusan sadar) untuk lepas floor non-exempt;
+kalau lolos & user puas → tutup Batch 129 SELESAI+TERVALIDASI, lanjut validasi Auto-Profil
+ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out sesuai pilihan user.
+Batch berikutnya = 130.]

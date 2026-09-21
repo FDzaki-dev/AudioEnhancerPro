@@ -63,7 +63,9 @@ import java.util.concurrent.TimeUnit
  * HEARTBEAT PROAKTIF — selama user ingin service hidup, exact alarm SELALU terpasang
  * (dipasang `AudioEnhancerService.onStartCommand`, dipasang ulang tiap fire/tick sehat,
  * dicabut `cancelExactRecovery()` di jalur ACTION_STOP). Service dibunuh OS → alarm tetap
- * hidup (AlarmManager di luar proses app) → fire ≤~5 mnt (≤~9 mnt di Doze non-exempt) →
+ * hidup (AlarmManager di luar proses app) → fire ≤~2 mnt (≤~9 mnt di Doze non-exempt,
+ * OS enforce floor ini utk app non-exempt battery — request di bawah ini TIDAK ngaruh
+ * pas Doze dalam) →
  * `performWatchdogCheck` nemu `!isRunning` → restart via jalur exempted. Batas jujur:
  * force-stop OEM/pengguna menghapus semua alarm app (tidak ada API yang bisa mencegah).
  * **NOT VERIFIED** — lihat catatan RESUME POINT.
@@ -86,7 +88,7 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
     companion object {
         private const val UNIQUE_WORK_NAME = "audio_booster_service_watchdog"
         private const val FAST_RECOVERY_REQUEST_CODE = 9401
-        private const val FAST_RECOVERY_INTERVAL_MS = 5 * 60 * 1000L
+        private const val FAST_RECOVERY_INTERVAL_MS = 2 * 60 * 1000L
 
         /** Panggil sekali di Application.onCreate(). `KEEP` supaya jadwal yang sudah
          *  ada TIDAK di-reset ulang tiap kali process app baru dibuat (app dibuka
@@ -160,8 +162,10 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
             return needsRecovery
         }
 
-        /** Batch 127/128. Pasang (atau ganti — PendingIntent identik = alarm yang sama
-         *  ter-replace) 1 exact alarm ~5 menit ke depan. Dipakai sebagai HEARTBEAT (Batch
+        /** Batch 127/128/129. Pasang (atau ganti — PendingIntent identik = alarm yang sama
+         *  ter-replace) 1 exact alarm ~2 menit ke depan (Batch 129, turun dari ~5 menit —
+         *  user konfirmasi ~5 mnt jalan, minta lebih cepat; Doze non-exempt tetap floor
+         *  ~9 mnt, lihat komentar kelas). Dipakai sebagai HEARTBEAT (Batch
          *  128): dipanggil `AudioEnhancerService.onStartCommand` (service mulai), tick sehat
          *  `performWatchdogCheck`, dan caller saat recovery masih dibutuhkan. No-op total
          *  kalau `SCHEDULE_EXACT_ALARM` belum granted (API < 31 selalu diizinkan). */
