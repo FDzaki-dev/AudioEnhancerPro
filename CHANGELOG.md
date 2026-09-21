@@ -1,5 +1,31 @@
 # Changelog
 
+## Batch 130: Fast Recovery ditekan ke lantai praktis — heartbeat 2 menit jadi 1 menit
+
+User konfirmasi Batch 129 pulih di bawah 3 menit di device (lebih baik dari
+estimasi), lalu minta ditekan semaksimal mungkin ("mentokin"). Interval
+diturunkan sekali lagi, dari 2 menit ke 1 menit — masih perubahan satu
+konstanta, mekanisme sama persis dengan Batch 128/129.
+
+**Perubahan**: `ServiceWatchdogWorker.kt` — `FAST_RECOVERY_INTERVAL_MS` 2→1
+menit, komentar kelas & KDoc disinkron. `settings_fast_recovery_desc` (ID+EN)
+— "±2 menit"/"2 minutes" jadi "±1 menit"/"1 minute".
+
+**Batas jujur (kenapa 1 menit, bukan lebih rendah)**: heartbeat ini terpasang
+TERUS-MENERUS selama service ingin hidup — bukan alarm sekali tembak. Di
+bawah ±1 menit, tiap penurunan mulai murni menambah frekuensi wake-up CPU
+(ongkos baterai) tanpa tambahan manfaat kecepatan pulih yang benar-benar
+terasa oleh user, apalagi lantai OS ±9 menit/app non-exempt di Doze dalam
+tetap berlaku sama seperti sebelumnya — turunin request tidak menembus lantai
+itu. 1 menit dipilih sebagai titik SENGAJA berhenti demi stabilitas baterai
+(P0 SOP), bukan hasil satu-satunya nilai teknis yang mungkin.
+
+**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
+paren balance tetap seimbang, XML well-formed, parity string ID/EN 173=173).
+Uji device: kill Boomly via task-swipe/OEM tanpa sentuh device lagi →
+bandingkan waktu pulih vs Batch 129, DAN pantau pemakaian baterai harian
+beberapa hari — kalau terasa lebih boros, gampang dibalik (1 baris kode).
+
 ## Batch 129: Fast Recovery lebih cepat — heartbeat 5 menit jadi 2 menit
 
 User konfirmasi heartbeat Batch 128 sudah aktif dan pulih dalam ~5 menit,

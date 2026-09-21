@@ -236,7 +236,7 @@
 
     <!-- Batch 128: kartu Pemulihan Cepat (izin Alarms & reminders) -->
     <string name="settings_fast_recovery_section_title">Pemulihan Cepat</string>
-    <string name="settings_fast_recovery_desc">Boomly memasang alarm pengecekan tiap ±2 menit. Kalau sistem mematikan Boomly diam-diam, alarm ini menyalakannya lagi otomatis — lebih cepat dari watchdog 15 menit. Butuh izin \"Alarm &amp; pengingat\".</string>
+    <string name="settings_fast_recovery_desc">Boomly memasang alarm pengecekan tiap ±1 menit. Kalau sistem mematikan Boomly diam-diam, alarm ini menyalakannya lagi otomatis — lebih cepat dari watchdog 15 menit. Butuh izin \"Alarm &amp; pengingat\".</string>
     <string name="settings_fast_recovery_status_label">Izin Alarm &amp; pengingat</string>
     <string name="settings_fast_recovery_status_on">Diizinkan</string>
     <string name="settings_fast_recovery_status_off">Belum diizinkan</string>

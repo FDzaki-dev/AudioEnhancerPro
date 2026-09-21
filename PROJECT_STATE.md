@@ -96,10 +96,11 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   Cepat" di `SettingsScreen.kt` (status + deep-link
   `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, fallback App Info), opt-in murni, TIDAK ada
   dialog otomatis/onboarding. Desain = HEARTBEAT PROAKTIF (bukan reaktif Batch 127):
-  alarm ~2 mnt (Batch 129, turun dari ~5 mnt — instruksi eksplisit user) dipasang saat
-  service start, dipasang ulang tiap fire/tick sehat, dicabut di ACTION_STOP. Floor OS
-  ~9 mnt/app non-exempt tetap berlaku pas Doze dalam (turunin request tak nembus floor).
-  Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
+  alarm ~1 mnt (Batch 130, turun dari ~5 mnt via 129 — instruksi eksplisit user, "mentok"
+  = lantai praktis SENGAJA dipilih krn heartbeat jalan terus-menerus, bukan limit OS)
+  dipasang saat service start, dipasang ulang tiap fire/tick sehat, dicabut di ACTION_STOP.
+  Floor OS ~9 mnt/app non-exempt tetap berlaku pas Doze dalam (turunin request tak nembus
+  floor itu). Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
   (fast-recovery Batch 127 no-op total) + desain reaktif (pulih ≥ watchdog 15 mnt).
   SENGAJA TIDAK dipakai: `USE_EXACT_ALARM` (auto-grant tapi app hilang dari daftar
   "Alarms & reminders" → kontradiksi UI izin; kebijakan Play cuma alarm/kalender) dan
@@ -129,9 +130,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 129, tuning heartbeat Fast Recovery 5→2 menit (user
-  konfirmasi 128 jalan, minta lebih cepat — lihat LOG BATCH 129); **NOT
-  VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user. Sebelumnya: 128
+- **Batch terakhir**: 130, tuning heartbeat Fast Recovery 2→1 menit — lantai
+  praktis (user konfirmasi 129 <3 mnt di device, minta "mentokin"; lihat LOG
+  BATCH 130); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
+  user. Sebelumnya: 129 tuning 5→2 menit (NOT VERIFIED); 128
   fix Fast Recovery — kartu izin "Alarm & pengingat" di Settings + heartbeat
   exact alarm proaktif (NOT VERIFIED); 127
   fitur fast-recovery exact alarm (NOT VERIFIED, desain reaktif — direvisi 128);
@@ -190,6 +192,16 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 130** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
+  konfirmasi Batch 129 pulih <3 menit di device, minta "mentokin"):
+  `FAST_RECOVERY_INTERVAL_MS` 2→1 menit + sinkron komentar/KDoc +
+  `settings_fast_recovery_desc` ID/EN "±2 menit"→"±1 menit". 1 menit = lantai
+  praktis yang SENGAJA dipilih (bukan limit OS) — heartbeat ini jalan
+  terus-menerus selama service nyala, di bawah 1 mnt mulai murni ongkos
+  wake-up/baterai tanpa manfaat pulih tambahan yang terasa; floor Doze dalam
+  ~9 mnt/app non-exempt tetap berlaku sama seperti Batch 129. Status:
+  **NOT VERIFIED** (statis: brace/paren 19/19+124/124 tetap balance, XML
+  well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
 - **Batch 129** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
   konfirmasi Batch 128 jalan "~5 menit", minta lebih cepat kalau bisa):
   `FAST_RECOVERY_INTERVAL_MS` 5→2 menit + sinkron komentar kelas/KDoc +
@@ -1086,22 +1098,27 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Tuning heartbeat Fast Recovery 5→2 menit (Batch 129; kode:
-`ServiceWatchdogWorker.kt` + strings ID/EN — 2 file; ZIP `Boomly_v129.zip`)
-→ SELESAI kode LENGKAP: `FAST_RECOVERY_INTERVAL_MS` 5→2 menit, komentar kelas/KDoc
-disinkron, `settings_fast_recovery_desc` ID/EN "±5 menit"→"±2 menit". User Batch 128
-sudah konfirmasi heartbeat ~5 mnt AKTIF di device (izin granted, recovery jalan) — ini
-murni tuning kecepatan, bukan fix bug baru. **NOT VERIFIED** (sandbox TANPA toolchain:
-brace/paren balance tetap 19/19+123/123, XML well-formed, parity string 173=173; belum
-lolos CI/device dengan interval baru) →
-Remaining: (a) CI compile Batch 129; (b) device fisik: kill Boomly via task-swipe/OEM
-tanpa sentuh device → pulih terasa ≤~2-3 mnt kondisi non-Doze (Doze dalam tetap floor OS
-~9 mnt, TIDAK regresi vs Batch 128 di kondisi itu); (c) backlog lama: Auto-Profil
-(B122/123) & Spectrum (B120) NOT VERIFIED device; Sleep timer fade-out & Scheduler belum
-dikerjakan →
-Next Action: kalau CI/device gagal (mis. floor OS bikin user gak ngerasa beda sama
-sekali, atau battery complaint) → user putuskan balik ke 5 mnt atau coba
-`USE_EXACT_ALARM` (zero-friction, lihat Keputusan sadar) untuk lepas floor non-exempt;
-kalau lolos & user puas → tutup Batch 129 SELESAI+TERVALIDASI, lanjut validasi Auto-Profil
+[RESUME POINT: Tuning heartbeat Fast Recovery 2→1 menit, lantai praktis (Batch 130;
+kode: `ServiceWatchdogWorker.kt` + strings ID/EN — 2 file; ZIP `Boomly_v130.zip`)
+→ SELESAI kode LENGKAP: `FAST_RECOVERY_INTERVAL_MS` 2→1 menit, komentar kelas/KDoc
+disinkron, `settings_fast_recovery_desc` ID/EN "±2 menit"→"±1 menit". User Batch 129
+konfirmasi pulih <3 mnt di device (lebih baik dari estimasi ≤~2-3 mnt) lalu minta
+"mentokin". 1 menit dipilih SEBAGAI LANTAI PRAKTIS (bukan tes teknis satu-satunya
+kemungkinan lebih rendah) — heartbeat ini jalan TERUS-MENERUS (bukan sekali tembak)
+selama service nyala, jadi di bawah ini murni nambah ongkos wake-up/baterai tanpa
+manfaat pulih yang terasa. **NOT VERIFIED** (sandbox TANPA toolchain: brace/paren
+balance tetap 19/19+124/124, XML well-formed, parity string 173=173; belum lolos
+CI/device dengan interval baru) →
+Remaining: (a) CI compile Batch 130; (b) device fisik: kill Boomly via task-swipe/OEM
+tanpa sentuh device → pulih terasa makin cepat kondisi non-Doze (bandingkan vs Batch
+129, Doze dalam tetap floor OS ~9 mnt, TIDAK regresi); (c) PANTAU baterai — kalau user
+lapor boros, kandidat balik naikkan konstanta lagi (1 baris, bukan regresi arsitektur)
+ATAU eksplorasi `USE_EXACT_ALARM`/battery-exempt utk lepas floor Doze beneran (lihat
+Keputusan sadar); (d) backlog lama: Auto-Profil (B122/123) & Spectrum (B120) NOT
+VERIFIED device; Sleep timer fade-out & Scheduler belum dikerjakan →
+Next Action: kalau user lanjut minta lebih cepat lagi → TEGASKAN ke user bahwa di bawah
+1 mnt trade-off baterai makin nyata utk heartbeat terus-menerus (bukan otomatis nurut
+tanpa disebutkan, sesuai SOP objective honesty) sebelum eksekusi; kalau user OK &
+device test Batch 130 lolos → tutup SELESAI+TERVALIDASI, lanjut validasi Auto-Profil
 ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out sesuai pilihan user.
-Batch berikutnya = 130.]
+Batch berikutnya = 131.]

@@ -235,7 +235,7 @@
 
     <!-- Batch 128: Fast Recovery card (Alarms & reminders permission) -->
     <string name="settings_fast_recovery_section_title">Fast Recovery</string>
-    <string name="settings_fast_recovery_desc">Boomly sets a check alarm about every 2 minutes. If the system silently kills Boomly, this alarm turns it back on automatically — faster than the 15-minute watchdog. Requires the \"Alarms &amp; reminders\" permission.</string>
+    <string name="settings_fast_recovery_desc">Boomly sets a check alarm about every 1 minute. If the system silently kills Boomly, this alarm turns it back on automatically — faster than the 15-minute watchdog. Requires the \"Alarms &amp; reminders\" permission.</string>
     <string name="settings_fast_recovery_status_label">Alarms &amp; reminders permission</string>
     <string name="settings_fast_recovery_status_on">Allowed</string>
     <string name="settings_fast_recovery_status_off">Not allowed</string>
