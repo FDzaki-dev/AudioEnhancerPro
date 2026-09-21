@@ -233,4 +233,13 @@
     <string name="settings_auto_profile_route_wired">Headset/Headphone Kabel</string>
     <string name="settings_auto_profile_route_bluetooth">Bluetooth</string>
     <string name="settings_auto_profile_route_usb">USB</string>
+
+    <!-- Batch 128: kartu Pemulihan Cepat (izin Alarms & reminders) -->
+    <string name="settings_fast_recovery_section_title">Pemulihan Cepat</string>
+    <string name="settings_fast_recovery_desc">Boomly memasang alarm pengecekan tiap ±5 menit. Kalau sistem mematikan Boomly diam-diam, alarm ini menyalakannya lagi otomatis — lebih cepat dari watchdog 15 menit. Butuh izin \"Alarm &amp; pengingat\".</string>
+    <string name="settings_fast_recovery_status_label">Izin Alarm &amp; pengingat</string>
+    <string name="settings_fast_recovery_status_on">Diizinkan</string>
+    <string name="settings_fast_recovery_status_off">Belum diizinkan</string>
+    <string name="settings_fast_recovery_off_hint">Tanpa izin ini, pemulihan otomatis hanya lewat watchdog 15 menit (bisa sampai ±15 menit).</string>
+    <string name="settings_fast_recovery_button">Buka Pengaturan Izin</string>
 </resources>

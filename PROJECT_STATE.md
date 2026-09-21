@@ -91,15 +91,18 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
   dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
 
-- **Fast-recovery exact alarm (Batch 127)**: `SCHEDULE_EXACT_ALARM` dipakai
-  OPPORTUNISTIC — sengaja TIDAK ada dialog/`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`
-  deep-link di app ini (beda dari battery-optimization exemption yang MEMANG
-  diminta saat onboarding). Alasan: OS rate-limit `setExactAndAllowWhileIdle`
-  ke ~9 menit/app kalau belum battery-exempt (manfaat vs 15 menit lama jadi
-  tipis), dan nambah UI permintaan izin baru = risiko discovery/pemakaian
-  rendah tapi nambah kompleksitas permanen. JANGAN tambah UI request izin ini
-  tanpa instruksi eksplisit baru dari user (kalau user MAU, itu keputusan
-  arsitektur baru, bukan lanjutan otomatis dari Batch 127).
+- **Fast Recovery exact alarm (Batch 127 → DIREVISI Batch 128, instruksi eksplisit
+  user)**: `SCHEDULE_EXACT_ALARM` SEKARANG punya UI minta izin — kartu "Pemulihan
+  Cepat" di `SettingsScreen.kt` (status + deep-link
+  `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, fallback App Info), opt-in murni, TIDAK ada
+  dialog otomatis/onboarding. Desain = HEARTBEAT PROAKTIF (bukan reaktif Batch 127):
+  alarm ~5 mnt dipasang saat service start, dipasang ulang tiap fire/tick sehat, dicabut
+  di ACTION_STOP. Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
+  (fast-recovery Batch 127 no-op total) + desain reaktif (pulih ≥ watchdog 15 mnt).
+  SENGAJA TIDAK dipakai: `USE_EXACT_ALARM` (auto-grant tapi app hilang dari daftar
+  "Alarms & reminders" → kontradiksi UI izin; kebijakan Play cuma alarm/kalender) dan
+  `setAlarmClock()` (tanpa izin, tapi memunculkan ikon alarm/"next alarm" palsu di
+  system UI). Kandidat kalau user mau zero-friction: `USE_EXACT_ALARM` (keputusan baru).
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -124,10 +127,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 127, fitur — fast-recovery watchdog opportunistic via
-  exact alarm (`SCHEDULE_EXACT_ALARM`, di bawah 15 menit best-effort, 0
-  permission-request UI; lihat LOG BATCH 127); **NOT VERIFIED**, tidak ada
-  toolchain lokal, nunggu CI/device user. Sebelumnya: 126 hotfix widget/QS
+- **Batch terakhir**: 128, fix Fast Recovery — kartu izin "Alarm & pengingat" di
+  Settings + heartbeat exact alarm proaktif (lihat LOG BATCH 128); **NOT
+  VERIFIED**, tidak ada toolchain lokal, nunggu CI/device user. Sebelumnya: 127
+  fitur fast-recovery exact alarm (NOT VERIFIED, desain reaktif — direvisi 128);
+  126 hotfix widget/QS
   Tile nunggu watchdog 15 menit kelamaan, ditambah resync cepat di
   `onStartListening()`+`onResume()` (NOT VERIFIED); 125 hotfix widget vs QS Tile desync setelah
   kill keras (NOT VERIFIED); 124 hotfix watchdog gagal diam-diam restart
@@ -170,25 +174,25 @@ sepihak.
 
 ---
 
-## ⚠️ Temuan terbuka (Batch 118 — BELUM diubah: SOP immutable / di luar scope dok)
-- **Nama secret Box B vs CI**: Box B (SOP terkini) men-set
-  `ANDROID_KEYSTORE_BASE64`/`_PASSWORD` + `ANDROID_KEY_ALIAS`/`_PASSWORD`,
-  sedangkan `build.yml` + README membaca `KEYSTORE_BASE64`/
-  `KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` (tanpa prefix). Rilis
-  produksi jalan normal (Batch 78-79) → secret repo aktif sudah cocok CI;
-  risiko HANYA di setup repo BARU via Box B apa adanya (step release
-  ke-skip diam-diam, cuma warning). Butuh keputusan user: samakan Box B
-  atau `build.yml`.
-- **Guard integritas Daily Update**: teks SOP tertulis
-  `[ $NEW_COUNT -lt$((OLD_COUNT * 70 / 100)) ]` (tanpa spasi setelah `-lt`)
-  → bash "unary operator expected", guard rollback tidak pernah trigger
-  (jatuh ke commit+push). Diuji di sandbox Batch 118. Skrip immutable,
-  tidak diubah — butuh keputusan user.
+## ⚠️ Temuan terbuka
+- (Batch 128) DITUTUP: 2 temuan lama Batch 118 (nama secret Box B vs `build.yml`;
+  guard `-lt$((` Daily Update) — SOP terkini SUDAH sinkron (Box B pakai
+  `KEYSTORE_*`/`KEY_*` tanpa prefix = sama `build.yml`; guard pakai spasi+kutip).
+- Doc-debt (Batch 128, batas 3 file): KDoc `WatchdogAlarmReceiver.kt` + komentar
+  `AndroidManifest.xml` (Batch 127) masih bilang "chain self-terminating"/"TIDAK ada
+  UI request izin" — BASI. Sinkronkan (komentar saja, 0 logic) di batch berikutnya.
 
 ## 📅 LOG BATCH (descending, terbaru paling atas — BUKAN bagian permanen)
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 128** (`ServiceWatchdogWorker.kt`, `AudioEnhancerService.kt`,
+  `SettingsScreen.kt`, strings ID/EN; laporan user "izin alarm tak ada di
+  pengaturan app + waktu pulih sama dgn watchdog"): 2 root cause — izin default
+  ditolak Android 14+ tanpa UI minta, + desain reaktif. Fix: kartu "Pemulihan Cepat"
+  (status+deep-link, poll 1,5 dtk) + heartbeat proaktif (pasang di `onStartCommand`,
+  cabut di ACTION_STOP). Status: **NOT VERIFIED** (statis: brace/paren balance 3 file,
+  XML well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
 - **Batch 127** (`ServiceWatchdogWorker.kt`, `WatchdogAlarmReceiver.kt` [baru],
   `AndroidManifest.xml` — 3 file; jawab pertanyaan user "recovery otomatis di
   bawah 15 menit"): tambah exact-alarm fast-recovery OPPORTUNISTIC — kalau tick
@@ -720,7 +724,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   broadcast `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`/timezone-locale, exact
   alarm, FCM high-priority, dll — WorkManager `CoroutineWorker` BIASA TIDAK
   termasuk) melempar `ForegroundServiceStartNotAllowedException`. minSdk
-  project ini SELALU 31+ jadi SEMUA device kena. Pola aman WAJIB dipakai tiap
+  project ini = 24, targetSdk 34 (`app/build.gradle.kts`, dikoreksi Batch 128) —
+  restriction berlaku di semua device Android 12+ (API 31+). Pola aman WAJIB dipakai tiap
   ada pemanggil `AudioEnhancerService.requestStart()` baru dari context
   non-UI/non-exempted: bungkus try-catch, fallback notifikasi tap-to-restart
   (`postRecoveryNotification()`, sudah ada sejak Batch 124) — JANGAN asumsikan
@@ -788,8 +793,11 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 - `AudioEnhancerApp.kt` — Application class, `CrashLogger.install()`.
 - `OemAutostartHelper.kt` — deep-link Autostart/battery manager per-OEM,
   fallback ke App Info.
-- `ServiceWatchdogWorker.kt` — WorkManager periodic 15 menit, restart
-  service kalau mati padahal user tidak minta mati (Batch 124: try-catch +
+- `WatchdogAlarmReceiver.kt` — receiver internal (exported=false), fire heartbeat
+  exact alarm (Batch 127); memanggil `performWatchdogCheck`.
+- `ServiceWatchdogWorker.kt` (+ heartbeat exact alarm ~5 mnt, Batch 128:
+  `scheduleExactRecovery`/`cancelExactRecovery`/`canUseExactAlarm` publik) —
+  WorkManager periodic 15 menit, restart service kalau mati padahal user tidak minta mati (Batch 124: try-catch +
   `postRecoveryNotification()` fallback). Tiap tick JUGA selalu paksa resync
   `BoosterWidgetProvider.refreshAll()` + `QuickToggleTileService.requestTileUpdate()`
   ke `isRunning` ground truth (Batch 125 — widget gak punya hook on-demand
@@ -806,6 +814,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   Horizontal. Section "Cadangkan Preset" (Batch 115) — Export/Import `.json`
   via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`). Section
   "Timer Tidur" (Batch 119) — tombol durasi 15-120 mnt + sisa waktu (poll 1 dtk).
+  Section "Pemulihan Cepat" (Batch 128) — status izin "Alarm & pengingat" + tombol
+  deep-link (poll 1,5 dtk).
 - `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
   Tile — `onStartListening()` juga resync widget tiap shade dibuka, Batch 126),
   `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
@@ -925,6 +935,9 @@ cocokkan ke daftar, centang yang confirmed OK, catat detail kalau gagal
   tengah → timer bersih; layar mati lama → cek keterlambatan (Handler
   uptime, bukan alarm exact). Kandidat gagal: compile `SettingsScreen.kt`/
   `AudioEnhancerService.kt`, `startService` ke diri sendiri ditolak OEM.
+- [ ] Fast Recovery (Batch 128) — Pengaturan → Pemulihan Cepat → tombol izin → aktifkan
+  "Alarm & pengingat" → kembali: status jadi "Diizinkan" sendiri; nyalakan Boomly, kill
+  via task-swipe/OEM tanpa menyentuh device → pulih ≤~9 mnt (tanpa izin: tetap 15 mnt).
 (Lesson swipe-antar-tab Batch 104-105 ada di "Keputusan sadar", tidak
 diulang di sini.)
 
@@ -1061,42 +1074,23 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Fast-recovery watchdog exact alarm, opportunistic (Batch 127;
-kode: `ServiceWatchdogWorker.kt` [refactor: extract `performWatchdogCheck`
-suspend fun + `scheduleExactRecovery`/`canUseExactAlarm`], `WatchdogAlarmReceiver.kt`
-[baru], `AndroidManifest.xml` [+ `SCHEDULE_EXACT_ALARM` permission + receiver
-exported=false] — 3 file; ZIP `Boomly_v127.zip`)
-→ SELESAI kode LENGKAP: jawaban atas pertanyaan user "recovery otomatis di
-bawah 15 menit" — batas 15 menit WorkManager TETAP (limitasi OS, tidak
-berubah), tapi begitu tick manapun (worker 15-menit ATAU exact-alarm chain
-sendiri) mendeteksi `userWantsRunning && !isRunning`, sekarang JUGA
-menjadwalkan 1x `AlarmManager.setExactAndAllowWhileIdle` ~5 menit ke depan
-(`WatchdogAlarmReceiver`, exported=false, internal-only). Exact alarm fire =
-temporary background-start exemption dari OS, jadi `requestStart()` di titik
-itu tidak kena blokir Android 12+ yang jadi alasan try-catch Batch 124.
-Chain self-terminating (tidak reschedule kalau sudah pulih/user matiin).
-Opportunistic murni: 0 UI/dialog/deep-link request `SCHEDULE_EXACT_ALARM` —
-kalau user belum grant manual (default kebanyakan Android 13+), seluruh
-bagian ini no-op, watchdog 15 menit WorkManager lama TIDAK berubah sama
-sekali (zero-regression by design, lihat Keputusan sadar).
-**NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
-brace/paren 0/0 di `ServiceWatchdogWorker.kt`+`WatchdogAlarmReceiver.kt`,
-XML well-formed `AndroidManifest.xml`, grep konfirmasi 0 caller lama yang
-patah oleh refactor `performWatchdogCheck`; belum lolos CI ataupun device
-fisik) → Remaining: (a) validasi CI compile Batch 127; (b) kalau compile OK,
-uji device fisik DENGAN izin granted (Settings > App > Alarms & reminders):
-kill app via task-swipe saat effect aktif, JANGAN sentuh device sama sekali
-→ ukur waktu widget/tile balik "Nonaktif" (target ≤10 menit, vs 15 menit
-baseline lama); (c) uji device TANPA izin granted → pastikan behavior identik
-Batch 126 (15 menit, tidak ada regresi/crash dari kode baru yang no-op); (d)
-kalau (b)+(c) lolos, fast-recovery Batch 127 dianggap SELESAI+TERVALIDASI;
-(e) backlog lama masih terbuka (belum tersentuh beberapa batch terakhir):
-Auto-Profil per Output (Batch 122/123) masih NOT VERIFIED device fisik;
-Compressor Batch 121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120
-NOT VERIFIED; Sleep timer fade-out & Scheduler belum dikerjakan; 2 temuan
-lama (secret Box B vs CI; guard `-lt$((`) →
-Next Action: kalau CI/user lapor Batch 127 gagal compile atau (b)/(c) gagal
-→ hotfix lanjutan di file yang sama (maks 3); kalau lolos/user OK → lanjut
-validasi Auto-Profil (Batch 123) yang masih menggantung, ATAU Fase 8 ROI #6
-EQ curve editor / Sleep timer fade-out kalau user pilih itu duluan. Batch
-berikutnya = 128.]
+[RESUME POINT: Fix Fast Recovery — izin alarm + heartbeat proaktif (Batch 128;
+kode: `ServiceWatchdogWorker.kt`, `AudioEnhancerService.kt`, `SettingsScreen.kt` +
+strings ID/EN — 3 file; ZIP `Boomly_v128.zip`)
+→ SELESAI kode LENGKAP: (a) kartu "Pemulihan Cepat" di Settings (status izin
+`canScheduleExactAlarms()` + tombol `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`); (b)
+heartbeat exact alarm ~5 mnt dipasang di `onStartCommand`, dipasang ulang tiap
+fire/tick sehat, dicabut di ACTION_STOP. **NOT VERIFIED** (sandbox TANPA toolchain:
+cuma brace/paren balance 3 file, XML well-formed, parity string 173=173; belum
+lolos CI/device) →
+Remaining: (a) CI compile Batch 128; (b) device fisik: buka kartu, beri izin, status
+jadi "Diizinkan"; nyalakan Boomly, kill via task-swipe/OEM tanpa sentuh device → pulih
+≤~9 mnt (bandingkan tanpa izin = 15 mnt, tidak boleh regresi); (c) DOC-DEBT: sinkronkan
+komentar basi `WatchdogAlarmReceiver.kt` KDoc + `AndroidManifest.xml` (Batch 127) —
+komentar saja; (d) backlog lama: Auto-Profil (B122/123) & Spectrum (B120) NOT VERIFIED
+device; Sleep timer fade-out & Scheduler belum dikerjakan →
+Next Action: kalau CI/device gagal → hotfix di file yang sama (maks 3); kalau lolos →
+tutup Batch 127-128 SELESAI+TERVALIDASI, lanjut (c) lalu validasi Auto-Profil ATAU Fase 8
+ROI #6 EQ curve editor / Sleep timer fade-out sesuai pilihan user. Kandidat
+zero-friction izin: `USE_EXACT_ALARM` (butuh keputusan user, lihat Keputusan sadar).
+Batch berikutnya = 129.]

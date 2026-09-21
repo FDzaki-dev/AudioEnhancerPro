@@ -1,5 +1,37 @@
 # Changelog
 
+## Batch 128: Fix Fast Recovery — izin "Alarm & pengingat" bisa diminta dari app + heartbeat proaktif
+
+Laporan user: izin "Alarm & pengingat" tidak ada di pengaturan aplikasi, dan
+waktu pulih otomatis terasa sama saja dengan watchdog 15 menit. Ternyata
+benar, dan ada dua penyebab: (1) izin `SCHEDULE_EXACT_ALARM` default DITOLAK
+di Android 14+ untuk app baru (targetSdk 34), sementara Batch 127 tidak punya
+UI untuk memintanya — fast-recovery diam total, waktu pulih identik watchdog;
+(2) desain Batch 127 reaktif — exact alarm baru dijadwalkan SETELAH tick
+watchdog 15 menit mendeteksi service mati, jadi walau izin granted, pulihnya
+tetap tidak pernah lebih cepat dari watchdog. Kartu "Pemulihan Cepat" di
+Pengaturan kini menampilkan status izin + tombol ke halaman izinnya, dan
+alarm dipasang PROAKTIF (heartbeat ±5 menit) selama Boomly aktif.
+
+**Perubahan**: `ServiceWatchdogWorker.kt` — heartbeat: tick/alarm sehat memasang
+alarm berikutnya, `cancelExactRecovery()` baru, `canUseExactAlarm()` jadi
+publik. `AudioEnhancerService.kt` — alarm dipasang di `onStartCommand` (start,
+restart START_STICKY, BootReceiver) dan dicabut di jalur `ACTION_STOP` (Matikan,
+QS Tile, Widget, Sleep timer). `SettingsScreen.kt` + strings ID/EN — kartu
+status + tombol `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` (fallback App Info),
+status di-poll 1,5 dtk; kalau izin baru granted saat service jalan, heartbeat
+langsung dipasang.
+
+**Batas jujur**: Force Stop (OEM/pengguna) menghapus semua alarm app — heartbeat
+ikut hilang. Doze non-exempt membulatkan alarm ke ~9 menit. `USE_EXACT_ALARM`
+(auto-grant) dan `setAlarmClock()` sengaja TIDAK dipakai (lihat PROJECT_STATE).
+
+**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
+paren balance, XML well-formed, parity string ID/EN 173=173). Uji device:
+Pengaturan → Pemulihan Cepat → "Buka Pengaturan Izin" → izinkan → kembali, status
+jadi "Diizinkan"; nyalakan Boomly, kill via task-swipe/OEM, jangan sentuh device →
+service/notifikasi balik ≤~9 menit. Tanpa izin → tetap 15 menit (tidak regresi).
+
 ## Batch 127: Fast-recovery watchdog opportunistic via exact alarm (di bawah 15 menit)
 
 Watchdog `ServiceWatchdogWorker` (WorkManager, lantai 15 menit — batas OS,

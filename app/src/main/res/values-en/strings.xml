@@ -232,4 +232,13 @@
     <string name="settings_auto_profile_route_wired">Wired Headset/Headphones</string>
     <string name="settings_auto_profile_route_bluetooth">Bluetooth</string>
     <string name="settings_auto_profile_route_usb">USB</string>
+
+    <!-- Batch 128: Fast Recovery card (Alarms & reminders permission) -->
+    <string name="settings_fast_recovery_section_title">Fast Recovery</string>
+    <string name="settings_fast_recovery_desc">Boomly sets a check alarm about every 5 minutes. If the system silently kills Boomly, this alarm turns it back on automatically — faster than the 15-minute watchdog. Requires the \"Alarms &amp; reminders\" permission.</string>
+    <string name="settings_fast_recovery_status_label">Alarms &amp; reminders permission</string>
+    <string name="settings_fast_recovery_status_on">Allowed</string>
+    <string name="settings_fast_recovery_status_off">Not allowed</string>
+    <string name="settings_fast_recovery_off_hint">Without this permission, automatic recovery relies on the 15-minute watchdog only (up to ~15 minutes).</string>
+    <string name="settings_fast_recovery_button">Open Permission Settings</string>
 </resources>

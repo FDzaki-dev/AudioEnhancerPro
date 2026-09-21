@@ -43,16 +43,30 @@ import java.util.concurrent.TimeUnit
  * OS ±9 menit/app buat non-exempt app). Exact alarm fire = app dapat *temporary
  * background-start exemption* resmi dari OS, jadi `requestStart()` di titik itu TIDAK
  * kena blokir background-start restriction Android 12+ seperti yang dialami tick
- * WorkManager biasa (lihat komentar Batch 124 di bawah). Chain SELF-TERMINATING: tiap
- * fire cek ulang, kalau sudah pulih ATAU user matiin, TIDAK reschedule lagi — bukan
- * loop permanen.
+ * WorkManager biasa (lihat komentar Batch 124 di bawah). (Batch 128: chain BUKAN lagi
+ * self-terminating saat pulih — jadi heartbeat selama user mau service hidup; berhenti
+ * HANYA kalau user matiin. Lihat paragraf Batch 128 di bawah.)
  *
- * Butuh `SCHEDULE_EXACT_ALARM` (API 31+, lihat manifest) yang TIDAK di-request lewat
- * UI apa pun di app ini (di luar scope 3-file Batch 127). Kalau belum granted user
- * (default di banyak device Android 13+), `canScheduleExactAlarms()` false → seluruh
- * bagian ini diam total, NOL dampak ke behavior lama. **NOT VERIFIED** — potensi
- * manfaat (15 menit → ~5-9 menit best-effort) TIDAK terjamin lolos device fisik/OEM
- * restriction, lihat catatan RESUME POINT.
+ * Butuh `SCHEDULE_EXACT_ALARM` (API 31+, lihat manifest). Kalau belum granted user,
+ * `canScheduleExactAlarms()` false → seluruh bagian exact-alarm diam total, NOL dampak
+ * ke behavior lama (15 menit murni).
+ *
+ * Batch 128 (laporan user: "izin alarm gak ada di pengaturan app, waktu pulih sama
+ * saja dengan watchdog") — 2 root cause NYATA di desain Batch 127, dua-duanya dibetulkan:
+ * (1) targetSdk 34 → di Android 14+ izin `SCHEDULE_EXACT_ALARM` DEFAULT DITOLAK untuk app
+ * baru (bukan pre-granted seperti Android 12/13), dan Batch 127 sengaja tanpa UI minta izin
+ * → `canUseExactAlarm()` false terus → fast-recovery no-op 100% → waktu pulih IDENTIK
+ * watchdog 15 menit. Fix: kartu "Pemulihan Cepat" di `SettingsScreen.kt` (status +
+ * deep-link `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`). (2) Desain REAKTIF: exact alarm baru
+ * dijadwalkan SETELAH tick watchdog 15-menit mendeteksi service mati → walau izin granted,
+ * waktu pulih = deteksi (≤15 mnt) + 5 mnt, TIDAK PERNAH lebih cepat dari watchdog. Fix:
+ * HEARTBEAT PROAKTIF — selama user ingin service hidup, exact alarm SELALU terpasang
+ * (dipasang `AudioEnhancerService.onStartCommand`, dipasang ulang tiap fire/tick sehat,
+ * dicabut `cancelExactRecovery()` di jalur ACTION_STOP). Service dibunuh OS → alarm tetap
+ * hidup (AlarmManager di luar proses app) → fire ≤~5 mnt (≤~9 mnt di Doze non-exempt) →
+ * `performWatchdogCheck` nemu `!isRunning` → restart via jalur exempted. Batas jujur:
+ * force-stop OEM/pengguna menghapus semua alarm app (tidak ada API yang bisa mencegah).
+ * **NOT VERIFIED** — lihat catatan RESUME POINT.
  */
 class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -116,6 +130,16 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
 
             val userWantsRunning = PrefsHelper.getUserWantsRunning(context)
             val needsRecovery = userWantsRunning && !AudioEnhancerService.isRunning
+            if (!userWantsRunning) {
+                // Batch 128: user sudah matikan — pastikan tak ada heartbeat sisa (jalur
+                // ACTION_STOP sudah mencabut, ini jaring pengaman kalau ada yang lolos).
+                cancelExactRecovery(context)
+            } else if (!needsRecovery) {
+                // Batch 128: kondisi SEHAT (user mau hidup + service jalan) → pasang
+                // heartbeat berikutnya. Cabang needsRecovery TIDAK dipasang di sini: caller
+                // (`doWork`/`WatchdogAlarmReceiver`) sudah memasang ulang kalau return true.
+                scheduleExactRecovery(context)
+            }
             if (needsRecovery) {
                 // Batch 124 hotfix (URGENT, laporan user - lihat komentar lengkap di
                 // AudioEnhancerService.NOTIF_ID_RECOVERY): SEBELUMNYA baris ini 0 try-catch.
@@ -136,14 +160,14 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
             return needsRecovery
         }
 
-        /** Batch 127. Opportunistic: no-op total kalau `SCHEDULE_EXACT_ALARM` belum
-         *  granted (API < 31 selalu diizinkan, tidak butuh izin khusus). Dipanggil
-         *  ulang oleh `WatchdogAlarmReceiver` sendiri tiap fire SELAMA masih perlu
-         *  recovery — chain berhenti sendiri begitu `performWatchdogCheck` return
-         *  false (pulih, atau user matiin). */
+        /** Batch 127/128. Pasang (atau ganti — PendingIntent identik = alarm yang sama
+         *  ter-replace) 1 exact alarm ~5 menit ke depan. Dipakai sebagai HEARTBEAT (Batch
+         *  128): dipanggil `AudioEnhancerService.onStartCommand` (service mulai), tick sehat
+         *  `performWatchdogCheck`, dan caller saat recovery masih dibutuhkan. No-op total
+         *  kalau `SCHEDULE_EXACT_ALARM` belum granted (API < 31 selalu diizinkan). */
         fun scheduleExactRecovery(context: Context) {
-            if (!canUseExactAlarm(context)) return
             try {
+                if (!canUseExactAlarm(context)) return
                 val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
                 val intent = Intent(context, WatchdogAlarmReceiver::class.java)
                 val pendingIntent = PendingIntent.getBroadcast(
@@ -154,15 +178,39 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
                 )
                 val triggerAt = SystemClock.elapsedRealtime() + FAST_RECOVERY_INTERVAL_MS
                 alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerAt, pendingIntent)
-            } catch (e: SecurityException) {
+            } catch (e: Exception) {
                 // Race: izin dicabut user tepat setelah canScheduleExactAlarms() true di
-                // atas, atau OEM restriction lain saat runtime. Aman diam — watchdog 15
-                // menit WorkManager TETAP jalan sebagai jaring pengaman utama.
-                android.util.Log.w("ServiceWatchdogWorker", "setExactAndAllowWhileIdle ditolak sistem saat runtime, lanjut andalkan watchdog 15 menit", e)
+                // atas (SecurityException), atau OEM restriction lain saat runtime. Aman
+                // diam — watchdog 15 menit WorkManager TETAP jalan sebagai jaring pengaman.
+                android.util.Log.w("ServiceWatchdogWorker", "setExactAndAllowWhileIdle gagal, lanjut andalkan watchdog 15 menit", e)
             }
         }
 
-        private fun canUseExactAlarm(context: Context): Boolean {
+        /** Batch 128. Cabut heartbeat — dipanggil jalur ACTION_STOP (user/QS Tile/Widget/
+         *  Sleep timer matikan) supaya tidak ada alarm yatim yang membangunkan app sia-sia.
+         *  `FLAG_NO_CREATE`: kalau tidak ada alarm terpasang, tidak bikin PendingIntent baru. */
+        fun cancelExactRecovery(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                val intent = Intent(context, WatchdogAlarmReceiver::class.java)
+                val pendingIntent: PendingIntent? = PendingIntent.getBroadcast(
+                    context,
+                    FAST_RECOVERY_REQUEST_CODE,
+                    intent,
+                    PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                )
+                if (pendingIntent != null) {
+                    alarmManager.cancel(pendingIntent)
+                    pendingIntent.cancel()
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("ServiceWatchdogWorker", "Gagal cabut heartbeat exact alarm", e)
+            }
+        }
+
+        /** Batch 128: dibuat publik — dibaca UI Settings (kartu "Pemulihan Cepat") buat
+         *  status izin "Alarms & reminders". API < 31 tidak ada izin khusus → true. */
+        fun canUseExactAlarm(context: Context): Boolean {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return true
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             return alarmManager.canScheduleExactAlarms()
