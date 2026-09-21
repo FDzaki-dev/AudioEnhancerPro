@@ -1,5 +1,31 @@
 # Changelog
 
+## Batch 127: Fast-recovery watchdog opportunistic via exact alarm (di bawah 15 menit)
+
+Watchdog `ServiceWatchdogWorker` (WorkManager, lantai 15 menit — batas OS,
+tidak bisa dipercepat) sekarang, begitu mendeteksi recovery dibutuhkan,
+JUGA menjadwalkan 1x exact alarm (`WatchdogAlarmReceiver`, baru) yang retry
+lebih cepat (~5 menit, dibulatkan sistem sampai ~9 menit kalau app belum
+di-exempt battery optimization). Exact alarm fire memberi app temporary
+background-start exemption resmi dari OS, jadi restart service di titik itu
+tidak kena blokir yang sama seperti tick WorkManager biasa (Batch 124).
+Chain self-terminating: berhenti sendiri begitu service pulih atau user
+matikan.
+
+**Opportunistic, bukan wajib**: butuh izin `SCHEDULE_EXACT_ALARM` (API 31+)
+yang TIDAK diminta lewat UI apa pun di app ini. Kalau user belum grant izin
+ini (default di banyak device Android 13+), fitur ini diam total — watchdog
+15 menit WorkManager tetap jaring pengaman utama, TIDAK ada perubahan
+perilaku. Manfaat (15→~5-9 menit) best-effort, TIDAK dijamin di semua device
+tanpa toolchain/uji fisik.
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal/device fisik; lolos review
+manual (brace/paren balance 0/0 di 3 file, XML well-formed). Uji device:
+grant "Alarms & reminders" untuk app di Settings, kill app via task-swipe
+saat effect aktif, JANGAN buka app/QS panel → cek widget/tile balik
+"Nonaktif" dalam ≤10 menit tanpa disentuh (bandingkan device yang TIDAK
+grant izin ini → tetap 15 menit, tidak boleh regresi).
+
 ## Batch 126: Hotfix — widget/QS Tile nunggu sampai 15 menit kelamaan (susulan Batch 125)
 
 Laporan user: fix Batch 125 memang bikin widget balik konsisten dengan QS

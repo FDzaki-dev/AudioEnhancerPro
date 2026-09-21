@@ -91,6 +91,16 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
   dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
 
+- **Fast-recovery exact alarm (Batch 127)**: `SCHEDULE_EXACT_ALARM` dipakai
+  OPPORTUNISTIC — sengaja TIDAK ada dialog/`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`
+  deep-link di app ini (beda dari battery-optimization exemption yang MEMANG
+  diminta saat onboarding). Alasan: OS rate-limit `setExactAndAllowWhileIdle`
+  ke ~9 menit/app kalau belum battery-exempt (manfaat vs 15 menit lama jadi
+  tipis), dan nambah UI permintaan izin baru = risiko discovery/pemakaian
+  rendah tapi nambah kompleksitas permanen. JANGAN tambah UI request izin ini
+  tanpa instruksi eksplisit baru dari user (kalau user MAU, itu keputusan
+  arsitektur baru, bukan lanjutan otomatis dari Batch 127).
+
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
 di LOG BATCH (paling atas, maks 3-5 baris); (2) update Status Terkini
@@ -114,10 +124,12 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 126, hotfix — widget/QS Tile nunggu watchdog 15 menit
-  kelamaan, ditambah resync cepat di `onStartListening()`+`onResume()`
-  (lihat LOG BATCH 126); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu
-  CI/device user. Sebelumnya: 125 hotfix widget vs QS Tile desync setelah
+- **Batch terakhir**: 127, fitur — fast-recovery watchdog opportunistic via
+  exact alarm (`SCHEDULE_EXACT_ALARM`, di bawah 15 menit best-effort, 0
+  permission-request UI; lihat LOG BATCH 127); **NOT VERIFIED**, tidak ada
+  toolchain lokal, nunggu CI/device user. Sebelumnya: 126 hotfix widget/QS
+  Tile nunggu watchdog 15 menit kelamaan, ditambah resync cepat di
+  `onStartListening()`+`onResume()` (NOT VERIFIED); 125 hotfix widget vs QS Tile desync setelah
   kill keras (NOT VERIFIED); 124 hotfix watchdog gagal diam-diam restart
   (NOT VERIFIED); 123 hotfix speaker internal nempel preset Kustom (NOT
   VERIFIED); 122 Auto-Profil per Output kode SELESAI (NOT VERIFIED); 121
@@ -177,6 +189,16 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 127** (`ServiceWatchdogWorker.kt`, `WatchdogAlarmReceiver.kt` [baru],
+  `AndroidManifest.xml` — 3 file; jawab pertanyaan user "recovery otomatis di
+  bawah 15 menit"): tambah exact-alarm fast-recovery OPPORTUNISTIC — kalau tick
+  watchdog deteksi recovery masih perlu, jadwalkan 1x `setExactAndAllowWhileIdle`
+  (~5 menit, rate-limit OS ~9 menit kalau belum battery-exempt) via
+  `WatchdogAlarmReceiver` baru, self-chaining sampai pulih/user matiin. Perlu
+  `SCHEDULE_EXACT_ALARM` — TIDAK ada UI/deep-link request izin ini (di luar
+  scope 3-file); kalau user belum grant manual, fitur diam total, 0 dampak ke
+  watchdog 15 menit lama. Status: **NOT VERIFIED** (statis only: brace/paren
+  0/0 x2 .kt + XML well-formed; nunggu CI + device fisik dengan izin granted).
 - **Batch 126** (`QuickToggleTileService.kt`, `MainActivity.kt` — 2 file; hotfix,
   laporan user susulan Batch 125: "kok harus nunggu lama"): tambah 2 titik resync
   widget+tile yang jauh lebih sering dari watchdog 15 menit —
@@ -1039,31 +1061,42 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix widget/QS Tile resync speed (Batch 126; kode:
-`QuickToggleTileService.kt`, `MainActivity.kt` — 2 file; ZIP `Boomly_v126.zip`)
-→ SELESAI kode LENGKAP: susulan Batch 125 (watchdog 15 menit dianggap
-kelamaan user) — `QuickToggleTileService.onStartListening()` & 
-`MainActivity.onResume()` sekarang JUGA resync `BoosterWidgetProvider.refreshAll()`
-+ `QuickToggleTileService.requestTileUpdate()`, jadi begitu shade Quick
-Settings ATAU app dibuka, widget+tile langsung sinkron ke `isRunning`
-ground truth tanpa nunggu tick watchdog. Watchdog Batch 125 TETAP ada
-sebagai jaring pengaman terakhir kalau device sama sekali tidak disentuh.
+[RESUME POINT: Fast-recovery watchdog exact alarm, opportunistic (Batch 127;
+kode: `ServiceWatchdogWorker.kt` [refactor: extract `performWatchdogCheck`
+suspend fun + `scheduleExactRecovery`/`canUseExactAlarm`], `WatchdogAlarmReceiver.kt`
+[baru], `AndroidManifest.xml` [+ `SCHEDULE_EXACT_ALARM` permission + receiver
+exported=false] — 3 file; ZIP `Boomly_v127.zip`)
+→ SELESAI kode LENGKAP: jawaban atas pertanyaan user "recovery otomatis di
+bawah 15 menit" — batas 15 menit WorkManager TETAP (limitasi OS, tidak
+berubah), tapi begitu tick manapun (worker 15-menit ATAU exact-alarm chain
+sendiri) mendeteksi `userWantsRunning && !isRunning`, sekarang JUGA
+menjadwalkan 1x `AlarmManager.setExactAndAllowWhileIdle` ~5 menit ke depan
+(`WatchdogAlarmReceiver`, exported=false, internal-only). Exact alarm fire =
+temporary background-start exemption dari OS, jadi `requestStart()` di titik
+itu tidak kena blokir Android 12+ yang jadi alasan try-catch Batch 124.
+Chain self-terminating (tidak reschedule kalau sudah pulih/user matiin).
+Opportunistic murni: 0 UI/dialog/deep-link request `SCHEDULE_EXACT_ALARM` —
+kalau user belum grant manual (default kebanyakan Android 13+), seluruh
+bagian ini no-op, watchdog 15 menit WorkManager lama TIDAK berubah sama
+sekali (zero-regression by design, lihat Keputusan sadar).
 **NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
-brace/paren 0/0 di 2 file; belum lolos CI ataupun device fisik) → Remaining:
-(a) validasi CI compile Batch 126; (b) kalau compile OK, uji device fisik:
-kill app via task-swipe → LANGSUNG buka Quick Settings (jangan tunggu) →
-widget harus SUDAH "Nonaktif" secepat tile; ulangi trigger via buka app
-(MainActivity) bukan shade; (c) pastikan TIDAK ada flicker/regresi kalau
-service memang masih hidup normal (buka shade/app saat aktif → tetap
-"Aktif" konsisten, bukan sempat kedip "Nonaktif" duluan); (d) kalau (b)+(c)
-lolos, seluruh rantai widget/tile sync (Batch 44+124+125+126) dianggap
-SELESAI+TERVALIDASI scope hotfix ini; (e) backlog lama masih terbuka (belum
-tersentuh 3 batch terakhir): Auto-Profil per Output (Batch 122/123) masih
-NOT VERIFIED device fisik; Compressor Batch 121 USER-CONFIRMED WORKING;
-Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep timer fade-out & Scheduler
-belum dikerjakan; 2 temuan lama (secret Box B vs CI; guard `-lt$((`) →
-Next Action: kalau CI/user lapor Batch 126 gagal compile atau (b)/(c) gagal
-→ hotfix lanjutan di 2 file yang sama; kalau lolos/user OK → lanjut validasi
-Auto-Profil (Batch 123) yang masih menggantung, ATAU Fase 8 ROI #6 EQ curve
-editor / Sleep timer fade-out kalau user pilih itu duluan. Batch
-berikutnya = 127.]
+brace/paren 0/0 di `ServiceWatchdogWorker.kt`+`WatchdogAlarmReceiver.kt`,
+XML well-formed `AndroidManifest.xml`, grep konfirmasi 0 caller lama yang
+patah oleh refactor `performWatchdogCheck`; belum lolos CI ataupun device
+fisik) → Remaining: (a) validasi CI compile Batch 127; (b) kalau compile OK,
+uji device fisik DENGAN izin granted (Settings > App > Alarms & reminders):
+kill app via task-swipe saat effect aktif, JANGAN sentuh device sama sekali
+→ ukur waktu widget/tile balik "Nonaktif" (target ≤10 menit, vs 15 menit
+baseline lama); (c) uji device TANPA izin granted → pastikan behavior identik
+Batch 126 (15 menit, tidak ada regresi/crash dari kode baru yang no-op); (d)
+kalau (b)+(c) lolos, fast-recovery Batch 127 dianggap SELESAI+TERVALIDASI;
+(e) backlog lama masih terbuka (belum tersentuh beberapa batch terakhir):
+Auto-Profil per Output (Batch 122/123) masih NOT VERIFIED device fisik;
+Compressor Batch 121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120
+NOT VERIFIED; Sleep timer fade-out & Scheduler belum dikerjakan; 2 temuan
+lama (secret Box B vs CI; guard `-lt$((`) →
+Next Action: kalau CI/user lapor Batch 127 gagal compile atau (b)/(c) gagal
+→ hotfix lanjutan di file yang sama (maks 3); kalau lolos/user OK → lanjut
+validasi Auto-Profil (Batch 123) yang masih menggantung, ATAU Fase 8 ROI #6
+EQ curve editor / Sleep timer fade-out kalau user pilih itu duluan. Batch
+berikutnya = 128.]
