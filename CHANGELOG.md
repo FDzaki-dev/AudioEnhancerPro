@@ -1,5 +1,23 @@
 # Changelog
 
+## Batch 129: Hotfix — CI run 181 gagal compile (susulan Batch 128)
+
+Root cause: `applyPreset()` (Batch 128) punya cabang `if/else` buat
+`levels` — cabang `if` eksplisit `.toShort()`, cabang `else`
+(`List(equalizerBandCount) { 0 }`) TIDAK, jadi Kotlin infer `List<Int>` di
+cabang itu. Gabungan tipe `if/else` jadi `List<{Comparable<*> & Number}>`
+(common supertype Int & Short), bukan `List<Short>` yang dibutuhkan —
+compile error 2 titik (assign ke `eqOverrideLevels` + panggil
+`onEqualizerBand(Int, Short)`).
+
+**Fix 1 token**: `0` → `0.toShort()` di cabang `else`. 5 preset baru
+(Gaming/Cinema/EDM/Podcast/Acoustic) dari Batch 128 dan nilai eqBands-nya
+TIDAK diubah sama sekali — murni bug tipe di kode pendukung yang diperbaiki.
+
+**NOT VERIFIED** — sandbox tanpa toolchain lokal; lolos review manual
+(brace/paren 283=283, 997=997 di `BoosterScreen.kt`). Nunggu CI run
+berikutnya hijau.
+
 ## Batch 128: 5 preset bawaan baru, tiap satu dirancang penuh untuk 1 skenario dengarnya
 
 Preset Cepat sekarang 9 total (dari 4). 5 preset baru — **Gaming**, **Cinema**,

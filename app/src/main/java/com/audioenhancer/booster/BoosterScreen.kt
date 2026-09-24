@@ -642,7 +642,7 @@ fun BoosterScreen(
             val levels = if (preset.eqBands.isNotEmpty()) {
                 List(equalizerBandCount) { i -> preset.eqBands.getOrElse(i) { 0 }.toShort() }
             } else {
-                List(equalizerBandCount) { 0 }
+                List(equalizerBandCount) { 0.toShort() }
             }
             levels.forEachIndexed { band, level -> onEqualizerBand(band, level) }
             eqOverrideLevels = levels

@@ -124,12 +124,14 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 128, fitur — 5 preset bawaan baru per-skenario
-  (Gaming/Cinema/EDM/Podcast/Acoustic), Preset Cepat total 4→9 (lihat LOG
-  BATCH 128); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
-  user. Sebelumnya: 127 fast-recovery watchdog opportunistic via exact alarm
-  (`SCHEDULE_EXACT_ALARM`, di bawah 15 menit best-effort, 0 permission-request
-  UI; lihat LOG BATCH 127, NOT VERIFIED); 126 hotfix widget/QS
+- **Batch terakhir**: 129, hotfix — CI run 181 gagal compile karena cabang
+  `else` Batch 129 infer `List<Int>` bukan `List<Short>` di `applyPreset()`
+  (lihat LOG BATCH 129), fixed (`0`→`0.toShort()`); **NOT VERIFIED**, tidak
+  ada toolchain lokal, nunggu CI run berikutnya. Sebelumnya: 128 5 preset
+  bawaan baru per-skenario (Gaming/Cinema/EDM/Podcast/Acoustic), Preset Cepat
+  total 4→9 (lihat LOG BATCH 128); 127 fast-recovery watchdog opportunistic via
+  exact alarm (`SCHEDULE_EXACT_ALARM`, di bawah 15 menit best-effort, 0
+  permission-request UI; lihat LOG BATCH 127, NOT VERIFIED); 126 hotfix widget/QS
   Tile nunggu watchdog 15 menit kelamaan, ditambah resync cepat di
   `onStartListening()`+`onResume()` (NOT VERIFIED); 125 hotfix widget vs QS Tile desync setelah
   kill keras (NOT VERIFIED); 124 hotfix watchdog gagal diam-diam restart
@@ -191,6 +193,17 @@ sepihak.
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 129** (`BoosterScreen.kt` HANYA — 1 file; hotfix URGENT, CI run 181
+  gagal): `applyPreset()` Batch 128 — cabang `else` `List(equalizerBandCount)
+  { 0 }` infer `List<Int>`, beda tipe dari cabang `if` `List<Short>` →
+  compile error 2 titik (baris 647/648, "List<{Comparable<*> & Number}>").
+  Fix: `0` → `0.toShort()` eksplisit, kedua cabang sama-sama `List<Short>`.
+  Lesson: literal Int di lambda `List(n) { ... }` TIDAK auto-infer ke Short
+  cuma karena cabang lain di `if/else` yang sama Short — WAJIB eksplisit tiap
+  cabang kalau tipe hasil harus sama persis. Status: **NOT VERIFIED** (statis
+  only: brace/paren 283/283+997/997; nunggu CI run berikutnya, TIDAK ada
+  toolchain lokal buat compile-check asli — kelas insiden yang sama sudah
+  masuk "Batasan sandbox").
 - **Batch 128** (`BoosterScreen.kt`, `strings.xml` ID/EN — 3 file; request eksplisit
   user "preset powerful sesuai spesialisasi nya masing-masing"): 5 preset bawaan baru
   (Gaming/Cinema/EDM/Podcast/Acoustic) — beda dari 4 preset lama, tiap satu setel
@@ -1071,42 +1084,40 @@ Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: 5 preset bawaan powerful per-skenario (Batch 128; kode:
-`BoosterScreen.kt` [Preset data class +`eqBands` opsional; presets list +5
-entry Gaming/Cinema/EDM/Podcast/Acoustic; applyPreset() cabang eqBands],
-`values/strings.xml` + `values-en/strings.xml` [+5 string preset_* tiap
-file] — 3 file; ZIP `Boomly_v128.zip`)
-→ SELESAI kode LENGKAP: jawaban atas request user "tambahin preset powerful
-sesuai spesialisasi nya masing-masing biar enak settingnya" — Preset Cepat
-4→9. 5 preset baru BEDA dari 4 lama: bukan dorong 1 knob doang, tapi
-Bass+Virtualizer+Loudness+EQ manual (5 band) disetel BARENG buat 1 skenario
-spesifik (Gaming=virtualizer max+detail hi-mid, Cinema=dialog+surround,
-EDM=V-shape+bass max, Podcast=kejernihan bicara, Acoustic=natural/halus).
-Non-breaking: `eqBands` KOSONG di 4 preset lama = applyPreset() reset EQ ke
-flat SAMA PERSIS perilaku sebelum batch ini (0 regresi by design).
+[RESUME POINT: Hotfix compile error CI run 181 (Batch 129; kode:
+`BoosterScreen.kt` [applyPreset(), cabang `else` List literal `0`→
+`0.toShort()`] — 1 file; ZIP `Boomly_v129.zip`)
+→ SELESAI: root cause CI run 181 FAILED — Batch 128 nambah cabang `if/else`
+buat `levels` di `applyPreset()`; cabang `if` return `List<Short>`
+(`.toShort()` eksplisit), cabang `else` `List(equalizerBandCount) { 0 }`
+literal Int TANPA `.toShort()` → Kotlin infer `List<Int>`, gabungan `if/else`
+jadi `List<{Comparable<*> & Number}>` (common supertype), BUKAN `List<Short>`
+— gagal assign ke `eqOverrideLevels: MutableState<List<Short>?>` (compile
+error baris 648) + gagal panggil `onEqualizerBand(Int, Short)` (baris 647).
+Fix 1 token: `0` → `0.toShort()` di cabang `else`. 0 logic lain diubah — 5
+preset baru (Gaming/Cinema/EDM/Podcast/Acoustic) & nilai eqBands-nya Batch
+128 TETAP SAMA PERSIS, cuma bug tipe di kode pendukungnya yang diperbaiki.
 **NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
-brace/paren 283/283+996/996 di `BoosterScreen.kt`, XML well-formed 2 file
-strings, parity string ID/EN 171=171; belum lolos CI ataupun telinga asli
-device fisik) → Remaining: (a) validasi CI compile Batch 128; (b) kalau
-compile OK, uji device fisik: tap tiap 1 dari 5 preset baru, dengar apakah
-karakter EQ-nya kerasa sesuai nama (terutama EDM V-shape & Podcast presence)
-— nilai eqBands MASIH TEBAKAN dari teori psychoacoustic, BUKAN diukur;
-kandidat pertama kalau ada yang "kerasa aneh"/kurang kuat: nilai eqBands
-preset itu di `BoosterScreen.kt` (maks ±800 saat ini, aman dinaikkan sampai
-±1200 kalau user minta lebih ekstrem); (c) cek preset lama (Flat/Bass
-Heavy/Vocal Boost/Treble Boost) TETAP reset EQ ke flat seperti sebelumnya
-(regression check applyPreset()); (d) backlog lama masih terbuka (belum
-tersentuh batch ini, Tunnel Vision): fast-recovery watchdog Batch 127 MASIH
-NOT VERIFIED (uji device: kill app task-swipe DENGAN izin "Alarms &
-reminders" granted → target widget/tile balik "Nonaktif" ≤10 menit; TANPA
-izin → pastikan tetap 15 menit seperti Batch 126, 0 regresi); Auto-Profil
-per Output (Batch 122/123) masih NOT VERIFIED; Compressor Batch 121
-USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep
+brace/paren 283/283+997/997 di `BoosterScreen.kt`; belum lolos CI run
+berikutnya) → Remaining: (a) validasi CI compile Batch 129 (harus hijau,
+tidak ada toolchain lokal buat mastiin lebih dulu); (b) kalau CI hijau, lanjut
+uji device fisik yang masih menggantung dari Batch 128: tap tiap 1 dari 5
+preset baru, dengar apakah karakter EQ-nya kerasa sesuai nama (terutama EDM
+V-shape & Podcast presence) — nilai eqBands MASIH TEBAKAN dari teori
+psychoacoustic, BUKAN diukur; kandidat pertama kalau ada yang "kerasa
+aneh"/kurang kuat: nilai eqBands preset itu di `BoosterScreen.kt` (maks ±800
+saat ini, aman dinaikkan sampai ±1200 kalau user minta lebih ekstrem); (c)
+cek preset lama (Flat/Bass Heavy/Vocal Boost/Treble Boost) TETAP reset EQ ke
+flat seperti sebelumnya (regression check applyPreset()); (d) backlog lama
+masih terbuka (belum tersentuh 2 batch terakhir, Tunnel Vision): fast-recovery
+watchdog Batch 127 MASIH NOT VERIFIED (uji device: kill app task-swipe DENGAN
+izin "Alarms & reminders" granted → target widget/tile balik "Nonaktif" ≤10
+menit; TANPA izin → pastikan tetap 15 menit seperti Batch 126, 0 regresi);
+Auto-Profil per Output (Batch 122/123) masih NOT VERIFIED; Compressor Batch
+121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep
 timer fade-out & Scheduler belum dikerjakan; 2 temuan lama (secret Box B vs
 CI; guard `-lt$((`) →
-Next Action: kalau CI/user lapor Batch 128 gagal compile atau salah satu
-preset baru "kerasa aneh" di device → hotfix lanjutan di `BoosterScreen.kt`
-(tuning eqBands, maks 3 file); kalau lolos/user OK → lanjut validasi
-fast-recovery watchdog Batch 127 yang masih menggantung (item (d) di atas),
-ATAU Fase 8 ROI #6 EQ curve editor / Sleep timer fade-out kalau user pilih
-itu duluan. Batch berikutnya = 129.]
+Next Action: kalau CI/user lapor Batch 129 MASIH gagal compile → kirim log
+`log_fail_*` baru, hotfix lanjutan di `BoosterScreen.kt` (maks 3 file); kalau
+CI hijau → lanjut item (b)/(c)/(d) di atas sesuai prioritas user. Batch
+berikutnya = 130.]
