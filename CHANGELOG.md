@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 139: Hotfix compile CI run 185 — import `awaitFirstDown` salah paket
+
+CI run 185 gagal: `awaitFirstDown` (dipakai gatekeeper slider, Batch 138) diimpor
+dari `androidx.compose.ui.input.pointer` — salah. Fungsinya memang didokumentasikan
+di halaman `AwaitPointerEventScope` (paket itu), tapi secara fisik dia extension
+function di `androidx.compose.foundation.gestures` (satu paket sama
+`awaitEachGesture` yang sudah dipakai). Dikonfirmasi lewat dokumentasi resmi +
+contoh kode nyata sebelum diperbaiki.
+
+**Perubahan** (1 file, cuma baris import): `SkeuomorphicComponents.kt`. 0
+perubahan logic — behavior gatekeeper slider (Batch 138) persis sama, cuma
+sekarang bisa compile. **NOT VERIFIED** sampai CI run berikutnya konfirmasi
+hijau.
+
 ## Batch 138: Proteksi sentuhan-tak-sengaja di-extend ke SEMUA slider
 
 Batch 137 cuma melindungi kurva EQ. Sekarang prinsip yang sama berlaku untuk

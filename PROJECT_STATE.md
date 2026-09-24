@@ -149,8 +149,14 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 138, gatekeeper anti-sentuhan-tak-sengaja di-EXTEND dari
-  kurva (137) ke SEMUA slider — `SkeuomorphicComponents.kt` (`FeatureControl`,
+- **Batch terakhir**: 139, HOTFIX compile — CI run 185 gagal, `awaitFirstDown`
+  di-import dari paket SALAH (`androidx.compose.ui.input.pointer`, harusnya
+  `androidx.compose.foundation.gestures` — fungsi itu extension di paket
+  `foundation.gestures`, BUKAN `ui.input.pointer`, meski KDoc referensinya
+  nempel di halaman `AwaitPointerEventScope`). `SkeuomorphicComponents.kt`
+  baris import saja, 0 logic berubah. **NOT VERIFIED** (statis OK, brace/paren
+  51/51; menunggu CI run berikutnya buat konfirmasi FIX). Sebelumnya: 138,
+  gatekeeper anti-sentuhan-tak-sengaja di-EXTEND dari kurva (137) ke SEMUA slider — `SkeuomorphicComponents.kt` (`FeatureControl`,
   1 titik dipakai Bass/Virtualizer/Loudness/Compressor + ke-5 slider band EQ).
   **NOT VERIFIED**. Sebelumnya: 137, hit-test radius 2D di `EqCurveEditor.kt` (instruksi
   eksplisit user "preventing touch" — cegah band berubah cuma karena jari
@@ -304,6 +310,18 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 139** (`SkeuomorphicComponents.kt` — 1 file, HOTFIX; user upload log
+  CI run 185 gagal, "fix it immediately"): root-cause `e: ...
+  SkeuomorphicComponents.kt:84:42 Unresolved reference: awaitFirstDown` +
+  `:540:36` sama — import Batch 138 salah paket. `awaitFirstDown` DIDOKUMENTASI
+  di halaman `AwaitPointerEventScope` (`androidx.compose.ui.input.pointer`)
+  TAPI fisiknya extension function di `androidx.compose.foundation.gestures`
+  (satu paket sama `awaitEachGesture`/`detectDragGestures` yang sudah dipakai
+  duluan) — dikonfirmasi via web search (dokumentasi resmi + contoh kode nyata)
+  sebelum commit, BUKAN tebakan kedua tanpa verifikasi. Fix: pindah baris
+  import, `PointerEventPass`+`pointerInput` (paket `ui.input.pointer`, sudah
+  benar sejak awal) TIDAK disentuh. 0 perubahan logic/behavior Batch 138.
+  NOT VERIFIED (brace/paren 51/51; nunggu CI run berikutnya).
 - **Batch 138** (`SkeuomorphicComponents.kt` — 1 file, TAPI berdampak ke SEMUA
   slider app krn `FeatureControl` satu-satunya titik `Slider(` di codebase —
   verified via grep; instruksi eksplisit user "kenapa cuma kurva doang"):
@@ -1296,21 +1314,17 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Gatekeeper slider (Batch 138; kode: `SkeuomorphicComponents.kt`;
-ZIP `Boomly_v138.zip`) → SELESAI, **NOT VERIFIED** — RISIKO TERTINGGI dari semua
-batch sejauh ini krn `FeatureControl` dipakai di HAMPIR SEMUA slider app (Bass,
-Virtualizer, Loudness, Compressor, 5 band EQ) →
-Remaining: (a) CI compile Batch 138 (+ backlog 134-137); (b) device fisik WAJIB
-SEBELUM lanjut fitur apa pun: buka tiap tab (Bass/Virtualizer/Loudness/
-Compressor + Equalizer Manual) → drag TEPAT di thumb tiap slider → HARUS tetap
-mulus responsif seperti sebelumnya (kalau kerasa "delay"/"susah pegang" →
-`hitToleranceXPx` 32dp kurang/kebanyakan, laporkan); lalu tap SEKALI di tengah
-track (BUKAN di thumb) → HARUS 0 efek (sebelumnya: langsung loncat ke situ);
-lalu scroll halaman lewat area slider (jangan kena thumb) → dicatat kalau scroll
-terasa "macet"/butuh coba 2x (trade-off yang sudah didokumentasikan, TAPI perlu
-dikonfirmasi user masih bisa diterima di device asli, bukan cuma di atas kertas);
-(c) backlog device-test 133-137 (EqCurveEditor sendiri, 9 preset, Reset
-Equalizer, Jadwal Otomatis) →
-Next Action: user WAJIB device-test (b) dulu — batch ini menyentuh titik
-interaksi PALING SERING dipakai di seluruh app, jangan lanjut fitur baru
-sebelum ini dikonfirmasi aman. Batch berikutnya = 139.]
+[RESUME POINT: Hotfix compile Batch 139 (kode: `SkeuomorphicComponents.kt`, 1
+baris import dipindah paket; ZIP `Boomly_v139.zip`) → SELESAI, **NOT VERIFIED**
+sampai CI run berikutnya HIJAU (statis sudah OK: brace/paren seimbang, root-cause
+CI run 185 dikonfirmasi & diperbaiki tepat sasaran) →
+Remaining: (a) CI compile Batch 139 — WAJIB dicek dulu sebelum apa pun lain,
+history CI run 185 baru saja GAGAL persis di titik ini; (b) SETELAH CI hijau:
+device fisik Batch 138 — drag tiap thumb slider (Bass/Virtualizer/Loudness/
+Compressor/5 band EQ) harus tetap mulus, tap di tengah track (bukan thumb) harus
+0 efek, scroll lewat area slider dicatat kalau kerasa macet; (c) backlog
+device-test 133-137 (kurva EQ, 9 preset, Reset Equalizer, Jadwal Otomatis) →
+Next Action: user upload hasil CI run berikutnya ATAU konfirmasi hijau manual →
+baru lanjut device-test (b). JANGAN lanjut fitur baru sebelum CI Batch 139
+dikonfirmasi hijau — riwayat run 185 baru saja gagal di titik yang sama.
+Batch berikutnya = 140.]
