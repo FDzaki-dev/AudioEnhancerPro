@@ -149,7 +149,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 137, hit-test radius 2D di `EqCurveEditor.kt` (instruksi
+- **Batch terakhir**: 138, gatekeeper anti-sentuhan-tak-sengaja di-EXTEND dari
+  kurva (137) ke SEMUA slider — `SkeuomorphicComponents.kt` (`FeatureControl`,
+  1 titik dipakai Bass/Virtualizer/Loudness/Compressor + ke-5 slider band EQ).
+  **NOT VERIFIED**. Sebelumnya: 137, hit-test radius 2D di `EqCurveEditor.kt` (instruksi
   eksplisit user "preventing touch" — cegah band berubah cuma karena jari
   LEWAT/bergerak di kurva tanpa niat pegang titik). **NOT VERIFIED**.
   Sebelumnya: 136, MERGE cabang paralel — repo GitHub `main` ternyata
@@ -301,6 +304,21 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 138** (`SkeuomorphicComponents.kt` — 1 file, TAPI berdampak ke SEMUA
+  slider app krn `FeatureControl` satu-satunya titik `Slider(` di codebase —
+  verified via grep; instruksi eksplisit user "kenapa cuma kurva doang"):
+  M3 `Slider` default tap-di-mana-pun-di-track-langsung-loncat — sentuhan
+  casual/numpang-lewat yang kebetulan turun DI ATAS slider (scroll halaman
+  berisi banyak slider) bisa langsung ubah nilai. Gatekeeper
+  `pointerInput`+`awaitFirstDown(pass=Initial)`: turun >32dp dari X-thumb
+  SAAT INI → `consume()`, Slider internal tidak pernah anggap valid, 0 nilai
+  berubah. Dekat thumb: 0 disentuh, drag normal. `thumbX=w*fraction` linear —
+  aproksimasi (M3 Slider sisip inset radius-thumb di 2 ujung track, tidak
+  dihitung), aman karena toleransi 32dp > inset (~10-14dp). Trade-off sadar
+  sama seperti Batch 137: sentuhan ditolak TIDAK diteruskan ke scroll parent.
+  NOT VERIFIED (brace/paren SkeuomorphicComponents.kt 51/51 seimbang; device
+  test WAJIB — ini titik paling sering disentuh di seluruh app, geser SEMUA
+  jenis slider harus tetap responsif normal).
 - **Batch 137** (`EqCurveEditor.kt` — 1 file; instruksi eksplisit user
   "preventing touch"): `onDragStart` sebelumnya pilih band ke-TERDEKAT semata
   dari X sentuhan-turun, ABAIKAN jarak Y ke titik asli — sentuhan DI MANA PUN
@@ -1278,14 +1296,21 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hit-test EqCurveEditor (Batch 137; kode: `EqCurveEditor.kt`; ZIP
-`Boomly_v137.zip`) → SELESAI, **NOT VERIFIED** (sandbox tanpa toolchain) →
-Remaining: (a) CI compile Batch 137 (+ backlog 134-136 belum CI); (b) device fisik
-PALING PENTING: buka Equalizer Manual → swipe/scroll melewati area kurva EQ (150dp)
-TANPA menyentuh titik → pastikan 0 band berubah; lalu sentuh TEPAT di salah satu
-titik dan drag → pastikan tetap responsif seperti biasa (radius 28dp jangan sampai
-kerasa "meleset"/susah pegang); (c) device test Batch 136 (9 preset + eqBands),
-Batch 135 (Reset Equalizer), Batch 134 (Jadwal Otomatis) — masih backlog dari
-sebelumnya; (d) label "14 kHz" terpotong (Batch 133) belum diperbaiki →
-Next Action: user device-test (b) dulu (paling berisiko, langsung UX inti kurva) →
-baru lanjut backlog device-test lain. Batch berikutnya = 138.]
+[RESUME POINT: Gatekeeper slider (Batch 138; kode: `SkeuomorphicComponents.kt`;
+ZIP `Boomly_v138.zip`) → SELESAI, **NOT VERIFIED** — RISIKO TERTINGGI dari semua
+batch sejauh ini krn `FeatureControl` dipakai di HAMPIR SEMUA slider app (Bass,
+Virtualizer, Loudness, Compressor, 5 band EQ) →
+Remaining: (a) CI compile Batch 138 (+ backlog 134-137); (b) device fisik WAJIB
+SEBELUM lanjut fitur apa pun: buka tiap tab (Bass/Virtualizer/Loudness/
+Compressor + Equalizer Manual) → drag TEPAT di thumb tiap slider → HARUS tetap
+mulus responsif seperti sebelumnya (kalau kerasa "delay"/"susah pegang" →
+`hitToleranceXPx` 32dp kurang/kebanyakan, laporkan); lalu tap SEKALI di tengah
+track (BUKAN di thumb) → HARUS 0 efek (sebelumnya: langsung loncat ke situ);
+lalu scroll halaman lewat area slider (jangan kena thumb) → dicatat kalau scroll
+terasa "macet"/butuh coba 2x (trade-off yang sudah didokumentasikan, TAPI perlu
+dikonfirmasi user masih bisa diterima di device asli, bukan cuma di atas kertas);
+(c) backlog device-test 133-137 (EqCurveEditor sendiri, 9 preset, Reset
+Equalizer, Jadwal Otomatis) →
+Next Action: user WAJIB device-test (b) dulu — batch ini menyentuh titik
+interaksi PALING SERING dipakai di seluruh app, jangan lanjut fitur baru
+sebelum ini dikonfirmasi aman. Batch berikutnya = 139.]

@@ -1,5 +1,22 @@
 # Changelog
 
+## Batch 138: Proteksi sentuhan-tak-sengaja di-extend ke SEMUA slider
+
+Batch 137 cuma melindungi kurva EQ. Sekarang prinsip yang sama berlaku untuk
+SETIAP slider di app (Bass, Virtualizer, Loudness, Compressor, dan ke-5 slider
+band Equalizer Manual) — 1 fix di satu titik komponen bersama.
+
+**Perubahan** (1 file): `SkeuomorphicComponents.kt` (`FeatureControl`, satu-satunya
+titik `Slider(` di codebase) — tap yang mendarat jauh dari posisi thumb saat ini
+(>32dp) tidak lagi langsung memindahkan nilai; drag yang dimulai dekat thumb tetap
+seperti biasa. Trade-off sadar (sama seperti kurva Batch 137): sentuhan yang
+ditolak tidak diteruskan ke scroll halaman — cukup geser jari sedikit di luar
+slider untuk scroll.
+
+**NOT VERIFIED** device — ini titik interaksi paling sering dipakai di seluruh
+app, WAJIB dites langsung sebelum lanjut fitur lain. Review manual: brace/paren
+51/51 seimbang.
+
 ## Batch 137: Kurva EQ — cegah band berubah karena sentuhan tidak sengaja
 
 Kurva drag-point Equalizer Manual sebelumnya bisa mengubah nilai band HANYA karena

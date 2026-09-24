@@ -56,6 +56,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -79,6 +80,9 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -510,6 +514,41 @@ internal fun FeatureControl(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
+                // Batch 138 (instruksi eksplisit user, "kenapa cuma kurva doang" — extend
+                // prinsip Batch 137 ke SEMUA slider. Satu titik composable ini dipakai
+                // Bass/Virtualizer/Loudness/Compressor DAN ke-5 slider band EQ — 1 fix di
+                // sini otomatis proteksi semuanya, 0 duplikasi per call-site): M3 `Slider`
+                // default "tap DI MANA PUN di track langsung loncat ke situ" — sentuhan
+                // casual/numpang-lewat (scroll halaman panjang berisi banyak slider) yang
+                // KEBETULAN turun di atas slider (bukan di thumb) bisa langsung mengubah
+                // nilai. Gatekeeper ini intercept pointer-down di `PointerEventPass.Initial`
+                // (SEBELUM Slider internal memprosesnya) — turun-nya > `hitToleranceXPx`
+                // dari X thumb SAAT INI → `consume()`, `Slider` internal (`awaitFirstDown`
+                // default `requireUnconsumed=true`) jadi TIDAK PERNAH anggap itu gesture
+                // valid, 0 nilai berubah. Turun DEKAT thumb: 0 disentuh, drag jalan normal
+                // persis seperti sebelumnya. `thumbX = w * fraction` linear — APROKSIMASI
+                // (M3 Slider sisip inset ~radius thumb di 2 ujung track asli, tidak
+                // dihitung di sini) — cukup akurat karena `hitToleranceXPx` (32dp) > inset
+                // itu (~10-14dp), jadi tetap aman di kasus ekstrem (fraction≈0/1). Trade-off
+                // SADAR (sama kayak `EqCurveEditor.kt` Batch 137): sentuhan yang ditolak
+                // TIDAK diteruskan ke scroll parent (`consume()` berlaku lintas-pass) — user
+                // cukup geser jari sedikit ke luar slider buat scroll.
+                .pointerInput(value, valueRange, enabled) {
+                    if (!enabled) return@pointerInput
+                    val hitToleranceXPx = 32.dp.toPx()
+                    awaitEachGesture {
+                        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+                        val w = size.width.toFloat()
+                        val span = valueRange.endInclusive - valueRange.start
+                        if (w > 0f && span > 0f) {
+                            val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+                            val thumbX = w * fraction
+                            if (kotlin.math.abs(down.position.x - thumbX) > hitToleranceXPx) {
+                                down.consume()
+                            }
+                        }
+                    }
+                }
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
     }
