@@ -149,7 +149,21 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 139, HOTFIX compile — CI run 185 gagal, `awaitFirstDown`
+- **Batch terakhir**: 140, REVERT PENUH gatekeeper slider (Batch 138+139) —
+  device test user: geser di track SELAIN thumb bukannya diblok malah LANGSUNG
+  loncat ke value 0 (regresi, arah TERBALIK dari yang dimaksud). Root-cause
+  pasti TIDAK dikonfirmasi (no device/compiler access di sandbox ini buat
+  reproduksi — lihat "⚠️ Temuan terbuka"), TAPI dugaan kuat: `.pointerInput(
+  value, ...)` pakai `value` SEBAGAI KEY → tiap `value` berubah (termasuk saat
+  drag legit berjalan) → block RESTART paksa → interaksi aneh dgn
+  `awaitFirstDown`+`consume()` lintas-pass yang TIDAK bisa dipastikan tanpa
+  device nyata. `SkeuomorphicComponents.kt` dikembalikan PERSIS ke versi
+  Batch 137 (sebelum gatekeeper ada sama sekali) — 0 sisa kode gatekeeper.
+  Proteksi kurva EQ (Batch 137, `EqCurveEditor.kt`, TIDAK dilaporkan
+  bermasalah) TETAP ADA, TIDAK ikut di-revert. **NOT VERIFIED** tapi INI
+  REVERT ke state yang SUDAH pernah jalan (v137 identik), jadi risiko regresi
+  BARU sangat rendah — cuma perlu CI run buat pastikan compile balik bersih.
+  Sebelumnya: 139, HOTFIX compile — CI run 185 gagal, `awaitFirstDown`
   di-import dari paket SALAH (`androidx.compose.ui.input.pointer`, harusnya
   `androidx.compose.foundation.gestures` — fungsi itu extension di paket
   `foundation.gestures`, BUKAN `ui.input.pointer`, meski KDoc referensinya
@@ -299,6 +313,16 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 (lanjut normal vs rekonsiliasi seperti di atas).
 
 ## ⚠️ Temuan terbuka
+- (Batch 140) Root-cause PASTI kenapa gatekeeper slider Batch 138 malah bikin
+  value loncat ke 0 (bukan sekadar diblok) TIDAK dikonfirmasi — sandbox ini
+  0 akses device/compiler Kotlin buat reproduksi nyata. Dugaan (BUKAN
+  kepastian): `.pointerInput(value, valueRange, enabled)` pakai `value`
+  sebagai key → restart paksa tiap value berubah (termasuk saat drag legit
+  jalan) → kemungkinan race dgn `consume()` lintas-pass. Kalau proteksi
+  slider mau dicoba lagi ke depan: WAJIB device-in-the-loop (bukan tebak dari
+  sandbox), pertimbangkan key TANPA `value` (misal cuma `Unit`, baca `value`
+  terkini via `rememberUpdatedState` di dalam block) buat hindari restart
+  paksa itu SEBAGAI hipotesis pertama yang dicoba.
 - (Batch 128) DITUTUP: 2 temuan lama Batch 118 (nama secret Box B vs `build.yml`;
   guard `-lt$((` Daily Update) — SOP terkini SUDAH sinkron (Box B pakai
   `KEYSTORE_*`/`KEY_*` tanpa prefix = sama `build.yml`; guard pakai spasi+kutip).
@@ -310,6 +334,19 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 140** (`SkeuomorphicComponents.kt` — 1 file, REVERT PENUH; user
+  device-test: "geser di area track selain thumb malah langsung berubah jadi
+  0 konfigurasinya" — regresi TERBALIK dari tujuan Batch 138): tanpa akses
+  device/compiler di sandbox ini buat debug pointer-event multi-pass secara
+  aman (2 kali sudah salah tebak: Batch 138 salah asumsi gesture-arbitration,
+  Batch 139 salah paket import — pola yang sama BERISIKO kalau ditebak
+  KETIGA kalinya tanpa verifikasi nyata), keputusan: REVERT PENUH ke
+  `SkeuomorphicComponents.kt` versi Batch 137 (byte-identical, diambil dari
+  `Boomly_v137.zip` — bukan ditulis ulang manual, 0 risiko salah ketik balik).
+  Proteksi slider individual jadi backlog TODO lagi (lihat ROADMAP) — BUTUH
+  device-in-the-loop utk iterasi aman, bukan tebak-tebak-tempel lagi.
+  Proteksi kurva EQ (Batch 137) TIDAK disentuh, TIDAK dilaporkan bermasalah.
+  NOT VERIFIED tapi risiko rendah (revert ke state yang sudah pernah eksis).
 - **Batch 139** (`SkeuomorphicComponents.kt` — 1 file, HOTFIX; user upload log
   CI run 185 gagal, "fix it immediately"): root-cause `e: ...
   SkeuomorphicComponents.kt:84:42 Unresolved reference: awaitFirstDown` +
@@ -1066,6 +1103,12 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 PERMANEN" soal kebijakan arsip. Ini SEKARANG satu-satunya sumber kebenaran
 backlog, jangan biarkan pecah lagi ke file terpisah.)
 
+- [ ] Proteksi sentuh-jauh-dari-thumb di slider (Bass/Virtualizer/Loudness/
+  Compressor/EQ band) — dicoba Batch 138, DI-REVERT Batch 140 (regresi:
+  malah loncat ke 0, bukan diblok). Backlog, BUTUH device-in-the-loop kalau
+  mau dicoba lagi — lihat "⚠️ Temuan terbuka" utk hipotesis root-cause &
+  saran pendekatan pertama (key `pointerInput` tanpa `value`).
+
 **Definisi "100%/Tamat"** (4 kondisi bareng): (1) Fungsional — semua fitur
 README ada & jalan; (2) Runtime-verified — semua perubahan sejak Batch 1
 terkonfirmasi jalan di device fisik, BUKAN cuma statis; (3) CI hijau stabil
@@ -1314,17 +1357,19 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix compile Batch 139 (kode: `SkeuomorphicComponents.kt`, 1
-baris import dipindah paket; ZIP `Boomly_v139.zip`) → SELESAI, **NOT VERIFIED**
-sampai CI run berikutnya HIJAU (statis sudah OK: brace/paren seimbang, root-cause
-CI run 185 dikonfirmasi & diperbaiki tepat sasaran) →
-Remaining: (a) CI compile Batch 139 — WAJIB dicek dulu sebelum apa pun lain,
-history CI run 185 baru saja GAGAL persis di titik ini; (b) SETELAH CI hijau:
-device fisik Batch 138 — drag tiap thumb slider (Bass/Virtualizer/Loudness/
-Compressor/5 band EQ) harus tetap mulus, tap di tengah track (bukan thumb) harus
-0 efek, scroll lewat area slider dicatat kalau kerasa macet; (c) backlog
-device-test 133-137 (kurva EQ, 9 preset, Reset Equalizer, Jadwal Otomatis) →
-Next Action: user upload hasil CI run berikutnya ATAU konfirmasi hijau manual →
-baru lanjut device-test (b). JANGAN lanjut fitur baru sebelum CI Batch 139
-dikonfirmasi hijau — riwayat run 185 baru saja gagal di titik yang sama.
-Batch berikutnya = 140.]
+[RESUME POINT: Revert gatekeeper slider (Batch 140; kode:
+`SkeuomorphicComponents.kt` dikembalikan persis versi Batch 137; ZIP
+`Boomly_v140.zip`) → SELESAI. Batch 137 (kurva EQ) TETAP ADA, TIDAK disentuh →
+Remaining: (a) CI compile Batch 140 (harus hijau — ini revert ke state yang
+sudah pernah compile bersih di v137, cuma perlu konfirmasi Batch 139's
+awaitFirstDown fix juga tidak nyangkut di file lain — sudah dicek, 0 sisa);
+(b) device fisik: konfirmasi slider (Bass/Virtualizer/Loudness/Compressor/5
+band EQ) balik NORMAL seperti sebelum Batch 138 — tap di tengah track boleh
+loncat lagi (perilaku standar M3 Slider, BUKAN bug, sengaja dikembalikan);
+(c) device fisik Batch 137 (kurva EQ) — belum pernah dikonfirmasi user secara
+eksplisit "aman", walau tidak dilaporkan rusak; (d) backlog device-test
+133-136 (kurva EQ awal, 9 preset, Reset Equalizer, Jadwal Otomatis) →
+Next Action: user konfirmasi (b) dulu (paling mendesak, baru saja regresi) →
+proteksi slider individual (kalau masih diinginkan) jadi task TERPISAH nanti
+dengan pendekatan device-in-the-loop, BUKAN dilanjutkan buta dari sandbox.
+Batch berikutnya = 141.]

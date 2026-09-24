@@ -1,5 +1,23 @@
 # Changelog
 
+## Batch 140: Revert penuh gatekeeper slider — regresi dilaporkan user
+
+Batch 138 (proteksi sentuh-jauh-dari-thumb di semua slider) dilaporkan user
+menyebabkan regresi: geser di track selain thumb malah langsung melompat ke
+nilai 0 — kebalikan dari yang dimaksud. Tanpa akses device/compiler untuk
+debug pointer-event multi-pass dengan aman, dan sudah 2 kali salah tebak
+sebelumnya (Batch 138 asumsi gesture salah, Batch 139 salah paket import),
+diputuskan: **revert penuh**, bukan tebakan ketiga.
+
+**Perubahan** (1 file): `SkeuomorphicComponents.kt` dikembalikan byte-identik ke
+versi Batch 137 (diambil langsung dari arsip `Boomly_v137.zip`, bukan ditulis
+ulang manual). Slider sekarang kembali ke perilaku standar Material3 (tap di
+track langsung loncat ke situ) — seperti sebelum Batch 138. Proteksi kurva EQ
+(Batch 137, `EqCurveEditor.kt`) TIDAK disentuh — tidak dilaporkan bermasalah.
+
+Proteksi slider individual jadi backlog terpisah, kalau mau dicoba lagi butuh
+sesi device-in-the-loop.
+
 ## Batch 139: Hotfix compile CI run 185 — import `awaitFirstDown` salah paket
 
 CI run 185 gagal: `awaitFirstDown` (dipakai gatekeeper slider, Batch 138) diimpor
