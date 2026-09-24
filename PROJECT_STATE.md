@@ -149,7 +149,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 136, MERGE cabang paralel — repo GitHub `main` ternyata
+- **Batch terakhir**: 137, hit-test radius 2D di `EqCurveEditor.kt` (instruksi
+  eksplisit user "preventing touch" — cegah band berubah cuma karena jari
+  LEWAT/bergerak di kurva tanpa niat pegang titik). **NOT VERIFIED**.
+  Sebelumnya: 136, MERGE cabang paralel — repo GitHub `main` ternyata
   berisi sesi LAIN yang diam-diam menyimpang dari Batch 127 (batch number sama,
   ISI beda; sesi lain stop di Batch 129-nya sendiri, TIDAK tahu Batch 130-135
   di sini pernah ada). Detail penuh + tabel rekonsiliasi → lihat
@@ -298,6 +301,16 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 137** (`EqCurveEditor.kt` — 1 file; instruksi eksplisit user
+  "preventing touch"): `onDragStart` sebelumnya pilih band ke-TERDEKAT semata
+  dari X sentuhan-turun, ABAIKAN jarak Y ke titik asli — sentuhan DI MANA PUN
+  di kanvas 150dp langsung ubah band ke Y sentuhan (termasuk swipe yang cuma
+  lewat). Fix: hit-test jarak-kuadrat 2D (x+y) radius 28dp dari posisi RENDER
+  titik terdekat — di luar radius, `draggedBand` tetap -1 (0 band berubah, 0
+  haptic) sepanjang gesture walau jari terus bergerak. 0 perubahan API/
+  pemanggil (`BoosterScreen.kt` tidak disentuh). NOT VERIFIED (brace/paren
+  23/23 seimbang; device test: sentuh ringan LUAR titik + swipe scroll di
+  atas kurva harus 0 efek, drag TEPAT di titik harus tetap responsif).
 - **Batch 136** (`BoosterScreen.kt`, `values/strings.xml`, `values-en/strings.xml`
   — 1 file+strings; MERGE cabang paralel, 0 instruksi fitur baru dari user —
   murni rekonsiliasi non-destruktif, lihat "🔀 Rekonsiliasi cabang paralel"):
@@ -1265,26 +1278,14 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: MERGE cabang paralel (Batch 136; kode: `BoosterScreen.kt` +
-strings ID/EN; ZIP `Boomly_v136.zip`) → SELESAI, **NOT VERIFIED** (sandbox
-tanpa toolchain; review manual — lihat "🔀 Rekonsiliasi cabang paralel" utk
-detail rasional tiap keputusan merge). Fast-recovery heartbeat exact-alarm
-TETAP mati permanen (Batch 132, keputusan sadar, TIDAK di-revert oleh merge
-ini) →
-Remaining: (a) CI compile Batch 136 (dan backlog Batch 134/135 yang belum CI
-juga); (b) device fisik: buka Preset Cepat → cek 9 tombol tampil (4 lama +
-Gaming/Cinema/EDM/Podcast/Acoustic), tap tiap 1 dari 5 preset baru → cek
-Bass/Virtualizer/Loudness DAN slider+kurva Equalizer Manual ikut berubah
-sesuai preset (bukan flat) → tombol Reset Equalizer di bawahnya tetap
-mengembalikan ke 0 mB; (c) device fisik Batch 135 (Reset Equalizer) dan
-Batch 134 (Jadwal Otomatis) — BELUM pernah dites device, lihat RESUME POINT
-lama utk skenario detail (masih relevan, cuma dipindah ke sini); (d) label
-"14 kHz" di kurva EQ terpotong tepi kanan (screenshot user Batch 133), belum
-diperbaiki; (e) SEBELUM upload ZIP berikutnya ke Termux: pastikan HANYA ada
-1 sumber kebenaran (device/sesi) yang lanjut dari `Boomly_v136.zip` ini —
-insiden cabang paralel Batch 128-135 terjadi karena 2 sesi jalan barengan
-tanpa saling tahu; kalau memang sengaja multi-sesi, WAJIB sinkron ZIP
-terbaru dulu tiap mulai sesi baru →
-Next Action: user pilih device-test (b) dulu (paling berisiko — logika
-preset+EQ baru digabung, belum pernah jalan bareng di 1 build) → baru lanjut
-backlog (c)/(d) atau fitur baru. Batch berikutnya = 137.]
+[RESUME POINT: Hit-test EqCurveEditor (Batch 137; kode: `EqCurveEditor.kt`; ZIP
+`Boomly_v137.zip`) → SELESAI, **NOT VERIFIED** (sandbox tanpa toolchain) →
+Remaining: (a) CI compile Batch 137 (+ backlog 134-136 belum CI); (b) device fisik
+PALING PENTING: buka Equalizer Manual → swipe/scroll melewati area kurva EQ (150dp)
+TANPA menyentuh titik → pastikan 0 band berubah; lalu sentuh TEPAT di salah satu
+titik dan drag → pastikan tetap responsif seperti biasa (radius 28dp jangan sampai
+kerasa "meleset"/susah pegang); (c) device test Batch 136 (9 preset + eqBands),
+Batch 135 (Reset Equalizer), Batch 134 (Jadwal Otomatis) — masih backlog dari
+sebelumnya; (d) label "14 kHz" terpotong (Batch 133) belum diperbaiki →
+Next Action: user device-test (b) dulu (paling berisiko, langsung UX inti kurva) →
+baru lanjut backlog device-test lain. Batch berikutnya = 138.]

@@ -95,15 +95,38 @@ internal fun EqCurveEditor(
             .pointerInput(bandCount) {
                 val topPad = topPadDp.toPx()
                 val bottomPad = bottomPadDp.toPx()
+                // Batch 137 (instruksi eksplisit user, "preventing touch" — cegah band
+                // ke-ubah tanpa sengaja cuma karena jari LEWAT/bergerak di atas kurva).
+                // SEBELUM ini: onDragStart pilih band ke-TERDEKAT semata dari posisi-X
+                // sentuhan-turun, ABAIKAN seberapa jauh Y-nya dari titik itu — artinya
+                // sentuhan DI MANA PUN di sepanjang kanvas 150dp ini (termasuk swipe yang
+                // cuma numpang lewat, bukan diniatkan pegang titik) langsung mengubah nilai
+                // band ke posisi-Y sentuhan itu. Fix: hit-test radius 2D (x DAN y) di
+                // sekitar posisi RENDER titik terdekat — drag CUMA mulai kalau sentuhan-
+                // turun ada dalam `hitRadiusPx` (>radius visual titik, tetap nyaman
+                // disentuh) dari titik itu. Di luar radius: `draggedBand` TETAP -1
+                // (default `remember`, tidak diubah), 0 band berubah, 0 haptic — dan tetap
+                // -1 SEPANJANG sisa gesture (guard `if (draggedBand < 0) return@` di
+                // lambda `onDrag` di bawah, sudah ada sejak awal) walau jari terus
+                // bergerak kemana pun setelahnya. Jarak dihitung kuadrat (hindari sqrt)
+                // biar 0 dependency ke extension `Offset.getDistance()`.
+                val hitRadiusPx = 28.dp.toPx()
                 detectDragGestures(
                     onDragStart = { offset ->
                         val w = size.width.toFloat()
+                        val h = size.height.toFloat()
                         val stepX = w / (bandCount - 1).coerceAtLeast(1)
                         val nearest = (offset.x / stepX).roundToInt().coerceIn(0, bandCount - 1)
-                        draggedBand = nearest
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        val newLevel = yToLevel(offset.y, topPad, bottomPad, size.height.toFloat())
-                        onBandChange(nearest, newLevel)
+                        val nearestX = nearest * stepX
+                        val nearestY = levelToY(levels.getOrElse(nearest) { 0 }, topPad, bottomPad, h)
+                        val dx = offset.x - nearestX
+                        val dy = offset.y - nearestY
+                        if (dx * dx + dy * dy <= hitRadiusPx * hitRadiusPx) {
+                            draggedBand = nearest
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onBandChange(nearest, yToLevel(offset.y, topPad, bottomPad, h))
+                        }
+                        // else: sentuhan di luar radius titik manapun -> dibiarkan, 0 efek.
                     },
                     onDragEnd = { draggedBand = -1 },
                     onDragCancel = { draggedBand = -1 }

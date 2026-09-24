@@ -1,5 +1,16 @@
 # Changelog
 
+## Batch 137: Kurva EQ — cegah band berubah karena sentuhan tidak sengaja
+
+Kurva drag-point Equalizer Manual sebelumnya bisa mengubah nilai band HANYA karena
+jari lewat/menyentuh area kurva (termasuk saat scroll), meski tidak menyentuh titik
+mana pun. Sekarang drag cuma mulai kalau sentuhan-turun benar-benar dekat (radius
+28dp) dengan posisi titik yang dirender — di luar itu, 0 perubahan.
+
+**Perubahan** (1 file): `EqCurveEditor.kt` — hit-test jarak 2D di `onDragStart`.
+0 perubahan pemanggil/API. **NOT VERIFIED** device — review manual: brace/paren
+23/23 seimbang.
+
 ## Batch 136: Merge cabang paralel — 5 preset baru dari sesi lain digabung masuk
 
 User upload ulang ZIP dari GitHub `main` yang ternyata isinya sesi Claude LAIN yang
