@@ -180,7 +180,16 @@ private data class Preset(
     val label: String,
     val bass: Float,
     val virtualizer: Float,
-    val loudness: Float
+    val loudness: Float,
+    // Batch 128: opsional, sama semantik dengan PrefsHelper.CustomPreset.eqBands (Batch 63) —
+    // KOSONG (default) = preset ini TIDAK punya opini soal EQ, applyPreset() reset ke flat
+    // (perilaku asli, 4 preset lama TIDAK diubah). Kalau ADA, urutan sesuai
+    // AudioEnhancerService.FALLBACK_EQ_BANDS_HZ (60/230/910/3600/14000 Hz — device dgn band
+    // count beda tetap aman, lihat getOrElse di applyPreset()). Nilai mB sengaja dijaga
+    // konservatif (maks ±800) karena beda dgn Bass/Virtualizer (kontrak platform 0..1000,
+    // Batch 60), rentang band EQ device-specific — fallback aman -1500..1500 kalau
+    // Equalizer.bandLevelRange gagal dibaca (AudioEnhancerService.getEqualizerLevelRange()).
+    val eqBands: List<Int> = emptyList()
 )
 
 /** Batch 26: batas panjang nama custom preset — lihat komentar di pemakaiannya
@@ -538,7 +547,32 @@ fun BoosterScreen(
         Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
         Preset(stringResource(R.string.preset_bass_heavy), bass = 1000f, virtualizer = 400f, loudness = 750f),
         Preset(stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 1100f),
-        Preset(stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f)
+        Preset(stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f),
+        // Batch 128 (request eksplisit user "preset powerful sesuai spesialisasi nya
+        // masing-masing"): 5 preset baru, tiap satu SATU use-case spesifik (beda dari 4
+        // preset di atas yang fokus 1 karakter audio) — Bass/Virtualizer/Loudness DIRANCANG
+        // BARENG eqBands (bukan cuma 1 knob didorong) supaya benar-benar "powerful" buat
+        // skenario itu. eqBands index = [60Hz, 230Hz, 910Hz, 3600Hz, 14000Hz].
+        Preset( // Gaming: deteksi arah (virtualizer MAX) + detail langkah kaki/tembakan (boost hi-mid/treble)
+            stringResource(R.string.preset_gaming), bass = 400f, virtualizer = 1000f, loudness = 900f,
+            eqBands = listOf(50, -150, 100, 700, 750)
+        ),
+        Preset( // Cinema: dialog jernih (boost 910Hz) + rumble low-end + surround virtualizer tinggi
+            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 1600f,
+            eqBands = listOf(250, -50, 600, 300, 100)
+        ),
+        Preset( // EDM: signature V-shape (sub+bass+treble naik, mid di-scoop), bass platform MAX
+            stringResource(R.string.preset_edm), bass = 1000f, virtualizer = 750f, loudness = 2000f,
+            eqBands = listOf(750, 300, -400, 200, 600)
+        ),
+        Preset( // Podcast: kejernihan bicara — bass/virtualizer diminimalkan, mid presence suara dinaikkan
+            stringResource(R.string.preset_podcast), bass = 100f, virtualizer = 150f, loudness = 1200f,
+            eqBands = listOf(-350, -150, 600, 350, -250)
+        ),
+        Preset( // Acoustic: hangat & natural, semua parameter halus (bukan ekstrem kayak 5 preset lain)
+            stringResource(R.string.preset_acoustic), bass = 300f, virtualizer = 400f, loudness = 600f,
+            eqBands = listOf(150, 100, 250, 150, 50)
+        )
     )
     var bass by remember { mutableStateOf(initialBass) }
     var virtualizer by remember { mutableStateOf(initialVirtualizer) }
@@ -601,9 +635,17 @@ fun BoosterScreen(
         loudness = preset.loudness; onLoudness(preset.loudness)
         activePreset = preset.label
         onActivePresetChange(preset.label)
+        // Batch 128: cabang baru sama persis pola applyCustomPreset() di atas — eqBands
+        // KOSONG (4 preset lama) = reset flat (0), PERILAKU ASLI TIDAK BERUBAH. eqBands ADA
+        // (5 preset baru) = terapkan nilainya, bukan flat.
         if (equalizerBandCount > 0) {
-            for (band in 0 until equalizerBandCount) onEqualizerBand(band, 0)
-            eqOverrideLevels = List(equalizerBandCount) { 0 }
+            val levels = if (preset.eqBands.isNotEmpty()) {
+                List(equalizerBandCount) { i -> preset.eqBands.getOrElse(i) { 0 }.toShort() }
+            } else {
+                List(equalizerBandCount) { 0 }
+            }
+            levels.forEachIndexed { band, level -> onEqualizerBand(band, level) }
+            eqOverrideLevels = levels
             eqResetCounter++
         }
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1649,43 +1691,6 @@ private fun EqualizerSection(
 
             if (expanded) {
                 Spacer(modifier = Modifier.height(12.dp))
-                // Batch 135: tombol reset SEMUA band ke 0 mB (flat). Jalur sama persis dgn
-                // slider/kurva (`levels[band] = ...` + `onBandChange`) dan reset preset
-                // Flat (`onEqualizerBand(band, 0)`) — 0 logic baru di Service/ViewModel.
-                // Nonaktif kalau semua band sudah flat.
-                val resetLevel = 0.coerceIn(levelMin.toInt(), levelMax.toInt()).toShort()
-                val allFlat = levels.all { it == resetLevel }
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(
-                        onClick = {
-                            for (band in 0 until bandCount) {
-                                levels[band] = resetLevel
-                                onBandChange(band, resetLevel)
-                            }
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                        enabled = !allFlat
-                    ) {
-                        Text(stringResource(R.string.eq_reset))
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                // Batch 133: kurva drag-point di atas slider — pelengkap, bukan
-                // pengganti (lihat KDoc EqCurveEditor.kt). Share instance `levels`
-                // yang sama dgn slider di bawah: drag kurva langsung nge-update
-                // slider (dan sebaliknya), 0 state kedua.
-                EqCurveEditor(
-                    bandCount = bandCount,
-                    levelMin = levelMin,
-                    levelMax = levelMax,
-                    centerFreqsHz = centerFreqsHz,
-                    levels = levels,
-                    onBandChange = { band, level ->
-                        levels[band] = level
-                        onBandChange(band, level)
-                    }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 for (band in 0 until bandCount) {
                     FeatureControl(
                         title = formatFreqLabel(centerFreqsHz.getOrElse(band) { 0 }),

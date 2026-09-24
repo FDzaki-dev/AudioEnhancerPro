@@ -13,18 +13,12 @@ import android.widget.RemoteViews
  * sekali. Beda dari App Shortcuts (v1.42) yang cuma jalan pintas buka MainActivity —
  * widget ini beneran interaktif langsung dari home screen.
  *
- * Status di-refresh UTAMA dari SATU titik push: AudioEnhancerService manggil refreshAll()
- * tiap `isRunning` berubah (bukan didup-duplikasi di tiap entry point start/stop —
- * semuanya udah lewat AudioEnhancerService.requestStart()/requestStop(), jadi satu hook
- * di situ otomatis nutup semua jalur: MainActivity, BootReceiver, QS Tile, App Shortcut,
- * dan widget ini sendiri). Batch 131: `updatePeriodMillis` di `widget_booster_info.xml`
- * SEKARANG diaktifkan (30 menit, lantai native OS) sebagai jalur KEDUA — murni jaring
- * pengaman TERAKHIR untuk tampilan pasif kalau widget tak pernah disentuh & shade/app tak
- * pernah dibuka; `onUpdate()` di bawah cuma re-render dari `isRunning` TERKINI (fungsi
- * sama dengan refreshAll()), jadi aman idempoten ditumpuk dengan jalur push, 0 duplikasi
- * state. Tap toggle (`onReceive` di bawah) TIDAK PERNAH baca teks widget ini untuk
- * memutuskan start/stop — selalu baca `AudioEnhancerService.isRunning` langsung, jadi
- * 0 salah aksi walau tampilan sempat basi di antara dua refresh.
+ * Status di-refresh dari SATU titik: AudioEnhancerService manggil refreshAll() tiap
+ * `isRunning` berubah (bukan lewat updatePeriodMillis yang minimal 30 menit, dan bukan
+ * didup-duplikasi di tiap entry point start/stop — semuanya udah lewat
+ * AudioEnhancerService.requestStart()/requestStop(), jadi satu hook di situ otomatis
+ * nutup semua jalur: MainActivity, BootReceiver, QS Tile, App Shortcut, dan widget ini
+ * sendiri).
  */
 class BoosterWidgetProvider : AppWidgetProvider() {
 

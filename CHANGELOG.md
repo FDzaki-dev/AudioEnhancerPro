@@ -1,203 +1,27 @@
 # Changelog
 
-## Batch 135: Tombol Reset Equalizer
+## Batch 128: 5 preset bawaan baru, tiap satu dirancang penuh untuk 1 skenario dengarnya
 
-Kartu Equalizer Manual (saat dibuka) punya tombol **Reset Equalizer** — semua band
-kembali ke 0 mB (flat) sekali ketuk; slider dan titik kurva ikut kembali. Tombol nonaktif
-kalau semua band sudah flat.
+Preset Cepat sekarang 9 total (dari 4). 5 preset baru — **Gaming**, **Cinema**,
+**EDM**, **Podcast**, **Acoustic** — beda dari 4 preset lama yang fokus 1
+karakter audio (Bass Heavy/Vocal Boost/Treble Boost): tiap preset baru
+menyetel Bass + Virtualizer + Loudness + Equalizer manual (5 band) BARENGAN,
+dirancang penuh untuk 1 skenario dengar spesifik (mis. Gaming = virtualizer
+maksimal buat deteksi arah + boost hi-mid/treble buat detail langkah kaki;
+Podcast = bass/virtualizer diminimalkan + mid presence suara dinaikkan buat
+kejernihan bicara).
 
-**Perubahan** (1 file kode + strings ID/EN): `BoosterScreen.kt` — `EqualizerSection`
-menulis 0 ke tiap band lewat jalur yang sama dengan slider/kurva (`onBandChange`).
-0 perubahan Service/ViewModel. **NOT VERIFIED** device fisik — review manual: brace/paren
-seimbang, parity strings ID/EN 184=184.
+**Non-breaking**: `Preset` (built-in, `BoosterScreen.kt`) dapat field baru
+`eqBands` (opsional, default kosong) — 4 preset lama TIDAK diberi nilai ini,
+jadi perilakunya tetap identik: EQ manual tetap direset ke flat saat
+diterapkan, sama seperti sebelum batch ini.
 
-## Batch 134: Jadwal Otomatis harian — nyala/mati Boomly di jam pilihan (Fase 8 B, ROI #7)
-
-Pengaturan → **Jadwal Otomatis**: toggle + jam "Nyalakan" dan jam "Matikan" (tiap hari).
-Default mati (opt-in); jam nyala dan jam mati tidak boleh sama. Fade-out Timer Tidur
-sengaja dilewati (pilihan user), tetap belum ada.
-
-**Perubahan** (3 file kode + strings ID/EN): `ScheduleWorker.kt` (BARU) — rantai
-`OneTimeWork` unik untuk event terdekat, lanjut sendiri tiap event selesai, tahan reboot
-(WorkManager). Nyala = `requestStart()`, mati = `requestStop()` (jalur yang sama dengan tombol
-"Matikan", watchdog tidak menghidupkan lagi). `PrefsHelper.kt` — 3 key jadwal.
-`SettingsScreen.kt` — kartu jadwal + `ScheduleTimeRow` (TimePickerDialog sistem).
-0 perubahan Service/Manifest/BootReceiver.
-
-**Batasan jujur**: WorkManager tidak exact — jam bisa tertunda saat hemat daya; event telat
->60 menit dilewati (HP mati semalaman tidak boleh mematikan service yang baru dinyalakan). Di
-Android 12+ penyalaan dari latar belakang bisa diblokir sistem → muncul notifikasi "Waktunya
-menyalakan Boomly", ketuk untuk nyala (exemption battery optimization = nyala tanpa sentuhan).
-Belum ada: preset per jadwal, hari tertentu.
-
-**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual: brace/paren 3 file
-seimbang, parity strings ID/EN 183=183, semua `R.string` ter-resolve.
-
-## Batch 133: EQ curve editor drag-point (Fase 8 A, ROI #6)
-
-Diferensiator vs app EQ generic — kurva visual di atas slider EQ manual yang
-sudah ada, titik per band bisa di-drag langsung (vertikal = gain, horizontal
-tetap/tidak bisa diubah, bukan parametric EQ). Curve smooth via cubic bezier
-titik-tengah antar segmen, area fill ke garis 0 gain, label frekuensi +
-nilai mB saat drag aktif.
-
-**Perubahan** (2 file kode): `EqCurveEditor.kt` (BARU) — composable
-"controlled" murni, 0 state internal untuk gain (baca `levels` yang sama
-dipakai slider, tulis lewat `onBandChange`). `BoosterScreen.kt` —
-`EqualizerSection` sisipkan `EqCurveEditor` di atas loop slider, share
-instance `levels`/callback yang sama persis (drag kurva ↔ slider real-time
-sinkron, 0 duplikasi source-of-truth). **0 perubahan** ke
-`AudioEnhancerService.kt`/`BoosterViewModel.kt` — backend band get/set/range
-sudah lengkap sejak Batch 87, ini murni tambahan visual.
-
-**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual:
-brace/paren 2 file seimbang, tipe & API (`getOrElse` literal Short,
-`PointerInputScope`/`DrawScope` sebagai `Density`, `Color.toArgb()`) diverifikasi
-manual terhadap pola yang SUDAH terbukti jalan di file lain (bukan tebakan).
-
-## Batch 132: Fast Recovery heartbeat dimatikan permanen — hemat baterai, watchdog 15mnt tetap jalan
-
-User menegaskan tujuan asli: hemat baterai, bukan "0% background" sebagai
-prinsip abstrak. Ini mengubah kalkulasinya dari sesi sebelumnya (Batch 131):
-watchdog 15 menit (`WorkManager`) MURAH secara baterai — di-batch OS,
-bukan exact alarm — sementara heartbeat Fast Recovery (`AlarmManager`
-`setExactAndAllowWhileIdle`, ±1 menit, Batch 127-130) MEMANG mahal — bangun
-CPU terus-menerus selama service hidup, bisa berjam-jam. Fix yang tepat:
-matikan heartbeat SAJA, watchdog tetap jalan sebagai jaring pengaman
-auto-recovery (bukan dihapus seperti sempat diminta Batch 131 — itu tetap
-ditolak, alasannya tidak berubah).
-
-**Perubahan** (2 file kode): `ServiceWatchdogWorker.kt` —
-`scheduleExactRecovery()` jadi no-op permanen (KDoc status ditambah di
-puncak kelas), `FAST_RECOVERY_INTERVAL_MS` dihapus (tak terpakai),
-`cancelExactRecovery()`/`canUseExactAlarm()`/watchdog 15mnt TIDAK diubah.
-`SettingsScreen.kt` — kartu "Pemulihan Cepat" (izin Alarm & pengingat)
-dihapus total (mempertahankannya = UI menampilkan status/tombol yang tak
-lagi berpengaruh ke behavior apa pun).
-
-**Trade-off jujur**: pulih dari OS/OEM-kill sekarang HANYA lewat watchdog
-15 menit (bisa ±15 menit, sama seperti sebelum Batch 127) — bukan hilang,
-cuma lebih lambat dari heartbeat 1 menit yang dilepas. Alarm exact lama
-yang mungkin masih terpasang di device existing (sebelum update ini) akan
-fire sekali terakhir lalu berhenti sendiri (reschedule berikutnya no-op) —
-0 alarm yatim permanen, 0 migrasi manual dibutuhkan.
-
-**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual:
-brace/paren balance 3 file tersentuh tetap seimbang, 0 import/simbol
-orphan (`canUseExactAlarm` jadi dead code publik, sengaja dibiarkan —
-gampang diaktifkan lagi 1 baris kalau user berubah pikiran).
-
-## Batch 131: Widget dapat refresh pasif native 30 menit (Opsi B) — watchdog/heartbeat TETAP dipertahankan
-
-User minta hapus total watchdog (15 menit) + heartbeat Fast Recovery (1 menit)
-demi "0% background activity kustom", dengan alasan keduanya cuma perlu buat
-nutup celah widget home screen yang bisa nampilin status basi tanpa batas
-waktu. Setelah dicek ke kode: premis itu TIDAK akurat — fungsi UTAMA
-`ServiceWatchdogWorker`/`WatchdogAlarmReceiver` adalah restart otomatis
-`AudioEnhancerService` kalau dibunuh OS/OEM (hotfix URGENT Batch 124, laporan
-user), resync widget/tile cuma efek SAMPINGAN dari siklus yang sama. Hapus
-total = regresi ke bug Batch 124 (efek audio mati diam-diam, tak pernah
-pulih sendiri) — TIDAK dieksekusi, dilaporkan ke user (lihat chat).
-
-**Perubahan** (1 file kode): `widget_booster_info.xml` —
-`updatePeriodMillis` 0→1800000 (lantai 30 menit Android, native, 0
-wakelock/izin baru). Ini jaring pengaman TERAKHIR untuk tampilan pasif;
-jalur utama tetap push instan (`refreshAll()`) + resync
-`onStartListening()`/`onResume()` (Batch 126) + watchdog 15 menit (Batch
-125), semua TIDAK diubah.
-
-**Diverifikasi (Opsi A, 0 perubahan kode)**: `BoosterWidgetProvider.onReceive()`
-sudah SEJAK AWAL membaca `AudioEnhancerService.isRunning` (live, `@Volatile`)
-langsung sebelum eksekusi start/stop — bukan dari teks widget yang mungkin
-basi. Jadi tap widget sudah 0% salah aksi walau tampilan sempat basi; tidak
-ada regresi behavior untuk ditutup di jalur ini.
-
-**NOT VERIFIED** device fisik — sandbox tanpa toolchain. Review manual: XML
-well-formed, 1 atribut diubah, 0 logic Kotlin disentuh.
-
-## Batch 130: Fast Recovery ditekan ke lantai praktis — heartbeat 2 menit jadi 1 menit
-
-User konfirmasi Batch 129 pulih di bawah 3 menit di device (lebih baik dari
-estimasi), lalu minta ditekan semaksimal mungkin ("mentokin"). Interval
-diturunkan sekali lagi, dari 2 menit ke 1 menit — masih perubahan satu
-konstanta, mekanisme sama persis dengan Batch 128/129.
-
-**Perubahan**: `ServiceWatchdogWorker.kt` — `FAST_RECOVERY_INTERVAL_MS` 2→1
-menit, komentar kelas & KDoc disinkron. `settings_fast_recovery_desc` (ID+EN)
-— "±2 menit"/"2 minutes" jadi "±1 menit"/"1 minute".
-
-**Batas jujur (kenapa 1 menit, bukan lebih rendah)**: heartbeat ini terpasang
-TERUS-MENERUS selama service ingin hidup — bukan alarm sekali tembak. Di
-bawah ±1 menit, tiap penurunan mulai murni menambah frekuensi wake-up CPU
-(ongkos baterai) tanpa tambahan manfaat kecepatan pulih yang benar-benar
-terasa oleh user, apalagi lantai OS ±9 menit/app non-exempt di Doze dalam
-tetap berlaku sama seperti sebelumnya — turunin request tidak menembus lantai
-itu. 1 menit dipilih sebagai titik SENGAJA berhenti demi stabilitas baterai
-(P0 SOP), bukan hasil satu-satunya nilai teknis yang mungkin.
-
-**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
-paren balance tetap seimbang, XML well-formed, parity string ID/EN 173=173).
-Uji device: kill Boomly via task-swipe/OEM tanpa sentuh device lagi →
-bandingkan waktu pulih vs Batch 129, DAN pantau pemakaian baterai harian
-beberapa hari — kalau terasa lebih boros, gampang dibalik (1 baris kode).
-
-## Batch 129: Fast Recovery lebih cepat — heartbeat 5 menit jadi 2 menit
-
-User konfirmasi heartbeat Batch 128 sudah aktif dan pulih dalam ~5 menit,
-lalu minta dipercepat kalau memungkinkan. Interval exact alarm heartbeat
-diturunkan dari 5 menit ke 2 menit — perubahan satu konstanta, tanpa ubah
-mekanisme (masih `setExactAndAllowWhileIdle`, masih dipasang ulang tiap
-fire/tick sehat, masih dicabut di `ACTION_STOP`).
-
-**Perubahan**: `ServiceWatchdogWorker.kt` — `FAST_RECOVERY_INTERVAL_MS` 5→2
-menit, komentar kelas & KDoc disinkron. `settings_fast_recovery_desc` (ID+EN)
-— "±5 menit"/"5 minutes" jadi "±2 menit"/"2 minutes".
-
-**Batas jujur**: Android tetap membatasi `setExactAndAllowWhileIdle` ke lantai
-sistem ±9 menit per app kalau device sudah masuk Doze dalam dan app belum
-di-exempt dari battery optimization — menurunkan angka request TIDAK menembus
-lantai itu. Percepatan terasa nyata di kondisi non-Doze / awal Doze (app baru
-di-background, jendela maintenance awal), bukan di semua kondisi. Alarm lebih
-sering = wake-up lebih sering; kalau user lapor baterai lebih boros, kandidat
-baliknya cukup naikkan lagi konstanta ini (bukan regresi arsitektur).
-
-**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
-paren balance tetap seimbang, XML well-formed, parity string ID/EN 173=173).
-Uji device: nyalakan Boomly, kill via task-swipe/OEM tanpa sentuh device lagi
-→ bandingkan waktu pulih vs pengalaman Batch 128 (harus terasa lebih cepat di
-kondisi layar mati biasa, bukan Doze dalam berkepanjangan).
-
-## Batch 128: Fix Fast Recovery — izin "Alarm & pengingat" bisa diminta dari app + heartbeat proaktif
-
-Laporan user: izin "Alarm & pengingat" tidak ada di pengaturan aplikasi, dan
-waktu pulih otomatis terasa sama saja dengan watchdog 15 menit. Ternyata
-benar, dan ada dua penyebab: (1) izin `SCHEDULE_EXACT_ALARM` default DITOLAK
-di Android 14+ untuk app baru (targetSdk 34), sementara Batch 127 tidak punya
-UI untuk memintanya — fast-recovery diam total, waktu pulih identik watchdog;
-(2) desain Batch 127 reaktif — exact alarm baru dijadwalkan SETELAH tick
-watchdog 15 menit mendeteksi service mati, jadi walau izin granted, pulihnya
-tetap tidak pernah lebih cepat dari watchdog. Kartu "Pemulihan Cepat" di
-Pengaturan kini menampilkan status izin + tombol ke halaman izinnya, dan
-alarm dipasang PROAKTIF (heartbeat ±5 menit) selama Boomly aktif.
-
-**Perubahan**: `ServiceWatchdogWorker.kt` — heartbeat: tick/alarm sehat memasang
-alarm berikutnya, `cancelExactRecovery()` baru, `canUseExactAlarm()` jadi
-publik. `AudioEnhancerService.kt` — alarm dipasang di `onStartCommand` (start,
-restart START_STICKY, BootReceiver) dan dicabut di jalur `ACTION_STOP` (Matikan,
-QS Tile, Widget, Sleep timer). `SettingsScreen.kt` + strings ID/EN — kartu
-status + tombol `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` (fallback App Info),
-status di-poll 1,5 dtk; kalau izin baru granted saat service jalan, heartbeat
-langsung dipasang.
-
-**Batas jujur**: Force Stop (OEM/pengguna) menghapus semua alarm app — heartbeat
-ikut hilang. Doze non-exempt membulatkan alarm ke ~9 menit. `USE_EXACT_ALARM`
-(auto-grant) dan `setAlarmClock()` sengaja TIDAK dipakai (lihat PROJECT_STATE).
-
-**NOT VERIFIED** — sandbox tanpa toolchain/device; lolos review manual (brace/
-paren balance, XML well-formed, parity string ID/EN 173=173). Uji device:
-Pengaturan → Pemulihan Cepat → "Buka Pengaturan Izin" → izinkan → kembali, status
-jadi "Diizinkan"; nyalakan Boomly, kill via task-swipe/OEM, jangan sentuh device →
-service/notifikasi balik ≤~9 menit. Tanpa izin → tetap 15 menit (tidak regresi).
+**NOT VERIFIED** — sandbox tanpa toolchain lokal; lolos review manual
+(brace/paren 283=283, 996=996 di `BoosterScreen.kt`; parity string ID/EN
+171=171). Nilai `eqBands` sengaja dijaga konservatif (maks ±800 mB, di bawah
+fallback device -1500..1500) karena rentang band EQ device-specific (beda
+dari Bass/Virtualizer yang kontrak platform 0..1000, Batch 60) — belum diuji
+telinga asli di device fisik.
 
 ## Batch 127: Fast-recovery watchdog opportunistic via exact alarm (di bawah 15 menit)
 

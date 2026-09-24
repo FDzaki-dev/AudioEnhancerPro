@@ -461,11 +461,6 @@ class AudioEnhancerService : Service() {
             // Batch 9: catat ini SEBAGAI PILIHAN USER (bukan OS yang bunuh), supaya
             // ServiceWatchdogWorker gak menghidupkan paksa lagi tiap 15 menit.
             PrefsHelper.setUserWantsRunning(this, false)
-            // Batch 128: cabut heartbeat exact alarm (Fast Recovery) — user sengaja mati,
-            // alarm yatim cuma bangunin app sia-sia (performWatchdogCheck juga diam, ini
-            // sekadar hemat wakeup). Jalur yang SAMA dipakai tombol Matikan, QS Tile,
-            // Widget, DAN habisnya Sleep timer.
-            ServiceWatchdogWorker.cancelExactRecovery(this)
             // Batch 119: Sleep timer ikut dibersihkan di jalur berhenti ini (dipakai tombol
             // Matikan, QS Tile, DAN habisnya timer itu sendiri).
             sleepHandler.removeCallbacks(sleepTick)
@@ -489,14 +484,6 @@ class AudioEnhancerService : Service() {
         // lewat requestStart() -> sini). ServiceWatchdogWorker baca flag ini buat
         // mutusin boleh/gaknya restart otomatis kalau nemu service mati.
         PrefsHelper.setUserWantsRunning(this, true)
-        // Batch 128 (Fast Recovery, heartbeat PROAKTIF): pasang exact alarm SEKARANG selagi
-        // service hidup, bukan nunggu tick watchdog 15 menit mendeteksi service mati
-        // (desain reaktif Batch 127 = waktu pulih tak pernah lebih cepat dari watchdog).
-        // Kalau service dibunuh OS, alarm ini tetap hidup di luar proses app dan fire
-        // ≤~5 menit lagi → restart via jalur exempted. No-op diam kalau izin "Alarms &
-        // reminders" belum granted (lihat kartu Pemulihan Cepat di SettingsScreen.kt).
-        // Dipanggil juga di restart START_STICKY (intent null) & BootReceiver (lewat sini).
-        ServiceWatchdogWorker.scheduleExactRecovery(this)
         BoosterWidgetProvider.refreshAll(this)
         // Batch 44 (bugfix): sama seperti cabang ACTION_STOP di atas — QS Tile ikut
         // disinkronkan di sini juga (jalur "start").
