@@ -15,6 +15,10 @@ object PrefsHelper {
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
     private const val KEY_AUTO_PROFILE_ENABLED = "auto_profile_enabled"
     private const val KEY_AUTO_PROFILE_ROUTE_PREFIX = "auto_profile_route_"
+    // Batch 134 (Fase 8 ROI #7 "Scheduler"): jadwal harian nyala/mati, menit-dalam-hari (0..1439).
+    private const val KEY_SCHEDULE_ENABLED = "schedule_enabled"
+    private const val KEY_SCHEDULE_START_MIN = "schedule_start_min"
+    private const val KEY_SCHEDULE_STOP_MIN = "schedule_stop_min"
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
@@ -118,6 +122,35 @@ object PrefsHelper {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         if (presetName == null) prefs.edit().remove(KEY_AUTO_PROFILE_ROUTE_PREFIX + category).apply()
         else prefs.edit().putString(KEY_AUTO_PROFILE_ROUTE_PREFIX + category, presetName).apply()
+    }
+
+    // Batch 134 (Scheduler harian, `ScheduleWorker.kt`): opt-in, default MATI — menyalakan/
+    // mematikan Boomly TANPA sentuhan user butuh persetujuan eksplisit. Default jam hanya
+    // nilai awal tampilan picker (tidak berlaku sebelum toggle dinyalakan user).
+    const val SCHEDULE_DEFAULT_START_MIN = 7 * 60
+    const val SCHEDULE_DEFAULT_STOP_MIN = 22 * 60
+
+    fun getScheduleEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(KEY_SCHEDULE_ENABLED, false)
+
+    fun setScheduleEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(KEY_SCHEDULE_ENABLED, enabled).apply()
+    }
+
+    fun getScheduleStartMinutes(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_SCHEDULE_START_MIN, SCHEDULE_DEFAULT_START_MIN).coerceIn(0, 1439)
+
+    fun setScheduleStartMinutes(context: Context, minutes: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_SCHEDULE_START_MIN, minutes.coerceIn(0, 1439)).apply()
+    }
+
+    fun getScheduleStopMinutes(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_SCHEDULE_STOP_MIN, SCHEDULE_DEFAULT_STOP_MIN).coerceIn(0, 1439)
+
+    fun setScheduleStopMinutes(context: Context, minutes: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_SCHEDULE_STOP_MIN, minutes.coerceIn(0, 1439)).apply()
     }
 
     // --- Preset aktif: supaya chip preset yang terpilih tidak hilang saat app dibuka ulang ---

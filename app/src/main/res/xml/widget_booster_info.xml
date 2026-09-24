@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- updatePeriodMillis="0": auto-update Android minimal 30 menit, kelewat lambat buat
-     status real-time. Update beneran didorong manual dari AudioEnhancerService tiap
-     isRunning berubah (lihat BoosterWidgetProvider.refreshAll()), jadi periodic update
-     bawaan sengaja dimatikan supaya gak dobel/nunggu basi. -->
+<!-- Batch 131 (Opsi B, instruksi eksplisit user): updatePeriodMillis="1800000" (lantai
+     30 menit Android, tak bisa lebih cepat — API OS, native, 0 wakelock/izin tambahan).
+     Ini HANYA jaring pengaman TERAKHIR buat tampilan pasif kalau widget tak pernah
+     disentuh & shade/app tak pernah dibuka sama sekali; jalur utama TETAP push instan
+     dari AudioEnhancerService tiap isRunning berubah (BoosterWidgetProvider.refreshAll())
+     + resync onStartListening()/onResume() (Batch 126) + watchdog 15 menit (Batch 125).
+     onUpdate() cuma re-render dari isRunning TERKINI (sama fungsi dgn refreshAll()) jadi
+     aman idempoten ditumpuk bareng jalur push, 0 duplikasi/regresi. Tap toggle (onReceive)
+     TIDAK PERNAH baca teks widget ini — selalu baca AudioEnhancerService.isRunning
+     langsung (live, @Volatile) SEBELUM eksekusi start/stop, jadi 0 salah aksi walau
+     tampilan sempat basi (Opsi A, sudah begini sejak awal, diverifikasi Batch 131 — 0
+     perubahan logic diperlukan di sini). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="180dp"
     android:minHeight="60dp"
     android:targetCellWidth="3"
     android:targetCellHeight="1"
-    android:updatePeriodMillis="0"
+    android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_booster"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"

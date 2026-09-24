@@ -72,9 +72,9 @@ Index Core Protocol (detail lengkap di instruksi custom user):
 - **Equalizer band individual**: `wrapInCard=false` — sudah di card
   "Equalizer Manual", hindari kaca-di-atas-kaca.
 - **Preset custom (v1.33, diperluas Batch 63)**: TIDAK reset equalizer manual
-  saat diterapkan (beda dari 4 preset bawaan). Simpan bass/virtualizer/
-  loudness + `eqBands` opsional (Batch 63) — preset lama tanpa `eqBands`
-  TIDAK menyentuh EQ manual.
+  saat diterapkan (beda dari 9 preset bawaan — 4 lama + 5 Batch 136, lihat
+  LOG BATCH). Simpan bass/virtualizer/loudness + `eqBands` opsional
+  (Batch 63) — preset lama tanpa `eqBands` TIDAK menyentuh EQ manual.
 - **Layout layar utama (Batch 97)**: DEFAULT = vertikal (1 `Column`
   `.verticalScroll()` flat). Mode tab horizontal (`TabRow`+`HorizontalPager`)
   TETAP ADA di kode (`TabPageContent` di `BoosterScreen.kt`) tapi HANYA opsi
@@ -91,15 +91,40 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
   dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
 
-- **Fast-recovery exact alarm (Batch 127)**: `SCHEDULE_EXACT_ALARM` dipakai
-  OPPORTUNISTIC — sengaja TIDAK ada dialog/`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`
-  deep-link di app ini (beda dari battery-optimization exemption yang MEMANG
-  diminta saat onboarding). Alasan: OS rate-limit `setExactAndAllowWhileIdle`
-  ke ~9 menit/app kalau belum battery-exempt (manfaat vs 15 menit lama jadi
-  tipis), dan nambah UI permintaan izin baru = risiko discovery/pemakaian
-  rendah tapi nambah kompleksitas permanen. JANGAN tambah UI request izin ini
-  tanpa instruksi eksplisit baru dari user (kalau user MAU, itu keputusan
-  arsitektur baru, bukan lanjutan otomatis dari Batch 127).
+- **Fast Recovery exact alarm (Batch 127 → DIREVISI Batch 128 → DIMATIKAN
+  PERMANEN Batch 132, instruksi eksplisit user)**: `SCHEDULE_EXACT_ALARM` SEKARANG punya UI minta
+  izin — kartu "Pemulihan
+  Cepat" di `SettingsScreen.kt` (status + deep-link
+  `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`, fallback App Info), opt-in murni, TIDAK ada
+  dialog otomatis/onboarding. Desain = HEARTBEAT PROAKTIF (bukan reaktif Batch 127):
+  alarm ~1 mnt (Batch 130, turun dari ~5 mnt via 129 — instruksi eksplisit user, "mentok"
+  = lantai praktis SENGAJA dipilih krn heartbeat jalan terus-menerus, bukan limit OS)
+  dipasang saat service start, dipasang ulang tiap fire/tick sehat, dicabut di ACTION_STOP.
+  Floor OS ~9 mnt/app non-exempt tetap berlaku pas Doze dalam (turunin request tak nembus
+  floor itu). Root cause pemicu: targetSdk 34 → izin default DITOLAK di Android 14+
+  (fast-recovery Batch 127 no-op total) + desain reaktif (pulih ≥ watchdog 15 mnt).
+  SENGAJA TIDAK dipakai: `USE_EXACT_ALARM` (auto-grant tapi app hilang dari daftar
+  "Alarms & reminders" → kontradiksi UI izin; kebijakan Play cuma alarm/kalender) dan
+  `setAlarmClock()` (tanpa izin, tapi memunculkan ikon alarm/"next alarm" palsu di
+  system UI). Kandidat kalau user mau zero-friction: `USE_EXACT_ALARM` (keputusan baru).
+  **STATUS Batch 132: DIMATIKAN PERMANEN** (`scheduleExactRecovery()` no-op, kartu
+  "Pemulihan Cepat" dihapus) — histori di atas = KONTEKS desain, BUKAN behavior aktif.
+  Alasan: heartbeat = exact alarm terus-menerus = ongkos baterai nyata, user
+  prioritaskan baterai di atas kecepatan pulih tambahan (~1-9mnt vs ~15mnt watchdog).
+  `canUseExactAlarm()` dibiarkan (dead code, gampang diaktifkan lagi 1 baris).
+
+- **Watchdog 15mnt + Fast Recovery heartbeat 1mnt (Batch 131, TOLAK instruksi
+  hapus TOTAL keduanya)**: user minta hapus demi "0% background activity kustom",
+  premis: keduanya cuma buat nutup celah widget basi. TIDAK AKURAT — fungsi
+  UTAMA `ServiceWatchdogWorker`/`WatchdogAlarmReceiver` = restart otomatis
+  `AudioEnhancerService` kalau dibunuh OS/OEM (hotfix URGENT Batch 124);
+  resync widget/tile cuma efek SAMPINGAN siklus yang sama. Hapus TOTAL (watchdog
+  IKUT dihapus) = regresi bug Batch 124, TIDAK ADA hubungan dengan target aslinya
+  (widget staleness, sudah tertutup via `updatePeriodMillis` 30mnt, Batch 131).
+  **JANGAN hapus/kurangi WATCHDOG 15mnt** dengan alasan "widget staleness" — kalau
+  user ulang minta, tunjukkan entry ini dulu sebelum eksekusi. **Beda dgn Batch 132**:
+  matikan HEARTBEAT SAJA (watchdog TETAP jalan) atas alasan BATERAI itu DIEKSEKUSI,
+  bukan ditolak — target & alasan beda, watchdog tidak disentuh sama sekali.
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -124,14 +149,41 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 129, hotfix — CI run 181 gagal compile karena cabang
-  `else` Batch 129 infer `List<Int>` bukan `List<Short>` di `applyPreset()`
-  (lihat LOG BATCH 129), fixed (`0`→`0.toShort()`); **NOT VERIFIED**, tidak
-  ada toolchain lokal, nunggu CI run berikutnya. Sebelumnya: 128 5 preset
-  bawaan baru per-skenario (Gaming/Cinema/EDM/Podcast/Acoustic), Preset Cepat
-  total 4→9 (lihat LOG BATCH 128); 127 fast-recovery watchdog opportunistic via
-  exact alarm (`SCHEDULE_EXACT_ALARM`, di bawah 15 menit best-effort, 0
-  permission-request UI; lihat LOG BATCH 127, NOT VERIFIED); 126 hotfix widget/QS
+- **Batch terakhir**: 136, MERGE cabang paralel — repo GitHub `main` ternyata
+  berisi sesi LAIN yang diam-diam menyimpang dari Batch 127 (batch number sama,
+  ISI beda; sesi lain stop di Batch 129-nya sendiri, TIDAK tahu Batch 130-135
+  di sini pernah ada). Detail penuh + tabel rekonsiliasi → lihat
+  "🔀 Rekonsiliasi cabang paralel" di bawah. Ringkas: diporting MASUK 5 preset
+  baru (Gaming/Cinema/EDM/Podcast/Acoustic, `eqBands`) dari cabang lain ke
+  `BoosterScreen.kt`+strings (0 file lain disentuh, 0 konflik region — preset
+  ada di area kode berbeda dari EqCurveEditor/Reset Equalizer Batch 133/135).
+  Fast-recovery heartbeat exact-alarm cabang lain (masih aktif di sana) SENGAJA
+  DIABAIKAN/tidak di-reimport — Batch 132 di sini sudah mematikannya permanen
+  atas instruksi eksplisit user demi baterai; itu keputusan LEBIH BARU, bukan
+  regresi. **NOT VERIFIED** (statis: brace/paren BoosterScreen.kt 284/284,
+  parity strings ID/EN 189=189, semua `R.string` ter-resolve; nunggu CI +
+  device). Sebelumnya: 135, tombol "Reset Equalizer" (semua band → 0 mB) di
+  kartu Equalizer Manual — `BoosterScreen.kt` + strings ID/EN. **NOT
+  VERIFIED**. Sebelumnya: 134, Scheduler harian nyala/mati (Fase 8 B, ROI #7;
+  fade-out Timer Tidur DILEWATI atas pilihan user) — `ScheduleWorker.kt` (baru) +
+  `PrefsHelper.kt` + `SettingsScreen.kt` + strings ID/EN. **NOT VERIFIED**.
+  Sebelumnya: 133, EQ curve editor drag-point (Fase 8 A, ROI #6) —
+  `EqCurveEditor.kt` (baru) + `BoosterScreen.kt` (sisip ke `EqualizerSection`).
+  0 perubahan backend. **NOT VERIFIED** device, review manual OK. Sebelumnya:
+  132, Fast Recovery heartbeat (1mnt exact alarm) DIMATIKAN PERMANEN demi
+  baterai — watchdog 15mnt TIDAK disentuh (`ServiceWatchdogWorker.kt` +
+  `SettingsScreen.kt`, lihat "Keputusan sadar" & LOG BATCH 132). Sebelumnya:
+  131, widget `updatePeriodMillis` 0→30 menit (Opsi B) —
+  watchdog+heartbeat DITOLAK dihapus TOTAL (regresi bug Batch 124), lihat "Keputusan
+  sadar" & LOG BATCH 131. Sebelumnya:
+  130 tuning heartbeat Fast Recovery 2→1 menit — lantai
+  praktis (user konfirmasi 129 <3 mnt di device, minta "mentokin"; lihat LOG
+  BATCH 130); **NOT VERIFIED**, tidak ada toolchain lokal, nunggu CI/device
+  user. Sebelumnya: 129 tuning 5→2 menit (NOT VERIFIED); 128
+  fix Fast Recovery — kartu izin "Alarm & pengingat" di Settings + heartbeat
+  exact alarm proaktif (NOT VERIFIED); 127
+  fitur fast-recovery exact alarm (NOT VERIFIED, desain reaktif — direvisi 128);
+  126 hotfix widget/QS
   Tile nunggu watchdog 15 menit kelamaan, ditambah resync cepat di
   `onStartListening()`+`onResume()` (NOT VERIFIED); 125 hotfix widget vs QS Tile desync setelah
   kill keras (NOT VERIFIED); 124 hotfix watchdog gagal diam-diam restart
@@ -157,7 +209,8 @@ sepihak.
   (compile+runtime OK, implisit memvalidasi hotfix Batch 113). SELESAI.
 - **Sleep timer** (Batch 119, Fase 8 B bagian 1): Pengaturan → "Timer Tidur"
   15/30/45/60/90/120 mnt; habis waktu = jalur `ACTION_STOP` (sama tombol
-  Matikan). **NOT VERIFIED**. Sisa: fade-out volume, Scheduler jam/event.
+  Matikan). **NOT VERIFIED**. Sisa: fade-out volume (BLOCKED keputusan user;
+  user pilih SKIP di Batch 134). Scheduler harian: lihat Batch 134.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
@@ -174,44 +227,153 @@ sepihak.
 
 ---
 
-## ⚠️ Temuan terbuka (Batch 118 — BELUM diubah: SOP immutable / di luar scope dok)
-- **Nama secret Box B vs CI**: Box B (SOP terkini) men-set
-  `ANDROID_KEYSTORE_BASE64`/`_PASSWORD` + `ANDROID_KEY_ALIAS`/`_PASSWORD`,
-  sedangkan `build.yml` + README membaca `KEYSTORE_BASE64`/
-  `KEYSTORE_PASSWORD`/`KEY_ALIAS`/`KEY_PASSWORD` (tanpa prefix). Rilis
-  produksi jalan normal (Batch 78-79) → secret repo aktif sudah cocok CI;
-  risiko HANYA di setup repo BARU via Box B apa adanya (step release
-  ke-skip diam-diam, cuma warning). Butuh keputusan user: samakan Box B
-  atau `build.yml`.
-- **Guard integritas Daily Update**: teks SOP tertulis
-  `[ $NEW_COUNT -lt$((OLD_COUNT * 70 / 100)) ]` (tanpa spasi setelah `-lt`)
-  → bash "unary operator expected", guard rollback tidak pernah trigger
-  (jatuh ke commit+push). Diuji di sandbox Batch 118. Skrip immutable,
-  tidak diubah — butuh keputusan user.
+## 🔀 Rekonsiliasi cabang paralel (Batch 136 — baca kalau ada divergensi lagi)
+**Kejadian**: user upload `AudioEnhancerPro-main.zip` (pull GitHub `main`) yang
+ISINYA BUKAN Batch 135 sesi ini — melainkan sesi Claude LAIN yang, tanpa
+diketahui, sempat jalan paralel di project yang SAMA dan ikut increment nomor
+Batch dari titik cabang yang sama, menghasilkan nomor batch KEMBAR dengan isi
+BEDA. Root-cause pasti TIDAK diketahui (di luar visibilitas sesi ini — SOP
+tidak pakai git branch, cuma ZIP linear; kemungkinan: 2 sesi device/akun
+beda jalan bersamaan, atau `DAILY UPDATE` sempat pakai ZIP basi dari sesi
+lain yang nyangkut di folder Download). **Titik cabang persis**: kedua
+riwayat 100% identik kata-per-kata turun sampai **Batch 127** (exact-alarm
+fast-recovery, `WatchdogAlarmReceiver.kt`) — dibuktikan `diff` PROJECT_STATE.md
+kedua sisi byte-identical utk Batch 110-127. Batch 128 di kedua sisi
+MENYIMPANG total meski nomor sama:
+| Batch | Sesi INI (sebelum merge) | Sesi LAIN (GitHub main) |
+|---|---|---|
+| 128 | Kartu "Pemulihan Cepat" + heartbeat proaktif | 5 preset baru (Gaming/Cinema/EDM/Podcast/Acoustic) |
+| 129 | `FAST_RECOVERY_INTERVAL_MS` 5→2 menit | Hotfix compile `applyPreset()` (`List<Short>`) |
+| 130-135 | Tuning heartbeat, **matikan permanen (132)**, EqCurveEditor (133), Scheduler (134), Reset Equalizer (135) | (berhenti di 129 — tidak tahu 130-135 pernah ada) |
+
+**Cara rekonsiliasi (Batch 136, dieksekusi otomatis, 0 konfirmasi manual per
+SOP zero-hesitation)**: `diff` penuh tiap file source (bukan cuma baca
+ringkasan LOG BATCH) → 2 kategori:
+1. **File yang HANYA disentuh 1 sisi** (`PrefsHelper.kt`, `SettingsScreen.kt`,
+   `AudioEnhancerService.kt`, `BoosterWidgetProvider.kt`,
+   `widget_booster_info.xml` — sisi sesi ini SELALU superset verified 0 baris
+   sisi lain hilang; `ServiceWatchdogWorker.kt` — lihat poin 2): pakai APA
+   ADANYA dari sesi ini, 0 porting perlu.
+2. **`ServiceWatchdogWorker.kt` — KEPUTUSAN SADAR, BUKAN kelalaian**: sisi
+   lain MASIH punya heartbeat exact-alarm ±1 menit aktif (state Batch
+   127-130). Sisi ini SUDAH mematikannya permanen di Batch 132 atas instruksi
+   EKSPLISIT user ("alasan baterai" — lihat LOG BATCH 132). Versi sisi ini
+   DIPERTAHANKAN (bukan revert ke versi sisi lain) — itu keputusan yang lebih
+   BARU secara kronologis di rantai user INI dan sisi lain tidak pernah
+   menerima instruksi itu. Kalau user mau nyalakan lagi, itu keputusan baru,
+   bukan "kembalikan yang hilang".
+3. **`BoosterScreen.kt` + `strings.xml` ID/EN — SATU-SATUNYA konflik region
+   nyata**: `diff` isolasi 3 hunk unik sisi lain (`data class Preset.eqBands`,
+   5 `Preset()` baru, logika `applyPreset()` yg sudah dibetulkan tipe
+   `List<Short>`-nya oleh hotfix Batch 129 sisi lain) — 3 hunk ini di region
+   kode BERBEDA dari hunk EqCurveEditor/Reset Equalizer (Batch 133/135) sisi
+   ini, 0 overlap baris. Di-porting MASUK utuh (komentar diberi label
+   "Batch 136 (merge...)" biar jelas asal-usulnya, isi logic 1:1 sama
+   persis dgn sisi lain termasuk fix tipe Short-nya). Hasil: 9 preset total
+   (4 lama + 5 baru), EqCurveEditor + tombol Reset Equalizer TETAP ada.
+   Verifikasi post-merge: `diff` kedua sisi lagi → 0 baris sisi lain yang
+   hilang dari sisi ini (selain wording komentar "Batch 128"→"Batch 136").
+4. **Dok** (`PROJECT_STATE.md`/`CHANGELOG.md`/`README.md`): NOMOR BATCH TIDAK
+   di-renumber ulang (128/129 tetap merujuk isi sisi INI di LOG BATCH existing
+   — mengubahnya akan merusak histori yang sudah tertulis). Kerja sisi lain
+   dicatat sebagai entri BARU "Batch 136" yang eksplisit bilang "merge, aslinya
+   Batch 128 di cabang lain" — supaya jujur & telusur, bukan pura-pura sudah
+   direncanakan dari awal (Objective Honesty).
+
+**Pencegahan ke depan**: kalau ZIP yang di-upload user ternyata beda dari
+`[RESUME POINT]` sesi terakhir (bukan pull biasa), WAJIB curigai kemungkinan
+cabang paralel SEBELUM asumsi "ZIP ini pasti lanjutan linear" — `diff`
+struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
+(lanjut normal vs rekonsiliasi seperti di atas).
+
+## ⚠️ Temuan terbuka
+- (Batch 128) DITUTUP: 2 temuan lama Batch 118 (nama secret Box B vs `build.yml`;
+  guard `-lt$((` Daily Update) — SOP terkini SUDAH sinkron (Box B pakai
+  `KEYSTORE_*`/`KEY_*` tanpa prefix = sama `build.yml`; guard pakai spasi+kutip).
+- Doc-debt (Batch 128, batas 3 file): KDoc `WatchdogAlarmReceiver.kt` + komentar
+  `AndroidManifest.xml` (Batch 127) masih bilang "chain self-terminating"/"TIDAK ada
+  UI request izin" — BASI. Sinkronkan (komentar saja, 0 logic) di batch berikutnya.
 
 ## 📅 LOG BATCH (descending, terbaru paling atas — BUKAN bagian permanen)
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
-- **Batch 129** (`BoosterScreen.kt` HANYA — 1 file; hotfix URGENT, CI run 181
-  gagal): `applyPreset()` Batch 128 — cabang `else` `List(equalizerBandCount)
-  { 0 }` infer `List<Int>`, beda tipe dari cabang `if` `List<Short>` →
-  compile error 2 titik (baris 647/648, "List<{Comparable<*> & Number}>").
-  Fix: `0` → `0.toShort()` eksplisit, kedua cabang sama-sama `List<Short>`.
-  Lesson: literal Int di lambda `List(n) { ... }` TIDAK auto-infer ke Short
-  cuma karena cabang lain di `if/else` yang sama Short — WAJIB eksplisit tiap
-  cabang kalau tipe hasil harus sama persis. Status: **NOT VERIFIED** (statis
-  only: brace/paren 283/283+997/997; nunggu CI run berikutnya, TIDAK ada
-  toolchain lokal buat compile-check asli — kelas insiden yang sama sudah
-  masuk "Batasan sandbox").
-- **Batch 128** (`BoosterScreen.kt`, `strings.xml` ID/EN — 3 file; request eksplisit
-  user "preset powerful sesuai spesialisasi nya masing-masing"): 5 preset bawaan baru
-  (Gaming/Cinema/EDM/Podcast/Acoustic) — beda dari 4 preset lama, tiap satu setel
-  Bass+Virtualizer+Loudness+`eqBands` (field baru, opsional) BARENG untuk 1 skenario
-  spesifik. 4 preset lama TIDAK diberi `eqBands` → perilaku identik (reset EQ flat),
-  0 regresi. Nilai eqBands konservatif (maks ±800mB). Status: **NOT VERIFIED** (statis
-  only: brace/paren 283/283+996/996, parity string ID/EN 171=171; nunggu CI + telinga
-  asli device fisik).
+- **Batch 136** (`BoosterScreen.kt`, `values/strings.xml`, `values-en/strings.xml`
+  — 1 file+strings; MERGE cabang paralel, 0 instruksi fitur baru dari user —
+  murni rekonsiliasi non-destruktif, lihat "🔀 Rekonsiliasi cabang paralel"):
+  import 5 preset baru dari sesi lain (Gaming/Cinema/EDM/Podcast/Acoustic,
+  `Preset.eqBands: List<Int>`, `applyPreset()` if/else type-safe) — Preset
+  Cepat 4→9. `ServiceWatchdogWorker.kt`+`SettingsScreen.kt`+`PrefsHelper.kt`+
+  `AudioEnhancerService.kt`+`BoosterWidgetProvider.kt`+`widget_booster_info.xml`
+  DIPERTAHANKAN persis punya sesi ini (verified 0 baris unik sisi lain hilang,
+  KECUALI heartbeat exact-alarm `ServiceWatchdogWorker` — sengaja TETAP mati
+  permanen, keputusan Batch 132 lebih baru). EqCurveEditor (133) + tombol
+  Reset Equalizer (135) TETAP utuh, 0 overlap region kode dgn preset baru.
+  NOT VERIFIED (brace/paren `BoosterScreen.kt` 284/284, parity strings ID/EN
+  189=189, semua `R.string` ter-resolve, diff post-merge vs kedua sisi asal
+  = 0 baris kode hilang).
+- **Batch 135** (`BoosterScreen.kt` + strings ID/EN — 1 file+strings; user
+  "urgent"): `EqualizerSection` (saat expanded) dapat `OutlinedButton` "Reset
+  Equalizer" → tiap band `levels[band]=0` + `onBandChange` (jalur sama slider/kurva
+  & reset preset Flat; 0 sentuh Service/ViewModel). Nonaktif kalau sudah flat.
+  NOT VERIFIED (brace/paren seimbang, parity strings 184=184).
+- **Batch 134** (`ScheduleWorker.kt` baru, `PrefsHelper.kt`, `SettingsScreen.kt` +
+  strings ID/EN — 3 file+strings; Fase 8 B ROI #7, user pilih "Skip fade-out,
+  kerjakan Scheduler dulu"): Pengaturan → "Jadwal Otomatis": toggle + jam nyala/
+  mati harian (TimePickerDialog). Rantai `OneTimeWork` unik (event terdekat),
+  persist lintas reboot; event telat >60 mnt dilewati. Start diblokir Android
+  12+ → notifikasi ketuk-untuk-nyalakan. 0 sentuh Service/Manifest/BootReceiver.
+  NOT VERIFIED (review manual: brace/paren 3 file seimbang, parity strings
+  183=183, R.string ter-resolve). Screenshot user (device): kurva↔slider EQ
+  terlihat sinkron; label "14 kHz" terpotong tepi kanan (belum diperbaiki).
+- **Batch 133** (`EqCurveEditor.kt` baru, `BoosterScreen.kt` — 2 file; Fase 8
+  A ROI #6, instruksi user pilih dari backlog ROI): kurva EQ drag-point,
+  pelengkap slider `EqualizerSection` (share state `levels`/callback yang
+  sama, 0 duplikasi). 0 perubahan backend (`AudioEnhancerService.kt`/
+  `BoosterViewModel.kt` tidak disentuh — API band get/set sudah lengkap
+  sejak Batch 87). NOT VERIFIED device, review manual OK (brace/paren
+  seimbang, API diverifikasi terhadap pola yang sudah terbukti di file lain).
+- **Batch 132** (`ServiceWatchdogWorker.kt`, `SettingsScreen.kt` — 2 file;
+  instruksi eksplisit user, alasan baterai): `scheduleExactRecovery()` jadi
+  no-op permanen (heartbeat 1mnt exact alarm dimatikan), kartu "Pemulihan
+  Cepat" dihapus dari Settings. Watchdog 15mnt TIDAK disentuh — auto-recovery
+  OS-kill tetap ada, cuma lebih lambat (~15mnt vs ~1-9mnt). Beda dgn
+  penolakan Batch 131 (lihat "Keputusan sadar"): target & alasan beda, bukan
+  kontradiksi. NOT VERIFIED device, review manual OK (brace/paren seimbang,
+  0 import orphan).
+- **Batch 131** (`widget_booster_info.xml` — 1 file; + README/CHANGELOG;
+  instruksi eksplisit user "Opsi A+B Hybrid"): `updatePeriodMillis` 0→30mnt
+  (Opsi B, native, 0 izin/wakelock baru). Opsi A: 0 kode — `onReceive()`
+  toggle SUDAH baca `isRunning` live sejak awal, diverifikasi bukan diubah.
+  **TOLAK** instruksi hapus watchdog+heartbeat total — premis user (keduanya
+  cuma buat widget) tidak akurat, fungsi utama = auto-recovery service dari
+  OS-kill (Batch 124); hapus = regresi. Lihat "Keputusan sadar". NOT VERIFIED
+  device, review manual OK (XML well-formed, 1 atribut).
+- **Batch 130** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
+  konfirmasi Batch 129 pulih <3 menit di device, minta "mentokin"):
+  `FAST_RECOVERY_INTERVAL_MS` 2→1 menit + sinkron komentar/KDoc +
+  `settings_fast_recovery_desc` ID/EN "±2 menit"→"±1 menit". 1 menit = lantai
+  praktis yang SENGAJA dipilih (bukan limit OS) — heartbeat ini jalan
+  terus-menerus selama service nyala, di bawah 1 mnt mulai murni ongkos
+  wake-up/baterai tanpa manfaat pulih tambahan yang terasa; floor Doze dalam
+  ~9 mnt/app non-exempt tetap berlaku sama seperti Batch 129. Status:
+  **NOT VERIFIED** (statis: brace/paren 19/19+124/124 tetap balance, XML
+  well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
+- **Batch 129** (`ServiceWatchdogWorker.kt`, strings ID/EN — 2 file; user
+  konfirmasi Batch 128 jalan "~5 menit", minta lebih cepat kalau bisa):
+  `FAST_RECOVERY_INTERVAL_MS` 5→2 menit + sinkron komentar kelas/KDoc +
+  `settings_fast_recovery_desc` ID/EN "±5 menit"→"±2 menit". Catatan jujur:
+  floor OS ~9 mnt/app non-exempt di Doze DALAM tetap berlaku (turunin request
+  gak nembus floor itu) — benefit nyata di kondisi non-Doze/Doze awal. Status:
+  **NOT VERIFIED** (statis: brace/paren 19/19+123/123 tetap balance, XML
+  well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
+- **Batch 128** (`ServiceWatchdogWorker.kt`, `AudioEnhancerService.kt`,
+  `SettingsScreen.kt`, strings ID/EN; laporan user "izin alarm tak ada di
+  pengaturan app + waktu pulih sama dgn watchdog"): 2 root cause — izin default
+  ditolak Android 14+ tanpa UI minta, + desain reaktif. Fix: kartu "Pemulihan Cepat"
+  (status+deep-link, poll 1,5 dtk) + heartbeat proaktif (pasang di `onStartCommand`,
+  cabut di ACTION_STOP). Status: **NOT VERIFIED** (statis: brace/paren balance 3 file,
+  XML well-formed, parity ID/EN 173=173; nunggu CI + device fisik).
 - **Batch 127** (`ServiceWatchdogWorker.kt`, `WatchdogAlarmReceiver.kt` [baru],
   `AndroidManifest.xml` — 3 file; jawab pertanyaan user "recovery otomatis di
   bawah 15 menit"): tambah exact-alarm fast-recovery OPPORTUNISTIC — kalau tick
@@ -743,7 +905,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   broadcast `BOOT_COMPLETED`/`MY_PACKAGE_REPLACED`/timezone-locale, exact
   alarm, FCM high-priority, dll — WorkManager `CoroutineWorker` BIASA TIDAK
   termasuk) melempar `ForegroundServiceStartNotAllowedException`. minSdk
-  project ini SELALU 31+ jadi SEMUA device kena. Pola aman WAJIB dipakai tiap
+  project ini = 24, targetSdk 34 (`app/build.gradle.kts`, dikoreksi Batch 128) —
+  restriction berlaku di semua device Android 12+ (API 31+). Pola aman WAJIB dipakai tiap
   ada pemanggil `AudioEnhancerService.requestStart()` baru dari context
   non-UI/non-exempted: bungkus try-catch, fallback notifikasi tap-to-restart
   (`postRecoveryNotification()`, sudah ada sejak Batch 124) — JANGAN asumsikan
@@ -811,8 +974,11 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 - `AudioEnhancerApp.kt` — Application class, `CrashLogger.install()`.
 - `OemAutostartHelper.kt` — deep-link Autostart/battery manager per-OEM,
   fallback ke App Info.
-- `ServiceWatchdogWorker.kt` — WorkManager periodic 15 menit, restart
-  service kalau mati padahal user tidak minta mati (Batch 124: try-catch +
+- `WatchdogAlarmReceiver.kt` — receiver internal (exported=false), fire heartbeat
+  exact alarm (Batch 127); memanggil `performWatchdogCheck`.
+- `ServiceWatchdogWorker.kt` (+ heartbeat exact alarm ~5 mnt, Batch 128:
+  `scheduleExactRecovery`/`cancelExactRecovery`/`canUseExactAlarm` publik) —
+  WorkManager periodic 15 menit, restart service kalau mati padahal user tidak minta mati (Batch 124: try-catch +
   `postRecoveryNotification()` fallback). Tiap tick JUGA selalu paksa resync
   `BoosterWidgetProvider.refreshAll()` + `QuickToggleTileService.requestTileUpdate()`
   ke `isRunning` ground truth (Batch 125 — widget gak punya hook on-demand
@@ -829,6 +995,12 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   Horizontal. Section "Cadangkan Preset" (Batch 115) — Export/Import `.json`
   via SAF (`CreateDocument`/`OpenDocument`, I/O di `Dispatchers.IO`). Section
   "Timer Tidur" (Batch 119) — tombol durasi 15-120 mnt + sisa waktu (poll 1 dtk).
+  Section "Pemulihan Cepat" (Batch 128) — status izin "Alarm & pengingat" + tombol
+  deep-link (poll 1,5 dtk) — DIHAPUS Batch 132. Section "Jadwal Otomatis" (Batch 134) —
+  toggle + 2 tombol jam (`ScheduleTimeRow`), tulis `PrefsHelper` lalu `ScheduleWorker.reschedule()`.
+- `ScheduleWorker.kt` (Batch 134) — rantai `OneTimeWork` unik `boomly_daily_schedule`,
+  event terdekat nyala/mati; `requestStart()`/`requestStop()`; fallback notifikasi channel
+  sendiri (id 1003). `nextOccurrence()` internal (belum ada unit test).
 - `BoosterWidgetProvider.kt` (widget home), `QuickToggleTileService.kt` (QS
   Tile — `onStartListening()` juga resync widget tiap shade dibuka, Batch 126),
   `ShortcutHelper.kt` (App Shortcuts), `BootReceiver.kt` (start ulang
@@ -948,6 +1120,9 @@ cocokkan ke daftar, centang yang confirmed OK, catat detail kalau gagal
   tengah → timer bersih; layar mati lama → cek keterlambatan (Handler
   uptime, bukan alarm exact). Kandidat gagal: compile `SettingsScreen.kt`/
   `AudioEnhancerService.kt`, `startService` ke diri sendiri ditolak OEM.
+- [ ] Fast Recovery (Batch 128) — Pengaturan → Pemulihan Cepat → tombol izin → aktifkan
+  "Alarm & pengingat" → kembali: status jadi "Diizinkan" sendiri; nyalakan Boomly, kill
+  via task-swipe/OEM tanpa menyentuh device → pulih ≤~9 mnt (tanpa izin: tetap 15 mnt).
 (Lesson swipe-antar-tab Batch 104-105 ada di "Keputusan sadar", tidak
 diulang di sini.)
 
@@ -1032,8 +1207,11 @@ Tunnel Vision, maks 3 file kode/batch.
   Loudness Enhancer. Kode SELESAI Batch 121. Status: **NOT VERIFIED** — no
   toolchain lokal buat compile-check, belum diuji device fisik (lihat LOG
   BATCH Batch 121).
-- Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
-  prioritas — diferensiator vs app EQ generic).
+- [x] Custom EQ curve editor drag-point (sudah lama di Fase 5, DIANGKAT
+  prioritas — diferensiator vs app EQ generic). Kode SELESAI Batch 133
+  (`EqCurveEditor.kt`, pelengkap slider `EqualizerSection` yang sudah ada,
+  bukan pengganti). Status: **NOT VERIFIED** — belum diuji device fisik
+  (lihat LOG BATCH 133).
 - Reverb/Spatial toggle (`PresetReverb`/`EnvironmentalReverb`) — pelengkap
   Virtualizer, API sekelas efek yang sudah ada.
 - Per-app profile (target session per package, bukan cuma session 0) —
@@ -1048,8 +1226,9 @@ Tunnel Vision, maks 3 file kode/batch.
 - Sleep timer — [x] auto-stop (Batch 119, NOT VERIFIED); sisa: fade-out
   volume (butuh keputusan user: fade STREAM_MUSIC + restore volume, atau
   fade kekuatan efek saja).
-- Scheduler jam/event tertentu via `WorkManager` (pola sudah ada di
-  `ServiceWatchdogWorker`, tinggal extend).
+- [x] Scheduler harian nyala/mati via `WorkManager` (`ScheduleWorker.kt`, Batch
+  134, NOT VERIFIED). Sisa: preset per jadwal (butuh intent baru di Service),
+  hari tertentu, event non-jam.
 
 **C. Reliability & Compat (extend Fase 1/4)**
 - Fallback `Equalizer` via `DynamicsProcessing` (Batch 87) — validasi
@@ -1079,45 +1258,33 @@ Tunnel Vision, maks 3 file kode/batch.
 Sleep timer auto-stop ✅ kode Batch 119 (NOT VERIFIED); sisa fade-out &
 Scheduler. 4) ✅ Compressor (A) — kode SELESAI Batch 121, USER-CONFIRMED
 WORKING. 5) ✅ Auto-profile per output device (B) — kode SELESAI Batch 122,
-NOT VERIFIED. Berikutnya: 6) EQ curve editor (A) 7) Sleep timer fade-out +
-Scheduler (sisa poin 3) 8) sisanya sesuai kebutuhan user.
+NOT VERIFIED. 6) ✅ EQ curve editor (A) — kode SELESAI Batch 133, NOT
+VERIFIED. 7) ✅ Scheduler harian — kode SELESAI Batch 134, NOT VERIFIED
+(fade-out Timer Tidur masih BLOCKED/di-skip user: fade STREAM_MUSIC vs kekuatan
+efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Hotfix compile error CI run 181 (Batch 129; kode:
-`BoosterScreen.kt` [applyPreset(), cabang `else` List literal `0`→
-`0.toShort()`] — 1 file; ZIP `Boomly_v129.zip`)
-→ SELESAI: root cause CI run 181 FAILED — Batch 128 nambah cabang `if/else`
-buat `levels` di `applyPreset()`; cabang `if` return `List<Short>`
-(`.toShort()` eksplisit), cabang `else` `List(equalizerBandCount) { 0 }`
-literal Int TANPA `.toShort()` → Kotlin infer `List<Int>`, gabungan `if/else`
-jadi `List<{Comparable<*> & Number}>` (common supertype), BUKAN `List<Short>`
-— gagal assign ke `eqOverrideLevels: MutableState<List<Short>?>` (compile
-error baris 648) + gagal panggil `onEqualizerBand(Int, Short)` (baris 647).
-Fix 1 token: `0` → `0.toShort()` di cabang `else`. 0 logic lain diubah — 5
-preset baru (Gaming/Cinema/EDM/Podcast/Acoustic) & nilai eqBands-nya Batch
-128 TETAP SAMA PERSIS, cuma bug tipe di kode pendukungnya yang diperbaiki.
-**NOT VERIFIED** (sandbox TANPA toolchain lokal — HANYA lolos review manual
-brace/paren 283/283+997/997 di `BoosterScreen.kt`; belum lolos CI run
-berikutnya) → Remaining: (a) validasi CI compile Batch 129 (harus hijau,
-tidak ada toolchain lokal buat mastiin lebih dulu); (b) kalau CI hijau, lanjut
-uji device fisik yang masih menggantung dari Batch 128: tap tiap 1 dari 5
-preset baru, dengar apakah karakter EQ-nya kerasa sesuai nama (terutama EDM
-V-shape & Podcast presence) — nilai eqBands MASIH TEBAKAN dari teori
-psychoacoustic, BUKAN diukur; kandidat pertama kalau ada yang "kerasa
-aneh"/kurang kuat: nilai eqBands preset itu di `BoosterScreen.kt` (maks ±800
-saat ini, aman dinaikkan sampai ±1200 kalau user minta lebih ekstrem); (c)
-cek preset lama (Flat/Bass Heavy/Vocal Boost/Treble Boost) TETAP reset EQ ke
-flat seperti sebelumnya (regression check applyPreset()); (d) backlog lama
-masih terbuka (belum tersentuh 2 batch terakhir, Tunnel Vision): fast-recovery
-watchdog Batch 127 MASIH NOT VERIFIED (uji device: kill app task-swipe DENGAN
-izin "Alarms & reminders" granted → target widget/tile balik "Nonaktif" ≤10
-menit; TANPA izin → pastikan tetap 15 menit seperti Batch 126, 0 regresi);
-Auto-Profil per Output (Batch 122/123) masih NOT VERIFIED; Compressor Batch
-121 USER-CONFIRMED WORKING; Spectrum Visualizer Batch 120 NOT VERIFIED; Sleep
-timer fade-out & Scheduler belum dikerjakan; 2 temuan lama (secret Box B vs
-CI; guard `-lt$((`) →
-Next Action: kalau CI/user lapor Batch 129 MASIH gagal compile → kirim log
-`log_fail_*` baru, hotfix lanjutan di `BoosterScreen.kt` (maks 3 file); kalau
-CI hijau → lanjut item (b)/(c)/(d) di atas sesuai prioritas user. Batch
-berikutnya = 130.]
+[RESUME POINT: MERGE cabang paralel (Batch 136; kode: `BoosterScreen.kt` +
+strings ID/EN; ZIP `Boomly_v136.zip`) → SELESAI, **NOT VERIFIED** (sandbox
+tanpa toolchain; review manual — lihat "🔀 Rekonsiliasi cabang paralel" utk
+detail rasional tiap keputusan merge). Fast-recovery heartbeat exact-alarm
+TETAP mati permanen (Batch 132, keputusan sadar, TIDAK di-revert oleh merge
+ini) →
+Remaining: (a) CI compile Batch 136 (dan backlog Batch 134/135 yang belum CI
+juga); (b) device fisik: buka Preset Cepat → cek 9 tombol tampil (4 lama +
+Gaming/Cinema/EDM/Podcast/Acoustic), tap tiap 1 dari 5 preset baru → cek
+Bass/Virtualizer/Loudness DAN slider+kurva Equalizer Manual ikut berubah
+sesuai preset (bukan flat) → tombol Reset Equalizer di bawahnya tetap
+mengembalikan ke 0 mB; (c) device fisik Batch 135 (Reset Equalizer) dan
+Batch 134 (Jadwal Otomatis) — BELUM pernah dites device, lihat RESUME POINT
+lama utk skenario detail (masih relevan, cuma dipindah ke sini); (d) label
+"14 kHz" di kurva EQ terpotong tepi kanan (screenshot user Batch 133), belum
+diperbaiki; (e) SEBELUM upload ZIP berikutnya ke Termux: pastikan HANYA ada
+1 sumber kebenaran (device/sesi) yang lanjut dari `Boomly_v136.zip` ini —
+insiden cabang paralel Batch 128-135 terjadi karena 2 sesi jalan barengan
+tanpa saling tahu; kalau memang sengaja multi-sesi, WAJIB sinkron ZIP
+terbaru dulu tiap mulai sesi baru →
+Next Action: user pilih device-test (b) dulu (paling berisiko — logika
+preset+EQ baru digabung, belum pernah jalan bareng di 1 build) → baru lanjut
+backlog (c)/(d) atau fitur baru. Batch berikutnya = 137.]

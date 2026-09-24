@@ -238,4 +238,24 @@
     <string name="settings_auto_profile_route_wired">Headset/Headphone Kabel</string>
     <string name="settings_auto_profile_route_bluetooth">Bluetooth</string>
     <string name="settings_auto_profile_route_usb">USB</string>
+
+    <!-- Batch 128: kartu Pemulihan Cepat (izin Alarms & reminders) -->
+    <string name="settings_fast_recovery_section_title">Pemulihan Cepat</string>
+    <string name="settings_fast_recovery_desc">Boomly memasang alarm pengecekan tiap ±1 menit. Kalau sistem mematikan Boomly diam-diam, alarm ini menyalakannya lagi otomatis — lebih cepat dari watchdog 15 menit. Butuh izin \"Alarm &amp; pengingat\".</string>
+    <string name="settings_fast_recovery_status_label">Izin Alarm &amp; pengingat</string>
+    <string name="settings_fast_recovery_status_on">Diizinkan</string>
+    <string name="settings_fast_recovery_status_off">Belum diizinkan</string>
+    <string name="settings_fast_recovery_off_hint">Tanpa izin ini, pemulihan otomatis hanya lewat watchdog 15 menit (bisa sampai ±15 menit).</string>
+    <string name="settings_fast_recovery_button">Buka Pengaturan Izin</string>
+    <string name="settings_schedule_section_title">Jadwal Otomatis</string>
+    <string name="settings_schedule_title">Jadwal harian</string>
+    <string name="settings_schedule_desc">Nyalakan dan matikan Boomly otomatis tiap hari di jam yang kamu pilih.</string>
+    <string name="settings_schedule_start_label">Nyalakan jam</string>
+    <string name="settings_schedule_stop_label">Matikan jam</string>
+    <string name="settings_schedule_same_time">Jam nyala dan jam mati tidak boleh sama.</string>
+    <string name="settings_schedule_note">Jam bisa tertunda beberapa menit saat HP hemat daya. Di Android 12+, kalau sistem memblokir penyalaan otomatis, muncul notifikasi — ketuk untuk menyalakan.</string>
+    <string name="notif_schedule_channel_name">Jadwal Boomly</string>
+    <string name="notif_schedule_title">Waktunya menyalakan Boomly</string>
+    <string name="notif_schedule_body">Sistem memblokir penyalaan otomatis. Ketuk untuk menyalakan sekarang.</string>
+    <string name="eq_reset">Reset Equalizer</string>
 </resources>
