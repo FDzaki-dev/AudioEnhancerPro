@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 148: Rencana kerja berikutnya disusun ulang
+
+Daftar rencana pengembangan di dokumen proyek disusun ulang mengikuti aturan kerja terbaru. Isinya: urutan langkah berikutnya dengan batas
+file per langkah, hasil pemeriksaan statis terhadap panduan Android (satu dugaan celah: layar Pengaturan bisa kembali ke layar utama saat
+layar diputar), serta daftar hal yang sengaja tidak dikerjakan. Tidak ada perubahan kode maupun perilaku aplikasi.
+
+**Perubahan** (2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`. Tidak ada yang perlu diverifikasi di perangkat.
+
 ## Batch 147: Sinkron komentar pemulihan otomatis (doc-debt Batch 128)
 
 Komentar di `WatchdogAlarmReceiver.kt` dan `AndroidManifest.xml` masih menjelaskan fitur "Pemulihan Cepat" seolah

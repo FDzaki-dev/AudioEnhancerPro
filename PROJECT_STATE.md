@@ -166,7 +166,7 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
+- **Batch terakhir**: 148, docs-only — planning embedded Fase 9 (konstitusi v3.5; 0 kode, status N/A). Sebelumnya: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
   "Android <12 tidak diprioritaskan". **STATIC-VERIFIED** (kode di luar komentar identik, elemen manifest identik, XML valid). Sebelumnya: 146, guard InlinedApi `MainActivity.kt` `openNotificationSettings` (SDK_INT>=O; else `ACTION_APPLICATION_DETAILS_SETTINGS`).
   **NOT VERIFIED** (statis; nunggu CI + device Android 7.x). Sebelumnya: 145, hapus 7 string `settings_fast_recovery_*` ID+EN + 11
   `mutableStateOf` → `mutableFloat/Int/LongStateOf`. **STATIC-VERIFIED** (CI run 191: lint 0 Error/20 Warning, detekt 0, `compileDebugKotlin`
@@ -362,6 +362,9 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 148** (`PROJECT_STATE.md`+`CHANGELOG.md` — docs-only, 0 file source; request user "buatkan planning embedded baru berdasarkan
+  konstitusi yang berlaku"): tambah Fase 9 di TODO/ROADMAP — selisih teks↔konstitusi v3.5, audit guard statis ZIP v147 (1 dugaan GAP nyata: state
+  rotasi `MainActivity.kt` L164/L171), milestone M0-M8 + track T1/T2 + daftar DI LUAR PLANNING. Status: N/A (planning; B146 tetap NOT VERIFIED).
 - **Batch 147** (`WatchdogAlarmReceiver.kt`+`AndroidManifest.xml` — 2 file, KOMENTAR SAJA; request user "idgaf about android <12. lanjutkan
   progress yang ada"): lunasi doc-debt Batch 128 — KDoc receiver kini menyatakan jalur DORMAN (Batch 132: `scheduleExactRecovery()` no-op;
   class dipertahankan buat alarm sisa + `cancelExactRecovery()`); komentar manifest izin `SCHEDULE_EXACT_ALARM` & receiver disinkron.
@@ -1355,7 +1358,7 @@ asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
 selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
 Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
-kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi.
+kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8), 0 kode.
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
 Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
@@ -1426,14 +1429,72 @@ VERIFIED. 7) ✅ Scheduler harian — kode SELESAI Batch 134, NOT VERIFIED
 (fade-out Timer Tidur masih BLOCKED/di-skip user: fade STREAM_MUSIC vs kekuatan
 efek). Berikutnya: 8) sesuai kebutuhan user.
 
+### Fase 9 — Planning Embedded Konstitusi v3.5 (Batch 148, request user: "planning embedded baru berdasarkan konstitusi yang berlaku")
+Docs-only, 0 kode. "Embedded" = backlog HANYA di file ini (tanpa `PENDING_*.md`/dok baru). Konstitusi v3.5 LOCKED menang atas teks PIN
+yang bentrok. Audit di bawah = grep statis ZIP v147, BUKAN verifikasi build/device.
+
+**Aturan eksekusi tiap milestone (v3.5)**: 3-5 file source/target per batch (dok VIP kebal) · Min Scope: UI=UI saja, Logic=logic minimum,
+Bug=root-cause minimum · tanpa rombak file stabil · jangan menumpuk fitur di atas fitur NOT VERIFIED di area sama · validasi: Syntax → Build (CI)
+→ Affected behavior → Regression → Package → Docs · tiap output tulis ulang `[RESUME POINT]` skema `[FITUR/BUG] -> [STATUS] -> [LANGKAH]`, bug WAJIB
+sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
+
+**Selisih teks file ini ↔ v3.5** (v3.5 berlaku; teks PIN BELUM diedit — sinkron di M8 atas persetujuan user)
+- Format chat: PIN "summary 1 blok kode ≤5 baris" → v3.5: summary bullet TANPA backticks, lalu ZIP, lalu skrip bash.
+- Limit micro-batch: PIN "maks 3 file" → v3.5 "3-5 file".
+- Skrip Termux: HARD LOCK lama bicara `find ~/projects -iname` → skrip v3.5 pakai `PROJ_DIR=~/projects/[TERMUX_ROOT]` langsung
+  (`[TERMUX_ROOT]` = AudioEnhancerPro, BUKAN Boomly). Pakai skrip v3.5 apa adanya, `||` literal.
+- Pre-commit hook `./gradlew detekt lintDebug`: v3.5 wajibkan; Batch 142 tidak memasang (repo tanpa `gradlew`, Termux tanpa Gradle) → DEVIASI
+  OBJEKTIF, gerbang CI non-blocking tetap berlaku; kunci pembuka = T1.
+
+**Audit guard v3.5 vs ZIP v147 (statis)**
+- OK Crash handling: `CrashLogger.kt:67` `setDefaultUncaughtExceptionHandler`; log ke `Documents` via MediaStore (API 29+).
+- OK Streaming/OOM: `UpdateManager.kt` unduh APK per-chunk Okio di `Dispatchers.IO`; `source`/`sink` ditutup di `finally` (setara `use {}`).
+- OK Security: tak ada secret/`buildConfigField` di kode & `app/build.gradle.kts`; keystore via GitHub Secrets (Box B).
+- OK Insets: root `safeDrawingPadding()` (`MainActivity.kt:160`, termasuk IME) + `enableEdgeToEdge()` (L104).
+- OK Flow: tak ada `StateFlow`/`collectAsState*` di `BoosterViewModel`/`BoosterScreen`/`SettingsScreen`/`MainActivity` (state = Compose
+  `mutableStateOf`) → aturan lifecycle-aware N/A selagi belum ada Flow.
+- GAP (dugaan, belum direproduksi) rotasi: `MainActivity.kt` `showOnboarding` (L164) & `showSettings` (L171) = `remember`, BUKAN `rememberSaveable`;
+  manifest `MainActivity` tanpa kunci orientasi/`configChanges` (klaim Fase 4 "portrait-lock de facto" tak didukung manifest) → rotasi saat di
+  Settings kemungkinan melempar ke layar utama. `SettingsScreen.kt` 0 `rememberSaveable`; mayoritas state dibaca ulang dari `PrefsHelper` (aman),
+  transient: `scheduleTimeConflict` (L391), `backupStatus`/`backupStatusIsError` (L590-591) → prioritas rendah.
+- BELUM DIAUDIT: recomposition (24 `remember` di `BoosterScreen.kt`, overlap Fase 3), pemakaian dispatcher selain `UpdateManager`.
+- DEVIASI SADAR (JANGAN disentuh — keputusan user > Guard): `AudioEnhancerService` FGS permanen (`stopWithTask=false`, inti produk) +
+  `ServiceWatchdogWorker` (WorkManager 15 mnt, B124/B131). v3.5 "dilarang custom watchdog/FGS abadi" BUKAN alasan menghapusnya (regresi B124
+  = melanggar P0). Sisa dorman: `WatchdogAlarmReceiver`, izin `SCHEDULE_EXACT_ALARM`, `canUseExactAlarm()`.
+
+**Milestone** (urut eksekusi; "next" tanpa nama fitur = nomor terkecil yang tidak BLOCKED/butuh-pilihan-user)
+- [ ] M0 · Gerbang CI (0 file): kalau user upload artifact `static_analysis_v*` terbaru → cek InlinedApi 0 & warning 20→18; B146 naik
+  STATIC-VERIFIED bila `compileDebugKotlin` hijau. Tanpa artifact = lewati, JANGAN menunggu.
+- [ ] M1 · UI-state rotasi (Bug, 1 file): `MainActivity.kt` L164/L171 `remember`→`rememberSaveable` (Boolean). `BackHandler` Batch 74 & pola
+  tri-state onboarding/settings TIDAK disentuh. File ke-2 HANYA bila device test menunjukkan state hilang: `SettingsScreen.kt` L391/L590-591.
+  Validasi: CI build → rotasi di Settings tetap di Settings → back gesture tetap benar. Target STATIC-VERIFIED; device = user.
+- [ ] M2 · Reverb/Spatial toggle (Fase 8 A), 2 batch: M2a `AudioEnhancerService.kt`+`PrefsHelper.kt`+`BoosterViewModel.kt` (`PresetReverb`, pola
+  `*Supported`/`EffectState` sama Bass/Virtualizer, gagal = UNAVAILABLE bukan crash); M2b `BoosterScreen.kt`+strings ID/EN (UI saja, parity ID=EN).
+  Regresi wajib: Bass/Virtualizer/Loudness/Compressor/EQ/Auto-Profil tak berubah. Tanpa thread/logger baru.
+- [ ] M3 · Preset per jadwal Scheduler (Fase 8 B sisa), 2 batch: M3a `ScheduleWorker.kt`+`PrefsHelper.kt`+`AudioEnhancerService.kt` (intent baru);
+  M3b `SettingsScreen.kt`+strings. Hanya `WorkManager` (dilarang AlarmManager/loop). PRASYARAT: Scheduler B134 sudah dikonfirmasi user di device.
+- [ ] M4 · DB OEM autostart (Fase 8 C): `OemAutostartHelper.kt` (+strings bila perlu) — kandidat ComponentName Xiaomi/Oppo/Vivo/Samsung, tiap kandidat
+  dibungkus `resolveActivity`/try-catch + fallback instruksi manual yang ada. Tak bisa diverifikasi tanpa device OEM → label NOT VERIFIED jujur.
+- [ ] M5 · Analytics lokal (Fase 8 E): durasi service ON & preset terpopuler 100% on-device lewat `PrefsHelper` (BUKAN logger/kelas baru), ditulis di
+  jalur start/stop yang sudah ada (tanpa timer/loop). Max 3 file: `AudioEnhancerService.kt`+`PrefsHelper.kt`+`SettingsScreen.kt`. Prioritas rendah.
+- [ ] M6 · Cloud backup preset (Fase 8 D) — BLOCKED/tidak direkomendasikan: butuh OAuth Google/client config, berisiko bentrok Guard Security (tanpa
+  hardcode secret) & user tak publish Play Store. Buka hanya bila user eksplisit minta + putuskan skema kredensial.
+- [ ] M7 · Audit recomposition (Fase 3 ∩ guard Compose): baca-saja dulu `remember`/`derivedStateOf` di `BoosterScreen.kt`; edit minimum HANYA untuk
+  temuan nyata. Bukan inisiatif proaktif.
+- [ ] M8 · Housekeeping dok (HANYA bila user minta/menyentuh dok housekeeping): sinkronkan PIN "Format chat"/"maks 3 file" ke v3.5; pangkas LOG BATCH
+  lama (file ini ~100 KB, target "padat"); arsip ke `docs/archive/` — TANPA file backlog baru (tanya user dulu).
+- Track T1 (manual user, non-source): commit `gradlew`+`gradle-wrapper.jar` permanen (`gradle wrapper --gradle-version 8.7`, commit 4 file) →
+  membuka pre-commit hook v3.5. Track T2 (user): device test swipe lintas tab B141 (JANGAN balik ke `HorizontalPager`) & Scheduler B134.
+
+**DI LUAR PLANNING (jangan dikerjakan proaktif)**: guard/test Android <12 (B147) · hapus/kurangi watchdog 15 mnt atau hidupkan lagi heartbeat
+(B131/B132) · `HorizontalPager`/auto-height (B105) · retry gatekeeper slider tanpa device-in-the-loop (B140) · fade-out Timer Tidur (BLOCKED, skip user)
+· Fase 4 & kandidat Fase 7 D/E/F tanpa arahan user · per-app profile, Android Auto/Wear · upgrade AGP/Kotlin/BOM.
+
 ---
 
-[RESUME POINT: Doc-debt Batch 128 lunas (Batch 147; `WatchdogAlarmReceiver.kt` KDoc + `AndroidManifest.xml` komentar, 0 logic; ZIP
-`Boomly_v147.zip`) -> STATIC-VERIFIED (kode di luar komentar identik, elemen manifest identik); B146 (`MainActivity.kt`
-`openNotificationSettings` guard SDK_INT>=O) masih NOT VERIFIED — nunggu artifact CI B146 -> Langkah berikutnya: (a) kalau user upload
-artifact `static_analysis_v*` baru: cek InlinedApi 0 & warning 20→18 (sisa: PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5,
-OldTargetApi 1, StaticFieldLeak 1 — semua TIDAK disentuh); (b) Android <12 DIPRIORITASKAN RENDAH (lihat "Keputusan sadar"): JANGAN
-kerjakan device-test/guard API <31; `minSdk` 24 TETAP, user BELUM minta naik; (c) backlog nyata tinggal Fase 8: Reverb/Spatial toggle
-(`PresetReverb`/`EnvironmentalReverb`), preset per jadwal/hari tertentu Scheduler, OEM autostart DB, analytics lokal `CrashLogger`,
-cloud backup preset — butuh user pilih (fade-out Timer Tidur tetap BLOCKED); (d) carry-over B141: device test swipe lintas tab
-(JANGAN balik ke HorizontalPager). Batch berikutnya = 148.]
+[RESUME POINT: Planning embedded Fase 9 (Batch 148, docs-only: `PROJECT_STATE.md` + `CHANGELOG.md`, 0 kode; ZIP `Boomly_v148.zip`) -> SELESAI
+ditulis, tanpa klaim build/device; B146 (`MainActivity.kt` `openNotificationSettings`) tetap NOT VERIFIED, B147 STATIC-VERIFIED -> Langkah berikutnya:
+(a) "next" tanpa nama fitur = M1: `MainActivity.kt` L164 `showOnboarding` & L171 `showSettings` `remember`→`rememberSaveable` (1 file; `BackHandler` B74
+JANGAN disentuh; baca konteks L160-200 dulu); (b) kalau user upload artifact `static_analysis_v*`: kerjakan M0 dulu (InlinedApi 0, warning 20→18; sisa
+PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5, OldTargetApi 1, StaticFieldLeak 1 — TIDAK disentuh); (c) M2-M6 butuh pilihan user, M3 butuh
+Scheduler B134 terkonfirmasi; (d) Android <12, watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING (lihat Fase 9). Batch berikutnya = 149.]
