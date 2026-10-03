@@ -44,6 +44,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -161,14 +162,16 @@ class MainActivity : ComponentActivity() {
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
-                    var showOnboarding by remember {
+                    // Batch 149: rememberSaveable — rotasi layar (Activity di-recreate, manifest tanpa
+                    // configChanges) tidak lagi mereset layar Bantuan/Onboarding & Settings ke layar utama.
+                    var showOnboarding by rememberSaveable {
                         mutableStateOf(!PrefsHelper.isOnboardingDone(this@MainActivity))
                     }
                     // Batch 73: layar Settings baru (entry point cek-update manual) —
                     // pola tri-state SAMA seperti showOnboarding di atas (cuma 1 yang
                     // boleh true), ditaruh terpisah (bukan enum) supaya diff minimal
                     // terhadap showOnboarding yang sudah ada & battle-tested.
-                    var showSettings by remember { mutableStateOf(false) }
+                    var showSettings by rememberSaveable { mutableStateOf(false) }
                     // Batch 74: FIX regresi gesture back — SettingsScreen (Batch 73) punya
                     // tombol panah-balik eksplisit, tapi system back gesture/tombol TIDAK
                     // diintersep sama sekali sebelum ini, jadi malah nutup TOTAL app (0

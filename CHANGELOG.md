@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 149: Halaman Pengaturan dan Bantuan tetap terbuka saat layar diputar
+
+Sebelumnya, memutar layar ketika sedang berada di halaman Pengaturan atau Bantuan membuat aplikasi kembali ke layar utama. Sekarang
+halaman yang sedang dibuka dipertahankan saat layar diputar. Tombol kembali dan alur pengenalan pertama kali tidak berubah.
+
+**Perubahan** (1 file + 2 dokumen): `MainActivity.kt` (`showOnboarding`, `showSettings`). **NOT VERIFIED** sampai CI hijau dan diuji putar layar
+di perangkat.
+
 ## Batch 148: Rencana kerja berikutnya disusun ulang
 
 Daftar rencana pengembangan di dokumen proyek disusun ulang mengikuti aturan kerja terbaru. Isinya: urutan langkah berikutnya dengan batas

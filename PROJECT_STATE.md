@@ -166,7 +166,8 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 148, docs-only — planning embedded Fase 9 (konstitusi v3.5; 0 kode, status N/A). Sebelumnya: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
+- **Batch terakhir**: 149, `MainActivity.kt` — M1 Fase 9: `showOnboarding`/`showSettings` `remember`→`rememberSaveable` (state layar tahan rotasi; 1 file, +1 import).
+  **NOT VERIFIED** (statis; nunggu CI + test putar layar di device). Sebelumnya: 148, docs-only — planning embedded Fase 9 (konstitusi v3.5; 0 kode, status N/A). Sebelumnya: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
   "Android <12 tidak diprioritaskan". **STATIC-VERIFIED** (kode di luar komentar identik, elemen manifest identik, XML valid). Sebelumnya: 146, guard InlinedApi `MainActivity.kt` `openNotificationSettings` (SDK_INT>=O; else `ACTION_APPLICATION_DETAILS_SETTINGS`).
   **NOT VERIFIED** (statis; nunggu CI + device Android 7.x). Sebelumnya: 145, hapus 7 string `settings_fast_recovery_*` ID+EN + 11
   `mutableStateOf` → `mutableFloat/Int/LongStateOf`. **STATIC-VERIFIED** (CI run 191: lint 0 Error/20 Warning, detekt 0, `compileDebugKotlin`
@@ -362,6 +363,9 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 149** (`MainActivity.kt` — 1 file source; request user "next" = M1 RESUME POINT): `showOnboarding` & `showSettings` (blok `setContent`)
+  `remember`→`rememberSaveable` + import `saveable.rememberSaveable`; `BackHandler` B74, pola tri-state, `useDynamicColor`/`appThemeStyleKey` (dibaca ulang
+  dari `PrefsHelper`) TIDAK disentuh. Verifikasi statis: diff = 1 import + 2 deklarasi + 2 baris komentar, brace 63/63, paren 152/152. Status: **NOT VERIFIED**.
 - **Batch 148** (`PROJECT_STATE.md`+`CHANGELOG.md` — docs-only, 0 file source; request user "buatkan planning embedded baru berdasarkan
   konstitusi yang berlaku"): tambah Fase 9 di TODO/ROADMAP — selisih teks↔konstitusi v3.5, audit guard statis ZIP v147 (1 dugaan GAP nyata: state
   rotasi `MainActivity.kt` L164/L171), milestone M0-M8 + track T1/T2 + daftar DI LUAR PLANNING. Status: N/A (planning; B146 tetap NOT VERIFIED).
@@ -1358,7 +1362,7 @@ asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
 selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
 Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
-kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8), 0 kode.
+kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8); M1 kode B149 (NOT VERIFIED).
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
 Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
@@ -1453,7 +1457,7 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 - OK Insets: root `safeDrawingPadding()` (`MainActivity.kt:160`, termasuk IME) + `enableEdgeToEdge()` (L104).
 - OK Flow: tak ada `StateFlow`/`collectAsState*` di `BoosterViewModel`/`BoosterScreen`/`SettingsScreen`/`MainActivity` (state = Compose
   `mutableStateOf`) → aturan lifecycle-aware N/A selagi belum ada Flow.
-- GAP (dugaan, belum direproduksi) rotasi: `MainActivity.kt` `showOnboarding` (L164) & `showSettings` (L171) = `remember`, BUKAN `rememberSaveable`;
+- GAP rotasi (`MainActivity.kt` DITUTUP kode B149, NOT VERIFIED; sisa `SettingsScreen.kt` transient prioritas rendah): `MainActivity.kt` `showOnboarding` (L164) & `showSettings` (L171) = `remember`, BUKAN `rememberSaveable`;
   manifest `MainActivity` tanpa kunci orientasi/`configChanges` (klaim Fase 4 "portrait-lock de facto" tak didukung manifest) → rotasi saat di
   Settings kemungkinan melempar ke layar utama. `SettingsScreen.kt` 0 `rememberSaveable`; mayoritas state dibaca ulang dari `PrefsHelper` (aman),
   transient: `scheduleTimeConflict` (L391), `backupStatus`/`backupStatusIsError` (L590-591) → prioritas rendah.
@@ -1465,9 +1469,9 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 **Milestone** (urut eksekusi; "next" tanpa nama fitur = nomor terkecil yang tidak BLOCKED/butuh-pilihan-user)
 - [ ] M0 · Gerbang CI (0 file): kalau user upload artifact `static_analysis_v*` terbaru → cek InlinedApi 0 & warning 20→18; B146 naik
   STATIC-VERIFIED bila `compileDebugKotlin` hijau. Tanpa artifact = lewati, JANGAN menunggu.
-- [ ] M1 · UI-state rotasi (Bug, 1 file): `MainActivity.kt` L164/L171 `remember`→`rememberSaveable` (Boolean). `BackHandler` Batch 74 & pola
+- [x] M1 · UI-state rotasi (Bug, 1 file) — kode SELESAI Batch 149, NOT VERIFIED (cek device = test rotasi di bawah): `MainActivity.kt` L164/L171 `remember`→`rememberSaveable` (Boolean). `BackHandler` Batch 74 & pola
   tri-state onboarding/settings TIDAK disentuh. File ke-2 HANYA bila device test menunjukkan state hilang: `SettingsScreen.kt` L391/L590-591.
-  Validasi: CI build → rotasi di Settings tetap di Settings → back gesture tetap benar. Target STATIC-VERIFIED; device = user.
+  Validasi: CI build → rotasi di Settings/Bantuan tetap di layar itu → back gesture tutup Settings tetap benar. Target STATIC-VERIFIED; device = user.
 - [ ] M2 · Reverb/Spatial toggle (Fase 8 A), 2 batch: M2a `AudioEnhancerService.kt`+`PrefsHelper.kt`+`BoosterViewModel.kt` (`PresetReverb`, pola
   `*Supported`/`EffectState` sama Bass/Virtualizer, gagal = UNAVAILABLE bukan crash); M2b `BoosterScreen.kt`+strings ID/EN (UI saja, parity ID=EN).
   Regresi wajib: Bass/Virtualizer/Loudness/Compressor/EQ/Auto-Profil tak berubah. Tanpa thread/logger baru.
@@ -1492,9 +1496,11 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: Planning embedded Fase 9 (Batch 148, docs-only: `PROJECT_STATE.md` + `CHANGELOG.md`, 0 kode; ZIP `Boomly_v148.zip`) -> SELESAI
-ditulis, tanpa klaim build/device; B146 (`MainActivity.kt` `openNotificationSettings`) tetap NOT VERIFIED, B147 STATIC-VERIFIED -> Langkah berikutnya:
-(a) "next" tanpa nama fitur = M1: `MainActivity.kt` L164 `showOnboarding` & L171 `showSettings` `remember`→`rememberSaveable` (1 file; `BackHandler` B74
-JANGAN disentuh; baca konteks L160-200 dulu); (b) kalau user upload artifact `static_analysis_v*`: kerjakan M0 dulu (InlinedApi 0, warning 20→18; sisa
-PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5, OldTargetApi 1, StaticFieldLeak 1 — TIDAK disentuh); (c) M2-M6 butuh pilihan user, M3 butuh
-Scheduler B134 terkonfirmasi; (d) Android <12, watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING (lihat Fase 9). Batch berikutnya = 149.]
+[RESUME POINT: M1 Fase 9 / bug state-hilang-saat-rotasi (Batch 149; `MainActivity.kt` blok `setContent` — `showOnboarding` & `showSettings`
+`remember`→`rememberSaveable`, +1 import; ZIP `Boomly_v149.zip`) -> kode SELESAI, NOT VERIFIED (statis: diff minimal, brace 63/63, paren 152/152; belum ada
+compile CI/device); B146 `openNotificationSettings` tetap NOT VERIFIED -> Langkah berikutnya: (a) kalau user upload artifact CI/`static_analysis_v*`: M0 dulu
+(`compileDebugKotlin` hijau → B146+B149 naik STATIC-VERIFIED; InlinedApi 0, warning 20→18; sisa PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5,
+OldTargetApi 1, StaticFieldLeak 1 — TIDAK disentuh); (b) laporan device user "rotasi di Settings/Bantuan" → kalau masih lompat/hilang, debug HANYA
+`MainActivity.kt` blok `setContent` (L167/L174) lalu transient `SettingsScreen.kt` L391/L590-591 (file ke-2); JANGAN sentuh `BackHandler` B74; (c) "next" lagi
+tanpa input = TIDAK ada milestone otomatis: M2-M5 butuh user pilih (M3 butuh Scheduler B134 terkonfirmasi), M6 BLOCKED, M7/M8 hanya bila diminta; (d) Android <12,
+watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING (Fase 9). Batch berikutnya = 150.]
