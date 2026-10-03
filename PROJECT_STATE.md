@@ -128,6 +128,16 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   matikan HEARTBEAT SAJA (watchdog TETAP jalan) atas alasan BATERAI itu DIEKSEKUSI,
   bukan ditolak — target & alasan beda, watchdog tidak disentuh sama sekali.
 
+- **Analisis statis NON-BLOCKING (Batch 142, request eksplisit user)**: detekt 1.23.6 mode WHITELIST
+  (`buildUponDefaultConfig=false`, 35 rule potensi-bug tanpa type-resolution, `ignoreFailures=true`) +
+  Android Lint `abortOnError=false`. DILARANG dijadikan blocking atau menambah severity `fatal`
+  (mengubah `lintVitalRelease` di assembleRelease) tanpa instruksi baru user. Jalan di step CI PALING
+  AKHIR (setelah release publish) → laporan di artifact `static_analysis_v*`. Pre-commit hook
+  `./gradlew detekt lintDebug` SENGAJA TIDAK dipasang: repo tak punya `gradlew` (di-bootstrap CI) dan
+  commit jalan di Termux tanpa Gradle → hook mematahkan commit; gantinya gerbang CI non-blocking.
+  Rule baru HANYA kalau ada bukti temuan nyata; `TooGenericExceptionCaught`/`SwallowedException`
+  SENGAJA mati (catch lebar di `AudioEnhancerService` disengaja, efek audio rapuh per-OEM).
+
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
 di LOG BATCH (paling atas, maks 3-5 baris); (2) update Status Terkini
@@ -151,7 +161,9 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 141, swipe lintas tab Mode Tab Horizontal — `BoosterScreen.kt` saja,
+- **Batch terakhir**: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
+  (`config/detekt/detekt.yml`) + Android Lint (`app/lint.xml`, `abortOnError=false`) + step CI terakhir
+  `continue-on-error`; kode app 0 perubahan. **NOT VERIFIED** (nunggu CI). Sebelumnya: 141, swipe lintas tab Mode Tab Horizontal — `BoosterScreen.kt` saja,
   detektor `detectHorizontalDragGestures` di Box induk (BUKAN pager), `selectedTabIndex` dihoist
   (tetap `rememberSaveable`). **NOT VERIFIED** (statis; nunggu CI + device). Sebelumnya: 140,
   REVERT PENUH gatekeeper slider (Batch 138+139) —
@@ -339,6 +351,11 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 142** (`app/build.gradle.kts`+`.github/workflows/build.yml`+`config/detekt/detekt.yml` (baru)+
+  `app/lint.xml` (baru)+`FILE_MANIFEST.txt`; request eksplisit user "lintDebug/detekt terfokus,
+  non-blocking"): detekt 1.23.6 mode WHITELIST (35 rule potensi-bug, `ignoreFailures=true`) + `lint {}`
+  `abortOnError=false` + 3 step CI PALING AKHIR (`continue-on-error`, upload artifact `static_analysis_v*`).
+  Kode app 0 perubahan. NOT VERIFIED (YAML/XML parse OK, brace/paren gradle seimbang; nunggu CI).
 - **Batch 141** (`BoosterScreen.kt` — 1 file; request eksplisit user "gesture swipe lintas tab
   + sesuai Android vital guards"): Mode Tab Horizontal dapat swipe kiri/kanan pindah tab TANPA
   pager — `.then(pointerInput(Unit){ detectHorizontalDragGestures })` kondisional di Box induk,
@@ -957,6 +974,9 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 - **TIDAK ADA** kotlinc/gradle/Android SDK di sandbox manapun (network
   disabled). Claude TIDAK BISA compile-check Kotlin — verifikasi cuma
   manual: baca ulang nama class/icon, cek balance brace/paren via python.
+- detekt & Android Lint JUGA tidak bisa dijalankan di sandbox → `config/detekt/detekt.yml` cuma
+  divalidasi parse YAML; nama rule ditulis dari ingatan detekt 1.23.x, bisa salah. Baca log artifact CI
+  `static_analysis_v*` dulu sebelum menyimpulkan apa pun soal temuan.
 - Constructor API Android yang jarang dipakai (`DynamicsProcessing.*` dkk)
   WAJIB dicek ke dokumentasi resmi `developer.android.com` dulu — jangan
   tebak urutan/nama parameter dari nama variabel yang "kedengaran masuk
@@ -1108,8 +1128,11 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
 - `docs/preview/current.html` — mockup HTML standalone (HANYA Midnight
   Glass), WAJIB update bareng perubahan visual besar. `docs/archive/` — dok
   usang, JANGAN jadi acuan konteks.
+- `config/detekt/detekt.yml` — whitelist rule detekt (Batch 142); `app/lint.xml` — severity Android Lint
+  (Batch 142). Keduanya NON-BLOCKING, lihat "Keputusan sadar".
 
 ---
+
 ## 📋 TODO / ROADMAP — backlog aktif (konsolidasi Batch 106 dari `roadmap.md` +
 2x `PENDING_*.md`, ketiganya diarsipkan ke `docs/archive/` — lihat "🔒 ATURAN
 PERMANEN" soal kebijakan arsip. Ini SEKARANG satu-satunya sumber kebenaran
@@ -1233,7 +1256,7 @@ diulang di sini.)
 ### Fase 2 — Build & CI Maturity
 - [x] Gabung job build+release jadi 1 (Batch 40) · Cache Gradle dependency+
   wrapper (Batch 40) · Cabut Hilt/kapt (Batch 49) · configuration-cache
-  (Batch 50)
+  (Batch 50) · detekt + lintDebug terfokus NON-BLOCKING (Batch 142, NOT VERIFIED sampai CI jalan)
 - [ ] Commit `gradlew`/`gradle-wrapper.jar` permanen ke repo — **TIDAK BISA
   dari sandbox** (butuh binary Gradle+network). User manual:
   `gradle wrapper --gradle-version 8.7`, commit 4 file hasilnya.
@@ -1369,15 +1392,16 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Swipe lintas tab Mode Tab Horizontal (Batch 141; `BoosterScreen.kt` saja — Box induk
-+ `.then(pointerInput(Unit){ detectHorizontalDragGestures })` kondisional `useHorizontalLayout`,
-`tabSwipeDelta()` ambang `TAB_SWIPE_THRESHOLD_DP`=56, `selectedTabIndex` dihoist `rememberSaveable`,
-handler via `rememberUpdatedState`; ZIP `Boomly_v141.zip`) -> NOT VERIFIED (statis: brace/paren
-294/294 & 806/806, 2 import baru sepaket dgn precedent `EqCurveEditor.kt`, 0 file kode lain
-disentuh; nunggu CI compile + device) -> Langkah berikutnya: (a) CI Batch 141 hijau; (b) device,
-Pengaturan → Mode Tab Horizontal ON: geser kiri/kanan di area kartu/kosong pindah tab + haptic;
-swipe di atas slider/kurva EQ/baris chip preset TIDAK pindah tab (anak consume dulu); scroll
-vertikal normal; ujung tab pertama/terakhir tak wrap; rotasi → tab bertahan; mode vertikal
-(default) identik; (c) backlog device: slider normal pasca-revert B140, kurva EQ B137, test
-B133-136. Kalau swipe bentrok/terlalu sensitif: tuning `TAB_SWIPE_THRESHOLD_DP`/detektor, JANGAN
-balik ke HorizontalPager/auto-height. Batch berikutnya = 142.]
+[RESUME POINT: Analisis statis terfokus NON-BLOCKING (Batch 142; `app/build.gradle.kts` plugin detekt
+1.23.6 + blok `detekt {}` + `lint {}`, `config/detekt/detekt.yml` baru (35 rule whitelist), `app/lint.xml`
+baru, `build.yml` +3 step terakhir `continue-on-error`, `FILE_MANIFEST.txt`; ZIP `Boomly_v142.zip`) ->
+NOT VERIFIED (YAML/XML parse OK, brace/paren gradle 21/21 & 72/72; Gradle/detekt/lint TIDAK bisa jalan
+di sandbox, nama rule detekt dari ingatan 1.23.x; nunggu CI) -> Langkah berikutnya: (a) CI Batch 142:
+kalau "Build debug APK"/"Build signed release APK" MERAH dgn error plugin/`detekt`/`lint` di
+`app/build.gradle.kts`, ROLLBACK 3 blok bertanda "Batch 142" di file itu dulu, jangan debug buta;
+(b) unduh artifact `static_analysis_v*`: kalau detekt gagal validasi config → betulkan/hapus HANYA rule
+yang disebut di `config/detekt/detekt.yml`; kalau jalan, triase `detekt.txt` & `lint-results-debug.txt`
+satu per satu, perbaiki HANYA yang terbukti bug nyata (kandidat: `AutoboxingStateCreation`, 12x
+`mutableStateOf(0)` di `BoosterScreen.kt`/`BoosterViewModel.kt`); (c) carry-over B141: device test swipe
+lintas tab (Mode Tab Horizontal ON; swipe di slider/kurva EQ/chip preset TIDAK pindah tab; tuning
+`TAB_SWIPE_THRESHOLD_DP` kalau bentrok, JANGAN balik ke HorizontalPager). Batch berikutnya = 143.]

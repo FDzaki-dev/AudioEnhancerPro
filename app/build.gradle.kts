@@ -1,6 +1,10 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    // Batch 142: detekt (analisis statis terfokus, NON-BLOCKING — lihat blok `detekt {}` di bawah &
+    // config/detekt/detekt.yml). Versi dipasang di sini (bukan root build.gradle.kts) biar cuma 1
+    // file build yang disentuh; Kotlin 1.9.24 sepaket dengan detekt 1.23.x (dibangun di atas Kotlin 1.9).
+    id("io.gitlab.arturbosch.detekt") version "1.23.6"
     // Batch 49: kapt + Hilt (Batch 18) DICABUT — lihat CHANGELOG.md v1.86.0. kapt
     // (annotation processing) adalah kontributor waktu compile TERBESAR di project
     // ini, dan Hilt cuma dipakai buat 1 titik inject sepele (Application ke
@@ -90,12 +94,37 @@ android {
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.14"
     }
+    // Batch 142: Android Lint NON-BLOCKING (`./gradlew lintDebug`). abortOnError=false → temuan
+    // TIDAK menggagalkan build manapun (termasuk lintVitalRelease di assembleRelease); severity per
+    // check diatur di app/lint.xml. checkReleaseBuilds & set "fatal" sengaja TIDAK disentuh biar
+    // perilaku release tidak berubah sama sekali.
+    lint {
+        abortOnError = false
+        warningsAsErrors = false
+        checkDependencies = false
+        lintConfig = file("lint.xml")
+        htmlReport = true
+        xmlReport = true
+        textReport = true
+    }
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
         }
     }
+}
+
+// Batch 142: detekt WHITELIST (buildUponDefaultConfig=false → hanya rule di config/detekt/detekt.yml
+// yang aktif). ignoreFailures=true = NON-BLOCKING: temuan masuk laporan (app/build/reports/detekt/),
+// tidak menggagalkan build. Scan HANYA src/main (test kecil, bukan sumber bug runtime).
+detekt {
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    buildUponDefaultConfig = false
+    allRules = false
+    parallel = true
+    ignoreFailures = true
+    source.setFrom("src/main/java", "src/main/kotlin")
 }
 
 dependencies {

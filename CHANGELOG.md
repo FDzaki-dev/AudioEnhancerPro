@@ -1,5 +1,27 @@
 # Changelog
 
+## Batch 142: Analisis statis terfokus (detekt + lintDebug), non-blocking
+
+Project sekarang punya konfigurasi detekt dan Android Lint yang difokuskan ke potensi bug
+logika dan mekanisme (bukan gaya penulisan). Temuan hanya muncul sebagai laporan di CI
+dan tidak pernah menggagalkan build maupun rilis. Kode aplikasi tidak berubah sama sekali.
+
+**Perubahan** (5 file): `app/build.gradle.kts` (plugin detekt 1.23.6 + blok `detekt {}` + `lint {}`),
+`config/detekt/detekt.yml` (baru), `app/lint.xml` (baru), `.github/workflows/build.yml`,
+`FILE_MANIFEST.txt`. Detekt jalan mode whitelist: hanya 35 rule potensi-bug yang aktif (null-safety,
+exception, blok kosong, `GlobalScope`, import terlarang `runBlocking`/`AsyncTask`), semua tanpa
+type-resolution; rule gaya/naming/kompleksitas dimatikan karena Compose menghasilkan banyak noise.
+`catch (e: Exception)` lebar di service audio sengaja tidak ditandai. Android Lint: `abortOnError=false`,
+saran naik versi dependency dan `BatteryLife` di-ignore, `AutoboxingStateCreation` dinaikkan ke warning
+(12 `mutableStateOf(0)` kandidat `mutableIntStateOf`). Tidak ada severity `fatal` baru, jadi
+`lintVitalRelease` di assembleRelease tidak berubah.
+
+CI: 3 step baru di PALING AKHIR job (setelah release ter-publish), `continue-on-error: true`, batas 15
+menit: `./gradlew detekt lintDebug --continue`, ringkasan jumlah temuan (`::notice::`), dan upload artifact
+`static_analysis_v<versi>-run<n>` (retensi 14 hari). Pre-commit hook sengaja tidak dipasang: repo tidak
+punya `gradlew` (di-bootstrap CI) dan commit berjalan di Termux tanpa Gradle. **NOT VERIFIED**: Gradle,
+detekt, dan lint tidak bisa dijalankan di sandbox (YAML/XML hanya divalidasi parse); konfirmasi lewat CI.
+
 ## Batch 141: Swipe lintas tab di Mode Tab Horizontal
 
 Mode Tab Horizontal (opsional di Pengaturan) sekarang bisa pindah tab dengan geser kiri/kanan

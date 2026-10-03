@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Batch 142: konfigurasi Android Lint terfokus, NON-BLOCKING (abortOnError=false di
+     app/build.gradle.kts). Tidak ada severity "fatal" yang ditambah, jadi lintVitalRelease
+     di assembleRelease TIDAK berubah perilakunya. -->
+<lint>
+    <!-- Noise: saran naik versi dependency/AGP (butuh network, di luar scope task apapun;
+         versi lama sengaja dipertahankan, lihat PROJECT_STATE.md Fase 2). -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+
+    <!-- Sengaja: REQUEST_IGNORE_BATTERY_OPTIMIZATIONS dipakai (app personal-use, tidak
+         dipublish ke Play Store, jadi kebijakan Play yang dikejar check ini tidak berlaku). -->
+    <issue id="BatteryLife" severity="ignore" />
+
+    <!-- Compose performance guard: mutableStateOf(0) boxing Int → saran mutableIntStateOf.
+         Dinaikkan ke warning supaya muncul di laporan. -->
+    <issue id="AutoboxingStateCreation" severity="warning" />
+</lint>

@@ -307,3 +307,36 @@ jobs:
         with:
           name: AudioEnhancerPro-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
           path: ${{ steps.rename.outputs.path }}
+
+      # Batch 142: analisis statis NON-BLOCKING (detekt + lintDebug), SENGAJA ditaruh PALING AKHIR
+      # job — APK release sudah ter-publish sebelum step ini jalan, jadi tidak bisa memperlambat
+      # atau menggagalkan rilis. `continue-on-error: true` → step gagal/timeout TIDAK mengubah
+      # status job (step `if: failure()` di atas juga tidak terpicu). `--continue` → lintDebug
+      # tetap jalan walau detekt gagal (mis. salah ketik nama rule di config/detekt/detekt.yml).
+      # Rule detekt: config/detekt/detekt.yml · severity lint: app/lint.xml.
+      - name: Static analysis (detekt + lintDebug) NON-BLOCKING
+        id: static_analysis
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          ./gradlew detekt lintDebug --continue --stacktrace 2>&1 | tee gradle-static-analysis.log
+
+      - name: Summarize static analysis findings
+        if: always() && steps.static_analysis.outcome != 'skipped'
+        run: |
+          DET=$(grep -c '<error ' app/build/reports/detekt/detekt.xml 2>/dev/null || true)
+          LNT=$(grep -c '<issue ' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
+          echo "::notice::Static analysis (non-blocking) — detekt: ${DET:-n/a} temuan · lintDebug: ${LNT:-n/a} isu · outcome step: ${{ steps.static_analysis.outcome }}"
+
+      - name: Upload static analysis reports
+        if: always() && steps.static_analysis.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: static_analysis_v${{ steps.version.outputs.name }}-run${{ github.run_number }}
+          path: |
+            gradle-static-analysis.log
+            app/build/reports/detekt/**
+            app/build/reports/lint-results-debug.*
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,102 @@
+# Batch 142 — konfigurasi detekt TERFOKUS, NON-BLOCKING (ignoreFailures=true di app/build.gradle.kts).
+# Mode WHITELIST: buildUponDefaultConfig=false → rule yang TIDAK terdaftar di sini = MATI.
+# Isi: potensi bug logika/mekanisme yang bisa diamati tanpa type-resolution (task `detekt` polos
+# tidak punya type-resolution; rule yang butuh itu diam-diam tidak jalan, jadi SENGAJA tidak
+# didaftarkan). Rule gaya/naming/kompleksitas SENGAJA mati: Compose (fun PascalCase, layar
+# ratusan baris) cuma bikin noise. `catch (e: Exception)` lebar di AudioEnhancerService
+# (efek audio rapuh per-OEM) SENGAJA diterima → TooGenericExceptionCaught/SwallowedException
+# tidak diaktifkan. Nama rule salah ketik = config validation gagal (lihat log CI), bukan
+# diam-diam hilang. Tambah rule baru HANYA kalau punya bukti temuan nyata, jangan "biar lengkap".
+
+potential-bugs:
+  active: true
+  CastToNullableType:
+    active: true
+  EqualsAlwaysReturnsTrueOrFalse:
+    active: true
+  EqualsWithHashCodeExist:
+    active: true
+  ExitOutsideMain:
+    active: true
+  ExplicitGarbageCollectionCall:
+    active: true
+  InvalidRange:
+    active: true
+  IteratorHasNextCallsNextMethod:
+    active: true
+  IteratorNotThrowingNoSuchElementException:
+    active: true
+  MapGetWithNotNullAssertionOperator:
+    active: true
+  MissingPackageDeclaration:
+    active: true
+  UnconditionalJumpStatementInLoop:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+  UselessPostfixExpression:
+    active: true
+  WrongEqualsTypeParameter:
+    active: true
+
+coroutines:
+  active: true
+  GlobalCoroutineUsage:
+    active: true
+
+exceptions:
+  active: true
+  ExceptionRaisedInUnexpectedLocation:
+    active: true
+  InstanceOfCheckForException:
+    active: true
+  NotImplementedDeclaration:
+    active: true
+  ObjectExtendsThrowable:
+    active: true
+  PrintStackTrace:
+    active: true
+  RethrowCaughtException:
+    active: true
+  ReturnFromFinally:
+    active: true
+  ThrowingExceptionFromFinally:
+    active: true
+  ThrowingExceptionInMain:
+    active: true
+  ThrowingNewInstanceOfSameException:
+    active: true
+
+# Catch kosong diizinkan kalau variabelnya `_` / `ignore*` / `expected*` (default rule) —
+# cocok dengan gaya `catch (_: Exception) { }` yang SENGAJA dipakai di project ini.
+empty-blocks:
+  active: true
+  EmptyCatchBlock:
+    active: true
+  EmptyDoWhileBlock:
+    active: true
+  EmptyElseBlock:
+    active: true
+  EmptyFinallyBlock:
+    active: true
+  EmptyForBlock:
+    active: true
+  EmptyIfBlock:
+    active: true
+  EmptyTryBlock:
+    active: true
+  EmptyWhenBlock:
+    active: true
+  EmptyWhileBlock:
+    active: true
+
+# Feature Lock / Vital Guard project ini yang bisa dicek lewat import (tanpa type-resolution):
+# GlobalScope & runBlocking (blocking Main / coroutine liar), AsyncTask (deprecated).
+style:
+  active: true
+  ForbiddenImport:
+    active: true
+    imports:
+      - 'kotlinx.coroutines.GlobalScope'
+      - 'kotlinx.coroutines.runBlocking'
+      - 'android.os.AsyncTask'
