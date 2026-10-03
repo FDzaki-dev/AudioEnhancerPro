@@ -1,5 +1,24 @@
 # Changelog
 
+## Batch 147: Sinkron komentar pemulihan otomatis (doc-debt Batch 128)
+
+Komentar di `WatchdogAlarmReceiver.kt` dan `AndroidManifest.xml` masih menjelaskan fitur "Pemulihan Cepat" seolah
+aktif, padahal exact alarm dimatikan permanen sejak Batch 132. Komentar sekarang menyatakan receiver dan izin
+`SCHEDULE_EXACT_ALARM` dorman (dipertahankan untuk alarm sisa di perangkat lama), dan pemulihan hanya lewat watchdog
+15 menit. Tidak ada perubahan kode maupun perilaku. Juga dicatat keputusan: Android di bawah 12 tidak diprioritaskan.
+
+**Perubahan** (2 file komentar + 2 dokumen): `WatchdogAlarmReceiver.kt`, `AndroidManifest.xml`.
+
+## Batch 146: Guard API 26 untuk tombol pengaturan notifikasi
+
+Tombol "buka pengaturan notifikasi" memakai konstanta yang baru ada di Android 8 (`ACTION_APP_NOTIFICATION_SETTINGS`,
+`EXTRA_APP_PACKAGE`), padahal minSdk 24. Sekarang Android 8 ke atas tetap membuka halaman notifikasi aplikasi
+seperti sebelumnya, sedangkan Android 7.x membuka halaman detail aplikasi (tempat toggle notifikasi berada).
+Dua warning InlinedApi di laporan CI run 191 menjadi target perbaikan ini.
+
+**Perubahan** (1 file + 2 dokumen): `MainActivity.kt` (`openNotificationSettings`). **NOT VERIFIED** sampai CI hijau dan
+InlinedApi hilang dari laporan; perilaku di Android 7.x belum diuji di perangkat.
+
 ## Batch 145: Rapikan warning lint (string tidak terpakai + state primitif)
 
 Dua dari lima kelompok warning lint yang tersisa di laporan CI run 190 dibereskan, tanpa mengubah perilaku aplikasi.
@@ -10,7 +29,7 @@ tab terpilih (tetap tahan rotasi), timer tidur, dan jadwal harian hanya berubah 
 Item ketiga (guard `ACTION_APP_NOTIFICATION_SETTINGS` di `MainActivity.kt`) ditunda karena batas 5 file per batch.
 
 **Perubahan** (5 file + 2 dokumen): `strings.xml` (ID+EN), `BoosterScreen.kt`, `BoosterViewModel.kt`, `SettingsScreen.kt`
-(termasuk sinkron satu komentar basi). **NOT VERIFIED** sampai CI hijau dan warning turun dari 38 ke 20.
+(termasuk sinkron satu komentar basi). Terverifikasi statis oleh CI run 191: warning turun dari 38 ke 20, 0 error, detekt 0 temuan; belum diuji di perangkat.
 
 ## Batch 144: Verifikasi laporan CI Batch 143 (docs-only)
 

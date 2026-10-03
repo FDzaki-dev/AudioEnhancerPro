@@ -49,6 +49,9 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   sadar" di bawah, bukan diulang di tiap entry log.
 
 ### Keputusan sadar (JANGAN diubah tanpa alasan baru dari user)
+- **Android <12 (API <31) TIDAK diprioritaskan** (user, Batch 147: "idgaf about android <12"). JANGAN buka batch baru untuk guard/
+  kompat/device-test API <31 atau warning lint khusus API lama (`UnusedAttribute`, `InlinedApi`, dst). `minSdk` TETAP 24 sampai user
+  eksplisit minta naik (mis. ke 31) — opsi itu baru ditawarkan, BELUM diputuskan. Guard yang sudah ada (Batch 143/146) dibiarkan.
 - **Brand kosmetik/user-facing = "Boomly"** (Batch 68). ZIP output:
   `Boomly_v<N>.zip`. String user-facing app (ID+EN): `app_name`,
   `app_title`, `notif_title`, `notif_channel_name`, `qs_tile_label`,
@@ -163,9 +166,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 145, rapikan warning lint (opsi 1+2; request user): hapus 7 string `settings_fast_recovery_*` ID+EN +
-  11 `mutableStateOf` → `mutableFloat/Int/LongStateOf` (`BoosterScreen.kt`/`BoosterViewModel.kt`/`SettingsScreen.kt`). Basis: CI B143
-  run 190 (lint 0 Error/38 Warning, detekt 0). **NOT VERIFIED** (statis; nunggu CI). Sebelumnya: 144, docs-only (0 file source) — verifikasi CI B143: artifact `static_analysis_v190-run190`
+- **Batch terakhir**: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
+  "Android <12 tidak diprioritaskan". **STATIC-VERIFIED** (kode di luar komentar identik, elemen manifest identik, XML valid). Sebelumnya: 146, guard InlinedApi `MainActivity.kt` `openNotificationSettings` (SDK_INT>=O; else `ACTION_APPLICATION_DETAILS_SETTINGS`).
+  **NOT VERIFIED** (statis; nunggu CI + device Android 7.x). Sebelumnya: 145, hapus 7 string `settings_fast_recovery_*` ID+EN + 11
+  `mutableStateOf` → `mutableFloat/Int/LongStateOf`. **STATIC-VERIFIED** (CI run 191: lint 0 Error/20 Warning, detekt 0, `compileDebugKotlin`
+  lolos). Sebelumnya: 144, docs-only (0 file source) — verifikasi CI B143: artifact `static_analysis_v190-run190`
   lint 0 Error/38 Warning (sebelumnya 7 Error), detekt 0 temuan. **STATIC-VERIFIED** (device Android 7.x belum). Sebelumnya: 143,
   fix lint NewApi nyata (`getForegroundService` tanpa guard API 26) + suppress 6 false positive
   (`AudioEnhancerService.kt`+`ScheduleWorker.kt`). **STATIC-VERIFIED** (CI run 190). Sebelumnya: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
@@ -350,19 +355,27 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 - (Batch 128) DITUTUP: 2 temuan lama Batch 118 (nama secret Box B vs `build.yml`;
   guard `-lt$((` Daily Update) — SOP terkini SUDAH sinkron (Box B pakai
   `KEYSTORE_*`/`KEY_*` tanpa prefix = sama `build.yml`; guard pakai spasi+kutip).
-- Doc-debt (Batch 128, batas 3 file): KDoc `WatchdogAlarmReceiver.kt` + komentar
-  `AndroidManifest.xml` (Batch 127) masih bilang "chain self-terminating"/"TIDAK ada
-  UI request izin" — BASI. Sinkronkan (komentar saja, 0 logic) di batch berikutnya.
+- (Batch 147) DITUTUP: doc-debt Batch 128 — KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml` sudah disinkron
+  (receiver DORMAN sejak Batch 132, izin `SCHEDULE_EXACT_ALARM` tak dipakai & tanpa UI; komentar saja, 0 logic).
 
 ## 📅 LOG BATCH (descending, terbaru paling atas — BUKAN bagian permanen)
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 147** (`WatchdogAlarmReceiver.kt`+`AndroidManifest.xml` — 2 file, KOMENTAR SAJA; request user "idgaf about android <12. lanjutkan
+  progress yang ada"): lunasi doc-debt Batch 128 — KDoc receiver kini menyatakan jalur DORMAN (Batch 132: `scheduleExactRecovery()` no-op;
+  class dipertahankan buat alarm sisa + `cancelExactRecovery()`); komentar manifest izin `SCHEDULE_EXACT_ALARM` & receiver disinkron.
+  Keputusan baru dicatat di "Keputusan sadar" (Android <12 deprioritas, minSdk tetap 24). Verifikasi: kode di luar komentar identik,
+  elemen manifest identik, XML valid. CI B146 belum ada artifact-nya (belum diupload).
+- **Batch 146** (`MainActivity.kt` — 1 file; request user "next" = langkah (b) RESUME POINT): `openNotificationSettings()` — SDK_INT>=O
+  tetap `ACTION_APP_NOTIFICATION_SETTINGS`+`EXTRA_APP_PACKAGE`; API 24-25 fallback `ACTION_APPLICATION_DETAILS_SETTINGS` + `package:` Uri
+  (target lint InlinedApi 2x). Triase artifact `static_analysis_v191-run191` (CI B145): lint 0 Error/20 Warning (38→20; UnusedResources &
+  AutoboxingStateCreation 0), detekt 0/21 file. NOT VERIFIED (statis: brace seimbang; nunggu CI, device Android 7.x belum).
 - **Batch 145** (`strings.xml` ID+EN + `BoosterScreen.kt` + `BoosterViewModel.kt` + `SettingsScreen.kt` — 5 file; request user
   "kerjakan no. 1 sampai 3", no. 3 DITUNDA krn batas 5 file): dari artifact `static_analysis_v190-run190` (lint 0 Error/38 Warning).
   (1) hapus 7 string `settings_fast_recovery_*` ID+EN (0 referensi kode). (2) 11 `mutableStateOf` → `mutableFloatStateOf`(4)/
   `IntStateOf`(5)/`LongStateOf`(2); `selectedTabIndex` tetap `rememberSaveable`. Komentar basi `SettingsScreen.kt` disinkron.
-  NOT VERIFIED (statis: brace/XML/parity string ID=EN 182=182 OK; nunggu CI + lint warning turun 38→20).
+  STATIC-VERIFIED (CI run 191: lint 0 Error, warning 38→20, detekt 0, `compileDebugKotlin` lolos; device belum).
 - **Batch 144** (docs-only: `PROJECT_STATE.md`+`CHANGELOG.md`; 0 file source; request user "lanjutkan progress"):
   Triase artifact `static_analysis_v190-run190` (CI B143, BUILD SUCCESSFUL 26s): lint 0 Error/38 Warning/1 Info,
   detekt 0 temuan/21 file. 7 Error run 189 → 0 (fix `getForegroundService` + 6 suppress terbukti efektif). Sisa
@@ -1415,14 +1428,12 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Rapikan warning lint (Batch 145; `strings.xml` ID+EN hapus 7 `settings_fast_recovery_*`; `BoosterScreen.kt` 597-600/608/725 +
-`BoosterViewModel.kt` 113 + `SettingsScreen.kt` 320-321/388-389 → `mutableFloat/Int/LongStateOf`; ZIP `Boomly_v145.zip`) -> NOT VERIFIED
-(statis: brace seimbang, XML valid, string ID=EN 182=182; nunggu CI) -> Langkah berikutnya: (a) CI B145 hijau + artifact `static_analysis_v*`
-baru: lint 0 Error & warning turun 38→20 (UnusedResources 0, AutoboxingStateCreation 0); kalau compile gagal, curigai `rememberSaveable {
-mutableIntStateOf }` (`BoosterScreen.kt:725`) / import `getValue`/`setValue` — JANGAN revert buta; (b) DITUNDA dari request user, kerjakan
-duluan: InlinedApi `MainActivity.kt` 285-286 (`ACTION_APP_NOTIFICATION_SETTINGS`/`EXTRA_APP_PACKAGE` API 26) guard SDK_INT>=O + fallback
-`ACTION_APPLICATION_DETAILS_SETTINGS` (1 file); (c) kandidat HANYA kalau user minta, TIDAK disentuh: `PluralsCandidate` 6 (`strings.xml` ID
-158/219/222 + EN 158/218/221), `IconDuplicates` 5 (`ic_launcher` = `ic_launcher_round`), `UnusedAttribute` 5 (`shortcuts.xml` 8/11/12,
-`widget_booster_info.xml` 17/18; aman), `OldTargetApi` 1 (`targetSdk = 34`); `StaticFieldLeak` `BoosterViewModel.kt:48` = disengaja
-(unbind di `onCleared`); (d) doc-debt Batch 128 (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml` basi, komentar saja);
-(e) carry-over B141: device test swipe lintas tab (JANGAN balik ke HorizontalPager) + recovery watchdog Android 7.x. Batch berikutnya = 146.]
+[RESUME POINT: Doc-debt Batch 128 lunas (Batch 147; `WatchdogAlarmReceiver.kt` KDoc + `AndroidManifest.xml` komentar, 0 logic; ZIP
+`Boomly_v147.zip`) -> STATIC-VERIFIED (kode di luar komentar identik, elemen manifest identik); B146 (`MainActivity.kt`
+`openNotificationSettings` guard SDK_INT>=O) masih NOT VERIFIED — nunggu artifact CI B146 -> Langkah berikutnya: (a) kalau user upload
+artifact `static_analysis_v*` baru: cek InlinedApi 0 & warning 20→18 (sisa: PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5,
+OldTargetApi 1, StaticFieldLeak 1 — semua TIDAK disentuh); (b) Android <12 DIPRIORITASKAN RENDAH (lihat "Keputusan sadar"): JANGAN
+kerjakan device-test/guard API <31; `minSdk` 24 TETAP, user BELUM minta naik; (c) backlog nyata tinggal Fase 8: Reverb/Spatial toggle
+(`PresetReverb`/`EnvironmentalReverb`), preset per jadwal/hari tertentu Scheduler, OEM autostart DB, analytics lokal `CrashLogger`,
+cloud backup preset — butuh user pilih (fade-out Timer Tidur tetap BLOCKED); (d) carry-over B141: device test swipe lintas tab
+(JANGAN balik ke HorizontalPager). Batch berikutnya = 148.]

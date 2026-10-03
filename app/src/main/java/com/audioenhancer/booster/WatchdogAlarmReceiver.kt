@@ -8,24 +8,26 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Batch 127 — lapisan "fast recovery" OPPORTUNISTIC, pelengkap `ServiceWatchdogWorker`
- * (WorkManager, lantai 15 menit, TIDAK BISA lebih cepat, batasan OS/dijelaskan lengkap
- * di sana). Receiver ini HANYA dipicu exact alarm internal dari
- * `ServiceWatchdogWorker.scheduleExactRecovery()` — TIDAK exported, TIDAK menerima
- * broadcast implicit/publik apa pun.
+ * **STATUS (Batch 132): jalur ini DORMAN.** `ServiceWatchdogWorker.scheduleExactRecovery()`
+ * sekarang no-op permanen (instruksi user demi baterai), jadi tidak ada exact alarm baru
+ * yang menuju receiver ini. Pemulihan dari OS/OEM-kill HANYA lewat watchdog 15 menit
+ * `ServiceWatchdogWorker` (WorkManager). Class + entri manifest sengaja DIPERTAHANKAN:
+ * alarm lama yang mungkin masih terpasang di device existing fire SEKALI terakhir ke
+ * sini, `performWatchdogCheck` jalan normal, lalu berhenti sendiri karena reschedule
+ * berikutnya no-op; `cancelExactRecovery()` juga mengacu ke class ini. Jangan hapus
+ * tanpa instruksi eksplisit user.
  *
- * Kenapa berguna (bukan cuma "interval lebih pendek"): saat exact alarm
- * (`setExactAndAllowWhileIdle`) fire, OS taruh app di temporary power/background-start
- * exemption — jadi `AudioEnhancerService.requestStart()` di titik ini TIDAK kena blokir
- * background-start restriction Android 12+ yang jadi alasan try-catch di
- * `ServiceWatchdogWorker` Batch 124. `goAsync()` dipakai karena `performWatchdogCheck`
- * suspend & butuh window eksekusi resmi di luar `onReceive()` yang sudah return.
+ * Histori desain (Batch 127-130, BUKAN behavior aktif): lapisan "fast recovery" exact
+ * alarm (`setExactAndAllowWhileIdle`) pelengkap watchdog 15 menit. Saat fire, OS beri
+ * temporary background-start exemption sehingga `AudioEnhancerService.requestStart()`
+ * tidak kena blokir background-start Android 12+. `goAsync()` dipakai karena
+ * `performWatchdogCheck` suspend & butuh window eksekusi di luar `onReceive()`.
+ * Receiver TIDAK exported, TIDAK menerima broadcast implicit/publik.
  *
- * Self-chaining, BUKAN loop permanen: tiap fire cek ulang lewat
- * `performWatchdogCheck` (shared logic, sama persis dgn worker 15-menit) — kalau HASIL
- * masih butuh recovery, jadwalkan 1x lagi (`scheduleExactRecovery`); kalau sudah pulih
- * atau user matiin app dari surface manapun, TIDAK reschedule, chain berhenti sendiri.
- * **NOT VERIFIED** device fisik — lihat catatan RESUME POINT PROJECT_STATE.md.
+ * Alur `onReceive` (tetap berlaku untuk alarm sisa): cek ulang lewat
+ * `performWatchdogCheck` (logic yang sama dgn worker 15-menit); kalau masih butuh
+ * recovery panggil `scheduleExactRecovery` (sekarang no-op, jadi chain berhenti).
+ * **NOT VERIFIED** device fisik.
  */
 class WatchdogAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

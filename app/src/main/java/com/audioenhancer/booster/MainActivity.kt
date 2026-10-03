@@ -282,8 +282,17 @@ class MainActivity : ComponentActivity() {
 
     private fun openNotificationSettings() {
         try {
-            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+            // Batch 146: `ACTION_APP_NOTIFICATION_SETTINGS` + `EXTRA_APP_PACKAGE` baru ada di API 26
+            // (minSdk 24). Di API 24-25 intent itu tidak dijamin menuju halaman app ini, jadi
+            // fallback ke halaman detail app (toggle notifikasi tetap terjangkau dari sana).
+            val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                }
+            } else {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
             }
             startActivity(intent)
         } catch (_: Exception) { }
