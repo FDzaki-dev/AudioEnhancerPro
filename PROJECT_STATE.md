@@ -81,15 +81,17 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   custom opt-in via toggle "Mode Tab Horizontal" di `SettingsScreen.kt`
   (default `false`). JANGAN balikin default ke horizontal tanpa instruksi
   eksplisit baru dari user.
-- **Swipe-antar-tab dalam Mode Tab Horizontal (Batch 103-105)**: DIHAPUS,
+- **Swipe-antar-tab dalam Mode Tab Horizontal (Batch 103-105, DIREVISI Batch 141)**: pager DIHAPUS,
   ganti tap-tab biasa (`selectedTabIndex`, `rememberSaveable`) — 1
   scrollport, 0 clip ganda, TERVALIDASI stabil. Percobaan mengembalikan
   swipe via auto-height pager (Batch 104) TERBUKTI regresi UI parah di
   device fisik (klip & distorsi), sudah direvert total (Batch 105). JANGAN
   coba pendekatan auto-height/`onSizeChanged` dinamis-per-page lagi.
-  Kandidat lebih stabil kalau swipe diminta lagi: pager tinggi tetap =
-  tinggi konten TERPANJANG dari ke-3 tab, dihitung SEKALI di awal (bukan
-  dinamis tiap swipe, 0 re-layout saat gesture berlangsung).
+  Batch 141 (request eksplisit user): swipe lintas tab DIKEMBALIKAN TANPA pager —
+  `detectHorizontalDragGestures` di Box induk (`BoosterScreen.kt`), kondisional hanya
+  Mode Tab Horizontal, ambang `TAB_SWIPE_THRESHOLD_DP`; tap-tab tetap ada, 1 scrollport, 0
+  re-layout. Kandidat "pager tinggi tetap" SENGAJA TIDAK dipakai (lebih berisiko). JANGAN balik
+  ke `HorizontalPager`/auto-height; kalau swipe bentrok/kurang pas, tuning ambang/detektor saja.
 
 - **Fast Recovery exact alarm (Batch 127 → DIREVISI Batch 128 → DIMATIKAN
   PERMANEN Batch 132, instruksi eksplisit user)**: `SCHEDULE_EXACT_ALARM` SEKARANG punya UI minta
@@ -149,7 +151,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 140, REVERT PENUH gatekeeper slider (Batch 138+139) —
+- **Batch terakhir**: 141, swipe lintas tab Mode Tab Horizontal — `BoosterScreen.kt` saja,
+  detektor `detectHorizontalDragGestures` di Box induk (BUKAN pager), `selectedTabIndex` dihoist
+  (tetap `rememberSaveable`). **NOT VERIFIED** (statis; nunggu CI + device). Sebelumnya: 140,
+  REVERT PENUH gatekeeper slider (Batch 138+139) —
   device test user: geser di track SELAIN thumb bukannya diblok malah LANGSUNG
   loncat ke value 0 (regresi, arah TERBALIK dari yang dimaksud). Root-cause
   pasti TIDAK dikonfirmasi (no device/compiler access di sandbox ini buat
@@ -240,8 +245,8 @@ sepihak.
 - **Versioning**: `versionCode` DAN `versionName` OTOMATIS dari
   `GITHUB_RUN_NUMBER` (String=Int sama nilai) — DILARANG bump manual.
 - **Layar utama**: default vertikal 1-scroll. Mode Tab Horizontal = opsi
-  custom opt-in di Settings, tap-tab (bukan swipe), 1 scrollport, 0 clip
-  ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
+  custom opt-in di Settings, tap-tab + swipe lintas tab (Batch 141, detektor gestur, bukan
+  pager), 1 scrollport, 0 clip ganda — lihat "Keputusan sadar" di atas untuk histori & batasan.
 - **iOS Look Hybrid Rombak** (struktur/pola, independen dari warna/tema):
   grouped-list Kontrol + Settings selesai+tervalidasi, tipografi Large
   Title selesai+tervalidasi, styling pill Preset Cepat selesai (belum
@@ -334,6 +339,12 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 141** (`BoosterScreen.kt` — 1 file; request eksplisit user "gesture swipe lintas tab
+  + sesuai Android vital guards"): Mode Tab Horizontal dapat swipe kiri/kanan pindah tab TANPA
+  pager — `.then(pointerInput(Unit){ detectHorizontalDragGestures })` kondisional di Box induk,
+  `tabSwipeDelta()` ambang 56dp, handler `rememberUpdatedState` + haptic sama dgn tap-tab,
+  `selectedTabIndex` dihoist (tetap `rememberSaveable`). Mode vertikal 0 perubahan. NOT VERIFIED
+  (brace/paren 294/294 & 806/806; nunggu CI + device).
 - **Batch 140** (`SkeuomorphicComponents.kt` — 1 file, REVERT PENUH; user
   device-test: "geser di area track selain thumb malah langsung berubah jadi
   0 konfigurasinya" — regresi TERBALIK dari tujuan Batch 138): tanpa akses
@@ -1020,7 +1031,8 @@ cek dulu apakah ini koreksi/ganti total (pernah kejadian 2x, Batch 33→34).
   Loudness (grouped-list 1 card) → Equalizer Manual → toggle Material You
   (Android 12+) + 4 toggle varian tema eksklusif (semua mati = Midnight
   Glass) → kartu baterai/autostart. Opsi custom: Mode Tab Horizontal
-  (`TabPageContent(page)`, tap-tab via `selectedTabIndex`). Termasuk
+  (`TabPageContent(page)`, tap-tab via `selectedTabIndex` + swipe lintas tab Batch 141:
+  `detectHorizontalDragGestures` di Box induk, `tabSwipeDelta()`). Termasuk
   `PowerToggleRow`, `ServiceStatusBadge`, `CrashBanner`,
   `ControlRecoveryBanner`, `OutputRouteBanner` (Batch 107, info route
   audio), `UpdateBanner`, `EqualizerSection`, dialog preset.
@@ -1357,19 +1369,15 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Revert gatekeeper slider (Batch 140; kode:
-`SkeuomorphicComponents.kt` dikembalikan persis versi Batch 137; ZIP
-`Boomly_v140.zip`) → SELESAI. Batch 137 (kurva EQ) TETAP ADA, TIDAK disentuh →
-Remaining: (a) CI compile Batch 140 (harus hijau — ini revert ke state yang
-sudah pernah compile bersih di v137, cuma perlu konfirmasi Batch 139's
-awaitFirstDown fix juga tidak nyangkut di file lain — sudah dicek, 0 sisa);
-(b) device fisik: konfirmasi slider (Bass/Virtualizer/Loudness/Compressor/5
-band EQ) balik NORMAL seperti sebelum Batch 138 — tap di tengah track boleh
-loncat lagi (perilaku standar M3 Slider, BUKAN bug, sengaja dikembalikan);
-(c) device fisik Batch 137 (kurva EQ) — belum pernah dikonfirmasi user secara
-eksplisit "aman", walau tidak dilaporkan rusak; (d) backlog device-test
-133-136 (kurva EQ awal, 9 preset, Reset Equalizer, Jadwal Otomatis) →
-Next Action: user konfirmasi (b) dulu (paling mendesak, baru saja regresi) →
-proteksi slider individual (kalau masih diinginkan) jadi task TERPISAH nanti
-dengan pendekatan device-in-the-loop, BUKAN dilanjutkan buta dari sandbox.
-Batch berikutnya = 141.]
+[RESUME POINT: Swipe lintas tab Mode Tab Horizontal (Batch 141; `BoosterScreen.kt` saja — Box induk
++ `.then(pointerInput(Unit){ detectHorizontalDragGestures })` kondisional `useHorizontalLayout`,
+`tabSwipeDelta()` ambang `TAB_SWIPE_THRESHOLD_DP`=56, `selectedTabIndex` dihoist `rememberSaveable`,
+handler via `rememberUpdatedState`; ZIP `Boomly_v141.zip`) -> NOT VERIFIED (statis: brace/paren
+294/294 & 806/806, 2 import baru sepaket dgn precedent `EqCurveEditor.kt`, 0 file kode lain
+disentuh; nunggu CI compile + device) -> Langkah berikutnya: (a) CI Batch 141 hijau; (b) device,
+Pengaturan → Mode Tab Horizontal ON: geser kiri/kanan di area kartu/kosong pindah tab + haptic;
+swipe di atas slider/kurva EQ/baris chip preset TIDAK pindah tab (anak consume dulu); scroll
+vertikal normal; ujung tab pertama/terakhir tak wrap; rotasi → tab bertahan; mode vertikal
+(default) identik; (c) backlog device: slider normal pasca-revert B140, kurva EQ B137, test
+B133-136. Kalau swipe bentrok/terlalu sensitif: tuning `TAB_SWIPE_THRESHOLD_DP`/detektor, JANGAN
+balik ke HorizontalPager/auto-height. Batch berikutnya = 142.]

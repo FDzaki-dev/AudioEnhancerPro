@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 141: Swipe lintas tab di Mode Tab Horizontal
+
+Mode Tab Horizontal (opsional di Pengaturan) sekarang bisa pindah tab dengan geser kiri/kanan
+di layar, selain ketuk label tab. Geser ke kiri = tab berikutnya, ke kanan = tab sebelumnya,
+berhenti di tab pertama/terakhir. Mode vertikal (default) tidak berubah sama sekali.
+
+**Perubahan** (1 file): `BoosterScreen.kt`. Dibuat TANPA `HorizontalPager` (pelajaran Batch
+104-105: pager auto-height = regresi UI) — detektor `detectHorizontalDragGestures` di Box induk,
+dipasang hanya di Mode Tab Horizontal, ambang geser 56dp, haptic sama dengan ketuk tab. Slider,
+kurva EQ, dan baris chip preset tetap menang atas swipe (gesture mereka di-consume lebih dulu),
+jadi tidak ada konflik. `selectedTabIndex` dihoist ke atas, tetap `rememberSaveable` (bertahan
+dari rotasi). Tetap 1 scrollport, 0 re-layout. **NOT VERIFIED** sampai CI hijau + uji device.
+
 ## Batch 140: Revert penuh gatekeeper slider — regresi dilaporkan user
 
 Batch 138 (proteksi sentuh-jauh-dari-thumb di semua slider) dilaporkan user

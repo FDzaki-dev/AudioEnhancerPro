@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -61,6 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
@@ -461,6 +463,21 @@ private fun SpectrumBars(
     }
 }
 
+// Batch 141: swipe lintas tab Mode Tab Horizontal TANPA pager. Jarak geser horizontal minimum
+// (dp) supaya dihitung sebagai niat pindah tab — di bawah ini diabaikan (cegah pindah tab
+// tak sengaja). Indeks tab terakhir = 2 (3 tab: Kontrol/Tampilan/Bantuan, sama dgn `tabLabels`).
+private const val TAB_SWIPE_THRESHOLD_DP = 56
+private const val HORIZONTAL_TAB_LAST_INDEX = 2
+
+// Batch 141: murni (tanpa state/Compose) — +1 = tab berikutnya (geser ke KIRI), -1 = tab
+// sebelumnya (geser ke KANAN), 0 = belum melewati ambang. Batas ujung (tab pertama/terakhir)
+// ditangani pemanggil lewat `coerceIn`, tanpa wrap-around.
+private fun tabSwipeDelta(totalDragPx: Float, thresholdPx: Float): Int = when {
+    totalDragPx <= -thresholdPx -> 1
+    totalDragPx >= thresholdPx -> -1
+    else -> 0
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -697,6 +714,23 @@ fun BoosterScreen(
     // ulang dari 2 tempat (horizontal: per-halaman pager; vertikal: 3x berurutan flat)
     // tanpa duplikasi kode sama sekali.
     var useHorizontalLayout by remember { mutableStateOf(PrefsHelper.getUseHorizontalTabLayout(context)) }
+
+    // Batch 141 (request user: swipe lintas tab): `selectedTabIndex` DIHOIST dari dalam
+    // `if (useHorizontalLayout)` ke sini supaya bisa dibaca modifier gestur di Box induk.
+    // Tetap `rememberSaveable` (tahan rotasi/rekonfigurasi, Android Vital Guard UI State).
+    // Swipe = detektor horizontal-drag di Box induk, BUKAN pager: 0 re-layout, 0 pengukuran
+    // tinggi, tetap 1 scrollport (lesson Batch 104-105: pager auto-height = regresi UI).
+    // `latestOnSwipeTab` pakai `rememberUpdatedState` supaya blok `pointerInput(Unit)` TIDAK
+    // restart tiap tab berubah (lesson Batch 138-140: key `value` = restart paksa di tengah gestur).
+    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+    val onSwipeTab: (Int) -> Unit = { delta ->
+        val target = (selectedTabIndex + delta).coerceIn(0, HORIZONTAL_TAB_LAST_INDEX)
+        if (target != selectedTabIndex) {
+            selectedTabIndex = target
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
+    val latestOnSwipeTab by rememberUpdatedState(onSwipeTab)
 
     @Composable
     fun TabPageContent(page: Int) {
@@ -1281,7 +1315,38 @@ fun BoosterScreen(
     // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
     // tetap sama seperti sebelumnya (full width).
     Box(modifier = Modifier.fillMaxSize()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        // Batch 141: detektor swipe-antar-tab dipasang di Box induk (bukan di Column ber-scroll)
+        // supaya area geser = seluruh layar, bukan cuma setinggi konten tab. Dipasang KONDISIONAL
+        // via `.then(...)`: mode vertikal (default) rantai modifier-nya identik dgn sebelum
+        // Batch 141 (0 perubahan perilaku). Pass default (Main, anak→induk): Slider, kurva EQ,
+        // baris chip preset (horizontalScroll) & verticalScroll sudah meng-consume gesture
+        // mereka SEBELUM sampai sini → swipe di atas kontrol itu TIDAK pindah tab, tidak ada
+        // konflik. Down/tap TIDAK di-consume (klik Tab/tombol tetap normal).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (useHorizontalLayout) {
+                        Modifier.pointerInput(Unit) {
+                            var totalDragPx = 0f
+                            val thresholdPx = TAB_SWIPE_THRESHOLD_DP.dp.toPx()
+                            detectHorizontalDragGestures(
+                                onDragStart = { totalDragPx = 0f },
+                                onDragEnd = {
+                                    val delta = tabSwipeDelta(totalDragPx, thresholdPx)
+                                    totalDragPx = 0f
+                                    if (delta != 0) latestOnSwipeTab(delta)
+                                },
+                                onDragCancel = { totalDragPx = 0f },
+                                onHorizontalDrag = { _, dragAmount -> totalDragPx += dragAmount }
+                            )
+                        }
+                    } else {
+                        Modifier
+                    }
+                ),
+            contentAlignment = Alignment.TopCenter
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1579,7 +1644,8 @@ fun BoosterScreen(
         // Batch 103: `selectedTabIndex` gantikan `pagerState.currentPage` sebagai sumber
         // kebenaran tab aktif — `rememberSaveable` (BUKAN `remember` polos, wajib
         // bertahan dari rotasi/rekonfigurasi perangkat, Int primitif otomatis Saveable).
-        var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+        // Batch 141: deklarasi `selectedTabIndex` DIPINDAH ke atas (dekat `useHorizontalLayout`)
+        // supaya swipe lintas tab di Box induk bisa mengubahnya — tetap `rememberSaveable`.
         // Batch 95 (keluhan user, 3 screenshot: label "Kontrol"/"Bantuan" kepotong
         // gantian tergantung tab mana yang aktif): SEBELUMNYA ScrollableTabRow — buat
         // cuma 3 label pendek ("Kontrol"/"Tampilan"/"Bantuan"), lebar wajib-scroll
