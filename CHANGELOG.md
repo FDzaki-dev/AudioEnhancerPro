@@ -1,5 +1,26 @@
 # Changelog
 
+## Batch 145: Rapikan warning lint (string tidak terpakai + state primitif)
+
+Dua dari lima kelompok warning lint yang tersisa di laporan CI run 190 dibereskan, tanpa mengubah perilaku aplikasi.
+Tujuh string kartu "Pemulihan Cepat" (`settings_fast_recovery_*`, ID dan EN) sudah tidak dipakai kode sejak
+Batch 128 dan dihapus. Sebelas `mutableStateOf` untuk angka diganti varian primitif (`mutableFloatStateOf`,
+`mutableIntStateOf`, `mutableLongStateOf`) agar tidak ada boxing tiap nilai berubah; slider, penghitung reset EQ,
+tab terpilih (tetap tahan rotasi), timer tidur, dan jadwal harian hanya berubah di tipe penyimpanannya.
+Item ketiga (guard `ACTION_APP_NOTIFICATION_SETTINGS` di `MainActivity.kt`) ditunda karena batas 5 file per batch.
+
+**Perubahan** (5 file + 2 dokumen): `strings.xml` (ID+EN), `BoosterScreen.kt`, `BoosterViewModel.kt`, `SettingsScreen.kt`
+(termasuk sinkron satu komentar basi). **NOT VERIFIED** sampai CI hijau dan warning turun dari 38 ke 20.
+
+## Batch 144: Verifikasi laporan CI Batch 143 (docs-only)
+
+Laporan analisis statis CI run 190 (hasil build Batch 143) sudah dibaca. Android Lint turun dari 7 error
+ke 0 error (38 warning, 1 info), detekt tetap 0 temuan. Artinya perbaikan `getForegroundService` dan 6
+`@SuppressLint` per-fungsi di Batch 143 bekerja. Tidak ada kode aplikasi yang diubah. Sisa warning sengaja
+tidak disentuh dan dicatat di `PROJECT_STATE.md` sebagai kandidat bila diminta.
+
+**Perubahan** (2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`. Perilaku di Android 7.x belum diuji di perangkat.
+
 ## Batch 143: Perbaikan temuan lint dari laporan CI
 
 Laporan analisis statis CI pertama (detekt 0 temuan, Android Lint 7 error) sudah ditriase. Satu bug nyata
@@ -11,7 +32,7 @@ per-fungsi dengan alasan. Tidak ada perubahan perilaku di Android 8 ke atas.
 guard `SDK_INT >= O`, di bawahnya `getService`, pola sama dengan `ScheduleWorker`; `@SuppressLint` untuk
 `setCompressorAmount`/`setEqualizerBand` karena `dynamicsProcessing` selalu null di API<28, dan untuk
 `postRecoveryNotification` karena notify() compat tanpa izin di-drop diam-diam), `ScheduleWorker.kt`
-(`postStartNotification`, alasan sama). Warning lain sengaja tidak disentuh. **NOT VERIFIED** sampai CI hijau.
+(`postStartNotification`, alasan sama). Warning lain sengaja tidak disentuh. Terverifikasi statis oleh CI run 190 (0 error); belum diuji di perangkat.
 
 ## Batch 142: Analisis statis terfokus (detekt + lintDebug), non-blocking
 

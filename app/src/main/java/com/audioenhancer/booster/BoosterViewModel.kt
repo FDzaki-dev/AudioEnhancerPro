@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -110,7 +111,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     // Info equalizer per-band, diisi begitu service konek (band count 0 = belum siap/tidak didukung).
     var equalizerSupported by mutableStateOf(false); private set
-    var equalizerBandCount by mutableStateOf(0); private set
+    var equalizerBandCount by mutableIntStateOf(0); private set
     var equalizerLevelMin by mutableStateOf<Short>(-1500); private set
     var equalizerLevelMax by mutableStateOf<Short>(1500); private set
     var equalizerCenterFreqsHz by mutableStateOf<List<Int>>(emptyList()); private set

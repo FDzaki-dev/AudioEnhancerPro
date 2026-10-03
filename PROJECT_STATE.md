@@ -163,8 +163,12 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 143, fix lint NewApi nyata (`getForegroundService` tanpa guard API 26) + suppress 6 false positive
-  (`AudioEnhancerService.kt`+`ScheduleWorker.kt`). **NOT VERIFIED** (nunggu CI). Sebelumnya: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
+- **Batch terakhir**: 145, rapikan warning lint (opsi 1+2; request user): hapus 7 string `settings_fast_recovery_*` ID+EN +
+  11 `mutableStateOf` → `mutableFloat/Int/LongStateOf` (`BoosterScreen.kt`/`BoosterViewModel.kt`/`SettingsScreen.kt`). Basis: CI B143
+  run 190 (lint 0 Error/38 Warning, detekt 0). **NOT VERIFIED** (statis; nunggu CI). Sebelumnya: 144, docs-only (0 file source) — verifikasi CI B143: artifact `static_analysis_v190-run190`
+  lint 0 Error/38 Warning (sebelumnya 7 Error), detekt 0 temuan. **STATIC-VERIFIED** (device Android 7.x belum). Sebelumnya: 143,
+  fix lint NewApi nyata (`getForegroundService` tanpa guard API 26) + suppress 6 false positive
+  (`AudioEnhancerService.kt`+`ScheduleWorker.kt`). **STATIC-VERIFIED** (CI run 190). Sebelumnya: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
   (`config/detekt/detekt.yml`) + Android Lint (`app/lint.xml`, `abortOnError=false`) + step CI terakhir
   `continue-on-error`; kode app 0 perubahan. **NOT VERIFIED** (nunggu CI). Sebelumnya: 141, swipe lintas tab Mode Tab Horizontal — `BoosterScreen.kt` saja,
   detektor `detectHorizontalDragGestures` di Box induk (BUKAN pager), `selectedTabIndex` dihoist
@@ -354,13 +358,22 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 145** (`strings.xml` ID+EN + `BoosterScreen.kt` + `BoosterViewModel.kt` + `SettingsScreen.kt` — 5 file; request user
+  "kerjakan no. 1 sampai 3", no. 3 DITUNDA krn batas 5 file): dari artifact `static_analysis_v190-run190` (lint 0 Error/38 Warning).
+  (1) hapus 7 string `settings_fast_recovery_*` ID+EN (0 referensi kode). (2) 11 `mutableStateOf` → `mutableFloatStateOf`(4)/
+  `IntStateOf`(5)/`LongStateOf`(2); `selectedTabIndex` tetap `rememberSaveable`. Komentar basi `SettingsScreen.kt` disinkron.
+  NOT VERIFIED (statis: brace/XML/parity string ID=EN 182=182 OK; nunggu CI + lint warning turun 38→20).
+- **Batch 144** (docs-only: `PROJECT_STATE.md`+`CHANGELOG.md`; 0 file source; request user "lanjutkan progress"):
+  Triase artifact `static_analysis_v190-run190` (CI B143, BUILD SUCCESSFUL 26s): lint 0 Error/38 Warning/1 Info,
+  detekt 0 temuan/21 file. 7 Error run 189 → 0 (fix `getForegroundService` + 6 suppress terbukti efektif). Sisa
+  warning TIDAK disentuh (daftar di RESUME POINT). STATIC-VERIFIED; perilaku runtime Android 7.x belum diuji device.
 - **Batch 143** (`AudioEnhancerService.kt`+`ScheduleWorker.kt` — 2 file; triase artifact CI `static_analysis_v189`):
   CI B142 TERKONFIRMASI jalan (BUILD SUCCESSFUL 32s; detekt 0 temuan/21 file, config valid; lint 46 isu: 7 Error,
   38 Warning, 1 Info). Fix 1 BUG NYATA: `postRecoveryNotification()` (`AudioEnhancerService.kt`) panggil
   `PendingIntent.getForegroundService` (API 26) tanpa guard, minSdk 24 → guard SDK_INT>=O, else `getService`
   (pola `ScheduleWorker`). 6 Error lain = false positive → `@SuppressLint` per-fungsi (NewApi: `setCompressorAmount`,
-  `setEqualizerBand`; MissingPermission: `postRecoveryNotification`, `postStartNotification`). NOT VERIFIED (statis:
-  brace seimbang; nunggu CI).
+  `setEqualizerBand`; MissingPermission: `postRecoveryNotification`, `postStartNotification`). STATIC-VERIFIED
+  (CI run 190: lint 0 Error, detekt 0; device belum).
 - **Batch 142** (`app/build.gradle.kts`+`.github/workflows/build.yml`+`config/detekt/detekt.yml` (baru)+
   `app/lint.xml` (baru)+`FILE_MANIFEST.txt`; request eksplisit user "lintDebug/detekt terfokus,
   non-blocking"): detekt 1.23.6 mode WHITELIST (35 rule potensi-bug, `ignoreFailures=true`) + `lint {}`
@@ -1402,14 +1415,14 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Fix lint dari artifact CI run 189 (Batch 143; `AudioEnhancerService.kt` fungsi
-`postRecoveryNotification` guard `SDK_INT>=O` untuk `getForegroundService` + `@SuppressLint` NewApi di
-`setCompressorAmount`/`setEqualizerBand` + MissingPermission di `postRecoveryNotification`; `ScheduleWorker.kt`
-fungsi `postStartNotification` `@SuppressLint` MissingPermission; ZIP `Boomly_v143.zip`) -> NOT VERIFIED (statis:
-brace seimbang 221/221 & 23/23; nunggu CI) -> Langkah berikutnya: (a) CI B143 hijau + artifact
-`static_analysis_v*` baru: Error lint harus 0 (kalau masih muncul, baca baris persisnya, JANGAN suppress buta);
-(b) sisa warning TIDAK disentuh, kandidat kalau user minta: `AutoboxingStateCreation` 11x
-(`BoosterScreen.kt` 597-600/608/725, `BoosterViewModel.kt` 113, `SettingsScreen.kt` 320-321/388-389),
-`UnusedResources` 7 (string `settings_fast_recovery_*` sisa Batch 132, hapus ID+EN bareng), `PluralsCandidate` 6,
-`IconDuplicates` 5; `StaticFieldLeak` `BoosterViewModel.kt:48` = disengaja (unbind di `onCleared`); (c) carry-over
-B141: device test swipe lintas tab (JANGAN balik ke HorizontalPager). Batch berikutnya = 144.]
+[RESUME POINT: Rapikan warning lint (Batch 145; `strings.xml` ID+EN hapus 7 `settings_fast_recovery_*`; `BoosterScreen.kt` 597-600/608/725 +
+`BoosterViewModel.kt` 113 + `SettingsScreen.kt` 320-321/388-389 → `mutableFloat/Int/LongStateOf`; ZIP `Boomly_v145.zip`) -> NOT VERIFIED
+(statis: brace seimbang, XML valid, string ID=EN 182=182; nunggu CI) -> Langkah berikutnya: (a) CI B145 hijau + artifact `static_analysis_v*`
+baru: lint 0 Error & warning turun 38→20 (UnusedResources 0, AutoboxingStateCreation 0); kalau compile gagal, curigai `rememberSaveable {
+mutableIntStateOf }` (`BoosterScreen.kt:725`) / import `getValue`/`setValue` — JANGAN revert buta; (b) DITUNDA dari request user, kerjakan
+duluan: InlinedApi `MainActivity.kt` 285-286 (`ACTION_APP_NOTIFICATION_SETTINGS`/`EXTRA_APP_PACKAGE` API 26) guard SDK_INT>=O + fallback
+`ACTION_APPLICATION_DETAILS_SETTINGS` (1 file); (c) kandidat HANYA kalau user minta, TIDAK disentuh: `PluralsCandidate` 6 (`strings.xml` ID
+158/219/222 + EN 158/218/221), `IconDuplicates` 5 (`ic_launcher` = `ic_launcher_round`), `UnusedAttribute` 5 (`shortcuts.xml` 8/11/12,
+`widget_booster_info.xml` 17/18; aman), `OldTargetApi` 1 (`targetSdk = 34`); `StaticFieldLeak` `BoosterViewModel.kt:48` = disengaja
+(unbind di `onCleared`); (d) doc-debt Batch 128 (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml` basi, komentar saja);
+(e) carry-over B141: device test swipe lintas tab (JANGAN balik ke HorizontalPager) + recovery watchdog Android 7.x. Batch berikutnya = 146.]

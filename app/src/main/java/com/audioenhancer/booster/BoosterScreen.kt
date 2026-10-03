@@ -594,10 +594,10 @@ fun BoosterScreen(
             eqBands = listOf(150, 100, 250, 150, 50)
         )
     )
-    var bass by remember { mutableStateOf(initialBass) }
-    var virtualizer by remember { mutableStateOf(initialVirtualizer) }
-    var loudness by remember { mutableStateOf(initialLoudness) }
-    var compressorAmount by remember { mutableStateOf(initialCompressorAmount) }
+    var bass by remember { mutableFloatStateOf(initialBass) }
+    var virtualizer by remember { mutableFloatStateOf(initialVirtualizer) }
+    var loudness by remember { mutableFloatStateOf(initialLoudness) }
+    var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -605,7 +605,7 @@ fun BoosterScreen(
     // Counter yang di-increment tiap preset diterapkan, dipakai buat maksa EqualizerSection
     // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
     // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
-    var eqResetCounter by remember { mutableStateOf(0) }
+    var eqResetCounter by remember { mutableIntStateOf(0) }
     // Batch 63 (roadmap Fase 0 #7, audit Gap #16): nilai EQ eksplisit yang HARUS
     // ditampilkan EqualizerSection setelah preset diterapkan (built-in → flat/nol, custom
     // baru → nilai tersimpan preset itu). `null` = jangan override, biarkan EqualizerSection
@@ -722,7 +722,7 @@ fun BoosterScreen(
     // tinggi, tetap 1 scrollport (lesson Batch 104-105: pager auto-height = regresi UI).
     // `latestOnSwipeTab` pakai `rememberUpdatedState` supaya blok `pointerInput(Unit)` TIDAK
     // restart tiap tab berubah (lesson Batch 138-140: key `value` = restart paksa di tengah gestur).
-    var selectedTabIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) }
     val onSwipeTab: (Int) -> Unit = { delta ->
         val target = (selectedTabIndex + delta).coerceIn(0, HORIZONTAL_TAB_LAST_INDEX)
         if (target != selectedTabIndex) {

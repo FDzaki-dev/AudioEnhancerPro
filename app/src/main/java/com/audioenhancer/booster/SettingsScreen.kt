@@ -46,6 +46,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -306,9 +308,8 @@ fun SettingsScreen(
         // baliknya sudah dimatikan permanen (`ServiceWatchdogWorker.scheduleExactRecovery()`
         // sekarang no-op). Mempertahankan kartu ini akan menampilkan status/tombol izin
         // yang TIDAK LAGI berpengaruh ke behavior apa pun — UI bohong, lebih baik dihapus
-        // daripada dibiarkan. String `settings_fast_recovery_*` di strings.xml sengaja
-        // TIDAK dihapus batch ini (di luar scope Tunnel Vision, 0 dampak fungsional
-        // dibiarkan — lihat "Temuan terbuka"). Pemulihan otomatis sekarang: watchdog 15
+        // daripada dibiarkan. String `settings_fast_recovery_*` di strings.xml sudah
+        // dihapus (Batch 145, ID+EN). Pemulihan otomatis sekarang: watchdog 15
         // menit saja (`ServiceWatchdogWorker`, tidak berubah).
         // Batch 119 (Fase 8 roadmap item B, "Sleep timer" bagian 1 — instruksi user "next"):
         // auto-stop Boomly setelah N menit. Sumber kebenaran = `PrefsHelper` (waktu berakhir
@@ -317,8 +318,8 @@ fun SettingsScreen(
         // (state LOKAL, 0 hoist ke ViewModel — pola sama seperti `backupStatus` di bawah).
         Spacer(modifier = Modifier.height(20.dp))
         SectionLabel(text = stringResource(R.string.settings_sleep_timer_section_title))
-        var sleepEndAt by remember { mutableStateOf(PrefsHelper.getSleepTimerEndAt(context)) }
-        var sleepNow by remember { mutableStateOf(System.currentTimeMillis()) }
+        var sleepEndAt by remember { mutableLongStateOf(PrefsHelper.getSleepTimerEndAt(context)) }
+        var sleepNow by remember { mutableLongStateOf(System.currentTimeMillis()) }
         var sleepServiceRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -385,8 +386,8 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(20.dp))
         SectionLabel(text = stringResource(R.string.settings_schedule_section_title))
         var scheduleEnabled by remember { mutableStateOf(PrefsHelper.getScheduleEnabled(context)) }
-        var scheduleStartMin by remember { mutableStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
-        var scheduleStopMin by remember { mutableStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
+        var scheduleStartMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
+        var scheduleStopMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
         var scheduleTimeConflict by remember { mutableStateOf(false) }
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
