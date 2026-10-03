@@ -1,5 +1,24 @@
 # Changelog
 
+## Batch 151: Preset per jadwal
+
+Jadwal otomatis sekarang bisa memilih preset. Di Pengaturan, kartu Jadwal Otomatis punya pilihan "Preset saat jadwal menyalakan"
+(muncul kalau sudah ada preset buatanmu). Saat jam nyala tiba dan Boomly memang sedang mati, preset itu diterapkan lebih dulu
+(Bass, Virtualizer, Loudness, dan Equalizer bila preset menyimpannya), lalu Boomly dinyalakan. Kalau Boomly sudah menyala pada
+jam itu, pengaturan yang sedang berjalan tidak ditimpa. Tanpa pilihan preset, perilaku jadwal sama seperti sebelumnya.
+
+**Perubahan** (5 file + 2 dokumen): `PrefsHelper.kt`, `ScheduleWorker.kt`, `SettingsScreen.kt`, `strings.xml` (ID dan EN).
+**NOT VERIFIED** sampai CI hijau dan diuji di perangkat.
+
+## Batch 150: Verifikasi laporan CI Batch 149 (docs-only)
+
+Laporan analisis statis CI run 194 sudah dibaca. Build berhasil, Android Lint 0 error dengan 18 warning (sebelumnya 20,
+dua peringatan InlinedApi dari tombol pengaturan notifikasi sudah hilang), detekt tetap 0 temuan. Artinya perbaikan Batch 146
+dan perubahan state layar tahan putar di Batch 149 lolos analisis statis. Tidak ada kode aplikasi yang diubah. Sisa warning
+sengaja tidak disentuh.
+
+**Perubahan** (2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`. Perilaku di perangkat (Android 7.x, putar layar) belum diuji.
+
 ## Batch 149: Halaman Pengaturan dan Bantuan tetap terbuka saat layar diputar
 
 Sebelumnya, memutar layar ketika sedang berada di halaman Pengaturan atau Bantuan membuat aplikasi kembali ke layar utama. Sekarang

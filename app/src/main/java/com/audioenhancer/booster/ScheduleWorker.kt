@@ -38,7 +38,11 @@ import java.util.concurrent.TimeUnit
  *     dgn watchdog, Batch 124) — fallback: notifikasi "ketuk untuk menyalakan"
  *     (`PendingIntent.getForegroundService`, ketukan user = jalur resmi exempted).
  *     Exemption battery optimization membuat start otomatis tanpa sentuhan.
- * (3) Belum: pilih preset per jadwal, hari tertentu, event non-jam (butuh sentuh Service).
+ * (3) Belum: hari tertentu, event non-jam (butuh sentuh Service).
+ * (4) Batch 151: preset per jadwal — saat event NYALA benar-benar menyalakan Service,
+ *     preset pilihan user ([PrefsHelper.getSchedulePreset]) ditulis ke prefs dulu, lalu
+ *     Service membacanya lewat jalur start normal. Kalau Service SUDAH hidup pada jam
+ *     nyala, event dilewati seperti sebelumnya (preset TIDAK ditimpa ke efek yang jalan).
  */
 class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
@@ -64,11 +68,28 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     private fun performStart(ctx: Context) {
         if (AudioEnhancerService.isRunning) return
+        applySchedulePresetIfAny(ctx)
         try {
             AudioEnhancerService.requestStart(ctx)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "requestStart() diblokir sistem - fallback notifikasi ketuk-untuk-nyalakan", e)
             postStartNotification(ctx)
+        }
+    }
+
+    /** Batch 151: tulis preset jadwal ke prefs SEBELUM start (juga sebelum fallback notifikasi —
+     *  ketukan user nanti menyalakan Service yang membaca prefs yang sama). Gagal/hilang =
+     *  Log saja, start tetap jalan dengan setelan terakhir. */
+    private fun applySchedulePresetIfAny(ctx: Context) {
+        val presetName = PrefsHelper.getSchedulePreset(ctx) ?: return
+        try {
+            if (PrefsHelper.applyCustomPresetToPrefs(ctx, presetName)) {
+                android.util.Log.i(TAG, "Jadwal nyala: preset '$presetName' diterapkan ke prefs")
+            } else {
+                android.util.Log.w(TAG, "Preset jadwal '$presetName' tidak ditemukan - pakai setelan terakhir")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal menerapkan preset jadwal", e)
         }
     }
 

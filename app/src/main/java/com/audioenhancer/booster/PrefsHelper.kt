@@ -19,6 +19,7 @@ object PrefsHelper {
     private const val KEY_SCHEDULE_ENABLED = "schedule_enabled"
     private const val KEY_SCHEDULE_START_MIN = "schedule_start_min"
     private const val KEY_SCHEDULE_STOP_MIN = "schedule_stop_min"
+    private const val KEY_SCHEDULE_PRESET = "schedule_preset"
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
@@ -151,6 +152,34 @@ object PrefsHelper {
 
     fun setScheduleStopMinutes(context: Context, minutes: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_SCHEDULE_STOP_MIN, minutes.coerceIn(0, 1439)).apply()
+    }
+
+    /** Batch 151: nama preset custom yang diterapkan saat JADWAL menyalakan Boomly (null =
+     *  tidak ada, setelan terakhir dipakai seperti sebelumnya). Nama bisa basi kalau preset
+     *  dihapus user — `applyCustomPresetToPrefs()` no-op aman (return false). */
+    fun getSchedulePreset(context: Context): String? =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_SCHEDULE_PRESET, null)
+
+    fun setSchedulePreset(context: Context, presetName: String?) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (presetName == null) prefs.edit().remove(KEY_SCHEDULE_PRESET).apply()
+        else prefs.edit().putString(KEY_SCHEDULE_PRESET, presetName).apply()
+    }
+
+    /** Batch 151: tulis nilai preset custom [name] ke prefs (Bass/Virtualizer/Loudness/EQ +
+     *  preset aktif) — dipakai `ScheduleWorker` SEBELUM `requestStart()`: Service yang baru
+     *  hidup membaca nilai ini lewat `restoreSavedSettings()` (jalur start normal, 0 jalur
+     *  apply baru). Aturan EQ SAMA `AudioEnhancerService.applyCustomPresetByName()`:
+     *  `eqBands` kosong (preset lama) = EQ manual TIDAK disentuh. Return false kalau
+     *  preset tidak ditemukan (prefs tidak diubah sama sekali). */
+    fun applyCustomPresetToPrefs(context: Context, name: String): Boolean {
+        val preset = getCustomPresets(context).firstOrNull { it.name == name } ?: return false
+        setBass(context, preset.bass.toInt())
+        setVirtualizer(context, preset.virtualizer.toInt())
+        setLoudness(context, preset.loudness)
+        preset.eqBands.forEachIndexed { band, mb -> setEqualizerBandLevel(context, band, mb) }
+        setActivePreset(context, preset.name)
+        return true
     }
 
     // --- Preset aktif: supaya chip preset yang terpilih tidak hilang saat app dibuka ulang ---

@@ -166,10 +166,13 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 149, `MainActivity.kt` — M1 Fase 9: `showOnboarding`/`showSettings` `remember`→`rememberSaveable` (state layar tahan rotasi; 1 file, +1 import).
-  **NOT VERIFIED** (statis; nunggu CI + test putar layar di device). Sebelumnya: 148, docs-only — planning embedded Fase 9 (konstitusi v3.5; 0 kode, status N/A). Sebelumnya: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
+- **Batch terakhir**: 151, FITUR preset per jadwal (Fase 9 M3, 5 file: `PrefsHelper.kt`+`ScheduleWorker.kt`+`SettingsScreen.kt`+strings ID/EN) — event NYALA Scheduler
+  menerapkan preset custom pilihan user (tulis prefs → Service start membaca lewat `restoreSavedSettings()`; 0 perubahan Service). **NOT VERIFIED** (statis: brace/paren
+  seimbang, parity string 183=183, `R.string` ter-resolve; nunggu CI + device). Sebelumnya: 150, docs-only (0 file source) — M0 Fase 9: triase artifact `static_analysis_v194-run194` (BUILD SUCCESSFUL 17s): lint 0 Error/18 Warning/1 Info,
+  detekt 0 temuan/21 file (loc 8.886 = source v149) → B146 + B149 **STATIC-VERIFIED** (device belum). Sebelumnya: 149, `MainActivity.kt` — M1 Fase 9: `showOnboarding`/`showSettings` `remember`→`rememberSaveable` (state layar tahan rotasi; 1 file, +1 import).
+  **STATIC-VERIFIED** (CI run 194; test putar layar di device belum). Sebelumnya: 148, docs-only — planning embedded Fase 9 (konstitusi v3.5; 0 kode, status N/A). Sebelumnya: 147, sinkron komentar basi (KDoc `WatchdogAlarmReceiver.kt` + komentar `AndroidManifest.xml`; 0 logic) + catat keputusan
   "Android <12 tidak diprioritaskan". **STATIC-VERIFIED** (kode di luar komentar identik, elemen manifest identik, XML valid). Sebelumnya: 146, guard InlinedApi `MainActivity.kt` `openNotificationSettings` (SDK_INT>=O; else `ACTION_APPLICATION_DETAILS_SETTINGS`).
-  **NOT VERIFIED** (statis; nunggu CI + device Android 7.x). Sebelumnya: 145, hapus 7 string `settings_fast_recovery_*` ID+EN + 11
+  **STATIC-VERIFIED** (CI run 194: InlinedApi 0; device Android 7.x belum). Sebelumnya: 145, hapus 7 string `settings_fast_recovery_*` ID+EN + 11
   `mutableStateOf` → `mutableFloat/Int/LongStateOf`. **STATIC-VERIFIED** (CI run 191: lint 0 Error/20 Warning, detekt 0, `compileDebugKotlin`
   lolos). Sebelumnya: 144, docs-only (0 file source) — verifikasi CI B143: artifact `static_analysis_v190-run190`
   lint 0 Error/38 Warning (sebelumnya 7 Error), detekt 0 temuan. **STATIC-VERIFIED** (device Android 7.x belum). Sebelumnya: 143,
@@ -363,6 +366,13 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 151** (`PrefsHelper.kt`+`ScheduleWorker.kt`+`SettingsScreen.kt`+`strings.xml` ID/EN — 5 file; request user "skip kalau docs-only. kerjakan yang nyata"):
+  preset per jadwal (Fase 8 B sisa / M3). `PrefsHelper`: `get/setSchedulePreset`, `applyCustomPresetToPrefs()`; `ScheduleWorker.performStart()` tulis preset ke prefs
+  SEBELUM `requestStart()` (juga sebelum fallback notifikasi); `SettingsScreen` chip preset di kartu Jadwal (reuse `AutoProfileRouteRow`, tampil kalau ada preset custom).
+  Service sudah hidup pada jam nyala = event dilewati (preset tak menimpa efek jalan). Status: **NOT VERIFIED**.
+- **Batch 150** (docs-only: `PROJECT_STATE.md`+`CHANGELOG.md`; 0 file source; request user "next" + upload artifact CI): M0 — triase
+  `static_analysis_v194-run194` (BUILD SUCCESSFUL 17s, `compileDebugKotlin` UP-TO-DATE = lolos): lint 0 Error/18 Warning/1 Info (20→18, InlinedApi 0), detekt 0 temuan/21 file;
+  loc detekt 8.886 = source v149 (v147/148 = 8.883). B146 + B149 STATIC-VERIFIED; sisa 18 warning TIDAK disentuh (daftar di RESUME POINT).
 - **Batch 149** (`MainActivity.kt` — 1 file source; request user "next" = M1 RESUME POINT): `showOnboarding` & `showSettings` (blok `setContent`)
   `remember`→`rememberSaveable` + import `saveable.rememberSaveable`; `BackHandler` B74, pola tri-state, `useDynamicColor`/`appThemeStyleKey` (dibaca ulang
   dari `PrefsHelper`) TIDAK disentuh. Verifikasi statis: diff = 1 import + 2 deklarasi + 2 baris komentar, brace 63/63, paren 152/152. Status: **NOT VERIFIED**.
@@ -1362,7 +1372,7 @@ asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
 selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
 Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
-kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8); M1 kode B149 (NOT VERIFIED).
+kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8); M0 CI B150 (lint 18W/detekt 0), M1 kode B149 (STATIC-VERIFIED), M3 kode B151 (NOT VERIFIED).
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
 Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
@@ -1397,8 +1407,8 @@ Tunnel Vision, maks 3 file kode/batch.
   volume (butuh keputusan user: fade STREAM_MUSIC + restore volume, atau
   fade kekuatan efek saja).
 - [x] Scheduler harian nyala/mati via `WorkManager` (`ScheduleWorker.kt`, Batch
-  134, NOT VERIFIED). Sisa: preset per jadwal (butuh intent baru di Service),
-  hari tertentu, event non-jam.
+  134, NOT VERIFIED). Preset per jadwal: [x] Batch 151 (NOT VERIFIED, tanpa intent baru di Service).
+  Sisa: hari tertentu, event non-jam.
 
 **C. Reliability & Compat (extend Fase 1/4)**
 - Fallback `Equalizer` via `DynamicsProcessing` (Batch 87) — validasi
@@ -1457,7 +1467,7 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 - OK Insets: root `safeDrawingPadding()` (`MainActivity.kt:160`, termasuk IME) + `enableEdgeToEdge()` (L104).
 - OK Flow: tak ada `StateFlow`/`collectAsState*` di `BoosterViewModel`/`BoosterScreen`/`SettingsScreen`/`MainActivity` (state = Compose
   `mutableStateOf`) → aturan lifecycle-aware N/A selagi belum ada Flow.
-- GAP rotasi (`MainActivity.kt` DITUTUP kode B149, NOT VERIFIED; sisa `SettingsScreen.kt` transient prioritas rendah): `MainActivity.kt` `showOnboarding` (L164) & `showSettings` (L171) = `remember`, BUKAN `rememberSaveable`;
+- GAP rotasi (`MainActivity.kt` DITUTUP kode B149, STATIC-VERIFIED; sisa `SettingsScreen.kt` transient prioritas rendah): `MainActivity.kt` `showOnboarding` (L164) & `showSettings` (L171) = `remember`, BUKAN `rememberSaveable`;
   manifest `MainActivity` tanpa kunci orientasi/`configChanges` (klaim Fase 4 "portrait-lock de facto" tak didukung manifest) → rotasi saat di
   Settings kemungkinan melempar ke layar utama. `SettingsScreen.kt` 0 `rememberSaveable`; mayoritas state dibaca ulang dari `PrefsHelper` (aman),
   transient: `scheduleTimeConflict` (L391), `backupStatus`/`backupStatusIsError` (L590-591) → prioritas rendah.
@@ -1467,16 +1477,17 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
   = melanggar P0). Sisa dorman: `WatchdogAlarmReceiver`, izin `SCHEDULE_EXACT_ALARM`, `canUseExactAlarm()`.
 
 **Milestone** (urut eksekusi; "next" tanpa nama fitur = nomor terkecil yang tidak BLOCKED/butuh-pilihan-user)
-- [ ] M0 · Gerbang CI (0 file): kalau user upload artifact `static_analysis_v*` terbaru → cek InlinedApi 0 & warning 20→18; B146 naik
+- [x] M0 · Gerbang CI (0 file) — SELESAI Batch 150 (artifact run 194: InlinedApi 0, warning 20→18, compile lolos): kalau user upload artifact `static_analysis_v*` terbaru → cek InlinedApi 0 & warning 20→18; B146 naik
   STATIC-VERIFIED bila `compileDebugKotlin` hijau. Tanpa artifact = lewati, JANGAN menunggu.
-- [x] M1 · UI-state rotasi (Bug, 1 file) — kode SELESAI Batch 149, NOT VERIFIED (cek device = test rotasi di bawah): `MainActivity.kt` L164/L171 `remember`→`rememberSaveable` (Boolean). `BackHandler` Batch 74 & pola
+- [x] M1 · UI-state rotasi (Bug, 1 file) — kode SELESAI Batch 149, STATIC-VERIFIED (CI run 194; device = test rotasi di bawah belum): `MainActivity.kt` L164/L171 `remember`→`rememberSaveable` (Boolean). `BackHandler` Batch 74 & pola
   tri-state onboarding/settings TIDAK disentuh. File ke-2 HANYA bila device test menunjukkan state hilang: `SettingsScreen.kt` L391/L590-591.
   Validasi: CI build → rotasi di Settings/Bantuan tetap di layar itu → back gesture tutup Settings tetap benar. Target STATIC-VERIFIED; device = user.
-- [ ] M2 · Reverb/Spatial toggle (Fase 8 A), 2 batch: M2a `AudioEnhancerService.kt`+`PrefsHelper.kt`+`BoosterViewModel.kt` (`PresetReverb`, pola
+- [ ] M2 · Reverb/Spatial toggle (Fase 8 A) — DITURUNKAN (Batch 151): `PresetReverb`/`EnvironmentalReverb` = efek AUXILIARY (butuh aux-send dari player), di session 0
+  kemungkinan besar TIDAK mengubah suara app musik lain (belum diuji device) → jangan bangun UI sebelum ada bukti device. Rencana lama, 2 batch: M2a `AudioEnhancerService.kt`+`PrefsHelper.kt`+`BoosterViewModel.kt` (`PresetReverb`, pola
   `*Supported`/`EffectState` sama Bass/Virtualizer, gagal = UNAVAILABLE bukan crash); M2b `BoosterScreen.kt`+strings ID/EN (UI saja, parity ID=EN).
   Regresi wajib: Bass/Virtualizer/Loudness/Compressor/EQ/Auto-Profil tak berubah. Tanpa thread/logger baru.
-- [ ] M3 · Preset per jadwal Scheduler (Fase 8 B sisa), 2 batch: M3a `ScheduleWorker.kt`+`PrefsHelper.kt`+`AudioEnhancerService.kt` (intent baru);
-  M3b `SettingsScreen.kt`+strings. Hanya `WorkManager` (dilarang AlarmManager/loop). PRASYARAT: Scheduler B134 sudah dikonfirmasi user di device.
+- [x] M3 · Preset per jadwal Scheduler — kode SELESAI Batch 151 (1 batch, 5 file; jalur prefs, BUKAN intent Service), NOT VERIFIED. Test device: buat preset custom → Pengaturan →
+  Jadwal → pilih chip preset → set jam nyala ±2 mnt ke depan, matikan Boomly → cek preset aktif & suara saat jadwal menyala. Hanya `WorkManager`.
 - [ ] M4 · DB OEM autostart (Fase 8 C): `OemAutostartHelper.kt` (+strings bila perlu) — kandidat ComponentName Xiaomi/Oppo/Vivo/Samsung, tiap kandidat
   dibungkus `resolveActivity`/try-catch + fallback instruksi manual yang ada. Tak bisa diverifikasi tanpa device OEM → label NOT VERIFIED jujur.
 - [ ] M5 · Analytics lokal (Fase 8 E): durasi service ON & preset terpopuler 100% on-device lewat `PrefsHelper` (BUKAN logger/kelas baru), ditulis di
@@ -1496,11 +1507,10 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: M1 Fase 9 / bug state-hilang-saat-rotasi (Batch 149; `MainActivity.kt` blok `setContent` — `showOnboarding` & `showSettings`
-`remember`→`rememberSaveable`, +1 import; ZIP `Boomly_v149.zip`) -> kode SELESAI, NOT VERIFIED (statis: diff minimal, brace 63/63, paren 152/152; belum ada
-compile CI/device); B146 `openNotificationSettings` tetap NOT VERIFIED -> Langkah berikutnya: (a) kalau user upload artifact CI/`static_analysis_v*`: M0 dulu
-(`compileDebugKotlin` hijau → B146+B149 naik STATIC-VERIFIED; InlinedApi 0, warning 20→18; sisa PluralsCandidate 6, IconDuplicates 5, UnusedAttribute 5,
-OldTargetApi 1, StaticFieldLeak 1 — TIDAK disentuh); (b) laporan device user "rotasi di Settings/Bantuan" → kalau masih lompat/hilang, debug HANYA
-`MainActivity.kt` blok `setContent` (L167/L174) lalu transient `SettingsScreen.kt` L391/L590-591 (file ke-2); JANGAN sentuh `BackHandler` B74; (c) "next" lagi
-tanpa input = TIDAK ada milestone otomatis: M2-M5 butuh user pilih (M3 butuh Scheduler B134 terkonfirmasi), M6 BLOCKED, M7/M8 hanya bila diminta; (d) Android <12,
-watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING (Fase 9). Batch berikutnya = 150.]
+[RESUME POINT: M3 Fase 9 / preset per jadwal (Batch 151; `PrefsHelper.kt` `applyCustomPresetToPrefs`+`get/setSchedulePreset`, `ScheduleWorker.kt` `performStart`→`applySchedulePresetIfAny`,
+`SettingsScreen.kt` chip preset di kartu Jadwal, strings ID/EN `settings_schedule_preset_label`; ZIP `Boomly_v151.zip`) -> kode SELESAI, NOT VERIFIED (statis: brace/paren seimbang, parity
+183=183, R.string ter-resolve; belum compile CI/device) -> Langkah berikutnya: (a) kalau user upload artifact CI baru: cek `compileDebugKotlin` + lint/detekt tak naik dari 18W/0 → B151
+STATIC-VERIFIED; (b) kalau user lapor preset tak menempel saat jadwal: debug HANYA `ScheduleWorker.kt` `applySchedulePresetIfAny` & `PrefsHelper.kt` `applyCustomPresetToPrefs`
+(Service/`restoreSavedSettings()` TIDAK diubah); catatan: Service sudah hidup di jam nyala = event dilewati (disengaja); slider app yang sedang terbuka tak live-refresh (batasan B122);
+(c) kandidat nyata berikutnya TANPA docs-only: M5 analytics lokal (3 file: `AudioEnhancerService.kt`+`PrefsHelper.kt`+`SettingsScreen.kt`) atau M4 DB OEM autostart (`OemAutostartHelper.kt`,
+tak bisa diverifikasi tanpa device OEM) — M2 Reverb DITURUNKAN, M6 BLOCKED; (d) Android <12, watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING. Batch berikutnya = 152.]

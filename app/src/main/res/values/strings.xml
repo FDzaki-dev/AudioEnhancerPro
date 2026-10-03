@@ -245,6 +245,7 @@
     <string name="settings_schedule_desc">Nyalakan dan matikan Boomly otomatis tiap hari di jam yang kamu pilih.</string>
     <string name="settings_schedule_start_label">Nyalakan jam</string>
     <string name="settings_schedule_stop_label">Matikan jam</string>
+    <string name="settings_schedule_preset_label">Preset saat jadwal menyalakan</string>
     <string name="settings_schedule_same_time">Jam nyala dan jam mati tidak boleh sama.</string>
     <string name="settings_schedule_note">Jam bisa tertunda beberapa menit saat HP hemat daya. Di Android 12+, kalau sistem memblokir penyalaan otomatis, muncul notifikasi — ketuk untuk menyalakan.</string>
     <string name="notif_schedule_channel_name">Jadwal Boomly</string>

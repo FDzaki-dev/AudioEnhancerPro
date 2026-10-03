@@ -389,6 +389,9 @@ fun SettingsScreen(
         var scheduleStartMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
         var scheduleStopMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
         var scheduleTimeConflict by remember { mutableStateOf(false) }
+        // Batch 151: preset per jadwal — snapshot nama preset sekali (pola SAMA `autoProfilePresetNames` di bawah).
+        val schedulePresetNames = remember { PrefsHelper.getCustomPresets(context).map { it.name } }
+        var schedulePreset by remember { mutableStateOf(PrefsHelper.getSchedulePreset(context)) }
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
                 Row(
@@ -442,6 +445,17 @@ fun SettingsScreen(
                             scheduleStopMin = picked
                             PrefsHelper.setScheduleStopMinutes(context, picked)
                             ScheduleWorker.reschedule(context)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
+                    if (schedulePresetNames.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        AutoProfileRouteRow(
+                            stringResource(R.string.settings_schedule_preset_label),
+                            schedulePresetNames, schedulePreset
+                        ) { picked ->
+                            schedulePreset = picked
+                            PrefsHelper.setSchedulePreset(context, picked)
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     }
