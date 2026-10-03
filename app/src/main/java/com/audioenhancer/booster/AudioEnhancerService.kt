@@ -196,11 +196,21 @@ class AudioEnhancerService : Service() {
          *  notification channel persist lintas proses/restart). Dibungkus
          *  try-catch total: kalau POST_NOTIFICATIONS belum granted atau gagal apa pun,
          *  gagal diam-diam ke Log.e (BUKAN crash Worker), konsisten pola file ini. */
+        // Batch 143 (lint MissingPermission, false positive): notify() compat tanpa POST_NOTIFICATIONS
+        // di-drop diam-diam, + sudah dibungkus try-catch total di bawah.
+        @android.annotation.SuppressLint("MissingPermission")
         fun postRecoveryNotification(context: android.content.Context) {
             try {
                 val startIntent = Intent(context, AudioEnhancerService::class.java)
                 val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                val restartPending = PendingIntent.getForegroundService(context, 1, startIntent, pendingFlags)
+                // Batch 143 (lint NewApi): getForegroundService baru ada di API 26, minSdk 24 —
+                // di API 24-25 NoSuchMethodError (Error, BUKAN Exception) lolos dari catch di bawah.
+                // Pola SAMA dgn ScheduleWorker.postStartNotification().
+                val restartPending = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    PendingIntent.getForegroundService(context, 1, startIntent, pendingFlags)
+                } else {
+                    PendingIntent.getService(context, 1, startIntent, pendingFlags)
+                }
                 val notification = NotificationCompat.Builder(context, CHANNEL_ID_RECOVERY)
                     .setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
                     .setContentTitle(context.getString(R.string.notif_recovery_title))
@@ -1337,6 +1347,9 @@ class AudioEnhancerService : Service() {
      *  null (API<28 atau gagal construct) = no-op aman, sama pola seperti `setLoudnessGain()`
      *  di atas — setting TETAP disimpan ke `PrefsHelper` tanpa syarat (Batch 57, audit Gap
      *  #14: user tidak boleh kehilangan preferensi slider walau apply gagal). */
+    // Batch 143 (lint NewApi, false positive): `dynamicsProcessing` dijamin null di API<28 (guard
+    // SDK_INT<P di attachDynamicsProcessing) & akses via `?.` — argumen MbcBand() tidak dievaluasi.
+    @android.annotation.SuppressLint("NewApi")
     fun setCompressorAmount(amount: Int) {
         val clamped = amount.coerceIn(0, 100)
         val fraction = clamped / 100f
@@ -1363,6 +1376,9 @@ class AudioEnhancerService : Service() {
         PrefsHelper.setCompressorAmount(this, clamped)
     }
 
+    // Batch 143 (lint NewApi, false positive): cabang fallback cuma aktif kalau `equalizerFallbackActive`
+    // (hanya true saat dynamicsProcessing berhasil dibuat = API>=28).
+    @android.annotation.SuppressLint("NewApi")
     fun setEqualizerBand(band: Short, levelMb: Short) {
         // Batch 87: dua rute — Equalizer legacy asli (mayoritas device, kode TIDAK berubah)
         // ATAU fallback PreEq `DynamicsProcessing` (lihat `equalizerFallbackActive`,

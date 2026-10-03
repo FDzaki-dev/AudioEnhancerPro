@@ -83,6 +83,9 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
     /** Notifikasi BIASA (bukan foreground) di channel sendiri — teks berbeda dari
      *  notifikasi recovery watchdog (itu bilang "sistem menghentikan", tidak akurat di sini). */
+    // Batch 143 (lint MissingPermission, false positive): notify() compat tanpa POST_NOTIFICATIONS
+    // di-drop diam-diam, + sudah dibungkus try-catch total.
+    @android.annotation.SuppressLint("MissingPermission")
     private fun postStartNotification(ctx: Context) {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

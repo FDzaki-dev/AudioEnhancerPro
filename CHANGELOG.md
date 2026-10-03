@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 143: Perbaikan temuan lint dari laporan CI
+
+Laporan analisis statis CI pertama (detekt 0 temuan, Android Lint 7 error) sudah ditriase. Satu bug nyata
+diperbaiki: notifikasi pemulihan watchdog memanggil API yang baru ada di Android 8 tanpa pengecekan versi,
+padahal minSdk 24, jadi berpotensi crash di Android 7.x. Enam error lain false positive dan ditandai
+per-fungsi dengan alasan. Tidak ada perubahan perilaku di Android 8 ke atas.
+
+**Perubahan** (2 file): `AudioEnhancerService.kt` (`postRecoveryNotification`: `getForegroundService` dibungkus
+guard `SDK_INT >= O`, di bawahnya `getService`, pola sama dengan `ScheduleWorker`; `@SuppressLint` untuk
+`setCompressorAmount`/`setEqualizerBand` karena `dynamicsProcessing` selalu null di API<28, dan untuk
+`postRecoveryNotification` karena notify() compat tanpa izin di-drop diam-diam), `ScheduleWorker.kt`
+(`postStartNotification`, alasan sama). Warning lain sengaja tidak disentuh. **NOT VERIFIED** sampai CI hijau.
+
 ## Batch 142: Analisis statis terfokus (detekt + lintDebug), non-blocking
 
 Project sekarang punya konfigurasi detekt dan Android Lint yang difokuskan ke potensi bug

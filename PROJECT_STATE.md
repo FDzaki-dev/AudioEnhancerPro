@@ -137,6 +137,8 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   commit jalan di Termux tanpa Gradle → hook mematahkan commit; gantinya gerbang CI non-blocking.
   Rule baru HANYA kalau ada bukti temuan nyata; `TooGenericExceptionCaught`/`SwallowedException`
   SENGAJA mati (catch lebar di `AudioEnhancerService` disengaja, efek audio rapuh per-OEM).
+  Suppress false positive lint = `@SuppressLint` PER-FUNGSI + komentar alasan (Batch 143), BUKAN ignore global
+  di `lint.xml` (biar isu nyata di tempat lain tetap muncul).
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -161,7 +163,8 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
+- **Batch terakhir**: 143, fix lint NewApi nyata (`getForegroundService` tanpa guard API 26) + suppress 6 false positive
+  (`AudioEnhancerService.kt`+`ScheduleWorker.kt`). **NOT VERIFIED** (nunggu CI). Sebelumnya: 142, analisis statis terfokus NON-BLOCKING — detekt 1.23.6 whitelist
   (`config/detekt/detekt.yml`) + Android Lint (`app/lint.xml`, `abortOnError=false`) + step CI terakhir
   `continue-on-error`; kode app 0 perubahan. **NOT VERIFIED** (nunggu CI). Sebelumnya: 141, swipe lintas tab Mode Tab Horizontal — `BoosterScreen.kt` saja,
   detektor `detectHorizontalDragGestures` di Box induk (BUKAN pager), `selectedTabIndex` dihoist
@@ -351,6 +354,13 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 143** (`AudioEnhancerService.kt`+`ScheduleWorker.kt` — 2 file; triase artifact CI `static_analysis_v189`):
+  CI B142 TERKONFIRMASI jalan (BUILD SUCCESSFUL 32s; detekt 0 temuan/21 file, config valid; lint 46 isu: 7 Error,
+  38 Warning, 1 Info). Fix 1 BUG NYATA: `postRecoveryNotification()` (`AudioEnhancerService.kt`) panggil
+  `PendingIntent.getForegroundService` (API 26) tanpa guard, minSdk 24 → guard SDK_INT>=O, else `getService`
+  (pola `ScheduleWorker`). 6 Error lain = false positive → `@SuppressLint` per-fungsi (NewApi: `setCompressorAmount`,
+  `setEqualizerBand`; MissingPermission: `postRecoveryNotification`, `postStartNotification`). NOT VERIFIED (statis:
+  brace seimbang; nunggu CI).
 - **Batch 142** (`app/build.gradle.kts`+`.github/workflows/build.yml`+`config/detekt/detekt.yml` (baru)+
   `app/lint.xml` (baru)+`FILE_MANIFEST.txt`; request eksplisit user "lintDebug/detekt terfokus,
   non-blocking"): detekt 1.23.6 mode WHITELIST (35 rule potensi-bug, `ignoreFailures=true`) + `lint {}`
@@ -1256,7 +1266,7 @@ diulang di sini.)
 ### Fase 2 — Build & CI Maturity
 - [x] Gabung job build+release jadi 1 (Batch 40) · Cache Gradle dependency+
   wrapper (Batch 40) · Cabut Hilt/kapt (Batch 49) · configuration-cache
-  (Batch 50) · detekt + lintDebug terfokus NON-BLOCKING (Batch 142, NOT VERIFIED sampai CI jalan)
+  (Batch 50) · detekt + lintDebug terfokus NON-BLOCKING (Batch 142, CI jalan hijau run 189)
 - [ ] Commit `gradlew`/`gradle-wrapper.jar` permanen ke repo — **TIDAK BISA
   dari sandbox** (butuh binary Gradle+network). User manual:
   `gradle wrapper --gradle-version 8.7`, commit 4 file hasilnya.
@@ -1392,16 +1402,14 @@ efek). Berikutnya: 8) sesuai kebutuhan user.
 
 ---
 
-[RESUME POINT: Analisis statis terfokus NON-BLOCKING (Batch 142; `app/build.gradle.kts` plugin detekt
-1.23.6 + blok `detekt {}` + `lint {}`, `config/detekt/detekt.yml` baru (35 rule whitelist), `app/lint.xml`
-baru, `build.yml` +3 step terakhir `continue-on-error`, `FILE_MANIFEST.txt`; ZIP `Boomly_v142.zip`) ->
-NOT VERIFIED (YAML/XML parse OK, brace/paren gradle 21/21 & 72/72; Gradle/detekt/lint TIDAK bisa jalan
-di sandbox, nama rule detekt dari ingatan 1.23.x; nunggu CI) -> Langkah berikutnya: (a) CI Batch 142:
-kalau "Build debug APK"/"Build signed release APK" MERAH dgn error plugin/`detekt`/`lint` di
-`app/build.gradle.kts`, ROLLBACK 3 blok bertanda "Batch 142" di file itu dulu, jangan debug buta;
-(b) unduh artifact `static_analysis_v*`: kalau detekt gagal validasi config → betulkan/hapus HANYA rule
-yang disebut di `config/detekt/detekt.yml`; kalau jalan, triase `detekt.txt` & `lint-results-debug.txt`
-satu per satu, perbaiki HANYA yang terbukti bug nyata (kandidat: `AutoboxingStateCreation`, 12x
-`mutableStateOf(0)` di `BoosterScreen.kt`/`BoosterViewModel.kt`); (c) carry-over B141: device test swipe
-lintas tab (Mode Tab Horizontal ON; swipe di slider/kurva EQ/chip preset TIDAK pindah tab; tuning
-`TAB_SWIPE_THRESHOLD_DP` kalau bentrok, JANGAN balik ke HorizontalPager). Batch berikutnya = 143.]
+[RESUME POINT: Fix lint dari artifact CI run 189 (Batch 143; `AudioEnhancerService.kt` fungsi
+`postRecoveryNotification` guard `SDK_INT>=O` untuk `getForegroundService` + `@SuppressLint` NewApi di
+`setCompressorAmount`/`setEqualizerBand` + MissingPermission di `postRecoveryNotification`; `ScheduleWorker.kt`
+fungsi `postStartNotification` `@SuppressLint` MissingPermission; ZIP `Boomly_v143.zip`) -> NOT VERIFIED (statis:
+brace seimbang 221/221 & 23/23; nunggu CI) -> Langkah berikutnya: (a) CI B143 hijau + artifact
+`static_analysis_v*` baru: Error lint harus 0 (kalau masih muncul, baca baris persisnya, JANGAN suppress buta);
+(b) sisa warning TIDAK disentuh, kandidat kalau user minta: `AutoboxingStateCreation` 11x
+(`BoosterScreen.kt` 597-600/608/725, `BoosterViewModel.kt` 113, `SettingsScreen.kt` 320-321/388-389),
+`UnusedResources` 7 (string `settings_fast_recovery_*` sisa Batch 132, hapus ID+EN bareng), `PluralsCandidate` 6,
+`IconDuplicates` 5; `StaticFieldLeak` `BoosterViewModel.kt:48` = disengaja (unbind di `onCleared`); (c) carry-over
+B141: device test swipe lintas tab (JANGAN balik ke HorizontalPager). Batch berikutnya = 144.]
