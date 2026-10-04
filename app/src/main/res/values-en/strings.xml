@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Boomly</string>
 
     <!-- Status badge -->
@@ -155,7 +155,7 @@
     <string name="preset_save_confirm">Save</string>
     <string name="preset_save_cancel">Cancel</string>
     <string name="preset_save_name_collision_error">This name is already used by another preset, pick another one</string>
-    <string name="preset_save_char_count">%1$d/%2$d characters</string>
+    <string name="preset_save_char_count" tools:ignore="PluralsCandidate">%1$d/%2$d characters</string>
     <string name="preset_saved_message">Preset \"%1$s\" saved</string>
     <string name="preset_delete_dialog_title">Delete Preset?</string>
     <string name="preset_delete_dialog_body">Preset \"%1$s\" will be permanently deleted.</string>
@@ -215,10 +215,16 @@
     <string name="settings_backup_section_desc">Save all custom presets to a file, or restore from a backup file. Presets with the same name will be overwritten.</string>
     <string name="settings_export_preset_button">Export Presets</string>
     <string name="settings_import_preset_button">Import Presets</string>
-    <string name="settings_export_preset_success">%1$d presets exported to file</string>
+    <plurals name="settings_export_preset_success">
+        <item quantity="one">%1$d preset exported to file</item>
+        <item quantity="other">%1$d presets exported to file</item>
+    </plurals>
     <string name="settings_export_preset_empty">No custom presets to export yet</string>
     <string name="settings_export_preset_failed">Failed to save export file</string>
-    <string name="settings_import_preset_success">%1$d presets imported successfully</string>
+    <plurals name="settings_import_preset_success">
+        <item quantity="one">%1$d preset imported successfully</item>
+        <item quantity="other">%1$d presets imported successfully</item>
+    </plurals>
     <string name="settings_import_preset_failed">File is invalid or corrupted, import cancelled</string>
 
     <!-- Batch 119: Sleep timer (Fase 8 item B, part 1 = auto-stop) -->

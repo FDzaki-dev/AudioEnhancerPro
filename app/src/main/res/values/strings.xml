@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Boomly</string>
 
     <!-- Status badge -->
@@ -155,7 +155,7 @@
     <string name="preset_save_confirm">Simpan</string>
     <string name="preset_save_cancel">Batal</string>
     <string name="preset_save_name_collision_error">Nama ini sudah dipakai preset lain, pilih nama lain</string>
-    <string name="preset_save_char_count">%1$d/%2$d karakter</string>
+    <string name="preset_save_char_count" tools:ignore="PluralsCandidate">%1$d/%2$d karakter</string>
     <string name="preset_saved_message">Preset \"%1$s\" disimpan</string>
     <string name="preset_delete_dialog_title">Hapus Preset?</string>
     <string name="preset_delete_dialog_body">Preset \"%1$s\" akan dihapus permanen.</string>
@@ -216,10 +216,16 @@
     <string name="settings_backup_section_desc">Simpan semua preset custom ke file, atau pulihkan dari file cadangan. Preset dengan nama sama akan ditimpa.</string>
     <string name="settings_export_preset_button">Ekspor Preset</string>
     <string name="settings_import_preset_button">Impor Preset</string>
-    <string name="settings_export_preset_success">%1$d preset diekspor ke file</string>
+    <plurals name="settings_export_preset_success">
+        <item quantity="one">%1$d preset diekspor ke file</item>
+        <item quantity="other">%1$d preset diekspor ke file</item>
+    </plurals>
     <string name="settings_export_preset_empty">Belum ada preset custom untuk diekspor</string>
     <string name="settings_export_preset_failed">Gagal menyimpan file ekspor</string>
-    <string name="settings_import_preset_success">%1$d preset berhasil diimpor</string>
+    <plurals name="settings_import_preset_success">
+        <item quantity="one">%1$d preset berhasil diimpor</item>
+        <item quantity="other">%1$d preset berhasil diimpor</item>
+    </plurals>
     <string name="settings_import_preset_failed">File tidak valid atau rusak, impor dibatalkan</string>
 
     <!-- Batch 119: Sleep timer (Fase 8 item B, bagian 1 = auto-stop) -->

@@ -589,16 +589,16 @@ fun SettingsScreen(
         // template dibaca via stringResource() DI SINI (composable scope) lalu diformat
         // manual (`String.format`) di dalam callback launcher — stringResource(id, args)
         // TIDAK BISA dipanggil di luar composition (di dalam launcher/coroutine callback).
+        // Batch 152: pesan SUKSES export/import kini `plurals` (lint PluralsCandidate; "1 presets"
+        // salah di EN) lewat `context.resources.getQuantityString` DI callback (non-composable).
         // Guard Thread Safety: baca/tulis FILE (ContentResolver stream) WAJIB
         // Dispatchers.IO, BUKAN blocking Main thread — beda dari baca SharedPreferences
         // polos (`getCustomPresets`, dipakai sinkron di banyak tempat lain di codebase
         // ini termasuk cek isEmpty() di bawah, data kecil, bukan "I/O berat").
         Spacer(modifier = Modifier.height(20.dp))
         SectionLabel(text = stringResource(R.string.settings_backup_section_title))
-        val exportSuccessTemplate = stringResource(R.string.settings_export_preset_success)
         val exportEmptyMsg = stringResource(R.string.settings_export_preset_empty)
         val exportFailedMsg = stringResource(R.string.settings_export_preset_failed)
-        val importSuccessTemplate = stringResource(R.string.settings_import_preset_success)
         val importFailedMsg = stringResource(R.string.settings_import_preset_failed)
         val scope = rememberCoroutineScope()
         var backupStatus by remember { mutableStateOf<String?>(null) }
@@ -622,7 +622,11 @@ fun SettingsScreen(
                     }
                 }
                 backupStatusIsError = !ok
-                backupStatus = if (ok) String.format(exportSuccessTemplate, count) else exportFailedMsg
+                backupStatus = if (ok) {
+                    context.resources.getQuantityString(R.plurals.settings_export_preset_success, count, count)
+                } else {
+                    exportFailedMsg
+                }
             }
         }
         // Batch 114: filter 2 mime type (bukan cuma "application/json") — sebagian
@@ -646,7 +650,9 @@ fun SettingsScreen(
                 }
                 backupStatusIsError = !result.success
                 backupStatus = if (result.success) {
-                    String.format(importSuccessTemplate, result.importedCount)
+                    context.resources.getQuantityString(
+                        R.plurals.settings_import_preset_success, result.importedCount, result.importedCount
+                    )
                 } else {
                     importFailedMsg
                 }

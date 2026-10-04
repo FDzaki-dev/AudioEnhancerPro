@@ -46,6 +46,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     /** Status koneksi ke AudioEnhancerService — dipakai UI untuk loading/error state eksplisit. */
     enum class ConnectionState { CONNECTING, CONNECTED, ERROR }
 
+    // Batch 152 (lint StaticFieldLeak): Service = Context, tapi referensi ini DILEPAS di
+    // `onServiceDisconnected()` & `onCleared()` (dan semua akses digerbang `bound`), jadi tidak bocor.
+    @android.annotation.SuppressLint("StaticFieldLeak")
     private var service: AudioEnhancerService? = null
     private var bound = false
 
@@ -178,6 +181,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
+            service = null
             connectionState = ConnectionState.CONNECTING
         }
     }
@@ -374,6 +378,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             getApplication<Application>().unbindService(connection)
             bound = false
         }
+        service = null
         super.onCleared()
     }
 }

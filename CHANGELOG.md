@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 152: Pesan ekspor/impor preset benar untuk 1 preset, dan perapihan peringatan lint
+
+Pesan sukses ekspor dan impor preset di Pengaturan sekarang menyesuaikan jumlah, jadi bahasa Inggris tidak lagi menulis
+"1 presets". Di balik layar, referensi layanan di ViewModel dilepas saat koneksi putus atau ViewModel dibuang, dan dua
+peringatan Android Lint yang sama sekali tidak mengubah tampilan dirapikan. Tidak ada perubahan alur aplikasi.
+
+**Perubahan** (4 file + 2 dokumen): `BoosterViewModel.kt`, `SettingsScreen.kt`, `strings.xml` (ID dan EN).
+**NOT VERIFIED** sampai laporan lint dan detekt CI terbaru dibaca.
+
 ## Batch 151: Preset per jadwal
 
 Jadwal otomatis sekarang bisa memilih preset. Di Pengaturan, kartu Jadwal Otomatis punya pilihan "Preset saat jadwal menyalakan"
