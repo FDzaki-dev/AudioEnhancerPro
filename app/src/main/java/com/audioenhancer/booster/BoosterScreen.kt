@@ -436,21 +436,22 @@ private fun UpdateBanner(
  *  rapat. BUKAN `animate*AsState` — [levels] sendiri sudah berubah ~20x/detik dari loop
  *  poll ViewModel (lihat BoosterViewModel), animasi tambahan di sini cuma nambah lag,
  *  bukan bikin lebih halus. Murni `Canvas` primitif, TIDAK ada state/remember di dalam
- *  fungsi ini sendiri — semua sumber data dari parameter, aman dipanggil ulang tiap
- *  recomposition tanpa efek samping.
+ *  fungsi ini sendiri. Batch 158: [levels] adalah PROVIDER dan dibaca di dalam lambda gambar
+ *  `Canvas` — tiap update state hanya memicu redraw bar, TIDAK merekomposisi BoosterScreen.
  */
 @Composable
 private fun SpectrumBars(
-    levels: FloatArray,
+    levels: () -> FloatArray,
     color: Color,
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
-        if (levels.isEmpty()) return@Canvas
+        val current = levels()
+        if (current.isEmpty()) return@Canvas
         val gapFraction = 0.25f
-        val barWidth = size.width / (levels.size + (levels.size - 1) * gapFraction)
+        val barWidth = size.width / (current.size + (current.size - 1) * gapFraction)
         val gapWidth = barWidth * gapFraction
-        levels.forEachIndexed { i, raw ->
+        current.forEachIndexed { i, raw ->
             val level = raw.coerceIn(0f, 1f)
             val barHeight = (size.height * level).coerceAtLeast(2f) // Batch 120: minimal 2px biar bar diam tetap kelihatan, bukan hilang total
             drawRoundRect(
@@ -468,6 +469,9 @@ private fun SpectrumBars(
 // tak sengaja). Indeks tab terakhir = 2 (3 tab: Kontrol/Tampilan/Bantuan, sama dgn `tabLabels`).
 private const val TAB_SWIPE_THRESHOLD_DP = 56
 private const val HORIZONTAL_TAB_LAST_INDEX = 2
+
+// Batch 158: default `spectrumLevels` BoosterScreen — 1 instance dipakai ulang, bukan array baru per frame.
+private val NO_SPECTRUM_LEVELS = FloatArray(AudioEnhancerService.SPECTRUM_BAND_COUNT)
 
 // Batch 141: murni (tanpa state/Compose) — +1 = tab berikutnya (geser ke KIRI), -1 = tab
 // sebelumnya (geser ke KANAN), 0 = belum melewati ambang. Batas ujung (tab pertama/terakhir)
@@ -508,7 +512,9 @@ fun BoosterScreen(
     // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
     // jatuh ke kartu "minta izin", BUKAN diam-diam nganggap fitur aktif.
     visualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.UNAVAILABLE,
-    spectrumLevels: FloatArray = FloatArray(AudioEnhancerService.SPECTRUM_BAND_COUNT),
+    // Batch 158: provider (bukan nilai) — pemanggil meneruskan `{ viewModel.spectrumLevels }` supaya
+    // state ~20x/detik itu dibaca di fase GAMBAR `SpectrumBars`, bukan di komposisi BoosterScreen.
+    spectrumLevels: () -> FloatArray = { NO_SPECTRUM_LEVELS },
     onRecordAudioPermissionResult: () -> Unit = {},
     equalizerSupported: Boolean = false,
     equalizerBandCount: Int = 0,

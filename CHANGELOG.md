@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 158: Visualizer spectrum lebih ringan, dokumentasi dirapikan
+
+Bar spectrum di Boomly diperbarui sekitar 20 kali per detik. Sebelumnya tiap pembaruan itu membuat seluruh layar
+utama dihitung ulang; sekarang hanya bar-nya yang digambar ulang, sehingga layar lebih ringan dan hemat baterai
+saat visualizer aktif. Tampilan dan perilaku tidak berubah. Riwayat batch lama (1–142) di dokumen status dipindah
+ke arsip supaya dokumen utama lebih ringkas, isinya tidak diubah.
+Kenaikan target SDK ke 35 sengaja belum dilakukan: di Android 15 aplikasi dengan target itu tidak boleh menyalakan
+layanan audio dari broadcast boot, sehingga fitur nyala otomatis setelah restart akan rusak. Keputusan perilaku
+boot ada di tangan pengguna.
+Laporan CI run 201 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan.
+
+**Perubahan** (2 file source + arsip + manifest + 2 dokumen): `BoosterScreen.kt`, `MainActivity.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; perilaku di perangkat belum diuji.
+
 ## Batch 157: Tombol Autostart punya satu halaman cadangan lagi di HP Asus
 
 Tombol "Buka Pengaturan Autostart" mencoba beberapa halaman pengaturan milik tiap merk HP, lalu jatuh ke halaman Info

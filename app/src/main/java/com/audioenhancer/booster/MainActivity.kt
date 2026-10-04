@@ -230,7 +230,9 @@ class MainActivity : ComponentActivity() {
                             // Batch 120 (Fase 8E, part 2/2): sama pola poll seperti 4 EffectState
                             // di atas, cuma sumbernya loop 50ms terpisah (lihat BoosterViewModel).
                             visualizerEffectState = viewModel.visualizerEffectState,
-                            spectrumLevels = viewModel.spectrumLevels,
+                            // Batch 158: provider — state 20x/detik dibaca di fase gambar SpectrumBars,
+                            // bukan di sini (sebelumnya merekomposisi seluruh BoosterScreen tiap 50ms).
+                            spectrumLevels = { viewModel.spectrumLevels },
                             onRecordAudioPermissionResult = { viewModel.onRecordAudioPermissionResult() },
                             equalizerSupported = viewModel.equalizerSupported,
                             equalizerBandCount = viewModel.equalizerBandCount,
