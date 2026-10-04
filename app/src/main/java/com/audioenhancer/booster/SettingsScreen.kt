@@ -13,6 +13,7 @@ package com.audioenhancer.booster
 // UpdateBanner — UpdateBanner tetap muncul juga kalau user balik ke layar utama
 // (state `updateInfo` dibagi bareng), cuma sekarang bukan satu-satunya jalan lagi.
 
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,6 +62,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -697,8 +699,95 @@ fun SettingsScreen(
                 }
             }
         }
+
+        // Batch 154 (Fase 8 E "Analytics lokal", Fase 9 M5): statistik pemakaian 100% on-device.
+        // Snapshot SEKALI saat layar dibuka (bukan ticking live; 0 timer/loop) dari `PrefsHelper`
+        // + `AudioEnhancerService.currentSessionMs()` (sesi yang sedang berjalan). Format teks
+        // lewat fungsi non-composable di bawah (plurals via Context, bukan LocalContext di sini).
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_stats_section_title))
+        var statsTotalMs by remember {
+            mutableLongStateOf(PrefsHelper.getUsageTotalMs(context) + AudioEnhancerService.currentSessionMs())
+        }
+        var statsStartCount by remember { mutableIntStateOf(PrefsHelper.getUsageStartCount(context)) }
+        var statsTopPreset by remember { mutableStateOf(PrefsHelper.getTopPreset(context)) }
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                StatsRow(stringResource(R.string.settings_stats_total_label), formatUsageDuration(context, statsTotalMs))
+                Spacer(modifier = Modifier.height(8.dp))
+                StatsRow(stringResource(R.string.settings_stats_starts_label), formatUsageTimes(context, statsStartCount))
+                Spacer(modifier = Modifier.height(8.dp))
+                StatsRow(stringResource(R.string.settings_stats_top_label), formatTopPreset(context, statsTopPreset))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    stringResource(R.string.settings_stats_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalSkeuTokens.current.mutedText
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedButton(
+                    onClick = {
+                        PrefsHelper.resetUsageStats(context)
+                        AudioEnhancerService.restartSessionClock()
+                        statsTotalMs = 0L
+                        statsStartCount = 0
+                        statsTopPreset = null
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.settings_stats_reset))
+                }
+            }
+        }
     }
 }
+
+/** Batch 154: 1 baris statistik — label (redup) kiri, nilai (tebal) kanan. */
+@Composable
+private fun StatsRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = LocalSkeuTokens.current.mutedText,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/** Batch 154: durasi aktif → "X jam Y menit" (plurals per bahasa); <1 menit → teks khusus. */
+private fun formatUsageDuration(context: Context, durationMs: Long): String {
+    val totalMinutes = durationMs / 60_000L
+    if (totalMinutes < 1L) return context.getString(R.string.settings_stats_less_than_minute)
+    val hours = (totalMinutes / 60L).toInt()
+    val minutes = (totalMinutes % 60L).toInt()
+    val res = context.resources
+    val hoursText = res.getQuantityString(R.plurals.settings_stats_hours, hours, hours)
+    val minutesText = res.getQuantityString(R.plurals.settings_stats_minutes, minutes, minutes)
+    return when {
+        hours == 0 -> minutesText
+        minutes == 0 -> hoursText
+        else -> "$hoursText $minutesText"
+    }
+}
+
+/** Batch 154: "N kali" / "N time(s)" lewat plurals. */
+private fun formatUsageTimes(context: Context, count: Int): String =
+    context.resources.getQuantityString(R.plurals.settings_stats_times, count, count)
+
+/** Batch 154: "Nama · N kali"; null = belum ada data. */
+private fun formatTopPreset(context: Context, top: Pair<String, Int>?): String =
+    if (top == null) context.getString(R.string.settings_stats_none)
+    else "${top.first} · ${formatUsageTimes(context, top.second)}"
 
 /** Batch 122: 1 baris kategori route — chip "Tidak ada" + 1 chip per preset custom,
  *  scroll horizontal (bisa banyak preset). Styling FilterChip disamakan persis dengan

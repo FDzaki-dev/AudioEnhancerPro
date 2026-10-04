@@ -16,6 +16,7 @@ import android.media.audiofx.Visualizer
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
@@ -170,6 +171,24 @@ class AudioEnhancerService : Service() {
         @Volatile
         var isRunning = false
             private set
+
+        /** Batch 154 (Fase 9 M5): patokan `SystemClock.elapsedRealtime()` awal sesi aktif sekarang
+         *  (0 = tidak ada sesi). Tulis hanya di main thread (onStartCommand/onDestroy), dibaca UI
+         *  lewat [currentSessionMs]. elapsedRealtime kebal ubah jam sistem. */
+        @Volatile
+        private var sessionStartElapsedMs = 0L
+
+        /** Lama sesi aktif berjalan (ms); 0 kalau Service tidak sedang aktif. */
+        fun currentSessionMs(): Long {
+            val start = sessionStartElapsedMs
+            return if (isRunning && start > 0L) SystemClock.elapsedRealtime() - start else 0L
+        }
+
+        /** Dipanggil UI "Reset statistik": mulai ulang jam sesi berjalan supaya waktu sebelum reset
+         *  tidak ikut tertambah saat sesi berakhir. No-op kalau Service tidak aktif. */
+        fun restartSessionClock() {
+            if (isRunning && sessionStartElapsedMs > 0L) sessionStartElapsedMs = SystemClock.elapsedRealtime()
+        }
 
         /** Nyalakan service (atau re-enable efek kalau service masih hidup tapi lagi
          *  "dimatikan" lewat notifikasi). Dipakai bareng oleh MainActivity, BootReceiver,
@@ -468,6 +487,7 @@ class AudioEnhancerService : Service() {
             // supaya "Matikan" selalu benar-benar mematikan efek walau app masih kebuka.
             disableEffects()
             isRunning = false
+            endUsageSession()
             // Batch 9: catat ini SEBAGAI PILIHAN USER (bukan OS yang bunuh), supaya
             // ServiceWatchdogWorker gak menghidupkan paksa lagi tiap 15 menit.
             PrefsHelper.setUserWantsRunning(this, false)
@@ -488,12 +508,14 @@ class AudioEnhancerService : Service() {
             stopSelf()
             return START_NOT_STICKY
         }
+        val wasRunning = isRunning // Batch 154: onStartCommand dipanggil ulang tiap klien start — sesi baru HANYA dari mati→hidup
         startForeground(NOTIF_ID, buildNotification())
         // Re-enable jaga-jaga kalau sebelumnya sempat di-"Matikan" lewat notifikasi sementara
         // Service-nya sendiri tetap hidup karena masih bound — tanpa ini, buka app lagi setelah
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
         enableEffects()
         isRunning = true
+        if (!wasRunning) beginUsageSession()
         // Batch 9: tandai "user mau service ini hidup" tiap kali start beneran terjadi
         // (dari MainActivity, BootReceiver, QS Tile, Widget, atau Shortcut — semuanya
         // lewat requestStart() -> sini). ServiceWatchdogWorker baca flag ini buat
@@ -515,6 +537,21 @@ class AudioEnhancerService : Service() {
         scheduleSleepTick()
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory
         return START_STICKY
+    }
+
+    /** Batch 154: catat awal sesi aktif + hitung 1 "dinyalakan" (statistik lokal, `PrefsHelper`). */
+    private fun beginUsageSession() {
+        sessionStartElapsedMs = SystemClock.elapsedRealtime()
+        PrefsHelper.addUsageStart(this)
+    }
+
+    /** Batch 154: tutup sesi aktif — tambahkan durasinya ke total lalu kosongkan patokan (idempoten;
+     *  sesi yang mati paksa tanpa onDestroy tidak terhitung, dicatat jujur di UI). */
+    private fun endUsageSession() {
+        val start = sessionStartElapsedMs
+        if (start <= 0L) return
+        sessionStartElapsedMs = 0L
+        PrefsHelper.addUsageDuration(this, SystemClock.elapsedRealtime() - start)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -543,6 +580,7 @@ class AudioEnhancerService : Service() {
         sleepHandler.removeCallbacks(sleepTick) // Batch 119 (prefs sengaja TIDAK dibersihkan)
         releaseEffects()
         isRunning = false
+        endUsageSession() // no-op kalau sesi sudah ditutup di jalur ACTION_STOP
         BoosterWidgetProvider.refreshAll(this)
         // Batch 44 (bugfix): jalur "service di-destroy" (mis. dibunuh OS) juga ikut
         // sinkronkan QS Tile — cabang ke-3 & terakhir yang sebelumnya kelewat.

@@ -166,7 +166,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
+- **Batch terakhir**: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
+  dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). CI run 197 (artifact user): BUILD SUCCESSFUL 18s, lint 0E/1W (OldTargetApi)/1I (ReportShortcutUsage) = TARGET B153 tepat,
+  detekt 0/21 file, loc 8.961 → B153 **STATIC-VERIFIED**, M9 SELESAI. B154 **NOT VERIFIED** (statis; nunggu CI). TARGET artifact berikut: lint 0E/1W/1I, detekt 0, loc naik ±+209.
+  Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
   (PNG bulat sengaja identik). CI run 196 (artifact diunggah user): BUILD SUCCESSFUL 26s, lint 0E/11W/1I = TARGET B152 tepat, detekt 0/21 file, loc 8.961 = source v152 → B151+B152
   **STATIC-VERIFIED** (device belum). TARGET artifact berikut: lint 0E/1W (OldTargetApi)/1I, detekt 0 (belum terbukti). Sebelumnya: 152, bersih warning lint (4 file: `BoosterViewModel.kt`+`SettingsScreen.kt`+strings ID/EN) — `StaticFieldLeak` 1 + `PluralsCandidate` 6 (export/import
   sukses jadi `plurals`, `preset_save_char_count` `tools:ignore`). Gerbang validasi = HANYA lintDebug+detekt. TARGET artifact berikut: lint 0E/≤11W/1I, detekt 0 (belum terbukti).
@@ -370,6 +373,13 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 154** (`PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+`strings.xml` ID/EN — 5 file; request user "next"): triase `static_analysis_v197-run197` (compile UP-TO-DATE lolos,
+  lint 0E/1W/1I, detekt 0, loc 8.961) → B153 STATIC-VERIFIED. M5 analytics lokal: Service `beginUsageSession()` hanya saat mati→hidup (`wasRunning`), `endUsageSession()` di ACTION_STOP + onDestroy
+  (idempoten; patokan `SystemClock.elapsedRealtime()` di companion, `currentSessionMs()`/`restartSessionClock()`); `PrefsHelper` `getUsageTotalMs/StartCount`, `addUsageStart/Duration`,
+  `getTopPreset`, `resetUsageStats`, hitung preset di `setActivePreset()` HANYA saat label berganti (JSON ≤50 entri); `SettingsScreen` kartu "Statistik Pemakaian" (snapshot saat dibuka + tombol reset),
+  format via fungsi non-composable (plurals). Batas jujur: sesi yang mati paksa tanpa onDestroy tidak terhitung; simpan preset baru ikut terhitung 1x; label preset bawaan per bahasa terpisah.
+  Validasi statis (skrip): XML/plurals valid, parity 189 string+5 plurals ID=EN, `R.*` ter-resolve & semua resource baru terpakai, brace/paren seimbang, `!!` 0, urutan onStartCommand benar.
+  Status: **NOT VERIFIED**.
 - **Batch 153** (`shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — 3 file; request user "next"): triase `static_analysis_v196-run196` (compile UP-TO-DATE lolos, lint 0E/11W/1I =
   OldTargetApi 1+UnusedAttribute 5+IconDuplicates 5+ReportShortcutUsage info; detekt 0; loc 8.961 = v152) → B151+B152 STATIC-VERIFIED. Kode: `tools:ignore="UnusedAttribute"` di `<shortcut>`
   & `<appwidget-provider>` (+`xmlns:tools`), `lint.xml` `IconDuplicates` ignore + alasan. Validasi statis skrip: XML valid, atribut android:* identik, id lint.xml unik. Status: **NOT VERIFIED**.
@@ -1384,7 +1394,7 @@ asli, ganti icon set berisiko besar kalau sekaligus, belum ada keputusan).
 non-blocking). 2 → 4/6 selesai. 3 → 1/7 mulai. 4 → sengaja ditunda. 5 →
 selesai (editor pindah ke Fase 8 A). 6 → sebagian (Batch 106, 118). 7 →
 Fase 1+2 opsi A/B tervalidasi, opsi C selesai kode belum tervalidasi, 3
-kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8); M0 CI B150 (lint 18W/detekt 0), M1 kode B149 (STATIC-VERIFIED), M3 kode B151 (NOT VERIFIED), M9 bersih lint B152 STATIC-VERIFIED + B153 (NOT VERIFIED).
+kandidat sisa D/E/F. 8 → item D selesai; B Sleep timer bag. 1 (kode, NOT VERIFIED); sisanya nunggu instruksi. 9 → planning B148 (M0-M8); M0 CI B150 (lint 18W/detekt 0), M1 kode B149 (STATIC-VERIFIED), M3 kode B151 (NOT VERIFIED), M9 bersih lint SELESAI (B152+B153 STATIC-VERIFIED), M5 analytics B154 (NOT VERIFIED).
 
 ### Fase 8 — Powerful Upgrade Roadmap (usulan baru, Batch 114, request eksplisit user)
 Backlog OPSIONAL — bukan perintah kerjakan sekaligus. Syarat P0: CI hijau
@@ -1502,7 +1512,7 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
   Jadwal → pilih chip preset → set jam nyala ±2 mnt ke depan, matikan Boomly → cek preset aktif & suara saat jadwal menyala. Hanya `WorkManager`.
 - [ ] M4 · DB OEM autostart (Fase 8 C): `OemAutostartHelper.kt` (+strings bila perlu) — kandidat ComponentName Xiaomi/Oppo/Vivo/Samsung, tiap kandidat
   dibungkus `resolveActivity`/try-catch + fallback instruksi manual yang ada. Tak bisa diverifikasi tanpa device OEM → label NOT VERIFIED jujur.
-- [ ] M5 · Analytics lokal (Fase 8 E): durasi service ON & preset terpopuler 100% on-device lewat `PrefsHelper` (BUKAN logger/kelas baru), ditulis di
+- [x] M5 · Analytics lokal (Fase 8 E) — kode SELESAI Batch 154 (5 file incl. strings), NOT VERIFIED: durasi service ON & preset terpopuler 100% on-device lewat `PrefsHelper` (BUKAN logger/kelas baru), ditulis di
   jalur start/stop yang sudah ada (tanpa timer/loop). Max 3 file: `AudioEnhancerService.kt`+`PrefsHelper.kt`+`SettingsScreen.kt`. Prioritas rendah.
 - [ ] M6 · Cloud backup preset (Fase 8 D) — BLOCKED/tidak direkomendasikan: butuh OAuth Google/client config, berisiko bentrok Guard Security (tanpa
   hardcode secret) & user tak publish Play Store. Buka hanya bila user eksplisit minta + putuskan skema kredensial.
@@ -1510,9 +1520,8 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
   temuan nyata. Bukan inisiatif proaktif.
 - [ ] M8 · Housekeeping dok (HANYA bila user minta/menyentuh dok housekeeping): sinkronkan PIN "Format chat"/"maks 3 file" ke v3.5; pangkas LOG BATCH
   lama (file ini ~100 KB, target "padat"); arsip ke `docs/archive/` — TANPA file backlog baru (tanya user dulu).
-- [~] M9 · Bersih warning lint (gerbang = lintDebug+detekt SAJA) — B152 STATIC-VERIFIED (run 196: StaticFieldLeak 0, PluralsCandidate 0; 18→11W). B153 kode: UnusedAttribute 5 + IconDuplicates 5
-  (anotasi/ignore, 0 perubahan perilaku) → target 1W. SISA SENGAJA: OldTargetApi 1 (`targetSdk=34` — butuh compileSdk/AGP, DI LUAR PLANNING), ReportShortcutUsage info 1
-  (`ShortcutHelper.kt` L54, butuh `reportShortcutUsed` di jalur eksekusi shortcut — fitur kecil, bukan bug). M9 selesai begitu artifact berikut menunjukkan 1W.
+- [x] M9 · Bersih warning lint (gerbang = lintDebug+detekt SAJA) — SELESAI: artifact run 197 = 0E/1W/1I (18→11→1). SISA SENGAJA: OldTargetApi 1 (`targetSdk=34` — butuh compileSdk/AGP,
+  DI LUAR PLANNING), ReportShortcutUsage info 1 (`ShortcutHelper.kt` L54, butuh `reportShortcutUsed` di jalur eksekusi shortcut — fitur kecil, bukan bug).
 - Track T1 (manual user, non-source): commit `gradlew`+`gradle-wrapper.jar` permanen (`gradle wrapper --gradle-version 8.7`, commit 4 file) →
   membuka pre-commit hook v3.5. Track T2 (user): device test swipe lintas tab B141 (JANGAN balik ke `HorizontalPager`) & Scheduler B134.
 
@@ -1522,10 +1531,12 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: M9 bersih lint / UnusedAttribute+IconDuplicates (Batch 153; `res/xml/shortcuts.xml` `<shortcut>` & `res/xml/widget_booster_info.xml` `<appwidget-provider>` `tools:ignore="UnusedAttribute"`,
-`app/lint.xml` `IconDuplicates` ignore; ZIP `Boomly_v153.zip`) -> kode SELESAI, NOT VERIFIED (statis: XML valid, atribut android:* identik; belum lint CI); B151 preset-per-jadwal + B152 (StaticFieldLeak/plurals)
-STATIC-VERIFIED via artifact run 196 (lint 0E/11W/1I, detekt 0, loc 8.961 = v152; device belum) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W (hanya
-OldTargetApi)/1I & detekt 0 → B153 STATIC-VERIFIED & M9 selesai; kalau UnusedAttribute masih muncul, ganti `tools:ignore` jadi `tools:targetApi="25"`/`"31"` HANYA di elemen itu; (b) tanpa artifact:
-kandidat nyata berikutnya = M5 analytics lokal (3 file: `AudioEnhancerService.kt`+`PrefsHelper.kt`+`SettingsScreen.kt`, 100% on-device, tanpa timer/loop, gerbang lintDebug+detekt) atau M4 DB OEM
-autostart (`OemAutostartHelper.kt`); (c) ReportShortcutUsage info (`ShortcutHelper.kt` L54) = fitur kecil bila diminta; OldTargetApi, M2 Reverb (DITURUNKAN), M6 BLOCKED; (d) Android <12 guard/test,
-watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING. Batch berikutnya = 154.]
+[RESUME POINT: M5 Fase 9 / analytics lokal (Batch 154; `PrefsHelper.kt` `getUsageTotalMs`/`addUsageStart`/`addUsageDuration`/`getTopPreset`/`bumpPresetCount`/`resetUsageStats` + hook `setActivePreset`,
+`AudioEnhancerService.kt` `beginUsageSession`/`endUsageSession`/`currentSessionMs`/`restartSessionClock` di `onStartCommand`/ACTION_STOP/`onDestroy`, `SettingsScreen.kt` kartu "Statistik Pemakaian" +
+`StatsRow`/`formatUsageDuration`/`formatUsageTimes`/`formatTopPreset`, strings ID/EN `settings_stats_*`; ZIP `Boomly_v154.zip`) -> kode SELESAI, NOT VERIFIED (statis: parity 189+5, R.* ter-resolve, balance,
+`!!` 0; belum compile/lint/detekt CI); B153 + M9 STATIC-VERIFIED via artifact run 197 (lint 0E/1W/1I, detekt 0, loc 8.961) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET
+lint 0E/1W (OldTargetApi)/1I & detekt 0 → B154 STATIC-VERIFIED; kalau ada warning BARU, perbaiki HANYA temuan itu (kandidat: `LocalContextGetResourceValueCall`/UnusedResources/MissingQuantity, atau detekt di
+`PrefsHelper.kt` `getTopPreset`/`bumpPresetCount`); (b) bug statistik dilaporkan: debug HANYA `AudioEnhancerService.kt` `beginUsageSession`/`endUsageSession` (sesi tak terhitung = mati paksa tanpa onDestroy,
+disengaja) atau `PrefsHelper.kt` `setActivePreset`; (c) tanpa artifact, kandidat nyata berikutnya: ReportShortcutUsage (`ShortcutHelper.kt` L54 + jalur eksekusi shortcut di `MainActivity.kt`) atau M4 DB OEM
+autostart (`OemAutostartHelper.kt`, tak bisa diverifikasi tanpa device OEM); OldTargetApi, M2 Reverb (DITURUNKAN), M6 BLOCKED = butuh user; (d) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager` =
+DI LUAR PLANNING. Batch berikutnya = 155.]

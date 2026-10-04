@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 154: Statistik pemakaian
+
+Pengaturan sekarang punya kartu "Statistik Pemakaian": total waktu Boomly aktif, berapa kali dinyalakan, dan preset yang
+paling sering dipilih. Semua tersimpan hanya di perangkat ini dan bisa direset kapan saja dengan satu tombol. Angka dihitung
+saat halaman Pengaturan dibuka (tidak berdetak langsung), dan sesi yang dihentikan paksa oleh sistem tidak ikut terhitung.
+Laporan CI run 197 juga sudah dibaca: build berhasil, Android Lint tinggal 1 peringatan (versi target SDK) dan detekt 0 temuan.
+
+**Perubahan** (5 file + 2 dokumen): `PrefsHelper.kt`, `AudioEnhancerService.kt`, `SettingsScreen.kt`, `strings.xml` (ID dan EN).
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca.
+
 ## Batch 153: Perapihan peringatan lint tanpa mengubah perilaku
 
 Laporan analisis statis CI run 196 sudah dibaca: build berhasil, Android Lint 0 error dengan 11 peringatan (sebelumnya 18),

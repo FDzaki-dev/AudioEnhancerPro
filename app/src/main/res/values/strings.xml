@@ -258,4 +258,24 @@
     <string name="notif_schedule_title">Waktunya menyalakan Boomly</string>
     <string name="notif_schedule_body">Sistem memblokir penyalaan otomatis. Ketuk untuk menyalakan sekarang.</string>
     <string name="eq_reset">Reset Equalizer</string>
+    <string name="settings_stats_section_title">Statistik Pemakaian</string>
+    <string name="settings_stats_total_label">Total waktu aktif</string>
+    <string name="settings_stats_starts_label">Dinyalakan</string>
+    <string name="settings_stats_top_label">Preset terpopuler</string>
+    <string name="settings_stats_none">Belum ada data</string>
+    <string name="settings_stats_less_than_minute">Kurang dari 1 menit</string>
+    <string name="settings_stats_note">Hanya disimpan di perangkat ini. Sesi yang dihentikan paksa oleh sistem tidak terhitung.</string>
+    <string name="settings_stats_reset">Reset statistik</string>
+    <plurals name="settings_stats_hours">
+        <item quantity="one">%1$d jam</item>
+        <item quantity="other">%1$d jam</item>
+    </plurals>
+    <plurals name="settings_stats_minutes">
+        <item quantity="one">%1$d menit</item>
+        <item quantity="other">%1$d menit</item>
+    </plurals>
+    <plurals name="settings_stats_times">
+        <item quantity="one">%1$d kali</item>
+        <item quantity="other">%1$d kali</item>
+    </plurals>
 </resources>

@@ -20,6 +20,10 @@ object PrefsHelper {
     private const val KEY_SCHEDULE_START_MIN = "schedule_start_min"
     private const val KEY_SCHEDULE_STOP_MIN = "schedule_stop_min"
     private const val KEY_SCHEDULE_PRESET = "schedule_preset"
+    private const val KEY_STATS_TOTAL_MS = "stats_total_ms" // Batch 154 (Fase 9 M5)
+    private const val KEY_STATS_START_COUNT = "stats_start_count"
+    private const val KEY_STATS_PRESET_COUNTS = "stats_preset_counts"
+    private const val STATS_PRESET_MAX_ENTRIES = 50
     private const val KEY_ACTIVE_PRESET = "active_preset"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_DYNAMIC_COLOR = "use_dynamic_color"
@@ -187,7 +191,84 @@ object PrefsHelper {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString(KEY_ACTIVE_PRESET, null)
 
     fun setActivePreset(context: Context, label: String?) {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putString(KEY_ACTIVE_PRESET, label).apply()
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val previous = prefs.getString(KEY_ACTIVE_PRESET, null)
+        prefs.edit().putString(KEY_ACTIVE_PRESET, label).apply()
+        // Batch 154: statistik "preset terpopuler" — hanya saat preset BERGANTI ke label lain
+        // (tap ulang preset yang sama / null = manual tidak dihitung).
+        if (label != null && label != previous) bumpPresetCount(context, label)
+    }
+
+    // --- Batch 154 (Fase 8 E "Analytics lokal", Fase 9 M5): statistik pemakaian 100% on-device ---
+    fun getUsageTotalMs(context: Context): Long =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getLong(KEY_STATS_TOTAL_MS, 0L)
+
+    fun getUsageStartCount(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_STATS_START_COUNT, 0)
+
+    /** Dipanggil Service saat sesi aktif BARU benar-benar mulai (bukan tiap onStartCommand). */
+    fun addUsageStart(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putInt(KEY_STATS_START_COUNT, prefs.getInt(KEY_STATS_START_COUNT, 0) + 1).apply()
+    }
+
+    /** Dipanggil Service saat sesi aktif berakhir (stop / destroy). Durasi <= 0 diabaikan. */
+    fun addUsageDuration(context: Context, durationMs: Long) {
+        if (durationMs <= 0L) return
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putLong(KEY_STATS_TOTAL_MS, prefs.getLong(KEY_STATS_TOTAL_MS, 0L) + durationMs).apply()
+    }
+
+    /** Preset dengan hitungan tertinggi (nama, jumlah), atau null kalau belum ada / data rusak.
+     *  Seri: urutan pertama ditemukan menang. */
+    fun getTopPreset(context: Context): Pair<String, Int>? {
+        val json = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(KEY_STATS_PRESET_COUNTS, null) ?: return null
+        return try {
+            val obj = org.json.JSONObject(json)
+            var best: Pair<String, Int>? = null
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val name = keys.next()
+                val count = obj.optInt(name, 0)
+                val currentBest = best
+                if (count > 0 && (currentBest == null || count > currentBest.second)) best = Pair(name, count)
+            }
+            best
+        } catch (_: org.json.JSONException) {
+            null
+        }
+    }
+
+    private fun bumpPresetCount(context: Context, label: String) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val obj = try {
+            org.json.JSONObject(prefs.getString(KEY_STATS_PRESET_COUNTS, null) ?: "{}")
+        } catch (_: org.json.JSONException) {
+            org.json.JSONObject() // data rusak = mulai dari kosong, bukan crash
+        }
+        obj.put(label, obj.optInt(label, 0) + 1)
+        // Batas kecil supaya JSON tidak tumbuh tanpa batas (nama preset dibuat/dihapus user):
+        // buang entri dengan hitungan terendah.
+        while (obj.length() > STATS_PRESET_MAX_ENTRIES) {
+            var lowestName: String? = null
+            var lowestCount = Int.MAX_VALUE
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val name = keys.next()
+                val count = obj.optInt(name, 0)
+                if (name != label && count < lowestCount) { lowestName = name; lowestCount = count }
+            }
+            if (lowestName == null) break
+            obj.remove(lowestName)
+        }
+        prefs.edit().putString(KEY_STATS_PRESET_COUNTS, obj.toString()).apply()
+    }
+
+    /** Hapus SEMUA statistik pemakaian (total waktu, jumlah nyala, hitungan preset). */
+    fun resetUsageStats(context: Context) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .remove(KEY_STATS_TOTAL_MS).remove(KEY_STATS_START_COUNT).remove(KEY_STATS_PRESET_COUNTS).apply()
     }
 
     // --- Mode tema manual: override system theme kalau user memilih terang/gelap secara eksplisit ---
