@@ -23,6 +23,19 @@ object ShortcutHelper {
     const val EXTRA_CUSTOM_PRESET_NAME = "com.audioenhancer.booster.SHORTCUT_CUSTOM_PRESET"
     const val ACTION_TOGGLE = "toggle"
 
+    /** Harus identik dengan `android:shortcutId` di res/xml/shortcuts.xml (shortcut statis). */
+    const val ID_TOGGLE = "toggle_booster"
+    private const val ID_CUSTOM_PREFIX = "custom_preset_"
+
+    /** Satu-satunya tempat ID shortcut dinamis dibentuk (dipakai builder & pelapor pemakaian). */
+    fun customPresetShortcutId(presetName: String): String = "$ID_CUSTOM_PREFIX$presetName"
+
+    /** Batch 155: lapor ke launcher bahwa shortcut dipakai (ranking shortcut; lint ReportShortcutUsage).
+     *  Compat: no-op di API <25. ID tak dikenal diabaikan sistem. */
+    fun reportUsed(context: Context, shortcutId: String) {
+        ShortcutManagerCompat.reportShortcutUsed(context, shortcutId)
+    }
+
     // Sisa slot dynamic yang aman: kebanyakan launcher/OEM menjamin minimal 4 total
     // shortcut (statis + dinamis) per app. 1 slot statis (toggle) sudah dipakai,
     // jadi sisain 3 buat preset custom supaya gak ada yang di-drop diam-diam.
@@ -43,7 +56,7 @@ object ShortcutHelper {
                 action = Intent.ACTION_VIEW // sekadar beda dari ACTION_MAIN default, intent-nya eksplisit jadi tetap kekirim ke MainActivity
                 putExtra(EXTRA_CUSTOM_PRESET_NAME, preset.name)
             }
-            ShortcutInfoCompat.Builder(context, "custom_preset_${preset.name}")
+            ShortcutInfoCompat.Builder(context, customPresetShortcutId(preset.name))
                 .setShortLabel(preset.name)
                 .setLongLabel(preset.name)
                 .setIcon(icon)

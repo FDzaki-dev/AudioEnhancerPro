@@ -86,10 +86,12 @@ class MainActivity : ComponentActivity() {
             ShortcutHelper.ACTION_TOGGLE -> {
                 if (AudioEnhancerService.isRunning) AudioEnhancerService.requestStop(this)
                 else AudioEnhancerService.requestStart(this)
+                ShortcutHelper.reportUsed(this, ShortcutHelper.ID_TOGGLE)
             }
         }
         intent.getStringExtra(ShortcutHelper.EXTRA_CUSTOM_PRESET_NAME)?.let { name ->
             shortcutCustomPresetName = name
+            ShortcutHelper.reportUsed(this, ShortcutHelper.customPresetShortcutId(name))
         }
     }
 

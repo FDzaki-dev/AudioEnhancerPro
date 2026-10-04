@@ -166,10 +166,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
-  dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). CI run 197 (artifact user): BUILD SUCCESSFUL 18s, lint 0E/1W (OldTargetApi)/1I (ReportShortcutUsage) = TARGET B153 tepat,
-  detekt 0/21 file, loc 8.961 → B153 **STATIC-VERIFIED**, M9 SELESAI. B154 **NOT VERIFIED** (statis; nunggu CI). TARGET artifact berikut: lint 0E/1W/1I, detekt 0, loc naik ±+209.
-  Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
+- **Batch terakhir**: 155, `ShortcutHelper.kt`+`MainActivity.kt` (2 file) — lapor pemakaian shortcut (`ShortcutManagerCompat.reportShortcutUsed`) agar lint `ReportShortcutUsage` hilang; 0 perubahan
+  perilaku audio/UI. CI run 198 (artifact user): BUILD SUCCESSFUL 27s, lint 0E/1W (OldTargetApi)/1I (ReportShortcutUsage), detekt 0/21 file, loc 9.169 = source v154 (terbukti hitung `split('\n')`)
+  → B154 **STATIC-VERIFIED**. B155 **NOT VERIFIED** (statis; nunggu CI). TARGET artifact berikut: lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.184 (+15).
+  Sebelumnya: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
+  dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
   (PNG bulat sengaja identik). CI run 196 (artifact diunggah user): BUILD SUCCESSFUL 26s, lint 0E/11W/1I = TARGET B152 tepat, detekt 0/21 file, loc 8.961 = source v152 → B151+B152
   **STATIC-VERIFIED** (device belum). TARGET artifact berikut: lint 0E/1W (OldTargetApi)/1I, detekt 0 (belum terbukti). Sebelumnya: 152, bersih warning lint (4 file: `BoosterViewModel.kt`+`SettingsScreen.kt`+strings ID/EN) — `StaticFieldLeak` 1 + `PluralsCandidate` 6 (export/import
   sukses jadi `plurals`, `preset_save_char_count` `tools:ignore`). Gerbang validasi = HANYA lintDebug+detekt. TARGET artifact berikut: lint 0E/≤11W/1I, detekt 0 (belum terbukti).
@@ -373,6 +374,10 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 155** (`ShortcutHelper.kt`+`MainActivity.kt` — 2 file; request user "lanjutkan progress, validasi ketat via lintdebug/detekt only"): triase `static_analysis_v198-run198` (compile UP-TO-DATE
+  lolos, lint 0E/1W/1I, detekt 0/21 file, loc 9.169 = v154) → B154 STATIC-VERIFIED. `ShortcutHelper`: +`ID_TOGGLE` (= `shortcutId` di `shortcuts.xml`), +`customPresetShortcutId()` (builder dinamis
+  dipakai ulang, nilai ID identik), +`reportUsed()` → `ShortcutManagerCompat.reportShortcutUsed`; `MainActivity.handleShortcutIntent` memanggilnya setelah toggle & saat preset custom dititip.
+  Validasi statis (skrip): diff = 2 file/+15 baris, brace/paren seimbang, `!!` 0, import terlarang detekt 0, ID xml==konstanta, 1 call `reportShortcutUsed`. Status: **NOT VERIFIED**.
 - **Batch 154** (`PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+`strings.xml` ID/EN — 5 file; request user "next"): triase `static_analysis_v197-run197` (compile UP-TO-DATE lolos,
   lint 0E/1W/1I, detekt 0, loc 8.961) → B153 STATIC-VERIFIED. M5 analytics lokal: Service `beginUsageSession()` hanya saat mati→hidup (`wasRunning`), `endUsageSession()` di ACTION_STOP + onDestroy
   (idempoten; patokan `SystemClock.elapsedRealtime()` di companion, `currentSessionMs()`/`restartSessionClock()`); `PrefsHelper` `getUsageTotalMs/StartCount`, `addUsageStart/Duration`,
@@ -1521,7 +1526,7 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 - [ ] M8 · Housekeeping dok (HANYA bila user minta/menyentuh dok housekeeping): sinkronkan PIN "Format chat"/"maks 3 file" ke v3.5; pangkas LOG BATCH
   lama (file ini ~100 KB, target "padat"); arsip ke `docs/archive/` — TANPA file backlog baru (tanya user dulu).
 - [x] M9 · Bersih warning lint (gerbang = lintDebug+detekt SAJA) — SELESAI: artifact run 197 = 0E/1W/1I (18→11→1). SISA SENGAJA: OldTargetApi 1 (`targetSdk=34` — butuh compileSdk/AGP,
-  DI LUAR PLANNING), ReportShortcutUsage info 1 (`ShortcutHelper.kt` L54, butuh `reportShortcutUsed` di jalur eksekusi shortcut — fitur kecil, bukan bug).
+  DI LUAR PLANNING), ReportShortcutUsage info 1 → dikerjakan Batch 155 (`reportShortcutUsed` di `MainActivity.handleShortcutIntent`; NOT VERIFIED, nunggu artifact run 199).
 - Track T1 (manual user, non-source): commit `gradlew`+`gradle-wrapper.jar` permanen (`gradle wrapper --gradle-version 8.7`, commit 4 file) →
   membuka pre-commit hook v3.5. Track T2 (user): device test swipe lintas tab B141 (JANGAN balik ke `HorizontalPager`) & Scheduler B134.
 
@@ -1531,12 +1536,12 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: M5 Fase 9 / analytics lokal (Batch 154; `PrefsHelper.kt` `getUsageTotalMs`/`addUsageStart`/`addUsageDuration`/`getTopPreset`/`bumpPresetCount`/`resetUsageStats` + hook `setActivePreset`,
-`AudioEnhancerService.kt` `beginUsageSession`/`endUsageSession`/`currentSessionMs`/`restartSessionClock` di `onStartCommand`/ACTION_STOP/`onDestroy`, `SettingsScreen.kt` kartu "Statistik Pemakaian" +
-`StatsRow`/`formatUsageDuration`/`formatUsageTimes`/`formatTopPreset`, strings ID/EN `settings_stats_*`; ZIP `Boomly_v154.zip`) -> kode SELESAI, NOT VERIFIED (statis: parity 189+5, R.* ter-resolve, balance,
-`!!` 0; belum compile/lint/detekt CI); B153 + M9 STATIC-VERIFIED via artifact run 197 (lint 0E/1W/1I, detekt 0, loc 8.961) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET
-lint 0E/1W (OldTargetApi)/1I & detekt 0 → B154 STATIC-VERIFIED; kalau ada warning BARU, perbaiki HANYA temuan itu (kandidat: `LocalContextGetResourceValueCall`/UnusedResources/MissingQuantity, atau detekt di
-`PrefsHelper.kt` `getTopPreset`/`bumpPresetCount`); (b) bug statistik dilaporkan: debug HANYA `AudioEnhancerService.kt` `beginUsageSession`/`endUsageSession` (sesi tak terhitung = mati paksa tanpa onDestroy,
-disengaja) atau `PrefsHelper.kt` `setActivePreset`; (c) tanpa artifact, kandidat nyata berikutnya: ReportShortcutUsage (`ShortcutHelper.kt` L54 + jalur eksekusi shortcut di `MainActivity.kt`) atau M4 DB OEM
-autostart (`OemAutostartHelper.kt`, tak bisa diverifikasi tanpa device OEM); OldTargetApi, M2 Reverb (DITURUNKAN), M6 BLOCKED = butuh user; (d) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager` =
-DI LUAR PLANNING. Batch berikutnya = 155.]
+[RESUME POINT: M9 / lint ReportShortcutUsage (Batch 155; `ShortcutHelper.kt` `ID_TOGGLE`/`customPresetShortcutId`/`reportUsed` + `MainActivity.kt` `handleShortcutIntent` L83-96 memanggil `ShortcutHelper.reportUsed`
+setelah toggle & saat preset custom dititip; ZIP `Boomly_v155.zip`) -> kode SELESAI, NOT VERIFIED (statis: balance, `!!` 0, ID xml==konstanta; belum compile/lint/detekt CI); B154 STATIC-VERIFIED via
+artifact run 198 (lint 0E/1W/1I, detekt 0, loc 9.169) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W (OldTargetApi)/0I & detekt 0, loc 9.184 → B155
+STATIC-VERIFIED; kalau ReportShortcutUsage MASIH muncul, debug HANYA `ShortcutHelper.kt` `reportUsed` & `MainActivity.kt` `handleShortcutIntent` (jangan sentuh file lain); kalau ada warning BARU, perbaiki
+HANYA temuan itu; (b) TEMUAN STATIS belum dikonfirmasi device, TIDAK diubah di B155: `MainActivity.kt` `onCreate` L111 `handleShortcutIntent(intent)` dipanggil tanpa cek `savedInstanceState` & manifest
+tanpa `configChanges` → rotasi saat Intent shortcut toggle masih jadi `intent` Activity bisa mengeksekusi toggle lagi; kandidat fix minimum = panggil hanya bila `savedInstanceState == null` (tanya/konfirmasi
+user dulu, menyentuh jalur stabil); (c) bug statistik dilaporkan: debug HANYA `AudioEnhancerService.kt` `beginUsageSession`/`endUsageSession` atau `PrefsHelper.kt` `setActivePreset`; (d) tanpa artifact:
+M4 DB OEM autostart (`OemAutostartHelper.kt`, tak bisa diverifikasi tanpa device OEM); OldTargetApi, M2 Reverb (DITURUNKAN), M6 BLOCKED = butuh user; (e) Android <12 guard/test, watchdog/heartbeat,
+`HorizontalPager` = DI LUAR PLANNING. Batch berikutnya = 156.]

@@ -1,5 +1,16 @@
 # Changelog
 
+## Batch 155: Shortcut launcher melapor saat dipakai
+
+Saat shortcut Boomly di ikon launcher dipakai (Nyalakan/Matikan atau preset custom), aplikasi sekarang memberi tahu
+launcher lewat API resmi, sehingga launcher bisa mengurutkan shortcut sesuai yang paling sering dipakai. Ini juga
+menghilangkan satu-satunya catatan informasi tersisa di Android Lint. Tampilan, suara, dan alur aplikasi tidak berubah.
+Laporan CI run 198 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK) dan 1 catatan
+shortcut tadi, detekt 0 temuan.
+
+**Perubahan** (2 file + 2 dokumen): `ShortcutHelper.kt`, `MainActivity.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca.
+
 ## Batch 154: Statistik pemakaian
 
 Pengaturan sekarang punya kartu "Statistik Pemakaian": total waktu Boomly aktif, berapa kali dinyalakan, dan preset yang
