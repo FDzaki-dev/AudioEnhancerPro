@@ -110,7 +110,10 @@ class MainActivity : ComponentActivity() {
         viewModel.attemptBindService()
 
         requestIgnoreBatteryOptimizations()
-        handleShortcutIntent(intent)
+        // Batch 156: Intent shortcut tetap jadi `intent` Activity setelah recreate (rotasi, dark
+        // mode, process death) — tanpa guard ini toggle/preset custom dieksekusi ulang. Hanya saat
+        // launch baru (savedInstanceState == null); shortcut berikutnya masuk lewat onNewIntent.
+        if (savedInstanceState == null) handleShortcutIntent(intent)
 
         setContent {
             var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }

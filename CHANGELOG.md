@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 156: Shortcut tidak lagi terulang saat layar diputar
+
+Sebelumnya, setelah Boomly dibuka lewat shortcut di ikon launcher (Nyalakan/Matikan atau preset custom), memutar layar
+atau mengganti mode gelap membuat aplikasi mengulang perintah shortcut tadi: status nyala/mati bisa terbalik lagi, dan
+preset custom diterapkan ulang sampai menimpa pengaturan yang baru digeser. Sekarang perintah shortcut hanya dijalankan
+sekali saat aplikasi dibuka; shortcut yang dipakai ketika aplikasi sedang terbuka tetap bekerja seperti biasa.
+Laporan CI run 199 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK) dan tanpa
+catatan informasi lagi, detekt 0 temuan.
+
+**Perubahan** (1 file + 2 dokumen): `MainActivity.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; perilaku di perangkat belum diuji.
+
 ## Batch 155: Shortcut launcher melapor saat dipakai
 
 Saat shortcut Boomly di ikon launcher dipakai (Nyalakan/Matikan atau preset custom), aplikasi sekarang memberi tahu
