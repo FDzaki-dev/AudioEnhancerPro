@@ -166,10 +166,10 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 156, `MainActivity.kt` (1 file) — BUG: Intent shortcut (toggle/preset custom) dieksekusi ULANG tiap Activity recreate (rotasi/dark mode/process death) karena `onCreate` memanggil
-  `handleShortcutIntent(intent)` tanpa guard → sekarang hanya bila `savedInstanceState == null`. CI run 199 (artifact user): BUILD SUCCESSFUL 30s, lint 0E/1W (OldTargetApi)/0I, detekt 0/21 file,
-  loc 9.184 = TARGET B155 tepat (ReportShortcutUsage hilang) → B155 **STATIC-VERIFIED**, M9 tuntas (sisa OldTargetApi DI LUAR PLANNING). B156 **NOT VERIFIED** (statis; nunggu CI + device).
-  TARGET artifact berikut: lint 0E/1W/0I, detekt 0, loc 9.187 (+3). Sebelumnya: 155, `ShortcutHelper.kt`+`MainActivity.kt` — `reportShortcutUsed` di jalur eksekusi shortcut.
+- **Batch terakhir**: 157, `OemAutostartHelper.kt` (1 file) — M4: audit statis DB OEM (Xiaomi/Oppo/Vivo/Huawei/Samsung/Transsion/OnePlus/Asus sudah ada, tiap kandidat try/catch `Exception` + fallback App Info)
+  → hanya +1 kandidat Asus (`powersaver.PowerSaverSettings`, daftar publik AutoStarter). CI run 200 (artifact user): BUILD SUCCESSFUL 18s, lint 0E/1W (OldTargetApi)/0I, detekt 0/21 file, loc 9.187 =
+  TARGET B156 tepat → B156 **STATIC-VERIFIED**. B157 **NOT VERIFIED** (statis; nunggu CI + device OEM). TARGET artifact berikut: lint 0E/1W/0I, detekt 0, loc 9.189 (+2).
+  Sebelumnya: 156, `MainActivity.kt` — guard replay Intent shortcut saat recreate (`savedInstanceState == null`). Sebelumnya: 155, `ShortcutHelper.kt`+`MainActivity.kt` — `reportShortcutUsed` di jalur eksekusi shortcut.
   Sebelumnya: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
   dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
   (PNG bulat sengaja identik). CI run 196 (artifact diunggah user): BUILD SUCCESSFUL 26s, lint 0E/11W/1I = TARGET B152 tepat, detekt 0/21 file, loc 8.961 = source v152 → B151+B152
@@ -375,6 +375,11 @@ struktur file + baca `Batch terakhir` di ZIP baru dulu, baru putuskan alur
 Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 
+- **Batch 157** (`OemAutostartHelper.kt` — 1 file; request user "next"): triase `static_analysis_v200-run200` (compile UP-TO-DATE lolos, lint 0E/1W/0I, detekt 0/21 file, loc 9.187) → B156 STATIC-VERIFIED.
+  M4 diaudit statis vs daftar publik AutoStarter (salinan gist 2020 + issue #84): Xiaomi/Oppo/Vivo/Huawei-ProtectActivity SUDAH identik; `SecurityException` Huawei `StartupNormalAppListActivity` (butuh
+  `com.huawei.permission.external_app_settings.USE_COMPONENT`) sudah aman karena `catch (_: Exception)` lanjut ke kandidat berikut → fallback App Info. Perubahan HANYA: Asus +kandidat kedua
+  `com.asus.mobilemanager.powersaver.PowerSaverSettings`. Nokia/Letv dari daftar itu SENGAJA tidak ditambah (tak ada bukti user butuh; label "Autostart" berlaku utk semua merk berkandidat).
+  Validasi statis (skrip): diff = 1 kandidat + 1 komentar, brace 13/13, paren 64/64, `!!` 0, loc 9.189. Status: **NOT VERIFIED**.
 - **Batch 156** (`MainActivity.kt` — 1 file; request user "next"): triase `static_analysis_v199-run199` (compile UP-TO-DATE lolos, lint 0E/1W/0I, detekt 0/21 file, loc 9.184) → B155 STATIC-VERIFIED.
   Bug nyata (baca statis, belum device): manifest tanpa `configChanges`, tak ada `removeExtra`/`replaceExtras` → recreate memutar ulang Intent peluncur: shortcut toggle membalik status lagi, shortcut preset
   custom meng-apply ulang preset (menimpa slider manual). Fix: `onCreate` → `if (savedInstanceState == null) handleShortcutIntent(intent)`; `onNewIntent` TIDAK disentuh (shortcut saat app terbuka tetap jalan).
@@ -1520,8 +1525,8 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
   Regresi wajib: Bass/Virtualizer/Loudness/Compressor/EQ/Auto-Profil tak berubah. Tanpa thread/logger baru.
 - [x] M3 · Preset per jadwal Scheduler — kode SELESAI Batch 151 (1 batch, 5 file; jalur prefs, BUKAN intent Service), NOT VERIFIED. Test device: buat preset custom → Pengaturan →
   Jadwal → pilih chip preset → set jam nyala ±2 mnt ke depan, matikan Boomly → cek preset aktif & suara saat jadwal menyala. Hanya `WorkManager`.
-- [ ] M4 · DB OEM autostart (Fase 8 C): `OemAutostartHelper.kt` (+strings bila perlu) — kandidat ComponentName Xiaomi/Oppo/Vivo/Samsung, tiap kandidat
-  dibungkus `resolveActivity`/try-catch + fallback instruksi manual yang ada. Tak bisa diverifikasi tanpa device OEM → label NOT VERIFIED jujur.
+- [x] M4 · DB OEM autostart (Fase 8 C) — kode SELESAI Batch 157 (1 file), NOT VERIFIED (butuh device OEM): DB sudah mencakup Xiaomi/Oppo/Vivo/Huawei/Samsung/Transsion/OnePlus/Asus dengan try/catch +
+  fallback App Info; B157 hanya +1 kandidat Asus. Tidak ada kandidat baru tanpa bukti — jangan menambah nama Activity dari ingatan.
 - [x] M5 · Analytics lokal (Fase 8 E) — kode SELESAI Batch 154 (5 file incl. strings), NOT VERIFIED: durasi service ON & preset terpopuler 100% on-device lewat `PrefsHelper` (BUKAN logger/kelas baru), ditulis di
   jalur start/stop yang sudah ada (tanpa timer/loop). Max 3 file: `AudioEnhancerService.kt`+`PrefsHelper.kt`+`SettingsScreen.kt`. Prioritas rendah.
 - [ ] M6 · Cloud backup preset (Fase 8 D) — BLOCKED/tidak direkomendasikan: butuh OAuth Google/client config, berisiko bentrok Guard Security (tanpa
@@ -1541,11 +1546,10 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: BUG replay Intent shortcut saat Activity recreate (Batch 156; `MainActivity.kt` `onCreate` L113-116 `if (savedInstanceState == null) handleShortcutIntent(intent)`; ZIP `Boomly_v156.zip`)
--> kode SELESAI, NOT VERIFIED (statis: brace 63/63, paren 106/106, `!!` 0, hanya 1 baris call berubah; belum compile/lint/detekt CI & device); B155 STATIC-VERIFIED via artifact run 199 (lint 0E/1W
-(OldTargetApi)/0I, detekt 0, loc 9.184) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W (OldTargetApi)/0I & detekt 0, loc 9.187 (+3) → B156 STATIC-VERIFIED;
-kalau ada temuan BARU, perbaiki HANYA temuan itu, debug HANYA `MainActivity.kt` `onCreate` L104-116 / `handleShortcutIntent` L83-94; (b) device test (user, Track T2): tap shortcut Nyalakan/Matikan → rotasi
-layar → status TIDAK berbalik lagi; tap shortcut preset custom → geser slider manual → rotasi → preset TIDAK ter-apply ulang; shortcut kedua saat app sedang terbuka tetap jalan (`onNewIntent`); (c) lint
-sisa HANYA OldTargetApi (butuh compileSdk/AGP, DI LUAR PLANNING); kandidat nyata berikutnya tanpa input: M4 DB OEM autostart (`OemAutostartHelper.kt`, tak bisa diverifikasi tanpa device OEM → label
-NOT VERIFIED jujur); M2 Reverb DITURUNKAN, M6 BLOCKED = butuh user; M7 audit recomposition baca-saja HANYA bila user minta; (d) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager` = DI LUAR
-PLANNING. Batch berikutnya = 157.]
+[RESUME POINT: M4 DB OEM autostart (Batch 157; `OemAutostartHelper.kt` `candidateIntents()` cabang `asus` L72-76: +kandidat `com.asus.mobilemanager.powersaver.PowerSaverSettings`; ZIP `Boomly_v157.zip`)
+-> kode SELESAI, NOT VERIFIED (statis: brace 13/13, paren 64/64, `!!` 0, +1 kandidat saja; belum CI & device ASUS); B156 STATIC-VERIFIED via artifact run 200 (lint 0E/1W (OldTargetApi)/0I, detekt 0,
+loc 9.187) -> Langkah berikutnya: (a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W/0I, detekt 0, loc 9.189 (+2) → B157 STATIC-VERIFIED; temuan baru → perbaiki HANYA itu, debug HANYA
+`OemAutostartHelper.kt` `candidateIntents()`; (b) device test user (Track T2): B156 — tap shortcut toggle → rotasi → status TIDAK berbalik, preset custom TIDAK ter-apply ulang, shortcut saat app terbuka
+tetap jalan; B157 — tombol "Buka Pengaturan Autostart" (`BoosterScreen.kt` L1278) di device OEM membuka halaman OEM atau fallback App Info tanpa crash; (c) TIDAK ada kandidat kode tersisa di roadmap tanpa
+input user: M2 DITURUNKAN, M6 BLOCKED, M7/M8 HANYA bila diminta, OldTargetApi (`targetSdk=34` → butuh compileSdk/AGP + uji edge-to-edge/FGS type) = butuh KEPUTUSAN user; Transsion = kandidat kurang
+terverifikasi (sudah dikomentari di KDoc); (d) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager` = DI LUAR PLANNING. Batch berikutnya = 158.]

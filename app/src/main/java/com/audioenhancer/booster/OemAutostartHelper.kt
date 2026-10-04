@@ -70,7 +70,9 @@ object OemAutostartHelper {
                 componentIntent("com.oneplus.security", "com.oneplus.security.chainlaunch.view.ChainLaunchAppListActivity")
             )
             manufacturer.contains("asus") -> listOf(
-                componentIntent("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity")
+                componentIntent("com.asus.mobilemanager", "com.asus.mobilemanager.autostart.AutoStartActivity"),
+                // Batch 157: kandidat kedua (daftar publik AutoStarter, turunan 2020) kalau Activity di atas tak ada di ROM ini.
+                componentIntent("com.asus.mobilemanager", "com.asus.mobilemanager.powersaver.PowerSaverSettings")
             )
             else -> emptyList()
         }

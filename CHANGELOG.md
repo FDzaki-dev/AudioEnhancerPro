@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 157: Tombol Autostart punya satu halaman cadangan lagi di HP Asus
+
+Tombol "Buka Pengaturan Autostart" mencoba beberapa halaman pengaturan milik tiap merk HP, lalu jatuh ke halaman Info
+Aplikasi bawaan Android kalau tidak ada yang cocok. Daftar itu sudah diperiksa ulang terhadap daftar publik
+pustaka AutoStarter: Xiaomi, Oppo, Vivo, dan Huawei sudah sama, dan kasus Huawei yang menolak membuka halamannya
+sudah aman karena aplikasi lanjut ke pilihan berikutnya tanpa error. Satu-satunya perubahan: HP Asus sekarang punya
+satu halaman cadangan tambahan. Merk lain tidak berubah.
+Laporan CI run 200 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan.
+
+**Perubahan** (1 file + 2 dokumen): `OemAutostartHelper.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; perilaku di HP Asus belum diuji.
+
 ## Batch 156: Shortcut tidak lagi terulang saat layar diputar
 
 Sebelumnya, setelah Boomly dibuka lewat shortcut di ikon launcher (Nyalakan/Matikan atau preset custom), memutar layar
