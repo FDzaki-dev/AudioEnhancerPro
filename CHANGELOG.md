@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 153: Perapihan peringatan lint tanpa mengubah perilaku
+
+Laporan analisis statis CI run 196 sudah dibaca: build berhasil, Android Lint 0 error dengan 11 peringatan (sebelumnya 18),
+detekt tetap 0 temuan. Dari 11 peringatan itu, sepuluh dirapikan di batch ini: atribut shortcut dan widget yang memang hanya
+dipakai di Android baru kini ditandai sengaja, dan ikon bulat yang sama persis dengan ikon utama dicatat sebagai disengaja.
+Tampilan dan perilaku aplikasi tidak berubah.
+
+**Perubahan** (3 file + 2 dokumen): `shortcuts.xml`, `widget_booster_info.xml`, `lint.xml`.
+**NOT VERIFIED** sampai laporan lint CI berikutnya dibaca.
+
 ## Batch 152: Pesan ekspor/impor preset benar untuk 1 preset, dan perapihan peringatan lint
 
 Pesan sukses ekspor dan impor preset di Pengaturan sekarang menyesuaikan jumlah, jadi bahasa Inggris tidak lagi menulis

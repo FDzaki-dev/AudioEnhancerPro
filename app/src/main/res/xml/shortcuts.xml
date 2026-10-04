@@ -3,8 +3,12 @@
      sama buat semua orang tanpa syarat (beda dari preset custom, yang isinya beda-beda
      per user — makanya preset custom dipublish manual sebagai DYNAMIC shortcut lewat
      ShortcutHelper.kt, bukan lewat file statis ini). -->
-<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <!-- Batch 153: shortcutId/ShortLabel/LongLabel baru dibaca API 25+ (minSdk 24); di API 24
+         tak ada ShortcutManager sehingga atribut ini memang tak dipakai — bukan bug. -->
     <shortcut
+        tools:ignore="UnusedAttribute"
         android:shortcutId="toggle_booster"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut_toggle"

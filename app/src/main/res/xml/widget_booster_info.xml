@@ -10,8 +10,12 @@
      TIDAK PERNAH baca teks widget ini — selalu baca AudioEnhancerService.isRunning
      langsung (live, @Volatile) SEBELUM eksekusi start/stop, jadi 0 salah aksi walau
      tampilan sempat basi (Opsi A, sudah begini sejak awal, diverifikasi Batch 131 — 0
-     perubahan logic diperlukan di sini). -->
+     perubahan logic diperlukan di sini).
+     Batch 153: targetCellWidth/Height baru dibaca API 31+; di bawah itu launcher memakai
+     minWidth/minHeight, jadi atribut ini sengaja dibiarkan (tools:ignore, bukan bug). -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="UnusedAttribute"
     android:minWidth="180dp"
     android:minHeight="60dp"
     android:targetCellWidth="3"

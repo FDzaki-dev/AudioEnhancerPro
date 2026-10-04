@@ -13,6 +13,11 @@
          dipublish ke Play Store, jadi kebijakan Play yang dikejar check ini tidak berlaku). -->
     <issue id="BatteryLife" severity="ignore" />
 
+    <!-- Batch 153: ic_launcher_round.png (5 densitas) identik dengan ic_launcher.png — ikon belum
+         punya varian bulat. PNG ini hanya fallback API 24-25 (API 26+ pakai adaptive icon di
+         mipmap-anydpi-v26) dan dibutuhkan android:roundIcon di manifest, jadi sengaja dibiarkan. -->
+    <issue id="IconDuplicates" severity="ignore" />
+
     <!-- Compose performance guard: mutableStateOf(0) boxing Int → saran mutableIntStateOf.
          Dinaikkan ke warning supaya muncul di laporan. -->
     <issue id="AutoboxingStateCreation" severity="warning" />
