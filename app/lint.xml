@@ -21,4 +21,8 @@
     <!-- Compose performance guard: mutableStateOf(0) boxing Int → saran mutableIntStateOf.
          Dinaikkan ke warning supaya muncul di laporan. -->
     <issue id="AutoboxingStateCreation" severity="warning" />
+
+    <!-- Batch 164: penanda STOPSHIP di source/resource. Check ini mati secara default dan berseverity
+         fatal; diset "warning" supaya muncul di laporan TANPA ikut menggagalkan lintVitalRelease. -->
+    <issue id="StopShip" severity="warning" />
 </lint>

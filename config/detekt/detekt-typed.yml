@@ -1,0 +1,60 @@
+# Batch 164 — jaring TAMBAHAN detekt, HANYA dipakai task `detektDebug` (type-resolution) — lihat blok
+# `tasks.withType<Detekt>` di app/build.gradle.kts. Digabung DI ATAS config/detekt/detekt.yml (rule lama tetap
+# aktif); task `detekt` polos (non-typed, sudah hijau sejak Batch 142) SENGAJA tidak membaca file ini, jadi salah
+# ketik di sini TIDAK mematikan jaring lama — hanya `detektDebug` yang gagal (lihat gradle-static-analysis-typed.log).
+# NON-BLOCKING: ignoreFailures=true (extension detekt) + step CI continue-on-error. DILARANG dijadikan blocking.
+# Rule bertanda [TR] butuh type-resolution: di task `detekt` polos mereka diam-diam tidak jalan, di sini jalan.
+# Lint sudah menutup DefaultLocale/SimpleDateFormat/NewApi/Wakelock/StaticFieldLeak → TIDAK diduplikasi di sini.
+
+potential-bugs:
+  active: true
+  # [TR] cast yang pasti gagal / kode tak terjangkau / catch yang tak mungkin kena
+  UnsafeCast:
+    active: true
+  UnreachableCode:
+    active: true
+  UnreachableCatchBlock:
+    active: true
+  # [TR] hasil fungsi ber-@CheckResult/@CheckReturnValue dibuang
+  IgnoredReturnValue:
+    active: true
+  # [TR] null-handling mubazir = tanda asumsi tipe salah (guard `!!` konstitusi)
+  NullableToStringCall:
+    active: true
+  UnnecessarySafeCall:
+    active: true
+  UnnecessaryNotNullOperator:
+    active: true
+  UnnecessaryNotNullCheck:
+    active: true
+  # properti dipakai SEBELUM dideklarasi (jebakan urutan init — insiden kelas Batch 162 `uiActive` vs `init`)
+  PropertyUsedBeforeDeclaration:
+    active: true
+  UnusedUnaryOperator:
+    active: true
+
+# [TR] Thread.sleep di dalam coroutine (blocking thread, bukan delay) — guard Thread Safety/Battery.
+coroutines:
+  active: true
+  SleepInsteadOfDelay:
+    active: true
+
+# Guard Compose/Battery: boxing array primitif, forEach pada range, objek sementara mubazir ([TR] semua).
+performance:
+  active: true
+  ArrayPrimitive:
+    active: true
+  ForEachOnRange:
+    active: true
+  UnnecessaryTemporaryInstantiation:
+    active: true
+
+style:
+  active: true
+  # Import mati (kotlinc tidak memperingatkan). Operator delegasi `getValue`/`setValue` diabaikan rule ini;
+  # kalau malah ter-flag = false positive rule → cabut UnusedImports di sini, JANGAN hapus import-nya.
+  UnusedImports:
+    active: true
+  # Sisa penanda TODO:/FIXME:/STOPSHIP: di source (backlog = PROJECT_STATE.md, bukan komentar kode).
+  ForbiddenComment:
+    active: true

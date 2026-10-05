@@ -63,6 +63,7 @@ app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 build.gradle.kts
+config/detekt/detekt-typed.yml
 config/detekt/detekt.yml
 docs/archive/PENDING_Batch94_SyncPreviewHTML.md
 docs/archive/PENDING_Fase0_Item6_RebuildSessionZero.md

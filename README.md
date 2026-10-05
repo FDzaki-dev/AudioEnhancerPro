@@ -71,7 +71,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 
 CI jalan otomatis setiap push ke `main`/`master` via GitHub Actions (`.github/workflows/build.yml`) sebagai 1 job `build-and-release`. Step "Build debug APK" (`assembleDebug`) HANYA verifikasi kompilasi — tidak ada APK debug yang dipublikasikan di mana pun. APK signed yang dirilis datang dari step release di job yang sama (lihat bagian "Versioning APK Release" di bawah), dan cuma jalan kalau secret keystore sudah diset; kalau build debug gagal, step release otomatis ke-skip. Saat build gagal, artifact `log_fail_v*` otomatis ter-upload (retensi 14 hari) buat diunduh langsung tanpa scroll log mentah.
 
-Analisis statis (detekt + Android Lint) jalan di 3 step terakhir job yang sama, `continue-on-error`, SETELAH release ter-publish — temuan tidak pernah menggagalkan build atau rilis. Laporan ada di artifact `static_analysis_v*` (retensi 14 hari). Aturan: `config/detekt/detekt.yml` (whitelist potensi-bug) dan `app/lint.xml`.
+Analisis statis (detekt, detekt typed `detektDebug`, Android Lint + laporan SARIF) jalan di step-step terakhir job yang sama, `continue-on-error`, SETELAH release ter-publish — temuan tidak pernah menggagalkan build atau rilis. Laporan ada di artifact `<Repo>_static_analysis_v*` (retensi 14 hari; berisi `STATIC_ANALYSIS_MARKER.txt`). Aturan: `config/detekt/detekt.yml` (whitelist potensi-bug), `config/detekt/detekt-typed.yml` (rule tambahan, hanya `detektDebug`) dan `app/lint.xml`.
 
 ## Versioning APK Release (Otomatis)
 

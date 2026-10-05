@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 164: Pemeriksaan kode otomatis diperluas, aplikasi tidak berubah
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Yang ditambah hanyalah pemeriksaan kode otomatis di GitHub Actions,
+supaya kesalahan yang tidak terlihat oleh kompiler lebih cepat ketahuan: pemeriksaan detekt kedua yang memahami tipe data
+(cast yang pasti gagal, kode yang tidak pernah jalan, pengecekan null yang mubazir, Thread.sleep di dalam coroutine, urutan
+deklarasi properti, import yang tidak terpakai, sisa penanda TODO/STOPSHIP), laporan Android Lint dalam format SARIF, pemeriksaan
+Lint untuk kode tes, dan penanda STOPSHIP. Semuanya hanya menghasilkan laporan; tidak pernah menggagalkan build atau rilis.
+Laporan CI run 205 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan.
+
+**Perubahan** (4 file + 3 dokumen): `config/detekt/detekt-typed.yml` (baru), `app/build.gradle.kts`, `app/lint.xml`, `build.yml`.
+**NOT VERIFIED** sampai laporan CI berikutnya dibaca; belum pernah dijalankan.
+
 ## Batch 163: Banner log crash tidak lagi menahan layar utama
 
 Saat Boomly mendeteksi crash sebelumnya, banner peringatan di layar utama membaca dan menghapus file log langsung di jalur

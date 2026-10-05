@@ -106,6 +106,10 @@ android {
         htmlReport = true
         xmlReport = true
         textReport = true
+        // Batch 164: SARIF (lint-results-debug.sarif) buat koreksi mandiri via koordinat uri/startLine, dan
+        // `checkTestSources` supaya src/test ikut dilint. Keduanya cuma menambah laporan — tetap NON-BLOCKING.
+        sarifReport = true
+        checkTestSources = true
     }
     testOptions {
         unitTests {
@@ -125,6 +129,19 @@ detekt {
     parallel = true
     ignoreFailures = true
     source.setFrom("src/main/java", "src/main/kotlin")
+}
+
+// Batch 164: jaring TAMBAHAN type-resolution. Task `detektDebug` (dibuat plugin detekt untuk varian debug,
+// punya classpath) membaca detekt.yml + detekt-typed.yml; task `detekt` polos di atas TIDAK disentuh (tetap
+// jaring lama yang sudah hijau). Tetap NON-BLOCKING lewat `ignoreFailures` extension di atas + step CI sendiri.
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    if (name == "detektDebug") {
+        jvmTarget = "17"
+        config.setFrom(
+            rootProject.file("config/detekt/detekt.yml"),
+            rootProject.file("config/detekt/detekt-typed.yml")
+        )
+    }
 }
 
 dependencies {

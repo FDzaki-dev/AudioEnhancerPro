@@ -322,12 +322,35 @@ jobs:
           set -o pipefail
           ./gradlew detekt lintDebug --continue --stacktrace 2>&1 | tee gradle-static-analysis.log
 
+      # Batch 164: jaring detekt type-resolution (`detektDebug`, rule tambahan di config/detekt/detekt-typed.yml),
+      # SENGAJA step TERPISAH dari step di atas: kalau nama task/rule salah, Gradle berhenti sebelum eksekusi
+      # (`--continue` tak menolong "task not found") dan akan ikut mematikan lintDebug + detekt lama. Terpisah =
+      # kegagalan di sini cuma kehilangan laporan typed. Tetap NON-BLOCKING (continue-on-error).
+      - name: Static analysis typed (detektDebug) NON-BLOCKING
+        id: static_analysis_typed
+        if: always() && steps.static_analysis.outcome != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          set -o pipefail
+          ./gradlew detektDebug --continue --stacktrace 2>&1 | tee gradle-static-analysis-typed.log
+
       - name: Summarize static analysis findings
         if: always() && steps.static_analysis.outcome != 'skipped'
         run: |
           DET=$(grep -c '<error ' app/build/reports/detekt/detekt.xml 2>/dev/null || true)
           LNT=$(grep -c '<issue ' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
-          echo "::notice::Static analysis (non-blocking) — detekt: ${DET:-n/a} temuan · lintDebug: ${LNT:-n/a} isu · outcome step: ${{ steps.static_analysis.outcome }}"
+          LNE=$(grep -c 'severity="Error"\|severity="Fatal"' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
+          DETT=n/a
+          if [ "$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' 2>/dev/null | wc -l)" -gt 0 ]; then
+            DETT=$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' -exec grep -h '<error ' {} + 2>/dev/null | wc -l)
+          fi
+          echo "::notice::Static analysis (non-blocking) — detekt: ${DET:-n/a} temuan · detektDebug (typed): ${DETT} temuan · lintDebug: ${LNT:-n/a} isu (${LNE:-n/a} error) · outcome step: ${{ steps.static_analysis.outcome }} / typed: ${{ steps.static_analysis_typed.outcome }}"
+          # Tripwire: hanya ANOTASI di ringkasan run (tidak menggagalkan step/job) kalau ada temuan baru.
+          for N in "${DET}" "${DETT}"; do
+            case "$N" in ''|n/a|0) ;; *) echo "::warning::detekt melaporkan ${N} temuan — baca artifact static_analysis."; break ;; esac
+          done
+          case "${LNE}" in ''|0) ;; *) echo "::warning::lintDebug melaporkan ${LNE} error/fatal — baca artifact static_analysis." ;; esac
 
       # Batch 162 (request user "tambahkan penanda pada static analysis biar gak ketukar dengan
       # project lain"): artifact diberi awalan nama repo + file `STATIC_ANALYSIS_MARKER.txt` berisi
@@ -347,6 +370,8 @@ jobs:
             echo "RUN_ID=${{ github.run_id }}"
             echo "COMMIT=${{ github.sha }}"
             echo "BRANCH=${{ github.ref_name }}"
+            echo "STEP_DETEKT_LINT=${{ steps.static_analysis.outcome }}"
+            echo "STEP_DETEKT_TYPED=${{ steps.static_analysis_typed.outcome }}"
             echo "GENERATED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           } > STATIC_ANALYSIS_MARKER.txt
           cat STATIC_ANALYSIS_MARKER.txt
@@ -359,6 +384,7 @@ jobs:
           path: |
             STATIC_ANALYSIS_MARKER.txt
             gradle-static-analysis.log
+            gradle-static-analysis-typed.log
             app/build/reports/detekt/**
             app/build/reports/lint-results-debug.*
           retention-days: 14
