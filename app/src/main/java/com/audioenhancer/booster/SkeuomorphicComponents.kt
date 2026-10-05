@@ -87,6 +87,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 /** compose-bom 2024.06.00 -> `LocalIndication` non-null, jadi indication ripple
  *  dimatikan lewat no-op instance ini (bukan `provides null`). Dipertahankan dari
@@ -440,6 +441,16 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
     )
 }
 
+/** Batch 169 (request user: slider terlalu licin/susah presisi): bulatkan [raw] ke kelipatan
+ *  [step] terdekat (dihitung dari 0, bukan dari awal range → 0 mB EQ tetap kena), dibatasi ke
+ *  [range]. `step <= 0` = tanpa snap (perilaku lama). SENGAJA dilakukan di callback, BUKAN
+ *  `Slider(steps=)`: nilai preset/custom yang tak pas kelipatan tetap tampil apa adanya (label
+ *  = posisi thumb) dan tak ada `pointerInput` baru (lihat gatekeeper Batch 138→140). */
+private fun snapToStep(raw: Float, step: Float, range: ClosedFloatingPointRange<Float>): Float {
+    if (step <= 0f) return raw
+    return ((raw / step).roundToInt() * step).coerceIn(range.start, range.endInclusive)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun FeatureControl(
@@ -449,6 +460,7 @@ internal fun FeatureControl(
     valueLabel: String,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
+    step: Float = 0f,
     enabled: Boolean = true,
     icon: ImageVector? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
@@ -494,7 +506,12 @@ internal fun FeatureControl(
         }
         Slider(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { raw ->
+                val snapped = snapToStep(raw, step, valueRange)
+                // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
+                // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
+                if (step <= 0f || snapped != value) onValueChange(snapped)
+            },
             onValueChangeFinished = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
             valueRange = valueRange,
             enabled = enabled,

@@ -1,12 +1,28 @@
 # Changelog
 
+## Batch 169: Slider kini bergeser per kelipatan, lebih mudah presisi
+
+Slider Bass, Virtualizer, Loudness, Kompresor, dan tiap band Equalizer tidak lagi bergeser mulus tanpa patokan: nilainya sekarang "mengunci" ke kelipatan tertentu saat digeser (Bass, Virtualizer, Loudness dan band Equalizer per 50; Kompresor per 5%). Ujung kiri dan kanan tetap bisa dicapai, dan 0 di Equalizer tepat kena. Preset bawaan memakai nilai kelipatan 50, jadi setelah diterapkan posisinya pas di kunci. Tampilan dan suara lain tidak berubah.
+Untuk pengembang: `FeatureControl` mendapat parameter `step` (default 0 = perilaku lama); pembulatan dilakukan di callback `onValueChange`, bukan lewat `Slider(steps=)` dan tanpa deteksi gestur baru. Kurva Equalizer tidak diubah. Angka kelipatan bisa disetel di tiap pemanggilan `FeatureControl` di `BoosterScreen.kt`.
+
+**Perubahan** (2 file + 2 dokumen): `SkeuomorphicComponents.kt`, `BoosterScreen.kt`.
+**NOT VERIFIED** sampai laporan CI berikutnya dibaca dan diuji di perangkat.
+
+## Batch 168: Pemeriksaan kode otomatis dinyatakan selesai, aplikasi tidak berubah
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 209 sudah dibaca: kedua pemeriksaan detekt (yang lama dan yang memahami tipe data) 0 temuan, file aturan tambahan terbukti terbaca, dan Android Lint 0 error dengan 1 peringatan (versi target SDK, sengaja dibiarkan). Import `PagerState` yang dibuang di Batch 167 terbukti tuntas: tanda uji tadi sudah tidak muncul lagi.
+Untuk pengembang: pekerjaan jaring validasi statis (Batch 164–167) selesai dan tidak perlu dibuka lagi kecuali diminta; baris diagnostik build tetap dipertahankan sebagai penanda. Batch ini hanya memperbarui dokumen.
+
+**Perubahan** (0 file kode + 2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`.
+**STATIC-VERIFIED** lewat laporan CI run 209 (perilaku di perangkat belum diuji).
+
 ## Batch 167: Pemeriksaan detekt kedua terbukti hidup, temuan pertamanya dibereskan
 
 Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 208 sudah dibaca: pemeriksaan detekt kedua kini benar-benar memuat file aturan tambahannya dan menemukan tepat satu hal, yaitu import `PagerState` yang tidak terpakai di `OnboardingScreen.kt`; temuan ini sengaja dipakai sebagai tanda uji dan membuktikan pemeriksaan bekerja. Android Lint tetap 0 error dengan 1 peringatan (versi target SDK), pemeriksaan detekt lama 0 temuan.
 Untuk pengembang: import tersebut dihapus (satu baris, tanpa efek pada kode yang berjalan). Baris diagnostik build dipertahankan sebagai penanda bahwa file aturan tambahan terbaca, sehingga "0 temuan" ke depan bisa dibedakan dari "aturan tidak termuat".
 
 **Perubahan** (1 file + 2 dokumen): `OnboardingScreen.kt`.
-**NOT VERIFIED** sampai laporan CI berikutnya dibaca.
+**STATIC-VERIFIED** lewat laporan CI run 209 (Batch 168).
 
 ## Batch 166: Pemeriksaan detekt kedua ternyata belum pernah membaca aturannya, kini diperbaiki
 

@@ -1024,6 +1024,7 @@ fun BoosterScreen(
                     valueLabel = bass.toInt().toString(),
                     onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
                     valueRange = 0f..1000f,
+                    step = 50f,
                     enabled = bassSupported && bassStrengthSupported,
                     wrapInCard = false
                 )
@@ -1048,6 +1049,7 @@ fun BoosterScreen(
                     valueLabel = virtualizer.toInt().toString(),
                     onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
                     valueRange = 0f..1000f,
+                    step = 50f,
                     enabled = virtualizerSupported && virtualizerStrengthSupported,
                     wrapInCard = false
                 )
@@ -1071,6 +1073,7 @@ fun BoosterScreen(
                     valueLabel = "${loudness.toInt()} mB",
                     onValueChange = { loudness = it; onLoudness(it); activePreset = null; onActivePresetChange(null) },
                     valueRange = 0f..3000f,
+                    step = 50f,
                     enabled = loudnessSupported,
                     wrapInCard = false
                 )
@@ -1101,6 +1104,7 @@ fun BoosterScreen(
                     valueLabel = "${compressorAmount.toInt()}%",
                     onValueChange = { compressorAmount = it; onCompressor(it.toInt()) },
                     valueRange = 0f..100f,
+                    step = 5f,
                     enabled = compressorSupported,
                     wrapInCard = false
                 )
@@ -1863,6 +1867,7 @@ private fun EqualizerSection(
                             onBandChange(band, level)
                         },
                         valueRange = levelMin.toFloat()..levelMax.toFloat(),
+                        step = 50f,
                         accentColor = EqualizerAccent,
                         accentColor2 = EqualizerAccent2,
                         wrapInCard = false
