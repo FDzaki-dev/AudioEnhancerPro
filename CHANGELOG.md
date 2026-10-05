@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 166: Pemeriksaan detekt kedua ternyata belum pernah membaca aturannya, kini diperbaiki
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 207 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK; peringatan di kode tes sudah hilang), detekt 0 temuan.
+Untuk pengembang: baris diagnostik membuktikan pemeriksaan detekt kedua hanya membaca file aturan lama, sehingga "0 temuan" di run 206 dan 207 tidak berarti kode bersih; file aturan tambahan tidak pernah dimuat sejak Batch 164. Pengaturan kini dipindah ke konfigurasi detekt utama dan hanya aktif saat tugas `detektDebug` diminta; pemeriksaan lama tidak berubah. Semua 51 nama aturan sudah dicocokkan dengan daftar aturan detekt dari laporan. Import `PagerState` yang tidak terpakai sengaja belum dihapus: ia dipakai sebagai tanda uji bahwa pemeriksaan kedua benar-benar hidup.
+
+**Perubahan** (1 file + 2 dokumen): `app/build.gradle.kts`.
+**NOT VERIFIED** sampai laporan CI berikutnya dibaca.
+
 ## Batch 165: Peringatan Lint di kode tes dibereskan, pemeriksaan detekt kedua diberi diagnostik
 
 Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 206 sudah dibaca: build berhasil, Android Lint 0 error dengan 2 peringatan (versi target SDK dan satu peringatan baru di kode tes), detekt 0 temuan. Peringatan baru berasal dari `PrefsHelperTest.kt` (`commit()` pada setup tes); `commit()` sengaja dibiarkan sinkron sehingga hanya ditandai "diabaikan" dengan alasan tertulis, perilaku tes tidak berubah.

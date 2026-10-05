@@ -122,8 +122,20 @@ android {
 // Batch 142: detekt WHITELIST (buildUponDefaultConfig=false → hanya rule di config/detekt/detekt.yml
 // yang aktif). ignoreFailures=true = NON-BLOCKING: temuan masuk laporan (app/build/reports/detekt/),
 // tidak menggagalkan build. Scan HANYA src/main (test kecil, bukan sumber bug runtime).
+// Batch 166: run 207 membuktikan `config.setFrom(...)` di blok `tasks.withType<Detekt>` (Batch 164) TIDAK berefek — log
+// `DETEKT_TYPED_DIAG config=detekt.yml` (hanya 1 file) → `detekt-typed.yml` tak pernah dibaca, jadi "detekt typed 0 temuan"
+// di run 206/207 BUKAN bukti kode bersih. Config task detektDebug DIDUGA mengikuti `detekt { config }` ini (belum dikonfirmasi), maka file typed
+// disertakan DI SINI, HANYA bila invokasi Gradle meminta `detektDebug` (`gradle.startParameter.taskNames`; kunci configuration
+// cache sudah memuat daftar task). Invokasi step lama `detekt lintDebug` tetap hanya membaca detekt.yml.
+val detektTypedRequested = gradle.startParameter.taskNames.any { it.substringAfterLast(':') == "detektDebug" }
+
 detekt {
-    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    config.setFrom(
+        listOfNotNull(
+            rootProject.file("config/detekt/detekt.yml"),
+            if (detektTypedRequested) rootProject.file("config/detekt/detekt-typed.yml") else null
+        )
+    )
     buildUponDefaultConfig = false
     allRules = false
     parallel = true
@@ -132,17 +144,15 @@ detekt {
 }
 
 // Batch 164: jaring TAMBAHAN type-resolution. Task `detektDebug` (dibuat plugin detekt untuk varian debug,
-// punya classpath) membaca detekt.yml + detekt-typed.yml; task `detekt` polos di atas TIDAK disentuh (tetap
-// jaring lama yang sudah hijau). Tetap NON-BLOCKING lewat `ignoreFailures` extension di atas + step CI sendiri.
+// punya classpath) membaca detekt.yml + detekt-typed.yml (file typed disertakan lewat `detekt { config }` di atas,
+// Batch 166); task `detekt` polos TIDAK menyentuh file typed (tetap jaring lama yang sudah hijau). Tetap NON-BLOCKING
+// lewat `ignoreFailures` extension di atas + step CI sendiri.
 tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
     if (name == "detektDebug") {
         jvmTarget = "17"
-        config.setFrom(
-            rootProject.file("config/detekt/detekt.yml"),
-            rootProject.file("config/detekt/detekt-typed.yml")
-        )
-        // Batch 165: diagnostik NON-BLOCKING. Canary UnusedImports (PagerState, OnboardingScreen.kt L7) TIDAK ter-flag di
-        // run 206 padahal import itu mati → cetak config & classpath yang terpasang SAAT eksekusi (gradle-static-analysis-typed.log).
+        // Batch 165: diagnostik NON-BLOCKING — cetak config & classpath yang terpasang SAAT eksekusi
+        // (gradle-static-analysis-typed.log). Run 207: `config=detekt.yml` saja, `classpathEntries=56`. Batch 166: HARUS
+        // memuat `detekt.yml,detekt-typed.yml`; kalau tidak, config belum terpasang. Boleh dicabut setelah canary terbukti.
         doFirst {
             logger.lifecycle(
                 "DETEKT_TYPED_DIAG config=" + config.files.joinToString(",") { it.name } +
