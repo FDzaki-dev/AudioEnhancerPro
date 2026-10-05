@@ -1,12 +1,19 @@
 # Changelog
 
+## Batch 170: Slider per kelipatan lolos uji di perangkat, aplikasi tidak berubah
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Pengguna sudah menguji slider berkelipatan (Batch 169) di perangkat dan tidak ada keluhan. Batch ini hanya mencatat hasil uji itu di dokumen proyek.
+Untuk pengembang: tidak ada item roadmap yang belum terblokir dan terjadwal; tiga kandidat berikutnya dicatat di `PROJECT_STATE.md` dan menunggu pilihan pengguna.
+
+**Perubahan** (0 file kode + 2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`.
+
 ## Batch 169: Slider kini bergeser per kelipatan, lebih mudah presisi
 
 Slider Bass, Virtualizer, Loudness, Kompresor, dan tiap band Equalizer tidak lagi bergeser mulus tanpa patokan: nilainya sekarang "mengunci" ke kelipatan tertentu saat digeser (Bass, Virtualizer, Loudness dan band Equalizer per 50; Kompresor per 5%). Ujung kiri dan kanan tetap bisa dicapai, dan 0 di Equalizer tepat kena. Preset bawaan memakai nilai kelipatan 50, jadi setelah diterapkan posisinya pas di kunci. Tampilan dan suara lain tidak berubah.
 Untuk pengembang: `FeatureControl` mendapat parameter `step` (default 0 = perilaku lama); pembulatan dilakukan di callback `onValueChange`, bukan lewat `Slider(steps=)` dan tanpa deteksi gestur baru. Kurva Equalizer tidak diubah. Angka kelipatan bisa disetel di tiap pemanggilan `FeatureControl` di `BoosterScreen.kt`.
 
 **Perubahan** (2 file + 2 dokumen): `SkeuomorphicComponents.kt`, `BoosterScreen.kt`.
-**NOT VERIFIED** sampai laporan CI berikutnya dibaca dan diuji di perangkat.
+**Sudah diuji di perangkat oleh pengguna, tanpa keluhan** (Batch 170); laporan pemeriksaan kode otomatis untuk batch ini belum dibaca.
 
 ## Batch 168: Pemeriksaan kode otomatis dinyatakan selesai, aplikasi tidak berubah
 
