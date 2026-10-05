@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 165: Peringatan Lint di kode tes dibereskan, pemeriksaan detekt kedua diberi diagnostik
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 206 sudah dibaca: build berhasil, Android Lint 0 error dengan 2 peringatan (versi target SDK dan satu peringatan baru di kode tes), detekt 0 temuan. Peringatan baru berasal dari `PrefsHelperTest.kt` (`commit()` pada setup tes); `commit()` sengaja dibiarkan sinkron sehingga hanya ditandai "diabaikan" dengan alasan tertulis, perilaku tes tidak berubah.
+Untuk pengembang: pemeriksaan detekt kedua (yang memahami tipe data) selesai tanpa error, tetapi belum terbukti bekerja: import `PagerState` yang jelas tidak terpakai di `OnboardingScreen.kt` seharusnya ditandai namun tidak muncul. Build kini mencetak satu baris diagnostik (file konfigurasi dan classpath yang benar-benar dipakai) ke log pemeriksaan untuk mencari penyebabnya. Import itu sengaja belum dihapus supaya tetap berfungsi sebagai tanda uji.
+
+**Perubahan** (2 file + 3 dokumen): `PrefsHelperTest.kt`, `app/build.gradle.kts`.
+**NOT VERIFIED** sampai laporan CI berikutnya dibaca.
+
 ## Batch 164: Pemeriksaan kode otomatis diperluas, aplikasi tidak berubah
 
 Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Yang ditambah hanyalah pemeriksaan kode otomatis di GitHub Actions,

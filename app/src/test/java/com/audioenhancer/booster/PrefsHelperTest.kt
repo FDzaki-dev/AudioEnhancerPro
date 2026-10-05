@@ -21,6 +21,9 @@ class PrefsHelperTest {
 
     private val context by lazy { ApplicationProvider.getApplicationContext<android.content.Context>() }
 
+    // Batch 165: commit() SENGAJA sinkron — kondisi awal tiap tes harus sudah tertulis sebelum tes jalan.
+    // Lint ApplySharedPref (muncul sejak checkTestSources, Batch 164) tidak relevan untuk setup tes.
+    @Suppress("ApplySharedPref")
     @Before
     fun clearPrefs() {
         context.getSharedPreferences("audio_enhancer_prefs", android.content.Context.MODE_PRIVATE)

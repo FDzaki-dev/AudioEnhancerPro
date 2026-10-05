@@ -141,6 +141,14 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
             rootProject.file("config/detekt/detekt.yml"),
             rootProject.file("config/detekt/detekt-typed.yml")
         )
+        // Batch 165: diagnostik NON-BLOCKING. Canary UnusedImports (PagerState, OnboardingScreen.kt L7) TIDAK ter-flag di
+        // run 206 padahal import itu mati → cetak config & classpath yang terpasang SAAT eksekusi (gradle-static-analysis-typed.log).
+        doFirst {
+            logger.lifecycle(
+                "DETEKT_TYPED_DIAG config=" + config.files.joinToString(",") { it.name } +
+                    " classpathEntries=" + classpath.files.size + " jvmTarget=" + jvmTarget
+            )
+        }
     }
 }
 
