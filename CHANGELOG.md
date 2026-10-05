@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 167: Pemeriksaan detekt kedua terbukti hidup, temuan pertamanya dibereskan
+
+Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 208 sudah dibaca: pemeriksaan detekt kedua kini benar-benar memuat file aturan tambahannya dan menemukan tepat satu hal, yaitu import `PagerState` yang tidak terpakai di `OnboardingScreen.kt`; temuan ini sengaja dipakai sebagai tanda uji dan membuktikan pemeriksaan bekerja. Android Lint tetap 0 error dengan 1 peringatan (versi target SDK), pemeriksaan detekt lama 0 temuan.
+Untuk pengembang: import tersebut dihapus (satu baris, tanpa efek pada kode yang berjalan). Baris diagnostik build dipertahankan sebagai penanda bahwa file aturan tambahan terbaca, sehingga "0 temuan" ke depan bisa dibedakan dari "aturan tidak termuat".
+
+**Perubahan** (1 file + 2 dokumen): `OnboardingScreen.kt`.
+**NOT VERIFIED** sampai laporan CI berikutnya dibaca.
+
 ## Batch 166: Pemeriksaan detekt kedua ternyata belum pernah membaca aturannya, kini diperbaiki
 
 Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Laporan CI run 207 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK; peringatan di kode tes sudah hilang), detekt 0 temuan.
