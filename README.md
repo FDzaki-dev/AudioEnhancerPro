@@ -20,7 +20,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 
 ## Fitur
 - Bass Boost, Virtualizer, Equalizer, Loudness Enhancer — ditempel ke audio session 0 (output global sistem). Equalizer manual: kurva drag-point (Batch 133) + slider per-pita, dua-duanya share state yang sama (real-time sinkron). Tombol "Reset Equalizer" mengembalikan semua band ke 0 mB.
-- Preset Cepat: 9 bawaan (Flat/Bass Heavy/Vocal Boost/Treble Boost + Gaming/Cinema/EDM/Podcast/Acoustic — 5 terakhir juga menyetel Equalizer manual) + preset custom — simpan pengaturan Bass/Virtualizer/Loudness (+ Equalizer manual) jadi preset sendiri.
+- Preset Cepat: 9 bawaan (Flat/Bass Heavy/Vocal Boost/Treble Boost + Gaming/Cinema/EDM/Podcast/Acoustic — semuanya juga menyetel Equalizer manual) + preset custom — simpan pengaturan Bass/Virtualizer/Loudness (+ Equalizer manual) jadi preset sendiri.
 - Tema — 5 varian dark-only: **Midnight Glass** (default), **Aurora Glass**, **Neumorphism** (gaya "Blade Runner", aksen Misty Pine Forest), **Studio Equalizer**, dan **Serene M3** (Material 3 flat-tonal). Dipilih lewat toggle eksklusif di layar utama; semua toggle mati = Midnight Glass. Material You (dynamic color, Android 12+) opsional, default mati.
 - Layout layar utama: 1 scroll vertikal (default); Mode Tab Horizontal (Kontrol/Tampilan/Bantuan) opsional di Pengaturan — ketuk tab atau geser kiri/kanan untuk pindah.
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.

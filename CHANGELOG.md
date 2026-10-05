@@ -1,5 +1,37 @@
 # Changelog
 
+## Batch 161: Preset Cinema dan EDM lebih aman dari distorsi
+
+Ditetapkan batas aman penjumlahan penguatan untuk semua preset bawaan: kenaikan Equalizer tertinggi ditambah
+Loudness tidak boleh melebihi 18 dB, dan tiap band Equalizer maksimal 8 dB. Tujuh preset sudah memenuhi batas ini.
+Dua preset yang melewatinya dikoreksi dengan menurunkan Loudness saja: Cinema dari 16 dB ke 12 dB, dan EDM dari
+20 dB ke 10,5 dB. Karakter suaranya (Equalizer, Bass, Virtualizer) tidak diubah, tetapi kedua preset ini akan
+terdengar sedikit kurang keras dan lebih jarang pecah. Batas 18 dB adalah patokan kasar dan akan disesuaikan
+setelah uji dengar di perangkat.
+
+**Perubahan** (1 file source + 2 dokumen): `BoosterScreen.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; suara di perangkat belum diuji.
+
+## Batch 160: Semua preset utama kini ikut mengatur Equalizer
+
+Sebelumnya hanya 5 preset (Gaming, Cinema, EDM, Podcast, Acoustic) yang ikut mengatur Equalizer manual; empat preset
+lainnya mengembalikan Equalizer ke datar. Sekarang Flat, Bass Heavy, Vocal Boost, dan Treble Boost juga punya
+pengaturan Equalizer sendiri yang searah karakternya: Bass Heavy menebalkan bass, Vocal Boost menonjolkan suara
+vokal, Treble Boost menambah detail dan udara di nada tinggi, dan Flat tetap datar. Pengaturan Bass, Virtualizer,
+dan Loudness tiap preset tidak berubah. Dampaknya: memilih Bass Heavy, Vocal Boost, atau Treble Boost kini
+mengubah slider Equalizer, tidak lagi mengembalikannya ke datar. Daftar fitur di README disesuaikan.
+
+**Perubahan** (1 file source + 3 dokumen): `BoosterScreen.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; suara di perangkat belum diuji.
+
+## Batch 159: Target SDK tetap 34 (keputusan pengembang)
+
+Tidak ada perubahan pada aplikasi. Pengembang memutuskan target SDK tetap 34 supaya fitur nyala otomatis setelah
+restart HP tetap bekerja di Android 15; peringatan "target SDK lama" di Android Lint sengaja dibiarkan.
+Laporan CI run 202 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan.
+
+**Perubahan** (0 file source, 2 dokumen).
+
 ## Batch 158: Visualizer spectrum lebih ringan, dokumentasi dirapikan
 
 Bar spectrum di Boomly diperbarui sekitar 20 kali per detik. Sebelumnya tiap pembaruan itu membuat seluruh layar

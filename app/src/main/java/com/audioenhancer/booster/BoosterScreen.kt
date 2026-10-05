@@ -186,8 +186,8 @@ private data class Preset(
     // Batch 136 (merge dari sesi paralel, aslinya "Batch 128" cabang lain — lihat
     // PROJECT_STATE.md "Rekonsiliasi cabang paralel"): opsional, sama semantik dengan
     // PrefsHelper.CustomPreset.eqBands (Batch 63) — KOSONG (default) = preset ini TIDAK
-    // punya opini soal EQ, applyPreset() reset ke flat (perilaku asli, 4 preset lama TIDAK
-    // diubah). Kalau ADA, urutan sesuai AudioEnhancerService.FALLBACK_EQ_BANDS_HZ
+    // punya opini soal EQ, applyPreset() reset ke flat (perilaku asli; sejak Batch 160 SEMUA
+    // 9 preset built-in punya eqBands, jalur kosong tinggal cadangan). Kalau ADA, urutan sesuai AudioEnhancerService.FALLBACK_EQ_BANDS_HZ
     // (60/230/910/3600/14000 Hz — device dgn band count beda tetap aman, lihat getOrElse
     // di applyPreset()). Nilai mB sengaja dijaga konservatif (maks ±800) karena beda dgn
     // Bass/Virtualizer (kontrak platform 0..1000, Batch 60), rentang band EQ
@@ -569,10 +569,31 @@ fun BoosterScreen(
         // bawah, FeatureControl loudness) supaya thumb slider gak invalid. Karakter tiap preset
         // (dominasi bass/virtualizer/loudness masing-masing) dipertahankan, cuma intensitasnya
         // naik proporsional (+11–50% tergantung headroom yang tersisa ke batas platform).
-        Preset(stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f),
-        Preset(stringResource(R.string.preset_bass_heavy), bass = 1000f, virtualizer = 400f, loudness = 750f),
-        Preset(stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 1100f),
-        Preset(stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f),
+        // Batch 160 (request user "lengkapi preset utama dengan konfigurasi preset equalizer manual yang
+        // belum merata"): 4 preset lama SEKARANG juga punya eqBands (dulu KOSONG = reset flat) supaya
+        // 9 preset built-in seragam. Bass/Virtualizer/Loudness lama TIDAK diubah; EQ searah karakter tiap
+        // preset dan sengaja beda dari 5 preset use-case di bawah. Flat = nol eksplisit (hasil sama dgn
+        // perilaku lama). Urutan [60Hz, 230Hz, 910Hz, 3600Hz, 14000Hz], maks ±800 mB.
+        // Batch 161 — STANDAR HEADROOM preset built-in (tertulis di PROJECT_STATE.md "Keputusan sadar"):
+        // (H1) tiap band eqBands |nilai| ≤ 800 mB; (H2) puncak boost EQ (max eqBands, minimal 0) + loudness
+        // ≤ 1800 mB (batas kasar penjumlahan terburuk, BELUM diuji dengar; BassBoost tak ikut dihitung).
+        // Cinema (loudness 1600→1200) & EDM (2000→1050) dipangkas tepat sampai batas; EQ/bass/virtualizer tetap.
+        Preset(
+            stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f,
+            eqBands = listOf(0, 0, 0, 0, 0)
+        ),
+        Preset( // Bass Heavy: low-end tebal (60/230Hz naik), mid netral, treble sedikit dijinakkan
+            stringResource(R.string.preset_bass_heavy), bass = 1000f, virtualizer = 400f, loudness = 750f,
+            eqBands = listOf(700, 450, 0, -100, 0)
+        ),
+        Preset( // Vocal Boost: rumble dipangkas, 910Hz/3.6kHz (badan+presence vokal) naik, sedikit udara
+            stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 1100f,
+            eqBands = listOf(-150, 0, 400, 500, 150)
+        ),
+        Preset( // Treble Boost: low-end dikurangi, hi-mid naik bertahap, 14kHz paling tinggi (detail/udara)
+            stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f,
+            eqBands = listOf(-200, -100, 150, 450, 800)
+        ),
         // Batch 136 (merge dari sesi paralel, aslinya "Batch 128" cabang lain — request
         // eksplisit user "preset powerful sesuai spesialisasi nya masing-masing"): 5 preset
         // baru, tiap satu SATU use-case spesifik (beda dari 4 preset di atas yang fokus 1
@@ -584,11 +605,11 @@ fun BoosterScreen(
             eqBands = listOf(50, -150, 100, 700, 750)
         ),
         Preset( // Cinema: dialog jernih (boost 910Hz) + rumble low-end + surround virtualizer tinggi
-            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 1600f,
+            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 1200f,
             eqBands = listOf(250, -50, 600, 300, 100)
         ),
         Preset( // EDM: signature V-shape (sub+bass+treble naik, mid di-scoop), bass platform MAX
-            stringResource(R.string.preset_edm), bass = 1000f, virtualizer = 750f, loudness = 2000f,
+            stringResource(R.string.preset_edm), bass = 1000f, virtualizer = 750f, loudness = 1050f,
             eqBands = listOf(750, 300, -400, 200, 600)
         ),
         Preset( // Podcast: kejernihan bicara — bass/virtualizer diminimalkan, mid presence suara dinaikkan
@@ -662,8 +683,8 @@ fun BoosterScreen(
         activePreset = preset.label
         onActivePresetChange(preset.label)
         // Batch 136 (merge dari sesi paralel, aslinya "Batch 128" cabang lain, dgn hotfix
-        // "Batch 129" cabang itu sudah dibawa masuk): eqBands KOSONG (4 preset lama) =
-        // reset flat (0), PERILAKU ASLI TIDAK BERUBAH. eqBands ADA (5 preset baru) =
+        // "Batch 129" cabang itu sudah dibawa masuk): eqBands KOSONG (cadangan; sejak Batch 160 tak ada lagi preset built-in begini) =
+        // reset flat (0), PERILAKU ASLI TIDAK BERUBAH. eqBands ADA (semua 9 preset built-in sejak Batch 160) =
         // terapkan nilainya, bukan flat. `.toShort()` WAJIB eksplisit di KEDUA cabang —
         // tanpanya cabang literal `0` infer `List<Int>` vs cabang lain `List<Short>`,
         // compile error (LUB `List<Comparable<*> & Number>`); root-cause asli & fix

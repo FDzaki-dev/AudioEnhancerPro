@@ -142,9 +142,17 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   SENGAJA mati (catch lebar di `AudioEnhancerService` disengaja, efek audio rapuh per-OEM).
   Suppress false positive lint = `@SuppressLint` PER-FUNGSI + komentar alasan (Batch 143), BUKAN ignore global
   di `lint.xml` (biar isu nyata di tempat lain tetap muncul).
-- **targetSdk TETAP 34 (Batch 158, audit)**: naik ke 35 merusak autostart boot — `BootReceiver` (BOOT_COMPLETED) memanggil `AudioEnhancerService.requestStart` → FGS `mediaPlayback`, dan Android 15 melarang
+- **targetSdk TETAP 34 (audit Batch 158; USER-CONFIRMED Batch 159)**: naik ke 35 merusak autostart boot — `BootReceiver` (BOOT_COMPLETED) memanggil `AudioEnhancerService.requestStart` → FGS `mediaPlayback`, dan Android 15 melarang
   receiver BOOT_COMPLETED meluncurkan FGS tipe itu untuk app target ≥35 (`ForegroundServiceStartNotAllowedException`; `BootReceiver` tanpa try/catch). Edge-to-edge juga jadi default di target 35. Naikkan
-  HANYA setelah user memutuskan perilaku boot (mis. notifikasi tap-to-start) — itu perubahan perilaku, bukan housekeeping. Warning lint OldTargetApi dibiarkan sebagai sinyal (jangan di-suppress diam-diam).
+  HANYA setelah user memutuskan perilaku boot (mis. notifikasi tap-to-start) — itu perubahan perilaku, bukan housekeeping. Warning lint OldTargetApi dibiarkan sebagai sinyal (jangan di-suppress diam-diam). Batch 159: user memilih eksplisit "Biarkan targetSdk 34 (warning tetap, 0 risiko)" → warning DITERIMA; JANGAN ajukan
+  kenaikan targetSdk/suppress lagi kecuali user yang meminta; target lint resmi proyek = 0E/1W (OldTargetApi)/0I.
+- **Preset built-in SEMUA punya `eqBands` (Batch 160)**: 9 preset di tabel `presets` `BoosterScreen.kt` seragam menyetel Equalizer manual (5 band, ≤ ±800 mB; Flat = nol eksplisit). Efek samping DISENGAJA
+  (permintaan user): menerapkan Bass Heavy/Vocal Boost/Treble Boost tidak lagi me-reset EQ ke flat. Jalur `eqBands` kosong di `applyPreset()` dipertahankan hanya sebagai cadangan — JANGAN dihapus/diubah tanpa diminta.
+- **Standar headroom preset built-in (Batch 161; USER-CONFIRMED lewat tab opsi)**: tabel `presets` `BoosterScreen.kt` WAJIB lolos — (H1) tiap band `eqBands` |nilai| ≤ 800 mB (5 band); (H2) `max(0, max(eqBands)) + loudness
+  ≤ 1800 mB`. Cek statis tiap batch yang menyentuh tabel itu (skrip hitung dari file). Koreksi bila melanggar: pangkas LOUDNESS sampai tepat di batas (BUKAN EQ/bass/virtualizer — itu karakter preset). Nilai B161 (mB):
+  Flat 0, Acoustic 850, Bass Heavy 1450, Vocal Boost 1600, Treble Boost 1650, Gaming 1650, Podcast/Cinema/EDM 1800. KETERBATASAN JUJUR: 1800 = heuristik penjumlahan terburuk, dipilih karena 7 dari 9 preset sudah ≤ itu
+  (BUKAN hasil uji dengar/klaim "perfect"); BassBoost (bass 1000 pada Bass Heavy & EDM) TIDAK dihitung → wajib uji dengar; timbre (desis Treble Boost +800 @14kHz, sibilance Vocal Boost +500 @3,6kHz) di luar standar;
+  perilaku limiter `LoudnessEnhancer` BELUM diverifikasi. Ubah batas HANYA dari feedback uji dengar user — jangan menebak angka baru.
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -169,10 +177,11 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 158, `BoosterScreen.kt`+`MainActivity.kt` — M7: `spectrumLevels` (~20 Hz) dibaca di fase gambar `SpectrumBars` (provider `() -> FloatArray`), tak lagi merekomposisi seluruh
-  `BoosterScreen` tiap 50 ms; M8: LOG Batch 1–142 diarsipkan; targetSdk 35 DITAHAN (BootReceiver × FGS mediaPlayback, Android 15). CI run 201 (artifact user): BUILD SUCCESSFUL 28s, lint 0E/1W (OldTargetApi)/0I,
-  detekt 0/21 file, loc 9.189 = TARGET B157 tepat → B157 **STATIC-VERIFIED**. B158 **NOT VERIFIED** (statis; nunggu CI + device). TARGET artifact berikut: lint 0E/1W/0I, detekt 0, loc 9.197 (+8).
-  Sebelumnya: 157, `OemAutostartHelper.kt` — +1 kandidat Asus (M4). Sebelumnya: 156, `MainActivity.kt` — guard replay Intent shortcut. Sebelumnya: 155, `ShortcutHelper.kt`+`MainActivity.kt` — `reportShortcutUsed`.
+- **Batch terakhir**: 161, `BoosterScreen.kt` (1 file) — request user (tab opsi "Tetapkan batas headroom tertulis, koreksi preset yang melewatinya"): STANDAR HEADROOM preset built-in ditulis (lihat "Keputusan sadar") +
+  koreksi: loudness Cinema 1600→1200 dan EDM 2000→1050 (EQ/bass/virtualizer TIDAK diubah). B160 (`eqBands` untuk 4 preset lama, + README) juga masih NOT VERIFIED. Kode terakhir terverifikasi = B158 (run 202: lint 0E/1W
+  (OldTargetApi)/0I, detekt 0, loc 9.197). B161 **NOT VERIFIED** (statis; nunggu CI + uji dengar). TARGET artifact berikut: lint 0E/1W/0I, detekt 0, loc 9.218 (+4 dari B160 9.214).
+  Sebelumnya: 160, `BoosterScreen.kt`+`README.md` — 9 preset built-in seragam punya `eqBands`. Sebelumnya: 159, docs-only — keputusan user targetSdk TETAP 34. Sebelumnya: 158, `BoosterScreen.kt`+`MainActivity.kt` —
+  `spectrumLevels` dibaca di fase gambar (M7) + arsip LOG B1–142 (M8a). Sebelumnya: 157, `OemAutostartHelper.kt` — +1 kandidat Asus (M4). Sebelumnya: 156, `MainActivity.kt` — guard replay Intent shortcut.
   Sebelumnya: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
   dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
   (PNG bulat sengaja identik). CI run 196 (artifact diunggah user): BUILD SUCCESSFUL 26s, lint 0E/11W/1I = TARGET B152 tepat, detekt 0/21 file, loc 8.961 = source v152 → B151+B152
@@ -379,6 +388,16 @@ Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 Entri Batch 1–142 sudah DIPINDAH verbatim ke `docs/archive/PROJECT_STATE_LOG_B1-B142.md` (Batch 158, M8); rujukan "LOG BATCH N" untuk N ≤ 142 di file ini → baca arsip itu.
 
+- **Batch 161** (`BoosterScreen.kt`; request user: pilih "Tetapkan batas headroom tertulis, koreksi preset yang melewatinya" setelah menanyakan apakah preset sudah "standar perfect"): jawaban jujur = BELUM terbukti (EQ
+  subjektif; tak ada uji dengar). Dibuat standar tertulis H1 (|band| ≤ 800 mB) + H2 (puncak EQ ≥0 + loudness ≤ 1800 mB) di "Keputusan sadar". Audit 9 preset: hanya Cinema (2200) & EDM (2750) melewati H2 → loudness
+  dipangkas tepat ke batas (1600→1200, 2000→1050); 7 lainnya sudah lolos. Validasi statis (skrip): brace 295/295 paren 813/813, `!!` 0, 9/9 lolos H1+H2, valueRange loudness UI 3000 (nilai tetap valid), loc 9.218. Status: **NOT VERIFIED**.
+- **Batch 160** (`BoosterScreen.kt` + `README.md`; request user "lengkapi preset utama dengan konfigurasi preset equalizer manual yang belum merata"): audit tabel `presets` (satu-satunya definisi built-in; Schedule/
+  Settings/Service hanya memakai preset CUSTOM) → 5 preset use-case sudah punya `eqBands`, 4 preset lama KOSONG (reset flat). Ditambah `eqBands` urutan [60/230/910/3600/14000 Hz], semua |nilai| ≤ 800 mB: Flat
+  [0,0,0,0,0] (eksplisit, hasil sama), Bass Heavy [700,450,0,-100,0], Vocal Boost [-150,0,400,500,150], Treble Boost [-200,-100,150,450,800]. Komentar basi ("4 preset lama TIDAK diubah") + README disinkronkan.
+  `applyPreset()` TIDAK diubah (jalur eqBands kosong tetap sebagai cadangan). Validasi statis (skrip): brace 295/295 paren 813/813, `!!` 0, 9/9 preset punya 5 band & |nilai| ≤ 800, loc 9.214. Status: **NOT VERIFIED**.
+- **Batch 159** (docs-only: `PROJECT_STATE.md`+`CHANGELOG.md`; 0 file source; request user "sajikan opsinya" lalu pilih di tab opsi): triase `static_analysis_v202-run202` (compile UP-TO-DATE lolos, lint 0E/1W/0I,
+  detekt 0/21 file, loc 9.197) → B158 STATIC-VERIFIED. Keputusan user: "Biarkan targetSdk 34 (warning tetap, 0 risiko)" → dicatat USER-CONFIRMED di "Keputusan sadar" + M9; tak ada item kode tersisa di roadmap
+  tanpa input user (M2 DITURUNKAN, M6 BLOCKED, M8b hanya bila diminta). Validasi: N/A (0 kode). Status: kode = B158 STATIC-VERIFIED; device belum.
 - **Batch 158** (`BoosterScreen.kt`+`MainActivity.kt` + `FILE_MANIFEST.txt` + arsip LOG; request user "1+2+3" lewat tab opsi): triase `static_analysis_v201-run201` (compile UP-TO-DATE lolos,
   lint 0E/1W/0I, detekt 0/21 file, loc 9.189) → B157 STATIC-VERIFIED. (1) targetSdk 34→35 **TIDAK dikerjakan — blokir nyata**: `BootReceiver` (BOOT_COMPLETED) → `requestStart` → FGS `mediaPlayback`; Android 15
   melarang itu untuk app target ≥35 (autostart boot rusak, `BootReceiver` tanpa try/catch) → lihat "Keputusan sadar". (2) M7: `spectrumLevels` (state ~20 Hz, loop 50 ms `BoosterViewModel`) dibaca di komposisi
@@ -1001,7 +1020,7 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 - [x] M8a · Pangkas LOG BATCH — SELESAI Batch 158 (user memilih eksplisit): Batch 1–142 → `docs/archive/PROJECT_STATE_LOG_B1-B142.md` verbatim; file ini ±118 KB → ±80 KB.
 - [ ] M8b · Sinkronkan PIN "Format chat"/"maks 3 file" ke v3.5 — BELUM (HANYA bila user minta); tanpa file backlog baru.
 - [x] M9 · Bersih warning lint (gerbang = lintDebug+detekt SAJA) — SELESAI: artifact run 197 = 0E/1W/1I (18→11→1). SISA SENGAJA: OldTargetApi 1 (`targetSdk=34` — butuh compileSdk/AGP,
-  DI LUAR PLANNING; diaudit Batch 158 = BLOKIR nyata, lihat "Keputusan sadar" targetSdk), ReportShortcutUsage info 1 → SELESAI Batch 155 (`reportShortcutUsed` di `MainActivity.handleShortcutIntent`; artifact run 199 = 0E/1W/0I, STATIC-VERIFIED).
+  DI LUAR PLANNING; diaudit Batch 158 = BLOKIR nyata, lihat "Keputusan sadar" targetSdk; DITERIMA user Batch 159), ReportShortcutUsage info 1 → SELESAI Batch 155 (`reportShortcutUsed` di `MainActivity.handleShortcutIntent`; artifact run 199 = 0E/1W/0I, STATIC-VERIFIED).
 - Track T1 (manual user, non-source): commit `gradlew`+`gradle-wrapper.jar` permanen (`gradle wrapper --gradle-version 8.7`, commit 4 file) →
   membuka pre-commit hook v3.5. Track T2 (user): device test swipe lintas tab B141 (JANGAN balik ke `HorizontalPager`) & Scheduler B134.
 
@@ -1011,12 +1030,10 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: M7 recomposition spectrum (Batch 158; `BoosterScreen.kt` param `spectrumLevels: () -> FloatArray` L515-517 + `SpectrumBars` L444-455 baca `levels()` di dalam `Canvas`; `MainActivity.kt` L233-235
-`spectrumLevels = { viewModel.spectrumLevels }`; + M8a arsip LOG ke `docs/archive/PROJECT_STATE_LOG_B1-B142.md`; ZIP `Boomly_v158.zip`) -> kode SELESAI, NOT VERIFIED (statis: BoosterScreen brace 295/295 paren 809/809,
-MainActivity 64/64 & 106/106, `!!` 0; belum CI & device); B157 STATIC-VERIFIED via artifact run 201 (lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.189) -> Langkah berikutnya: (a) user upload artifact
-`static_analysis_v*` baru: TARGET lint 0E/1W/0I, detekt 0, loc 9.197 (+8) → B158 STATIC-VERIFIED; temuan baru → perbaiki HANYA itu, debug HANYA `SpectrumBars`/call site `BoosterScreen.kt` L1575 &
-`MainActivity.kt` L233; (b) device test user (Track T2): B158 — buka tab dengan kartu spectrum, putar musik → bar bergerak halus seperti sebelumnya, UI lain (slider/tab) tidak patah; B156/B157 lihat catatan
-sebelumnya (rotasi setelah shortcut; tombol Autostart OEM); (c) KEPUTUSAN user (OldTargetApi): (i) biarkan `targetSdk=34` (warning sengaja tetap); (ii) naik ke 35 + ubah `BootReceiver` agar TIDAK start FGS
-saat BOOT_COMPLETED (mis. notifikasi tap-to-start via `PendingIntent.getForegroundService`, pola `postRecoveryNotification`) + `compileSdk` 35 (AGP 8.5.2 mungkin butuh upgrade — BELUM diverifikasi) = ubah perilaku
-autostart, wajib persetujuan eksplisit; (iii) suppress di `lint.xml` = menyembunyikan sinyal, TIDAK disarankan; (d) M2 DITURUNKAN, M6 BLOCKED, M8b (sinkron PIN) HANYA bila diminta; (e) Android <12 guard/test,
-watchdog/heartbeat, `HorizontalPager`, upgrade AGP/Kotlin/BOM = DI LUAR PLANNING. Batch berikutnya = 159.]
+[RESUME POINT: standar headroom preset built-in (Batch 161; `BoosterScreen.kt` tabel `presets` L572-615: komentar standar H1/H2 + loudness Cinema 1200 & EDM 1050; ZIP `Boomly_v161.zip`; B160 `eqBands` 4 preset lama
+masih NOT VERIFIED) -> kode SELESAI, NOT VERIFIED (statis: brace 295/295, paren 813/813, `!!` 0, 9/9 lolos H1+H2; belum CI & device); kode terakhir terverifikasi = B158 (run 202) -> Langkah berikutnya:
+(a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.218 → B160+B161 STATIC-VERIFIED; temuan baru → perbaiki HANYA itu, debug HANYA tabel `presets`; (b) uji dengar user
+(Track T2) — feedback per preset menentukan koreksi angka berikutnya (JANGAN menebak): Bass Heavy & EDM (bass 1000 + EQ 60Hz ≥ +700, BassBoost tak dihitung H2) cek distorsi/pecah; Treble Boost cek desis @14kHz; Vocal
+Boost cek sibilance @3,6kHz; Cinema/EDM cek apakah loudness turun terasa kurang keras; tap Flat → semua slider EQ 0; (c) B156 shortcut toggle → rotasi (`MainActivity.kt` `onCreate` L113-116); B157 tombol Autostart OEM
+(`OemAutostartHelper.kt` cabang `asus` L72-76); B158 bar spectrum halus (`SpectrumBars` L444-455, `MainActivity.kt` L233-235); (d) targetSdk=34 USER-CONFIRMED (jangan ajukan lagi); M2 DITURUNKAN, M6 BLOCKED, M8b
+(sinkron PIN ke v3.5) HANYA bila diminta; (e) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager`, upgrade AGP/Kotlin/BOM = DI LUAR PLANNING. Batch berikutnya = 162.]
