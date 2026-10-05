@@ -13,6 +13,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -186,6 +188,22 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    // Batch 162 (guard Battery & Background): UI terlihat atau tidak, diisi `MainActivity`
+    // (`onStart` true / `onStop` false). WAJIB dideklarasi SEBELUM `init` di bawah — `viewModelScope`
+    // (Main.immediate) menjalankan loop langsung di dalam init. Awal `true` = perilaku lama.
+    private val uiActive = MutableStateFlow(true)
+
+    fun setUiActive(active: Boolean) {
+        uiActive.value = active
+    }
+
+    /** Batch 162: dua loop polling di bawah dulu terus bangun (20x & 1x/detik) walau app sudah di
+     *  background (ViewModel + proses tetap hidup selama Service jalan). Sekarang tiap iterasi
+     *  SUSPEND di sini selagi UI tak terlihat — nol wake-up; lanjut otomatis begitu `onStart`. */
+    private suspend fun awaitUiActive() {
+        if (!uiActive.value) uiActive.first { it }
+    }
+
     // Batch 58: loop polling `EffectState` — jalan terus selama ViewModel ini hidup
     // (viewModelScope otomatis di-cancel di onCleared, TIDAK perlu Job manual). Saat
     // `bound == false` (belum/putus konek), state dibiarkan apa adanya (nilai terakhir
@@ -194,6 +212,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     init {
         viewModelScope.launch {
             while (true) {
+                awaitUiActive()
                 if (bound) {
                     bassEffectState = service?.bassState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     virtualizerEffectState = service?.virtualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
@@ -225,6 +244,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         // Batch 58 dulu sebelum tervalidasi).
         viewModelScope.launch {
             while (true) {
+                awaitUiActive()
                 if (bound) {
                     visualizerEffectState = service?.visualizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     if (visualizerEffectState == AudioEnhancerService.EffectState.ENABLED) {

@@ -329,12 +329,35 @@ jobs:
           LNT=$(grep -c '<issue ' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
           echo "::notice::Static analysis (non-blocking) — detekt: ${DET:-n/a} temuan · lintDebug: ${LNT:-n/a} isu · outcome step: ${{ steps.static_analysis.outcome }}"
 
+      # Batch 162 (request user "tambahkan penanda pada static analysis biar gak ketukar dengan
+      # project lain"): artifact diberi awalan nama repo + file `STATIC_ANALYSIS_MARKER.txt` berisi
+      # identitas proyek (diambil DINAMIS dari repo/gradle/strings, bukan literal). `continue-on-error`
+      # + `|| echo n/a` → step ini TIDAK PERNAH menggagalkan job (jalan setelah release publish).
+      - name: Write static analysis marker (identitas proyek)
+        if: always() && steps.static_analysis.outcome != 'skipped'
+        continue-on-error: true
+        run: |
+          {
+            echo "PROJECT=${{ github.event.repository.name }}"
+            echo "APP_NAME=$(grep -m1 'name="app_name"' app/src/main/res/values/strings.xml | sed -E 's/.*>([^<]*)<.*/\1/' || echo n/a)"
+            echo "APPLICATION_ID=$(grep -m1 'applicationId' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo n/a)"
+            echo "GRADLE_ROOT_PROJECT=$(grep -m1 'rootProject.name' settings.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo n/a)"
+            echo "BATCH_PROJECT_STATE=$(grep -o -m1 'Batch terakhir\*\*: [0-9]*' PROJECT_STATE.md | grep -o '[0-9]*$' || echo n/a)"
+            echo "RUN_NUMBER=${{ github.run_number }}"
+            echo "RUN_ID=${{ github.run_id }}"
+            echo "COMMIT=${{ github.sha }}"
+            echo "BRANCH=${{ github.ref_name }}"
+            echo "GENERATED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > STATIC_ANALYSIS_MARKER.txt
+          cat STATIC_ANALYSIS_MARKER.txt
+
       - name: Upload static analysis reports
         if: always() && steps.static_analysis.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
-          name: static_analysis_v${{ steps.version.outputs.name }}-run${{ github.run_number }}
+          name: ${{ github.event.repository.name }}_static_analysis_v${{ steps.version.outputs.name }}-run${{ github.run_number }}
           path: |
+            STATIC_ANALYSIS_MARKER.txt
             gradle-static-analysis.log
             app/build/reports/detekt/**
             app/build/reports/lint-results-debug.*

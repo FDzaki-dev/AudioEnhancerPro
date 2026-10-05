@@ -135,7 +135,7 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   (`buildUponDefaultConfig=false`, 35 rule potensi-bug tanpa type-resolution, `ignoreFailures=true`) +
   Android Lint `abortOnError=false`. DILARANG dijadikan blocking atau menambah severity `fatal`
   (mengubah `lintVitalRelease` di assembleRelease) tanpa instruksi baru user. Jalan di step CI PALING
-  AKHIR (setelah release publish) → laporan di artifact `static_analysis_v*`. Pre-commit hook
+  AKHIR (setelah release publish) → laporan di artifact `<Repo>_static_analysis_v*` (sejak Batch 162; sebelumnya `static_analysis_v*`) + `STATIC_ANALYSIS_MARKER.txt`. Pre-commit hook
   `./gradlew detekt lintDebug` SENGAJA TIDAK dipasang: repo tak punya `gradlew` (di-bootstrap CI) dan
   commit jalan di Termux tanpa Gradle → hook mematahkan commit; gantinya gerbang CI non-blocking.
   Rule baru HANYA kalau ada bukti temuan nyata; `TooGenericExceptionCaught`/`SwallowedException`
@@ -153,6 +153,13 @@ Index Core Protocol (detail lengkap di instruksi custom user):
   Flat 0, Acoustic 850, Bass Heavy 1450, Vocal Boost 1600, Treble Boost 1650, Gaming 1650, Podcast/Cinema/EDM 1800. KETERBATASAN JUJUR: 1800 = heuristik penjumlahan terburuk, dipilih karena 7 dari 9 preset sudah ≤ itu
   (BUKAN hasil uji dengar/klaim "perfect"); BassBoost (bass 1000 pada Bass Heavy & EDM) TIDAK dihitung → wajib uji dengar; timbre (desis Treble Boost +800 @14kHz, sibilance Vocal Boost +500 @3,6kHz) di luar standar;
   perilaku limiter `LoudnessEnhancer` BELUM diverifikasi. Ubah batas HANYA dari feedback uji dengar user — jangan menebak angka baru.
+- **Penanda artifact static analysis (Batch 162)**: TRIASE artifact SELALU mulai dari `STATIC_ANALYSIS_MARKER.txt` — WAJIB `PROJECT=AudioEnhancerPro`, `APPLICATION_ID=com.audioenhancer.booster`,
+  `GRADLE_ROOT_PROJECT=AudioEnhancerPro`; kalau beda → STOP, artifact proyek lain (jangan dipakai). `BATCH_PROJECT_STATE` = angka "Batch terakhir" di file ini saat CI jalan (cocokkan dgn ZIP yang di-push; selisih =
+  ZIP lama/salah). Artifact SEBELUM Batch 162 (`static_analysis_v*`) tak punya marker → cocokkan lewat loc + path `AudioEnhancerPro` di log. Marker dibuat step non-blocking: kalau tak muncul, itu bug workflow, BUKAN
+  alasan menyalahkan kode. Nama artifact memakai `github.event.repository.name` (belum pernah dijalankan CI → verifikasi di run berikutnya).
+- **Loop polling UI/ViewModel WAJIB berhenti di background (Batch 162)**: `BoosterViewModel` memakai `uiActive`/`awaitUiActive()` (diisi `MainActivity.onStart/onStop`). SISA sengaja tak diubah: 3 loop 1 Hz di composable
+  (`ServiceStatusBadge` & `PowerToggleRow` di `BoosterScreen.kt`, sleep timer di `SettingsScreen.kt`; baca field statis, beban kecil — butuh `repeatOnLifecycle`/`lifecycle-runtime-compose`, belum ada di dependency) dan
+  capture Visualizer di `AudioEnhancerService` yang tetap jalan di background (perlu perubahan Service). Kerjakan HANYA bila user minta.
 
 ### Cara update file ini
 Sesi dengan keputusan arsitektur baru (bukan bugfix kecil): (1) entry baru
@@ -177,11 +184,12 @@ sepihak.
 
 ## 🧭 Status Terkini (state akhir — BUKAN histori, detail batch ada di LOG BATCH)
 
-- **Batch terakhir**: 161, `BoosterScreen.kt` (1 file) — request user (tab opsi "Tetapkan batas headroom tertulis, koreksi preset yang melewatinya"): STANDAR HEADROOM preset built-in ditulis (lihat "Keputusan sadar") +
-  koreksi: loudness Cinema 1600→1200 dan EDM 2000→1050 (EQ/bass/virtualizer TIDAK diubah). B160 (`eqBands` untuk 4 preset lama, + README) juga masih NOT VERIFIED. Kode terakhir terverifikasi = B158 (run 202: lint 0E/1W
-  (OldTargetApi)/0I, detekt 0, loc 9.197). B161 **NOT VERIFIED** (statis; nunggu CI + uji dengar). TARGET artifact berikut: lint 0E/1W/0I, detekt 0, loc 9.218 (+4 dari B160 9.214).
-  Sebelumnya: 160, `BoosterScreen.kt`+`README.md` — 9 preset built-in seragam punya `eqBands`. Sebelumnya: 159, docs-only — keputusan user targetSdk TETAP 34. Sebelumnya: 158, `BoosterScreen.kt`+`MainActivity.kt` —
-  `spectrumLevels` dibaca di fase gambar (M7) + arsip LOG B1–142 (M8a). Sebelumnya: 157, `OemAutostartHelper.kt` — +1 kandidat Asus (M4). Sebelumnya: 156, `MainActivity.kt` — guard replay Intent shortcut.
+- **Batch terakhir**: 162, `build.yml`+`BoosterViewModel.kt`+`MainActivity.kt` (3 file) — (1) PENANDA static analysis (request user "biar gak ketukar dengan project lain"): artifact kini `AudioEnhancerPro_static_analysis_v<N>-run<N>`
+  + `STATIC_ANALYSIS_MARKER.txt` (PROJECT/APP_NAME/APPLICATION_ID/GRADLE_ROOT_PROJECT/BATCH_PROJECT_STATE/RUN/COMMIT); (2) guard Battery & Background: 2 loop polling `BoosterViewModel` (1000 ms & 50 ms) kini SUSPEND saat UI
+  tak terlihat (`MainActivity.onStart/onStop`). CI run 203 (artifact user): BUILD SUCCESSFUL 22s, lint 0E/1W (OldTargetApi)/0I, detekt 0/21 file, loc 9.218 = TARGET B161 tepat → B160+B161 **STATIC-VERIFIED** (suara belum diuji dengar).
+  B162 **NOT VERIFIED** (statis; nunggu CI + device). TARGET artifact berikut: marker ada & PROJECT=AudioEnhancerPro, lint 0E/1W/0I, detekt 0, loc 9.249 (+31).
+  Sebelumnya: 161, `BoosterScreen.kt` — standar headroom preset (Cinema 1200/EDM 1050). Sebelumnya: 160, `BoosterScreen.kt`+`README.md` — 9 preset punya `eqBands`. Sebelumnya: 159, docs-only — targetSdk TETAP 34.
+  Sebelumnya: 158, `BoosterScreen.kt`+`MainActivity.kt` — `spectrumLevels` di fase gambar (M7) + arsip LOG B1–142 (M8a). Sebelumnya: 157, `OemAutostartHelper.kt` — +1 kandidat Asus (M4).
   Sebelumnya: 154, FITUR statistik pemakaian lokal (Fase 9 M5, 5 file: `PrefsHelper.kt`+`AudioEnhancerService.kt`+`SettingsScreen.kt`+strings ID/EN) — total waktu aktif, jumlah
   dinyalakan, preset terpopuler (100% on-device, tanpa timer/loop). Sebelumnya: 153, `shortcuts.xml`+`widget_booster_info.xml`+`lint.xml` — UnusedAttribute 5 `tools:ignore` (0 perubahan atribut android:*), IconDuplicates 5 di-ignore di `lint.xml`
   (PNG bulat sengaja identik). CI run 196 (artifact diunggah user): BUILD SUCCESSFUL 26s, lint 0E/11W/1I = TARGET B152 tepat, detekt 0/21 file, loc 8.961 = source v152 → B151+B152
@@ -388,6 +396,11 @@ Format: **Batch N** (file disentuh) — apa yang berubah. Status validasi.
 Root-cause/diff/rasional detail → `CHANGELOG.md`, BUKAN di sini.
 Entri Batch 1–142 sudah DIPINDAH verbatim ke `docs/archive/PROJECT_STATE_LOG_B1-B142.md` (Batch 158, M8); rujukan "LOG BATCH N" untuk N ≤ 142 di file ini → baca arsip itu.
 
+- **Batch 162** (`build.yml`+`BoosterViewModel.kt`+`MainActivity.kt`; request user "skip, mending tambahkan penanda pada static analysis biar gak ketukar dengan project lain. lanjutkan pengembangan ... lintdebug/detekt only"):
+  triase `static_analysis_v203-run203` (compile UP-TO-DATE lolos, lint 0E/1W/0I, detekt 0/21 file, loc 9.218) → B160+B161 STATIC-VERIFIED. (1) Penanda: step baru "Write static analysis marker" (non-blocking, setelah
+  analisis, nilai DINAMIS dari repo/gradle/strings/PROJECT_STATE) + nama artifact berawalan nama repo + marker masuk `path`; YAML valid & skrip disimulasikan lokal. (2) Audit guard konstitusi: 0 GlobalScope/runBlocking/
+  commit()/secret; temuan nyata = 2 `while (true)` di `BoosterViewModel` jalan terus di background → `uiActive: MutableStateFlow` (deklarasi SEBELUM `init`) + `awaitUiActive()` di awal tiap iterasi; `MainActivity`
+  `onStart`→true/`onStop`→false. Validasi statis (skrip): brace/paren seimbang, `!!` 0, urutan init benar, loc 9.249. Status: **NOT VERIFIED**.
 - **Batch 161** (`BoosterScreen.kt`; request user: pilih "Tetapkan batas headroom tertulis, koreksi preset yang melewatinya" setelah menanyakan apakah preset sudah "standar perfect"): jawaban jujur = BELUM terbukti (EQ
   subjektif; tak ada uji dengar). Dibuat standar tertulis H1 (|band| ≤ 800 mB) + H2 (puncak EQ ≥0 + loudness ≤ 1800 mB) di "Keputusan sadar". Audit 9 preset: hanya Cinema (2200) & EDM (2750) melewati H2 → loudness
   dipangkas tepat ke batas (1600→1200, 2000→1050); 7 lainnya sudah lolos. Validasi statis (skrip): brace 295/295 paren 813/813, `!!` 0, 9/9 lolos H1+H2, valueRange loudness UI 3000 (nilai tetap valid), loc 9.218. Status: **NOT VERIFIED**.
@@ -1030,10 +1043,13 @@ sebut baris/fungsi · AUTO-HALT: token <20%, error loop 3 iterasi, ancaman OOM.
 
 ---
 
-[RESUME POINT: standar headroom preset built-in (Batch 161; `BoosterScreen.kt` tabel `presets` L572-615: komentar standar H1/H2 + loudness Cinema 1200 & EDM 1050; ZIP `Boomly_v161.zip`; B160 `eqBands` 4 preset lama
-masih NOT VERIFIED) -> kode SELESAI, NOT VERIFIED (statis: brace 295/295, paren 813/813, `!!` 0, 9/9 lolos H1+H2; belum CI & device); kode terakhir terverifikasi = B158 (run 202) -> Langkah berikutnya:
-(a) user upload artifact `static_analysis_v*` baru: TARGET lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.218 → B160+B161 STATIC-VERIFIED; temuan baru → perbaiki HANYA itu, debug HANYA tabel `presets`; (b) uji dengar user
-(Track T2) — feedback per preset menentukan koreksi angka berikutnya (JANGAN menebak): Bass Heavy & EDM (bass 1000 + EQ 60Hz ≥ +700, BassBoost tak dihitung H2) cek distorsi/pecah; Treble Boost cek desis @14kHz; Vocal
-Boost cek sibilance @3,6kHz; Cinema/EDM cek apakah loudness turun terasa kurang keras; tap Flat → semua slider EQ 0; (c) B156 shortcut toggle → rotasi (`MainActivity.kt` `onCreate` L113-116); B157 tombol Autostart OEM
-(`OemAutostartHelper.kt` cabang `asus` L72-76); B158 bar spectrum halus (`SpectrumBars` L444-455, `MainActivity.kt` L233-235); (d) targetSdk=34 USER-CONFIRMED (jangan ajukan lagi); M2 DITURUNKAN, M6 BLOCKED, M8b
-(sinkron PIN ke v3.5) HANYA bila diminta; (e) Android <12 guard/test, watchdog/heartbeat, `HorizontalPager`, upgrade AGP/Kotlin/BOM = DI LUAR PLANNING. Batch berikutnya = 162.]
+[RESUME POINT: penanda static analysis + loop polling lifecycle-aware (Batch 162; `.github/workflows/build.yml` step "Write static analysis marker" L332-353 + nama artifact L358; `BoosterViewModel.kt` `uiActive`/
+`setUiActive`/`awaitUiActive` L191-206 + 2 pemanggilan di loop; `MainActivity.kt` `onStart`/`onStop` L323-333; ZIP `Boomly_v162.zip`) -> kode SELESAI, NOT VERIFIED (statis: BoosterViewModel brace 60/60 paren 131/131,
+MainActivity 66/66 & 112/112, `!!` 0, YAML valid, skrip marker disimulasikan OK; belum CI & device); B160+B161 STATIC-VERIFIED via artifact run 203 (lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.218; suara belum diuji dengar)
+-> Langkah berikutnya: (a) user upload artifact BARU `AudioEnhancerPro_static_analysis_v*-run*.zip`: BACA `STATIC_ANALYSIS_MARKER.txt` DULU (PROJECT=AudioEnhancerPro, APPLICATION_ID=com.audioenhancer.booster,
+BATCH_PROJECT_STATE=162); TARGET lint 0E/1W (OldTargetApi)/0I, detekt 0, loc 9.249 → B162 STATIC-VERIFIED. Kalau marker/nama artifact TIDAK muncul → debug HANYA step marker + `name:` upload di `build.yml` (jangan sentuh
+kode app); kalau compile/lint/detekt error → debug HANYA `BoosterViewModel.kt` L191-250 / `MainActivity.kt` L323-333; (b) device test user (Track T2): B162 — buka app, kirim ke background beberapa menit lalu buka lagi → UI
+status/spectrum tetap hidup & akurat (tidak beku); B160/B161 uji dengar preset (Bass Heavy & EDM cek pecah, Treble Boost desis, Vocal Boost sibilance, Cinema/EDM tidak terlalu pelan); B156 shortcut toggle → rotasi
+(`MainActivity.kt` `onCreate` L113-116); B157 tombol Autostart OEM (`OemAutostartHelper.kt` cabang `asus`); B158 bar spectrum halus; (c) targetSdk=34 USER-CONFIRMED (jangan ajukan lagi); standar headroom preset H1/H2
+berlaku; M2 DITURUNKAN, M6 BLOCKED, M8b HANYA bila diminta; sisa loop 1 Hz composable & capture Visualizer Service = lihat "Keputusan sadar" (HANYA bila diminta); (d) Android <12 guard/test, watchdog/heartbeat,
+`HorizontalPager`, upgrade AGP/Kotlin/BOM = DI LUAR PLANNING. Batch berikutnya = 163.]

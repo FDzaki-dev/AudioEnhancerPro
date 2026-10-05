@@ -320,6 +320,17 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    // Batch 162: beri tahu ViewModel kapan UI terlihat supaya loop polling-nya berhenti di background.
+    override fun onStart() {
+        super.onStart()
+        viewModel.setUiActive(true)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.setUiActive(false)
+    }
+
     override fun onResume() {
         super.onResume()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

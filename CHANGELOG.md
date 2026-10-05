@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 162: Lebih hemat baterai saat app di background, laporan analisis kode diberi penanda proyek
+
+Saat Boomly dikirim ke background, dua proses pemeriksaan status di dalam aplikasi (satu 20 kali per detik untuk
+visualizer, satu sekali per detik untuk status efek) sebelumnya tetap berjalan terus walau layar tidak terlihat. Sekarang
+keduanya berhenti selama aplikasi tidak terlihat dan lanjut otomatis begitu dibuka lagi, sehingga lebih hemat baterai.
+Tampilan dan suara tidak berubah.
+Untuk pengembang: laporan analisis kode di GitHub Actions kini bernama `AudioEnhancerPro_static_analysis_v...` dan
+berisi file `STATIC_ANALYSIS_MARKER.txt` (nama proyek, ID aplikasi, nomor run, commit) supaya tidak tertukar dengan
+proyek lain. Laporan CI run 203 sudah dibaca: build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan.
+
+**Perubahan** (3 file + 2 dokumen): `build.yml`, `BoosterViewModel.kt`, `MainActivity.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; perilaku di perangkat belum diuji.
+
 ## Batch 161: Preset Cinema dan EDM lebih aman dari distorsi
 
 Ditetapkan batas aman penjumlahan penguatan untuk semua preset bawaan: kenaikan Equalizer tertinggi ditambah
