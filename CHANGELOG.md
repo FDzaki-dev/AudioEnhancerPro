@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 163: Banner log crash tidak lagi menahan layar utama
+
+Saat Boomly mendeteksi crash sebelumnya, banner peringatan di layar utama membaca dan menghapus file log langsung di jalur
+tampilan, sehingga layar bisa tersendat sesaat pada perangkat dengan penyimpanan lambat. Sekarang seluruh pembacaan, penandaan
+"sudah dilihat", dan penghapusan log berjalan di latar belakang. Tombol Lihat, Tutup, dan Hapus berfungsi sama; satu-satunya
+perbedaan, banner bisa muncul sepersekian detik setelah layar utama terbuka.
+Untuk pengembang: audit pemakaian thread di seluruh kode selesai, tidak ada pelanggaran lain. Laporan CI run 204 sudah dibaca:
+build berhasil, Android Lint 0 error dengan 1 peringatan (versi target SDK), detekt 0 temuan; penanda proyek sesuai.
+
+**Perubahan** (1 file + 2 dokumen): `BoosterScreen.kt`.
+**NOT VERIFIED** sampai laporan lint dan detekt CI berikutnya dibaca; perilaku di perangkat belum diuji.
+
 ## Batch 162: Lebih hemat baterai saat app di background, laporan analisis kode diberi penanda proyek
 
 Saat Boomly dikirim ke background, dua proses pemeriksaan status di dalam aplikasi (satu 20 kali per detik untuk

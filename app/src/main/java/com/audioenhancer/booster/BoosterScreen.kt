@@ -69,7 +69,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
@@ -205,16 +208,27 @@ private const val PRESET_NAME_MAX_LENGTH = 24
 @Composable
 private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
     val context = LocalContext.current
-    var crashEntry by remember {
-        mutableStateOf(if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null)
-    }
+    val scope = rememberCoroutineScope()
+    // Batch 163 (guard Thread Safety): semua akses crash log (query MediaStore, baca isi,
+    // tandai-dilihat, hapus) dulu jalan LANGSUNG di Main thread (komposisi/onClick). Sekarang
+    // semuanya di Dispatchers.IO; banner muncul begitu hasil baca siap (state awal null = tak
+    // tampil). Tulis yang harus tuntas (tandai-dilihat/hapus) pakai NonCancellable supaya tak
+    // batal kalau layar keburu ditinggalkan.
+    var crashEntry by remember { mutableStateOf<CrashLogger.CrashLogEntry?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        crashEntry = withContext(Dispatchers.IO) {
+            if (CrashLogger.hasUnseenCrash(context)) CrashLogger.latestCrashLog(context) else null
+        }
+    }
     val entry = crashEntry ?: return
 
     fun dismiss() {
         showDialog = false
-        CrashLogger.markCrashSeen(context)
         crashEntry = null
+        scope.launch {
+            withContext(NonCancellable + Dispatchers.IO) { CrashLogger.markCrashSeen(context) }
+        }
     }
 
     SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
@@ -236,7 +250,10 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
     }
 
     if (showDialog) {
-        val crashText = remember(entry) { entry.readText(context) }
+        var crashText by remember(entry) { mutableStateOf("") }
+        LaunchedEffect(entry) {
+            crashText = withContext(Dispatchers.IO) { entry.readText(context) }
+        }
         AlertDialog(
             onDismissRequest = { dismiss() },
             title = { Text(stringResource(R.string.crash_dialog_title)) },
@@ -251,9 +268,15 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    CrashLogger.deleteAllLogs(context)
-                    onCrashLogsDeleted()
-                    dismiss()
+                    showDialog = false
+                    crashEntry = null
+                    scope.launch {
+                        withContext(NonCancellable + Dispatchers.IO) {
+                            CrashLogger.deleteAllLogs(context)
+                            CrashLogger.markCrashSeen(context)
+                        }
+                        onCrashLogsDeleted()
+                    }
                 }) { Text(stringResource(R.string.crash_delete_button)) }
             },
             dismissButton = {
