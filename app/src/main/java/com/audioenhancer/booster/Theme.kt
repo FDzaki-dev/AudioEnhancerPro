@@ -557,28 +557,32 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
 /** Varian 6: "Old Money" — Batch 176, request user "tema baru old money, typography
  *  & shape bernuansa old money, primary burgundy + secondary matching". Flat
  *  tonal (0 bevel/glass/dual-shadow), zero baseline dishare dari 5 varian lain.
- *  Batch 177 (keluhan user "primary terlalu mendominasi"): latar/permukaan diubah
- *  dari espresso-BURGUNDY (kemerahan, burgundy merembes ke seluruh layar) jadi
- *  charcoal-cokelat hangat NETRAL; burgundy dipegang HANYA kontrol/ikon aktif.
- *  Emas antik naik porsi: glow aktif/tekan (`primaryGlow`), garis tepi kartu lebih
- *  tegas, teks sekunder/muted bernuansa champagne, `surfaceTint` emas.
- *  `OldMoneyAccent` = burgundy TERANG agak kalem (burgundy murni 0x800020 hanya ~1.7:1
- *  di latar gelap); 0xB4455A = 3.06:1 di kartu, teks gading di atasnya 4.66:1.
- *  `OldMoneyAccentDeep` = burgundy tua buat container. Secondary = emas antik
- *  (`OldMoneyGold`, 7.26:1 di kartu). Kontras dihitung statis (rumus WCAG), BELUM
- *  dicek di device. */
+ *  Batch 177 (keluhan "primary terlalu mendominasi"): permukaan diubah dari
+ *  espresso-BURGUNDY (kemerahan) jadi charcoal-cokelat hangat NETRAL; burgundy
+ *  dipegang HANYA kontrol/ikon aktif.
+ *  Batch 178 (keluhan "kurang", minta sekunder lebih calm tapi tetap old money):
+ *  emas antik (`0xC8A96A`, kuning terang, ramai) diganti HIJAU sage-hunter kalem
+ *  (`OldMoneySecondary`, 6.17:1 di kartu) — pasangan klasik burgundy ala klub/kampus
+ *  Ivy. Garis tepi kartu = hairline sage 40%; kilau knob & glow aktif/tekan pakai
+ *  champagne (`OldMoneyTextSecondary`) biar burgundy-sage tak bentrok jadi kesan Natal
+ *  di komponen kecil; `surfaceTint` champagne.
+ *  `OldMoneyAccent` = burgundy TERANG kalem (murni 0x800020 hanya ~1.7:1 di latar
+ *  gelap); 0xB4455A = 3.06:1 di kartu, teks gading di atasnya 4.66:1.
+ *  `OldMoneyAccentDeep` = burgundy tua buat container; `OldMoneySecondaryDeep` = hunter
+ *  gelap buat container sekunder. Kontras dihitung statis (rumus WCAG), BELUM dicek
+ *  di device. */
 val OldMoneyBackground = Color(0xFF14110F)
 val OldMoneySurface = Color(0xFF1A1613)
 val OldMoneySurfaceRaised = Color(0xFF241F1B)
 val OldMoneyAccent = Color(0xFFB4455A) // burgundy terang kalem, primary
 val OldMoneyAccentDeep = Color(0xFF52202C) // burgundy tua, container
-val OldMoneyGold = Color(0xFFC8A96A) // emas antik, secondary
-val OldMoneyGoldDeep = Color(0xFF453718) // container emas gelap
+val OldMoneySecondary = Color(0xFF8FA58E) // sage-hunter kalem, secondary
+val OldMoneySecondaryDeep = Color(0xFF243A2D) // hunter gelap, container sekunder
 val OldMoneyTextPrimary = Color(0xFFF2EADB) // gading
 val OldMoneyTextSecondary = Color(0xFFD2C6A8) // champagne
 val OldMoneyTextMuted = Color(0xFFA29579)
 val OldMoneyOutline = Color(0xFF4A3F36)
-val OldMoneyBorderBrush: Brush = SolidColor(Color(0x80C8A96A)) // hairline emas (50%)
+val OldMoneyBorderBrush: Brush = SolidColor(Color(0x668FA58E)) // hairline sage (40%)
 val OldMoneyCardBrush: Brush = SolidColor(OldMoneySurfaceRaised)
 val OldMoneySpecularBrush: Brush = SolidColor(Color.Transparent) // flat: 0 kilau kaca
 
@@ -773,20 +777,20 @@ val SereneSkeuTokens = SkeuTokens(
 )
 
 /** Varian 6: "Old Money" (Batch 176) — flat tonal, kartu solid `OldMoneySurfaceRaised`
- *  + hairline emas + sudut bersiku; `sliderKnobHighlight` & (Batch 177) `primaryGlow` emas =
- *  knob ala kuningan + glow aktif/tekan emas (burgundy tak lagi memegang semua aksen).
+ *  + hairline sage (B178, sebelumnya emas) + sudut bersiku; `sliderKnobHighlight` &
+ *  `primaryGlow` = champagne (B178) = kilau knob ala mutiara + glow aktif/tekan hangat.
  *  Shadow/specular Transparent (tanpa kaca/bevel), `cardElevation` 3dp. */
 val OldMoneySkeuTokens = SkeuTokens(
     mutedText = OldMoneyTextMuted,
     bevelBrush = OldMoneyCardBrush,
     bevelBorderBrush = OldMoneyBorderBrush,
-    primaryGlow = OldMoneyGold,
+    primaryGlow = OldMoneyTextSecondary,
     baseSurface = OldMoneySurface,
     elevatedSurface = OldMoneySurfaceRaised,
     cardBrush = OldMoneyCardBrush,
     cardBorderBrush = OldMoneyBorderBrush,
     cardElevation = 3.dp,
-    sliderKnobHighlight = OldMoneyGold,
+    sliderKnobHighlight = OldMoneyTextSecondary,
     specularBrush = OldMoneySpecularBrush,
     cardRadius = OldMoneyCardRadius,
     iconBoxRadius = OldMoneyIconBoxRadius,
@@ -800,7 +804,7 @@ val OldMoneySkeuTokens = SkeuTokens(
  *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
  *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4).
  *  Batch 111: +`SERENE_M3` (varian ke-5, genuine Material 3).
- *  Batch 176: +`OLD_MONEY` (varian ke-6, serif klasik + burgundy/emas antik). */
+ *  Batch 176: +`OLD_MONEY` (varian ke-6, serif klasik + burgundy/sage-hunter). */
 enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ, SERENE_M3, OLD_MONEY }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
@@ -940,26 +944,27 @@ private val SereneDarkColors = darkColorScheme(
 )
 
 /** Batch 176: colorScheme M3 buat "Old Money" (varian ke-6) — `primary` burgundy
- *  terang (`OldMoneyAccent`), `onPrimary` gading (4.66:1), `secondary` emas antik
- *  (`OldMoneyGold`) dgn `onSecondary` cokelat gelap. Container: burgundy tua &
- *  emas gelap. 0 warna dipinjam dari `darkColorScheme` lain. `error` TETAP merah
- *  standar proyek (mirip burgundy — bedakan lewat ikon/teks, bukan warna saja). */
+ *  terang (`OldMoneyAccent`), `onPrimary` gading (4.66:1), `secondary` sage-hunter
+ *  (`OldMoneySecondary`, B178; sebelumnya emas) dgn `onSecondary` hijau-hitam. Container:
+ *  burgundy tua & hunter gelap. 0 warna dipinjam dari `darkColorScheme` lain.
+ *  `error` TETAP merah standar proyek (mirip burgundy — bedakan lewat ikon/teks,
+ *  bukan warna saja). */
 private val OldMoneyDarkColors = darkColorScheme(
     primary = OldMoneyAccent,
     onPrimary = Color(0xFFF6EFE3),
     primaryContainer = OldMoneyAccentDeep,
     onPrimaryContainer = Color(0xFFF3D9DE),
-    secondary = OldMoneyGold,
-    onSecondary = Color(0xFF241A05),
-    secondaryContainer = OldMoneyGoldDeep,
-    onSecondaryContainer = Color(0xFFEBDDB4),
+    secondary = OldMoneySecondary,
+    onSecondary = Color(0xFF121C16),
+    secondaryContainer = OldMoneySecondaryDeep,
+    onSecondaryContainer = Color(0xFFD6E4D4),
     background = OldMoneyBackground,
     onBackground = OldMoneyTextPrimary,
     surface = OldMoneySurface,
     onSurface = OldMoneyTextPrimary,
     surfaceVariant = OldMoneySurfaceRaised,
     onSurfaceVariant = OldMoneyTextSecondary,
-    surfaceTint = OldMoneyGold,
+    surfaceTint = OldMoneyTextSecondary,
     error = Color(0xFFFF6B6B),
     onError = Color.White,
     errorContainer = Color(0xFF4A1616),

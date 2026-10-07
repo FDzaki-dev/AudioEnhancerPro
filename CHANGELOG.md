@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 178: Warna sekunder Old Money lebih kalem — emas diganti hijau sage-hunter
+
+Emas antik terasa terlalu terang dan ramai, jadi warna sekunder Old Money diganti ke hijau sage-hunter yang kalem, pasangan klasik burgundy ala klub dan kampus Ivy. Garis tipis di tepi kartu kini berwarna sage, sedangkan kilau knob slider dan cahaya saat disentuh atau terpilih memakai champagne hangat supaya burgundy dan hijau tidak bertabrakan di komponen kecil. Latar charcoal netral dan burgundy kalem dari Batch 177 tidak berubah. Tema lain tidak berubah.
+Untuk pengembang: hanya blok `OldMoney*` di `Theme.kt` (nama `OldMoneyGold` dan `OldMoneyGoldDeep` diganti `OldMoneySecondary` dan `OldMoneySecondaryDeep`). Secondary `0xFF8FA58E` (kontras di kartu 6,17:1), container `0xFF243A2D`, `onSecondary` `0xFF121C16`, `onSecondaryContainer` `0xFFD6E4D4`, garis tepi `0x668FA58E`, `primaryGlow`, `sliderKnobHighlight`, dan `surfaceTint` memakai champagne `0xFFD2C6A8`. Alternatif bila sage kurang cocok: camel atau pewter netral.
+
+**Perubahan** (1 file source + 3 dokumen): `Theme.kt`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v177.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat.
+
 ## Batch 177: Tema Old Money lebih seimbang — burgundy tidak lagi mendominasi
 
 Latar dan kartu Old Money tadinya bernuansa kemerahan sehingga burgundy terasa menyelimuti seluruh layar. Sekarang latar dan kartu memakai charcoal-cokelat hangat yang netral, burgundy dipegang oleh kontrol dan ikon aktif saja dan dibuat sedikit lebih kalem, sedangkan emas antik mendapat porsi lebih: cahaya saat disentuh atau terpilih, garis tepi kartu yang lebih tegas, serta teks sekunder berwarna champagne. Tema lain tidak berubah.
