@@ -556,7 +556,8 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
 
 /** Varian 6: "Old Money" — Batch 176, request user "tema baru old money, typography
  *  & shape bernuansa old money, primary burgundy + secondary matching". Flat
- *  tonal (0 bevel/glass/dual-shadow), zero baseline dishare dari 5 varian lain.
+ *  tonal (0 bevel/glass/dual-shadow; B179 mengubah ini jadi kartu timbul neumorphism,
+ *  lihat paragraf B179 di bawah), zero baseline dishare dari 5 varian lain.
  *  Batch 177 (keluhan "primary terlalu mendominasi"): permukaan diubah dari
  *  espresso-BURGUNDY (kemerahan) jadi charcoal-cokelat hangat NETRAL; burgundy
  *  dipegang HANYA kontrol/ikon aktif.
@@ -570,10 +571,30 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
  *  gelap); 0xB4455A = 3.06:1 di kartu, teks gading di atasnya 4.66:1.
  *  `OldMoneyAccentDeep` = burgundy tua buat container; `OldMoneySecondaryDeep` = hunter
  *  gelap buat container sekunder. Kontras dihitung statis (rumus WCAG), BELUM dicek
+ *  di device.
+ *  Batch 179 (request user "adaptasi panduan neumorphism dark mode ke tema old money"):
+ *  kartu jadi TIMBUL (extruded) ala panduan — permukaan kartu = gradien diagonal tipis
+ *  kiri-atas terang -> kanan-bawah gelap (`OldMoneyCardLight`/`OldMoneyCardDark`, +-3 level
+ *  dari base, micro-contrast), cahaya dari kiri-atas, dual-shadow lembut sehue
+ *  (`OldMoneyEdgeHighlight` gading 2% / `OldMoneyEdgeShadow` cokelat-hitam 32%; BUKAN
+ *  hitam/putih pekat), garis tepi bevel miring (sorot gading kiri-atas -> sage meredup
+ *  kanan-bawah, jauh lebih tipis dari 40% B178). Track slider & groove switch otomatis
+ *  CEKUNG (komponen yang sama membalik arah bayangan). Latar dinaikkan ke rentang panduan
+ *  (stop terendah `0xFF171310`, bukan `0xFF0C0A09` yang nyaris hitam sehingga bayangan
+ *  tak punya ruang). Identitas Old Money TETAP: serif, chamfer 8dp, burgundy + sage, hue
+ *  netral hangat (B177), TANPA emas (B178). Hitungan alpha = simulasi statis, BELUM dicek
  *  di device. */
-val OldMoneyBackground = Color(0xFF14110F)
-val OldMoneySurface = Color(0xFF1A1613)
-val OldMoneySurfaceRaised = Color(0xFF241F1B)
+val OldMoneyBackground = Color(0xFF1A1613)
+val OldMoneySurface = Color(0xFF1E1A17) // base neumorphism (analog `#1e222b` panduan)
+val OldMoneySurfaceRaised = Color(0xFF211D1A)
+val OldMoneyCardLight = Color(0xFF211D1A) // ujung kiri-atas gradien kartu (+3 dari base)
+val OldMoneyCardDark = Color(0xFF1B1714) // ujung kanan-bawah gradien kartu (-3 dari base)
+// Sorot tepi kiri-atas: gading (sehue base, bukan putih pekat) alpha ~2%; akumulasi
+// concentric-fade `SkeuDualDirectionalShadow` di tepi ~5% (+~10 level di atas base).
+val OldMoneyEdgeHighlight = Color(0x05F2EADB)
+// Bayangan kanan-bawah: cokelat-hitam hangat alpha 32%; akumulasi di tepi ~59%,
+// 29% di jarak 8dp, ~5% di 14dp (kurva sama dengan blur lembut panduan).
+val OldMoneyEdgeShadow = Color(0x52080605)
 val OldMoneyAccent = Color(0xFFB4455A) // burgundy terang kalem, primary
 val OldMoneyAccentDeep = Color(0xFF52202C) // burgundy tua, container
 val OldMoneySecondary = Color(0xFF8FA58E) // sage-hunter kalem, secondary
@@ -582,8 +603,17 @@ val OldMoneyTextPrimary = Color(0xFFF2EADB) // gading
 val OldMoneyTextSecondary = Color(0xFFD2C6A8) // champagne
 val OldMoneyTextMuted = Color(0xFFA29579)
 val OldMoneyOutline = Color(0xFF4A3F36)
-val OldMoneyBorderBrush: Brush = SolidColor(Color(0x668FA58E)) // hairline sage (40%)
-val OldMoneyCardBrush: Brush = SolidColor(OldMoneySurfaceRaised)
+// B179: bevel miring (bukan solid 40% lagi) — sorot gading kiri-atas ~18%, sage ~13% di
+// tengah, meredup ~6% di kanan-bawah; menggantikan hairline sage 40% (B178).
+val OldMoneyBorderBrush: Brush = Brush.linearGradient(
+    0.0f to Color(0x2EF2EADB),
+    0.5f to Color(0x228FA58E),
+    1.0f to Color(0x0F8FA58E)
+)
+// B179: gradien diagonal kartu timbul (kiri-atas terang -> kanan-bawah gelap), ~145deg panduan.
+val OldMoneyCardBrush: Brush = Brush.linearGradient(
+    colors = listOf(OldMoneyCardLight, OldMoneyCardDark)
+)
 val OldMoneySpecularBrush: Brush = SolidColor(Color.Transparent) // flat: 0 kilau kaca
 
 /** Sudut bersiku (chamfer) simetris — gaya bingkai/plakat klasik, BUKAN rounded
@@ -604,7 +634,7 @@ val OldMoneyIconBoxRadius = 5.dp
 val OldMoneyCardShape: CornerBasedShape = oldMoneyChamfer(OldMoneyCardRadius)
 
 val OldMoneyScreenBackgroundBrush: Brush = Brush.verticalGradient(
-    listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF0C0A09))
+    listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF171310))
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
@@ -776,10 +806,14 @@ val SereneSkeuTokens = SkeuTokens(
     cardShape = SereneCardShape
 )
 
-/** Varian 6: "Old Money" (Batch 176) — flat tonal, kartu solid `OldMoneySurfaceRaised`
- *  + hairline sage (B178, sebelumnya emas) + sudut bersiku; `sliderKnobHighlight` &
+/** Varian 6: "Old Money" (Batch 176) — kartu timbul neumorphism dark (B179): gradien
+ *  diagonal `OldMoneyCardBrush` + bevel tipis + sudut bersiku; `sliderKnobHighlight` &
  *  `primaryGlow` = champagne (B178) = kilau knob ala mutiara + glow aktif/tekan hangat.
- *  Shadow/specular Transparent (tanpa kaca/bevel), `cardElevation` 3dp. */
+ *  B179: `shadowLightTint`/`shadowDarkTint` DIISI (dual-shadow lembut kiri-atas/kanan-bawah,
+ *  sama mesin dgn varian Neumorphism, alpha jauh lebih rendah) — track slider, groove switch
+ *  & power button ikut tenggelam/timbul otomatis. `cardElevation` 12dp = jarak bleed
+ *  bayangan (rasio blur ~2x offset panduan) + shadow native tipis. Specular tetap
+ *  Transparent (0 kilau kaca). */
 val OldMoneySkeuTokens = SkeuTokens(
     mutedText = OldMoneyTextMuted,
     bevelBrush = OldMoneyCardBrush,
@@ -789,13 +823,13 @@ val OldMoneySkeuTokens = SkeuTokens(
     elevatedSurface = OldMoneySurfaceRaised,
     cardBrush = OldMoneyCardBrush,
     cardBorderBrush = OldMoneyBorderBrush,
-    cardElevation = 3.dp,
+    cardElevation = 12.dp,
     sliderKnobHighlight = OldMoneyTextSecondary,
     specularBrush = OldMoneySpecularBrush,
     cardRadius = OldMoneyCardRadius,
     iconBoxRadius = OldMoneyIconBoxRadius,
-    shadowLightTint = Color.Transparent,
-    shadowDarkTint = Color.Transparent,
+    shadowLightTint = OldMoneyEdgeHighlight,
+    shadowDarkTint = OldMoneyEdgeShadow,
     cardShape = OldMoneyCardShape
 )
 

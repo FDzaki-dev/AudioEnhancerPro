@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 179: Tema Old Money kini bergaya neumorphism gelap — kartu timbul, slider dan switch cekung
+
+Panduan neumorphism dark mode diterapkan ke tema Old Money. Kartu sekarang terlihat timbul dari permukaan: ada gradasi sangat tipis dari kiri-atas yang sedikit lebih terang ke kanan-bawah yang sedikit lebih gelap, sorot gading halus di tepi kiri-atas, dan bayangan cokelat lembut di kanan-bawah (bukan hitam atau putih pekat). Jalur slider dan alur switch terlihat cekung, tombol power ikut timbul dan menjadi cekung saat aktif. Latar dinaikkan sedikit dari hampir hitam ke charcoal-cokelat hangat supaya bayangan punya ruang untuk terlihat. Ciri Old Money tetap: huruf serif, sudut bersiku, burgundy dan sage-hunter, tanpa emas. Lima tema lain tidak berubah.
+Untuk pengembang: hanya blok `OldMoney*` di `Theme.kt`; komponen (`SkeuomorphicComponents.kt`) tidak disentuh karena `SkeuDualDirectionalShadow` sudah membaca token. Base `0xFF1E1A17`, latar `1E1A17` ke `1A1613` ke `171310`, `OldMoneyCardBrush` gradien diagonal `211D1A` ke `1B1714`, `shadowLightTint` `0x05F2EADB` (gading), `shadowDarkTint` `0x52080605` (cokelat-hitam), `cardElevation` 3dp menjadi 12dp, `OldMoneyBorderBrush` bevel miring (gading ~18% kiri-atas ke sage ~6% kanan-bawah, sebelumnya sage 40%). Alpha bayangan dikalibrasi terhadap akumulasi lima lapis pudar bertahap: sekitar 59% di tepi, 29% di 8dp, 5% di 14dp. Kontras burgundy di kartu 3,14 sampai 3,34:1.
+
+**Perubahan** (1 file source + 3 dokumen): `Theme.kt`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v178.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat (cek bayangan tidak terlalu keras atau terpotong, dan scroll tetap mulus).
+
 ## Batch 178: Warna sekunder Old Money lebih kalem — emas diganti hijau sage-hunter
 
 Emas antik terasa terlalu terang dan ramai, jadi warna sekunder Old Money diganti ke hijau sage-hunter yang kalem, pasangan klasik burgundy ala klub dan kampus Ivy. Garis tipis di tepi kartu kini berwarna sage, sedangkan kilau knob slider dan cahaya saat disentuh atau terpilih memakai champagne hangat supaya burgundy dan hijau tidak bertabrakan di komponen kecil. Latar charcoal netral dan burgundy kalem dari Batch 177 tidak berubah. Tema lain tidak berubah.
