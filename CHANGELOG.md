@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 173: Slider jauh dari bulatan — ketukan tetap melompat, geseran diblok, scroll aman
+
+Perilaku slider (Bass, Virtualizer, Loudness, Compressor, tiap pita Equalizer) kini: ketukan singkat di track yang jauh dari bulatan (thumb) memindahkan nilai ke titik itu (sesuai kelipatan Batch 169, dengan getar), tapi baru terjadi saat jari diangkat, bukan saat baru menyentuh. Geseran yang dimulai jauh dari thumb tidak mengubah nilai. Menggulir halaman dengan jari yang mendarat di slider tidak mengubah nilai dan halaman tetap bisa digulir. Jari yang ditahan diam lama lalu diangkat tidak dianggap ketukan. Mulai dari dekat thumb tetap seperti biasa.
+Untuk pengembang: gate Batch 172 ditulis ulang (`Modifier.ignoreTouchFarFromThumb` + `fractionAtX`, `SkeuomorphicComponents.kt`). Event down jauh tetap dikonsumsi di pass `Initial`; angkat sebelum `touchSlop` dan sebelum long-press memanggil `onTapFar` (lewat `snapToStep` dan haptic yang sama dengan akhir drag); gerak dominan horizontal dikonsumsi, dominan vertikal dibiarkan. Jarak dihitung di ruang fraksi nilai, sehingga RTL otomatis. Tanpa dependency, izin, thread, atau logger baru.
+
+**Perubahan** (1 file + 2 dokumen): `SkeuomorphicComponents.kt`. Revert: kembalikan file itu ke `Boomly_v171.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); belum diuji di perangkat. Gejala bug di HP yang dilaporkan (loncat, macet, scroll) belum dirinci, jadi belum tentu semuanya tertangani.
+
 ## Batch 172: Slider tidak lagi bergeser kalau disentuh jauh dari bulatannya
 
 Di Bass, Virtualizer, Loudness, Compressor, dan tiap pita Equalizer, menyentuh track di tempat yang jauh dari bulatan (thumb) tidak lagi memindahkan nilai. Sebelumnya satu ketukan atau jari yang kebetulan mendarat di slider (misalnya saat menggulir halaman) langsung melompatkan nilai. Sekarang nilai hanya berubah kalau jari mendarat dekat thumb (kira-kira 32dp ke kiri/kanan dari tengahnya), lalu menggesernya seperti biasa; setelah geseran dimulai, jari boleh bergerak sejauh apa pun. Snap per kelipatan (Batch 169) tidak berubah. Menggulir halaman dengan jari yang mendarat di slider tetap jalan.

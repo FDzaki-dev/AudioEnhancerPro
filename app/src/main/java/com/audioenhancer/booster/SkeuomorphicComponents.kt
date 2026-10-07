@@ -453,40 +453,58 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
 private val SkeuSliderThumbSize = 22.dp
 private val SliderGrabRadius = 32.dp
 
-/** Batch 172 (request user: slider sentuh-jauh-dari-thumb): sentuhan yang MENDARAT lebih jauh dari
- *  [SliderGrabRadius] (horizontal) dari thumb TIDAK menggeser/meloncatkan slider. Mekanisme:
- *  `pointerInput` di pass `Initial` (jalan SEBELUM handler tap/drag bawaan `Slider`) mengonsumsi
- *  event down → `detectTapGestures` Slider (onPress/onTap = sumber lompatan) mengabaikannya.
- *  Sentuhan yang mendarat dekat thumb TIDAK disentuh sama sekali (drag normal, tanpa batas jarak
- *  setelah mulai). Sentuhan jauh yang kemudian bergerak dominan horizontal (setelah `touchSlop`)
- *  ikut dikonsumsi supaya `draggable` Slider tidak menggeser thumb relatif; yang dominan vertikal
- *  TIDAK dikonsumsi → scroll halaman tetap jalan. Beda dari Batch 138 (di-revert B140): key
- *  `Unit` TANPA `value` (tak ada restart paksa), nilai terkini dibaca lewat [State]
- *  (`rememberUpdatedState`), dan konsumsi di pass Initial, bukan Main. B169 (snap) tak disentuh. */
+/** Fraksi nilai (0..1, sudah memperhitungkan RTL) dari posisi sentuh horizontal [x] di dalam
+ *  slider. Geometri sama dengan `Slider` M3: thumb berpusat di `thumbWidth/2 + fraksi * trackWidth`. */
+private fun fractionAtX(x: Float, thumbWidthPx: Float, trackWidthPx: Float, isRtl: Boolean): Float {
+    val f = ((x - thumbWidthPx / 2f) / trackWidthPx).coerceIn(0f, 1f)
+    return if (isRtl) 1f - f else f
+}
+
+/** Batch 172+173 (request user: slider sentuh-jauh-dari-thumb; B173: "tap track jauh boleh, drag
+ *  jauh diblok"). Sentuhan yang MENDARAT lebih jauh dari [SliderGrabRadius] (horizontal) dari thumb
+ *  diproses di sini, bukan oleh `Slider`: `pointerInput` di pass `Initial` (jalan SEBELUM handler
+ *  tap/drag bawaan) mengonsumsi event down, jadi onPress/onTap Slider (sumber lompatan saat jari
+ *  hanya lewat/scroll) mengabaikannya. Lalu: (1) jari diangkat tanpa melewati `touchSlop` dan
+ *  sebelum long-press = TAP → [onTapFar] dipanggil SEKALI saat angkat dengan nilai di titik sentuh
+ *  (perilaku tap lama, tapi tertunda sampai jelas bukan scroll/drag); (2) gerak melewati
+ *  `touchSlop` dominan horizontal = drag jauh → semua event dikonsumsi (Slider tidak bergeser);
+ *  (3) dominan vertikal = scroll → TIDAK dikonsumsi, halaman tetap scroll, nilai tak berubah.
+ *  Sentuhan yang mendarat dekat thumb TIDAK disentuh sama sekali (drag normal). Beda dari Batch 138
+ *  (di-revert B140): key `Unit` TANPA `value` (tak ada restart paksa), nilai terkini lewat [State]
+ *  (`rememberUpdatedState`), konsumsi di pass Initial. B169 (snap) lewat [onTapFar]. */
 private fun Modifier.ignoreTouchFarFromThumb(
     enabled: State<Boolean>,
     value: State<Float>,
     range: State<ClosedFloatingPointRange<Float>>,
-    isRtl: State<Boolean>
+    isRtl: State<Boolean>,
+    onTapFar: State<(Float) -> Unit>
 ): Modifier = pointerInput(Unit) {
     val thumbWidthPx = SkeuSliderThumbSize.toPx()
     val grabRadiusPx = SliderGrabRadius.toPx()
     awaitEachGesture {
         val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        if (!enabled.value) return@awaitEachGesture
-        val start = range.value.start
-        val span = range.value.endInclusive - start
-        val fraction = if (span > 0f) ((value.value - start) / span).coerceIn(0f, 1f) else 0f
-        val thumbX = thumbWidthPx / 2f + (size.width - thumbWidthPx) * fraction
-        val thumbCenterX = if (isRtl.value) size.width - thumbX else thumbX
-        if (abs(down.position.x - thumbCenterX) <= grabRadiusPx) return@awaitEachGesture
+        val r = range.value
+        val span = r.endInclusive - r.start
+        val trackWidthPx = size.width - thumbWidthPx
+        if (!enabled.value || span <= 0f || trackWidthPx <= 0f) return@awaitEachGesture
+        val thumbFraction = ((value.value - r.start) / span).coerceIn(0f, 1f)
+        val touchFraction = fractionAtX(down.position.x, thumbWidthPx, trackWidthPx, isRtl.value)
+        if (abs(touchFraction - thumbFraction) * trackWidthPx <= grabRadiusPx) return@awaitEachGesture
         down.consume()
+        val tapDeadline = down.uptimeMillis + viewConfiguration.longPressTimeoutMillis
         var decided = false
         var horizontal = false
         while (true) {
             val change = awaitPointerEvent(PointerEventPass.Initial)
                 .changes.firstOrNull { it.id == down.id }
-            if (change == null || !change.pressed) return@awaitEachGesture
+            if (change == null) return@awaitEachGesture
+            if (!change.pressed) {
+                if (!decided && change.uptimeMillis <= tapDeadline) {
+                    change.consume()
+                    onTapFar.value.invoke(r.start + touchFraction * span)
+                }
+                return@awaitEachGesture
+            }
             if (!decided) {
                 val delta = change.position - down.position
                 if (delta.getDistance() >= viewConfiguration.touchSlop) {
@@ -531,6 +549,14 @@ internal fun FeatureControl(
     val latestValue = rememberUpdatedState(value)
     val latestRange = rememberUpdatedState(valueRange)
     val isRtl = rememberUpdatedState(LocalLayoutDirection.current == LayoutDirection.Rtl)
+    // Batch 173: tap jauh dari thumb = lompat ke titik sentuh (lewat snap B169 + haptic yang sama
+    // dengan akhir drag), dipanggil gate SETELAH jari diangkat.
+    val tapFarHandler: (Float) -> Unit = { raw ->
+        val snapped = snapToStep(raw, step, valueRange)
+        if (step <= 0f || snapped != value) onValueChange(snapped)
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+    val latestTapFar = rememberUpdatedState(tapFarHandler)
     val innerContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -590,7 +616,7 @@ internal fun FeatureControl(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
-                .ignoreTouchFarFromThumb(latestEnabled, latestValue, latestRange, isRtl)
+                .ignoreTouchFarFromThumb(latestEnabled, latestValue, latestRange, isRtl, latestTapFar)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
     }
