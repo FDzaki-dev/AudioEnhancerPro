@@ -102,6 +102,12 @@
     <string name="battery_card_body">So the booster keeps running even when your phone is locked or the app is swiped away from recent apps. On MIUI/ColorOS/EMUI/XOS/HiOS phones, also enable \'Autostart\' manually in phone settings.</string>
     <string name="battery_autostart_button">Open Autostart Settings</string>
     <string name="battery_autostart_button_generic">Open App Settings</string>
+    <string name="battery_status_unrestricted">Battery: Boomly runs unrestricted</string>
+    <string name="battery_status_limited">Android may stop Boomly while battery optimization is still on for this phone.</string>
+    <string name="battery_status_allow_button">Allow unrestricted background use</string>
+    <string name="battery_restricted_notice">Android restricts Boomly from running in the background. This is SEPARATE from the battery status above and can make Boomly stop or fail to start by itself. Change it in App Info &gt; Battery.</string>
+    <string name="battery_restricted_button">Open Boomly App Info</string>
+    <string name="battery_recents_note">While Boomly is on, the app is hidden from the recent apps list. On some phones, swiping its card makes the system kill the process. Open it from the icon, widget, tile, or by tapping the notification.</string>
     <string name="see_full_explanation">See full explanation of each feature</string>
 
     <!-- Theme toggle -->

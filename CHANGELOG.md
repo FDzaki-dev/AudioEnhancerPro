@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 171: Kartu baterai lebih jelas, dan Boomly tidak tampil di daftar aplikasi terbaru saat menyala
+
+Kartu "Kenapa perlu izin baterai & autostart?" di layar utama kini menampilkan keadaan sebenarnya: centang "Baterai: Boomly berjalan tanpa batas" kalau sudah diizinkan, atau tombol "Izinkan berjalan tanpa batas" kalau belum. Kalau Android membatasi Boomly di latar belakang (pengaturan yang terpisah dari optimasi baterai), muncul peringatan merah dengan tombol ke Info Aplikasi. Status dibaca ulang setiap kali app dibuka.
+Selama Boomly menyala, app juga disembunyikan dari daftar aplikasi terbaru, jadi tidak ada kartu yang bisa digeser. Alasannya: di sebagian HP (terbukti di log proyek LagFix), menggeser kartu dari daftar itu membuat sistem membunuh prosesnya. Begitu Boomly dimatikan, kartunya tampil lagi. Buka Boomly lewat ikon, widget, tile, atau ketuk notifikasi. Apakah ini benar-benar mencegah proses dibunuh di HP kamu belum terbukti.
+Untuk pengembang: diport dari LagFix v133. `AudioEnhancerService.syncExcludeFromRecents` memakai `AppTask.setExcludeFromRecents` (dinamis, bukan atribut manifest), dipanggil di transisi start/stop Service dan `MainActivity.onResume`; hasil tiap penerapan ditulis apa adanya ke logcat. Tanpa timer, loop, izin, atau dependency baru.
+
+**Perubahan** (5 file + 3 dokumen): `AudioEnhancerService.kt`, `MainActivity.kt`, `BoosterScreen.kt`, `values/strings.xml`, `values-en/strings.xml`.
+**NOT VERIFIED**: kompilasi, lint, detekt, dan tes belum dijalankan (lingkungan penyusun tanpa Gradle); belum diuji di perangkat.
+
 ## Batch 170: Slider per kelipatan lolos uji di perangkat, aplikasi tidak berubah
 
 Tidak ada perubahan pada tampilan, suara, atau perilaku Boomly. Pengguna sudah menguji slider berkelipatan (Batch 169) di perangkat dan tidak ada keluhan. Batch ini hanya mencatat hasil uji itu di dokumen proyek.

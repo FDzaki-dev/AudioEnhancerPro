@@ -102,6 +102,12 @@
     <string name="battery_card_body">Supaya booster tetap jalan walau HP di-lock atau app di-scroll dari recent apps. Di HP MIUI/ColorOS/EMUI/XOS/HiOS, aktifkan juga \'Autostart\' secara manual di pengaturan HP.</string>
     <string name="battery_autostart_button">Buka Pengaturan Autostart</string>
     <string name="battery_autostart_button_generic">Buka Pengaturan Aplikasi</string>
+    <string name="battery_status_unrestricted">Baterai: Boomly berjalan tanpa batas</string>
+    <string name="battery_status_limited">Boomly bisa dimatikan sistem kalau baterai masih dioptimasi di HP ini.</string>
+    <string name="battery_status_allow_button">Izinkan berjalan tanpa batas</string>
+    <string name="battery_restricted_notice">Android membatasi Boomly berjalan di latar belakang. Ini TERPISAH dari status baterai di atas dan bisa membuat Boomly mati atau gagal menyala sendiri. Ubah lewat Info Aplikasi &gt; Baterai.</string>
+    <string name="battery_restricted_button">Buka Info Aplikasi Boomly</string>
+    <string name="battery_recents_note">Saat Boomly menyala, app disembunyikan dari daftar aplikasi terbaru. Di sebagian HP, menggeser kartunya membuat sistem membunuh prosesnya. Buka lewat ikon, widget, tile, atau ketuk notifikasi.</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur</string>
 
     <!-- Toggle tema -->

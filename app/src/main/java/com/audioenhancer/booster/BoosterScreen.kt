@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Equalizer
@@ -553,6 +554,12 @@ fun BoosterScreen(
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
     onOpenNotificationSettings: () -> Unit = {},
+    // Batch 171 (port konfigurasi baterai LagFix): status optimasi baterai vs pembatasan latar belakang
+    // (DUA hal terpisah) + callback ke Activity (intent Settings tetap dibuat di MainActivity).
+    batteryUnrestricted: Boolean = true,
+    backgroundRestricted: Boolean = false,
+    onRequestBatteryExemption: () -> Unit = {},
+    onOpenAppInfo: () -> Unit = {},
     useDynamicColor: Boolean = false,
     onUseDynamicColorChange: (Boolean) -> Unit = {},
     // Batch 38: appThemeStyleKey ganti dari Boolean (themeStyleIsRadical, Batch 36)
@@ -1339,6 +1346,40 @@ fun BoosterScreen(
                             stringResource(R.string.battery_autostart_button_generic)
                     )
                 }
+                Spacer(modifier = Modifier.height(10.dp))
+                // Batch 171 (port LagFix): baris konfirmasi menggantikan tombol begitu user mengizinkan
+                // (bukan lenyap tanpa jejak). Status dibaca ulang tiap onResume di MainActivity.
+                if (batteryUnrestricted) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                        Text(stringResource(R.string.battery_status_unrestricted), style = MaterialTheme.typography.bodySmall)
+                    }
+                } else {
+                    Text(stringResource(R.string.battery_status_limited), style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedButton(onClick = onRequestBatteryExemption) {
+                        Text(stringResource(R.string.battery_status_allow_button))
+                    }
+                }
+                // Pembatasan latar belakang dicek TERPISAH supaya centang di atas tak jadi sinyal aman palsu.
+                if (backgroundRestricted) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        stringResource(R.string.battery_restricted_notice),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    OutlinedButton(onClick = onOpenAppInfo) {
+                        Text(stringResource(R.string.battery_restricted_button))
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(stringResource(R.string.battery_recents_note), style = MaterialTheme.typography.bodySmall)
             }
         }
 

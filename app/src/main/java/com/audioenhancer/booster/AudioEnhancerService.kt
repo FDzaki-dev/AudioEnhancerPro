@@ -190,6 +190,24 @@ class AudioEnhancerService : Service() {
             if (isRunning && sessionStartElapsedMs > 0L) sessionStartElapsedMs = SystemClock.elapsedRealtime()
         }
 
+        /** Batch 171 (port LagFix v133, perintah user): menggeser app dari Recents = `remove-task`, lalu modul
+         *  OEM (Transsion `TranManualCleanMgr`, terbukti di log LagFix) mengirim SIGKILL ke proses. Selama
+         *  [isRunning] true, task app disembunyikan dari Recents lewat `AppTask.setExcludeFromRecents` (tak
+         *  ada kartu yang bisa digeser); mati -> dikembalikan. Dipanggil dari transisi start/stop Service
+         *  (semua jalur: app, tile, widget, shortcut, notifikasi, boot, sleep timer) dan dari
+         *  `MainActivity.onResume` (task baru tidak mewarisi flag). 1 panggilan binder, tanpa timer/loop.
+         *  Efektivitas di device BELUM terbukti; hasil tiap penerapan dicatat apa adanya di logcat. */
+        fun syncExcludeFromRecents(context: android.content.Context) {
+            try {
+                val exclude = isRunning
+                val tasks = context.getSystemService(ActivityManager::class.java)?.appTasks.orEmpty()
+                tasks.forEach { it.setExcludeFromRecents(exclude) }
+                android.util.Log.i(TAG, "LIFECYCLE recentsExclusion exclude=$exclude appTasks=${tasks.size}")
+            } catch (e: Exception) {
+                android.util.Log.w(TAG, "Sinkron excludeFromRecents gagal", e)
+            }
+        }
+
         /** Nyalakan service (atau re-enable efek kalau service masih hidup tapi lagi
          *  "dimatikan" lewat notifikasi). Dipakai bareng oleh MainActivity, BootReceiver,
          *  dan QuickToggleTileService — sebelumnya logika start ini terduplikasi 2x
@@ -504,6 +522,7 @@ class AudioEnhancerService : Service() {
             // Batch 44 (bugfix): QS Tile SEBELUMNYA gak ikut diberi tahu di sini —
             // lihat catatan lengkap di `QuickToggleTileService.requestTileUpdate()`.
             QuickToggleTileService.requestTileUpdate(this)
+            syncExcludeFromRecents(this) // Batch 171: Boomly mati -> task kembali tampil di Recents
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
             return START_NOT_STICKY
@@ -533,6 +552,7 @@ class AudioEnhancerService : Service() {
         // Batch 44 (bugfix): sama seperti cabang ACTION_STOP di atas — QS Tile ikut
         // disinkronkan di sini juga (jalur "start").
         QuickToggleTileService.requestTileUpdate(this)
+        syncExcludeFromRecents(this) // Batch 171: Boomly menyala -> task disembunyikan dari Recents
         // Batch 119: lanjutkan Sleep timer kalau masih ada (restart OS / start ulang manual).
         scheduleSleepTick()
         // START_STICKY: minta sistem restart service ini jika dibunuh karena low memory

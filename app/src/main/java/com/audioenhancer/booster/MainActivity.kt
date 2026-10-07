@@ -18,6 +18,7 @@ package com.audioenhancer.booster
 // bukan business logic audio yang reusable.
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -54,6 +55,12 @@ class MainActivity : ComponentActivity() {
     private val viewModel: BoosterViewModel by viewModels()
 
     private var notificationPermissionGranted by mutableStateOf(true)
+
+    // Batch 171 (port konfigurasi baterai LagFix): DUA status terpisah — dikecualikan dari optimasi baterai
+    // vs dibatasi di latar belakang (`isBackgroundRestricted`, API 28+). Dibaca ulang tiap onResume supaya
+    // ikut berubah begitu user kembali dari Pengaturan.
+    private var batteryUnrestricted by mutableStateOf(true)
+    private var backgroundRestricted by mutableStateOf(false)
 
     // Diisi kalau app dibuka lewat App Shortcut (long-press ikon launcher) yang nunjuk
     // ke preset custom tertentu. BoosterScreen yang nge-apply beneran (butuh akses ke
@@ -248,6 +255,10 @@ class MainActivity : ComponentActivity() {
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,
                             onOpenNotificationSettings = { openNotificationSettings() },
+                            batteryUnrestricted = batteryUnrestricted,
+                            backgroundRestricted = backgroundRestricted,
+                            onRequestBatteryExemption = { requestIgnoreBatteryOptimizations() },
+                            onOpenAppInfo = { openAppInfo() },
                             useDynamicColor = useDynamicColor,
                             onUseDynamicColorChange = {
                                 useDynamicColor = it
@@ -320,6 +331,26 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun openAppInfo() {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    data = Uri.parse("package:$packageName")
+                }
+            )
+        } catch (_: Exception) { }
+    }
+
+    private fun refreshBatteryStatus() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        batteryUnrestricted = pm.isIgnoringBatteryOptimizations(packageName)
+        backgroundRestricted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getSystemService(ActivityManager::class.java)?.isBackgroundRestricted == true
+        } else {
+            false
+        }
+    }
+
     // Batch 162: beri tahu ViewModel kapan UI terlihat supaya loop polling-nya berhenti di background.
     override fun onStart() {
         super.onStart()
@@ -344,5 +375,9 @@ class MainActivity : ComponentActivity() {
         // watchdog berikutnya kalau user kebetulan buka app duluan.
         BoosterWidgetProvider.refreshAll(this)
         QuickToggleTileService.requestTileUpdate(this)
+        refreshBatteryStatus()
+        // Batch 171 (port LagFix v133): task baru (dibuka dari notifikasi/tile/widget/shortcut) tidak
+        // mewarisi flag excludeFromRecents task lama -> terapkan ulang sesuai status service sekarang.
+        AudioEnhancerService.syncExcludeFromRecents(this)
     }
 }

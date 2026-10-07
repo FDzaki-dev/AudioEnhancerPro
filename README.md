@@ -26,6 +26,8 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Foreground service (`mediaPlayback`) dengan `START_STICKY` supaya bertahan dari low-memory kill.
 - Bertahan saat task di-swipe (`stopWithTask="false"` + `START_STICKY`, TANPA restart manual via `onTaskRemoved` — trik itu sempat dicoba lalu dicabut di v1.34 karena tidak reliable di Android 12+) dan otomatis jalan lagi saat device boot ulang.
 - Permintaan exemption battery optimization saat pertama dibuka.
+- Kartu baterai (layar utama) — status exemption battery optimization (centang atau tombol izin) + peringatan terpisah kalau Android membatasi Boomly di latar belakang; dibaca ulang tiap app dibuka (Batch 171).
+- Saat Boomly menyala, app disembunyikan dari daftar aplikasi terbaru (Recents) supaya kartunya tak bisa digeser; tampil lagi saat dimatikan. Buka lewat ikon, widget, tile, atau notifikasi (Batch 171, port LagFix; belum divalidasi di device).
 - Quick Settings Tile — toggle on/off langsung dari notification shade, tanpa buka app.
 - App Shortcuts (long-press ikon launcher) — toggle instan + akses langsung ke preset custom.
 - Cadangkan Preset (Pengaturan) — ekspor semua preset custom ke 1 file `.json` (SAF, pilih lokasi sendiri) dan impor kembali di device sama/baru. Preset dengan nama sama saat impor akan ditimpa.
@@ -56,6 +58,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
 - Statistik Pemakaian dihitung saat halaman Pengaturan dibuka dan tidak menghitung sesi yang dimatikan paksa oleh sistem; menyimpan preset baru ikut dihitung sebagai 1 pilihan.
 - Efek pada session 0 tidak dijamin bekerja di semua device/OEM (tergantung implementasi HAL audio vendor).
 - Di HP dengan manajemen baterai agresif (MIUI, ColorOS, EMUI, dll), user tetap perlu mengizinkan "Autostart" secara manual — tidak ada cara app mem-bypass ini tanpa izin user.
+- Menyembunyikan Boomly dari Recents saat menyala (Batch 171) hanya menutup satu jalur pembunuhan (swipe dari Recents) dan BELUM terbukti di device; pembersih/battery manager OEM lain masih bisa membunuh lewat jalur berbeda.
 - Watchdog periodik (di atas) mempercepat "sembuh sendiri" kalau service sempat dibunuh OS/OEM, TAPI bukan jaminan 100% service selalu hidup — di device dengan battery manager sangat agresif, OS tetap bisa menang berkali-kali dalam sehari.
 - Fast Recovery heartbeat (±1 menit, Batch 127-130) DIMATIKAN permanen sejak Batch 132 (instruksi eksplisit user, alasan baterai) — alarm exact itu bangun CPU terus-menerus selama service hidup, ongkos baterai nyata untuk percepatan pulih ~1-9mnt vs watchdog 15mnt. Kartu "Pemulihan Cepat" di Pengaturan ikut dihapus (izin alarm sudah tak berpengaruh ke behavior apa pun). Pemulihan otomatis sekarang murni watchdog 15 menit (di atas).
 - Sejak Android 12, app TIDAK diizinkan menyalakan ulang service dari latar belakang begitu saja (batasan resmi OS) kecuali sudah diberi exemption battery optimization — kalau belum, restart otomatis watchdog akan gagal diam-diam dan diganti notifikasi "Boomly berhenti" yang bisa diketuk langsung (Batch 124). Menonaktifkan battery optimization untuk Boomly (diminta saat pertama buka app) membuat restart otomatis benar-benar tanpa sentuhan.
