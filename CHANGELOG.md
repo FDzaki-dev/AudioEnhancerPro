@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 177: Tema Old Money lebih seimbang — burgundy tidak lagi mendominasi
+
+Latar dan kartu Old Money tadinya bernuansa kemerahan sehingga burgundy terasa menyelimuti seluruh layar. Sekarang latar dan kartu memakai charcoal-cokelat hangat yang netral, burgundy dipegang oleh kontrol dan ikon aktif saja dan dibuat sedikit lebih kalem, sedangkan emas antik mendapat porsi lebih: cahaya saat disentuh atau terpilih, garis tepi kartu yang lebih tegas, serta teks sekunder berwarna champagne. Tema lain tidak berubah.
+Untuk pengembang: hanya blok `OldMoney*` di `Theme.kt`. Permukaan `0xFF14110F`/`0xFF1A1613`/`0xFF241F1B`, primary `0xFFB4455A` (kontras di kartu 3,06:1, teks gading di atasnya 4,66:1), `primaryContainer` `0xFF52202C`, `primaryGlow` dan `surfaceTint` emas, garis tepi emas 50%, teks sekunder `0xFFD2C6A8`, muted `0xFFA29579`. Penyebab sebelumnya: `colorScheme.secondary` dan `surfaceTint` tidak dipakai kode aplikasi, sehingga emas nyaris tak terlihat sementara `colorScheme.primary` dipakai di 32 tempat. Bila burgundy masih terasa dominan di switch, slider, dan ikon, langkah berikutnya adalah token aksen kontrol emas (menyentuh `SkeuTokens` dan `SkeuomorphicComponents.kt`).
+
+**Perubahan** (1 file source + 2 dokumen): `Theme.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v176.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat.
+
 ## Batch 176: Tema baru "Old Money" — serif klasik, sudut bersiku, burgundy dan emas antik
 
 Ada pilihan tema ke-6, **Old Money**, di kartu pilihan tema layar utama (sejajar Serene M3; hanya satu tema aktif). Semua teks memakai huruf serif klasik dengan jarak antarhuruf lebih lebar di tombol dan label, judul kecil dibuat miring. Kartu bersudut bersiku halus seperti bingkai, dengan garis tipis emas di tepinya. Warna utama burgundy untuk switch, slider aktif, dan ikon; pendampingnya emas antik (knob slider berkilau emas) dengan teks gading hangat di atas latar espresso kemerahan. Tema lain tidak berubah.

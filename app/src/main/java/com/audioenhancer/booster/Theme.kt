@@ -557,24 +557,28 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
 /** Varian 6: "Old Money" — Batch 176, request user "tema baru old money, typography
  *  & shape bernuansa old money, primary burgundy + secondary matching". Flat
  *  tonal (0 bevel/glass/dual-shadow), zero baseline dishare dari 5 varian lain.
- *  Palet hangat: latar espresso-burgundy nyaris hitam; `OldMoneyAccent` = burgundy
- *  TERANG (primary di atas gelap — burgundy murni 0x800020 hanya ~1.7:1 di latar
- *  ini, di bawah ambang kontras UI; 0xB83F57 = 3.15:1 di kartu, teks gading di atasnya
- *  4.73:1); `OldMoneyAccentDeep` = burgundy tua buat container. Secondary =
- *  emas antik (`OldMoneyGold`, 7.57:1 di kartu) + garis hairline emas di tepi kartu;
- *  teks gading hangat. Kontras dihitung statis (rumus WCAG), BELUM dicek di device. */
-val OldMoneyBackground = Color(0xFF150E10)
-val OldMoneySurface = Color(0xFF1B1214)
-val OldMoneySurfaceRaised = Color(0xFF25191C)
-val OldMoneyAccent = Color(0xFFB83F57) // burgundy terang, primary
-val OldMoneyAccentDeep = Color(0xFF5C1628) // burgundy tua, container
+ *  Batch 177 (keluhan user "primary terlalu mendominasi"): latar/permukaan diubah
+ *  dari espresso-BURGUNDY (kemerahan, burgundy merembes ke seluruh layar) jadi
+ *  charcoal-cokelat hangat NETRAL; burgundy dipegang HANYA kontrol/ikon aktif.
+ *  Emas antik naik porsi: glow aktif/tekan (`primaryGlow`), garis tepi kartu lebih
+ *  tegas, teks sekunder/muted bernuansa champagne, `surfaceTint` emas.
+ *  `OldMoneyAccent` = burgundy TERANG agak kalem (burgundy murni 0x800020 hanya ~1.7:1
+ *  di latar gelap); 0xB4455A = 3.06:1 di kartu, teks gading di atasnya 4.66:1.
+ *  `OldMoneyAccentDeep` = burgundy tua buat container. Secondary = emas antik
+ *  (`OldMoneyGold`, 7.26:1 di kartu). Kontras dihitung statis (rumus WCAG), BELUM
+ *  dicek di device. */
+val OldMoneyBackground = Color(0xFF14110F)
+val OldMoneySurface = Color(0xFF1A1613)
+val OldMoneySurfaceRaised = Color(0xFF241F1B)
+val OldMoneyAccent = Color(0xFFB4455A) // burgundy terang kalem, primary
+val OldMoneyAccentDeep = Color(0xFF52202C) // burgundy tua, container
 val OldMoneyGold = Color(0xFFC8A96A) // emas antik, secondary
 val OldMoneyGoldDeep = Color(0xFF453718) // container emas gelap
 val OldMoneyTextPrimary = Color(0xFFF2EADB) // gading
-val OldMoneyTextSecondary = Color(0xFFCFC3AE)
-val OldMoneyTextMuted = Color(0xFF9C907D)
-val OldMoneyOutline = Color(0xFF4A3A33)
-val OldMoneyBorderBrush: Brush = SolidColor(Color(0x66C8A96A)) // hairline emas
+val OldMoneyTextSecondary = Color(0xFFD2C6A8) // champagne
+val OldMoneyTextMuted = Color(0xFFA29579)
+val OldMoneyOutline = Color(0xFF4A3F36)
+val OldMoneyBorderBrush: Brush = SolidColor(Color(0x80C8A96A)) // hairline emas (50%)
 val OldMoneyCardBrush: Brush = SolidColor(OldMoneySurfaceRaised)
 val OldMoneySpecularBrush: Brush = SolidColor(Color.Transparent) // flat: 0 kilau kaca
 
@@ -596,7 +600,7 @@ val OldMoneyIconBoxRadius = 5.dp
 val OldMoneyCardShape: CornerBasedShape = oldMoneyChamfer(OldMoneyCardRadius)
 
 val OldMoneyScreenBackgroundBrush: Brush = Brush.verticalGradient(
-    listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF0D0809))
+    listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF0C0A09))
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
@@ -769,13 +773,14 @@ val SereneSkeuTokens = SkeuTokens(
 )
 
 /** Varian 6: "Old Money" (Batch 176) — flat tonal, kartu solid `OldMoneySurfaceRaised`
- *  + hairline emas + sudut bersiku; `sliderKnobHighlight` emas = knob ala kuningan.
+ *  + hairline emas + sudut bersiku; `sliderKnobHighlight` & (Batch 177) `primaryGlow` emas =
+ *  knob ala kuningan + glow aktif/tekan emas (burgundy tak lagi memegang semua aksen).
  *  Shadow/specular Transparent (tanpa kaca/bevel), `cardElevation` 3dp. */
 val OldMoneySkeuTokens = SkeuTokens(
     mutedText = OldMoneyTextMuted,
     bevelBrush = OldMoneyCardBrush,
     bevelBorderBrush = OldMoneyBorderBrush,
-    primaryGlow = OldMoneyAccent,
+    primaryGlow = OldMoneyGold,
     baseSurface = OldMoneySurface,
     elevatedSurface = OldMoneySurfaceRaised,
     cardBrush = OldMoneyCardBrush,
@@ -935,7 +940,7 @@ private val SereneDarkColors = darkColorScheme(
 )
 
 /** Batch 176: colorScheme M3 buat "Old Money" (varian ke-6) — `primary` burgundy
- *  terang (`OldMoneyAccent`), `onPrimary` gading (4.73:1), `secondary` emas antik
+ *  terang (`OldMoneyAccent`), `onPrimary` gading (4.66:1), `secondary` emas antik
  *  (`OldMoneyGold`) dgn `onSecondary` cokelat gelap. Container: burgundy tua &
  *  emas gelap. 0 warna dipinjam dari `darkColorScheme` lain. `error` TETAP merah
  *  standar proyek (mirip burgundy — bedakan lewat ikon/teks, bukan warna saja). */
@@ -954,6 +959,7 @@ private val OldMoneyDarkColors = darkColorScheme(
     onSurface = OldMoneyTextPrimary,
     surfaceVariant = OldMoneySurfaceRaised,
     onSurfaceVariant = OldMoneyTextSecondary,
+    surfaceTint = OldMoneyGold,
     error = Color(0xFFFF6B6B),
     onError = Color.White,
     errorContainer = Color(0xFF4A1616),
