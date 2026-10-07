@@ -96,6 +96,8 @@
     <string name="theme_style_studioeq_desc">Turn on Studio Equalizer — a studio mixer-board neumorphism look, dark grey panels with a neon-green indicator-light accent. Off = Midnight Glass (default).</string>
     <string name="theme_style_serene_title">Serene M3</string>
     <string name="theme_style_serene_desc">Turn on Serene M3 — genuine Material 3, flat with no glass or bevel, roomy typography and organic-asymmetric corners, with calm sage and lavender accents easy on the eyes. Off = Midnight Glass (default).</string>
+    <string name="theme_style_oldmoney_title">Old Money</string>
+    <string name="theme_style_oldmoney_desc">Turn on Old Money — classic serif typography, softly chamfered corners like a gilded frame, with a deep burgundy accent paired with antique gold and warm ivory. Off = Midnight Glass (default).</string>
 
     <!-- Battery card -->
     <string name="battery_card_title">Why does it need battery permission &amp; autostart?</string>

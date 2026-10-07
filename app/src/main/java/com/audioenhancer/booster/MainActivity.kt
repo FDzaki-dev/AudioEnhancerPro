@@ -137,6 +137,7 @@ class MainActivity : ComponentActivity() {
                 PrefsHelper.APP_THEME_SKEUOMORPHISM -> AppThemeStyle.SKEUOMORPHISM
                 PrefsHelper.APP_THEME_STUDIO_EQ -> AppThemeStyle.STUDIO_EQ
                 PrefsHelper.APP_THEME_SERENE_M3 -> AppThemeStyle.SERENE_M3
+                PrefsHelper.APP_THEME_OLD_MONEY -> AppThemeStyle.OLD_MONEY
                 else -> AppThemeStyle.AMOLED_GLASS
             }
             // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
@@ -164,6 +165,7 @@ class MainActivity : ComponentActivity() {
                     AppThemeStyle.SKEUOMORPHISM -> NeumoScreenBackgroundBrush
                     AppThemeStyle.STUDIO_EQ -> StudioEqScreenBackgroundBrush
                     AppThemeStyle.SERENE_M3 -> SereneScreenBackgroundBrush
+                    AppThemeStyle.OLD_MONEY -> OldMoneyScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }
                 Surface(

@@ -1,5 +1,21 @@
 # Changelog
 
+## Batch 176: Tema baru "Old Money" — serif klasik, sudut bersiku, burgundy dan emas antik
+
+Ada pilihan tema ke-6, **Old Money**, di kartu pilihan tema layar utama (sejajar Serene M3; hanya satu tema aktif). Semua teks memakai huruf serif klasik dengan jarak antarhuruf lebih lebar di tombol dan label, judul kecil dibuat miring. Kartu bersudut bersiku halus seperti bingkai, dengan garis tipis emas di tepinya. Warna utama burgundy untuk switch, slider aktif, dan ikon; pendampingnya emas antik (knob slider berkilau emas) dengan teks gading hangat di atas latar espresso kemerahan. Tema lain tidak berubah.
+Untuk pengembang: `AppThemeStyle.OLD_MONEY` (key tersimpan `old_money`, `PrefsHelper.APP_THEME_OLD_MONEY`), blok `OldMoney*` di `Theme.kt` (palet, `OldMoneySkeuTokens`, `OldMoneyDarkColors`, `OldMoneyTypography` 8 slot `FontFamily.Serif` bawaan sistem, `OldMoneyShapes` chamfer), 4 percabangan `when` di `AudioEnhancerTheme`, mapping + latar di `MainActivity.kt`, satu kartu toggle di `BoosterScreen.kt` (ikon `WorkspacePremium`), string ID/EN. Primary memakai burgundy terang `0xFFB83F57`, bukan burgundy murni `0x800020`, karena yang murni hanya sekitar 1,7:1 di latar gelap; kontras hasil hitung statis: primary di kartu 3,15:1, teks gading di atas primary 4,73:1, emas di kartu 7,57:1. Tanpa dependency, izin, font, thread, atau logger baru.
+
+**Perubahan** (6 file + 3 dokumen): `Theme.kt`, `PrefsHelper.kt`, `MainActivity.kt`, `BoosterScreen.kt`, `values/strings.xml`, `values-en/strings.xml`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: kembalikan ke `Boomly_v175.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat (cek teks terpotong karena serif lebih lebar, dan keterbacaan burgundy).
+
+## Batch 175: Panduan AudioEnhancer diaudit — tidak ada kode yang diubah
+
+Panduan `Tinjauan_Solusi_AudioEnhancer.md` dicocokkan modul demi modul dengan kode Boomly v174. Tidak ada yang diterapkan: sebagian sudah tertangani lebih lengkap, sebagian bentrok dengan keputusan permanen proyek, sebagian akan menimbulkan regresi. Perilaku aplikasi sama persis dengan Batch 174.
+Untuk pengembang: (1) Manifest panduan memakai tipe foreground service `mediaProcessing` dan membuang izin INTERNET/REQUEST_INSTALL_PACKAGES, QS tile, widget, serta `BootReceiver`; (2) `file_paths.xml` panduan (`audio_exports/`) menimpa `updates/` yang dipakai `UpdateManager`, sehingga pasang update dalam aplikasi gagal; (3) Service: tidak ada receiver `ACTION_HEADSET_PLUG`, pemantauan perangkat audio sudah memakai `AudioDeviceCallback` yang dilepas di `onDestroy` (Batch 82), dan respawn lewat `onTaskRemoved` sengaja sudah dihapus (batasan start foreground service dari latar belakang Android 12+); (4) `WatchdogAlarmReceiver` backoff berbasis alarm bertentangan dengan SOP (tanpa watchdog kustom, hanya WorkManager) dan keputusan Batch 132 (exact alarm nonaktif demi baterai); (5) kode `PrefsHelper` panduan tidak bisa dikompilasi (`context` bukan properti) dan kurva EQ sudah disimpan per pita; (6) `EqCurveEditor` panduan akan membuang gradient, label, dan hit-test Batch 137; (7) `SkeuomorphicKnob` tidak ada di Boomly (kontrol memakai slider `thumbOnlyDrag`, Batch 174). Satu-satunya kandidat nyata: `android:allowBackup="false"` (sekarang `true`), menunggu keputusan user.
+
+**Perubahan** (0 file source + 2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`. Kode identik dengan `Boomly_v174.zip`.
+**NOT VERIFIED**: tidak ada kode yang diubah sehingga tidak ada yang dikompilasi; status Batch 174 (kompilasi/lint/detekt + uji perangkat) tidak berubah.
+
 ## Batch 174: Slider tidak lagi ngikut saat di-tap — nilai hanya berubah lewat geseran dari bulatan
 
 Perbaikan regresi Batch 173: ketukan di track yang jauh dari bulatan (thumb) membuat slider melompat mengikuti titik ketukan. Sekarang ketukan di mana pun, jauh maupun dekat thumb, tidak mengubah nilai. Nilai hanya berubah kalau kamu menggeser dari thumb (jari mendarat sampai kira-kira 32dp dari tengahnya). Thumb mengikuti gerakan jari secara relatif, tanpa lompatan di awal geseran; kelipatan Batch 169 dan getar di akhir geseran tetap. Geseran yang dimulai jauh dari thumb tidak mengubah nilai, dan menggulir halaman dengan jari di slider tetap jalan.

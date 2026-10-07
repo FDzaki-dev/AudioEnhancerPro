@@ -54,6 +54,7 @@ import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1319,6 +1320,39 @@ fun BoosterScreen(
                     )
                 }
                 SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_SERENE_M3, onCheckedChange = null)
+            }
+        }
+
+        // Batch 176: switch "Old Money" — varian ke-6, sejajar 5 di atas (bukan
+        // sub-opsi). Serif klasik, sudut bersiku, aksen burgundy + emas antik.
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_OLD_MONEY,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_OLD_MONEY else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.WorkspacePremium, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_oldmoney_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_oldmoney_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_OLD_MONEY, onCheckedChange = null)
             }
         }
         }

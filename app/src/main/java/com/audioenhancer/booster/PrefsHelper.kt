@@ -57,12 +57,14 @@ object PrefsHelper {
      *  dari 3 varian di atas. Const lama tetap TIDAK diganti.
      *  Batch 111: tambah varian ke-5 `APP_THEME_SERENE_M3` — genuine Material 3,
      *  typography+shape+aksen "calm" zero baseline dishare dari 4 varian di atas.
-     *  Const lama tetap TIDAK diganti. */
+     *  Const lama tetap TIDAK diganti.
+     *  Batch 176: tambah varian ke-6 `APP_THEME_OLD_MONEY` — serif klasik + burgundy/emas antik. */
     const val APP_THEME_AMOLED_GLASS = "amoled_glass"
     const val APP_THEME_RADICAL_SKEUO = "radical_skeuo"
     const val APP_THEME_SKEUOMORPHISM = "skeuomorphism"
     const val APP_THEME_STUDIO_EQ = "studio_eq"
     const val APP_THEME_SERENE_M3 = "serene_m3"
+    const val APP_THEME_OLD_MONEY = "old_money"
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)

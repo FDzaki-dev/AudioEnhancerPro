@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -552,6 +554,51 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(SereneSurface, SereneBackground, Color(0xFF14170F))
 )
 
+/** Varian 6: "Old Money" — Batch 176, request user "tema baru old money, typography
+ *  & shape bernuansa old money, primary burgundy + secondary matching". Flat
+ *  tonal (0 bevel/glass/dual-shadow), zero baseline dishare dari 5 varian lain.
+ *  Palet hangat: latar espresso-burgundy nyaris hitam; `OldMoneyAccent` = burgundy
+ *  TERANG (primary di atas gelap — burgundy murni 0x800020 hanya ~1.7:1 di latar
+ *  ini, di bawah ambang kontras UI; 0xB83F57 = 3.15:1 di kartu, teks gading di atasnya
+ *  4.73:1); `OldMoneyAccentDeep` = burgundy tua buat container. Secondary =
+ *  emas antik (`OldMoneyGold`, 7.57:1 di kartu) + garis hairline emas di tepi kartu;
+ *  teks gading hangat. Kontras dihitung statis (rumus WCAG), BELUM dicek di device. */
+val OldMoneyBackground = Color(0xFF150E10)
+val OldMoneySurface = Color(0xFF1B1214)
+val OldMoneySurfaceRaised = Color(0xFF25191C)
+val OldMoneyAccent = Color(0xFFB83F57) // burgundy terang, primary
+val OldMoneyAccentDeep = Color(0xFF5C1628) // burgundy tua, container
+val OldMoneyGold = Color(0xFFC8A96A) // emas antik, secondary
+val OldMoneyGoldDeep = Color(0xFF453718) // container emas gelap
+val OldMoneyTextPrimary = Color(0xFFF2EADB) // gading
+val OldMoneyTextSecondary = Color(0xFFCFC3AE)
+val OldMoneyTextMuted = Color(0xFF9C907D)
+val OldMoneyOutline = Color(0xFF4A3A33)
+val OldMoneyBorderBrush: Brush = SolidColor(Color(0x66C8A96A)) // hairline emas
+val OldMoneyCardBrush: Brush = SolidColor(OldMoneySurfaceRaised)
+val OldMoneySpecularBrush: Brush = SolidColor(Color.Transparent) // flat: 0 kilau kaca
+
+/** Sudut bersiku (chamfer) simetris — gaya bingkai/plakat klasik, BUKAN rounded
+ *  (glass/Studio Eq), BUKAN cut-corner asimetris besar (Serene), BUKAN near-flat
+ *  rounded 4dp (Neumorphism). */
+private fun oldMoneyChamfer(size: Dp): CornerBasedShape = CutCornerShape(
+    topStart = size,
+    topEnd = size,
+    bottomEnd = size,
+    bottomStart = size
+)
+
+val OldMoneyCardRadius = 8.dp
+val OldMoneyIconBoxRadius = 5.dp
+
+/** 1 sumber kebenaran shape kartu Old Money — dipakai `OldMoneyShapes.large` DAN
+ *  `OldMoneySkeuTokens.cardShape` (pola sama dgn `SereneCardShape`, Batch 112). */
+val OldMoneyCardShape: CornerBasedShape = oldMoneyChamfer(OldMoneyCardRadius)
+
+val OldMoneyScreenBackgroundBrush: Brush = Brush.verticalGradient(
+    listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF0D0809))
+)
+
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
  *  lewat `LocalSkeuTokens.current` (SkeuomorphicComponents.kt) — 1 kode komponen,
  *  5 varian, TANPA duplikasi. Field baru WAJIB diisi di SEMUA instance di bawah
@@ -721,12 +768,35 @@ val SereneSkeuTokens = SkeuTokens(
     cardShape = SereneCardShape
 )
 
+/** Varian 6: "Old Money" (Batch 176) — flat tonal, kartu solid `OldMoneySurfaceRaised`
+ *  + hairline emas + sudut bersiku; `sliderKnobHighlight` emas = knob ala kuningan.
+ *  Shadow/specular Transparent (tanpa kaca/bevel), `cardElevation` 3dp. */
+val OldMoneySkeuTokens = SkeuTokens(
+    mutedText = OldMoneyTextMuted,
+    bevelBrush = OldMoneyCardBrush,
+    bevelBorderBrush = OldMoneyBorderBrush,
+    primaryGlow = OldMoneyAccent,
+    baseSurface = OldMoneySurface,
+    elevatedSurface = OldMoneySurfaceRaised,
+    cardBrush = OldMoneyCardBrush,
+    cardBorderBrush = OldMoneyBorderBrush,
+    cardElevation = 3.dp,
+    sliderKnobHighlight = OldMoneyGold,
+    specularBrush = OldMoneySpecularBrush,
+    cardRadius = OldMoneyCardRadius,
+    iconBoxRadius = OldMoneyIconBoxRadius,
+    shadowLightTint = Color.Transparent,
+    shadowDarkTint = Color.Transparent,
+    cardShape = OldMoneyCardShape
+)
+
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
  *  constants `APP_THEME_AMOLED_GLASS`/`APP_THEME_RADICAL_SKEUO`, nama TIDAK diubah
  *  biar data user lama valid), di-map ke enum ini di `MainActivity.kt`. Default
  *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4).
- *  Batch 111: +`SERENE_M3` (varian ke-5, genuine Material 3). */
-enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ, SERENE_M3 }
+ *  Batch 111: +`SERENE_M3` (varian ke-5, genuine Material 3).
+ *  Batch 176: +`OLD_MONEY` (varian ke-6, serif klasik + burgundy/emas antik). */
+enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ, SERENE_M3, OLD_MONEY }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
 val LocalSkeuTokens = compositionLocalOf { AmoledGlassSkeuTokens }
@@ -862,6 +932,33 @@ private val SereneDarkColors = darkColorScheme(
     errorContainer = Color(0xFF4A1616),
     onErrorContainer = Color(0xFFFFD8D8),
     outline = SereneOutline
+)
+
+/** Batch 176: colorScheme M3 buat "Old Money" (varian ke-6) — `primary` burgundy
+ *  terang (`OldMoneyAccent`), `onPrimary` gading (4.73:1), `secondary` emas antik
+ *  (`OldMoneyGold`) dgn `onSecondary` cokelat gelap. Container: burgundy tua &
+ *  emas gelap. 0 warna dipinjam dari `darkColorScheme` lain. `error` TETAP merah
+ *  standar proyek (mirip burgundy — bedakan lewat ikon/teks, bukan warna saja). */
+private val OldMoneyDarkColors = darkColorScheme(
+    primary = OldMoneyAccent,
+    onPrimary = Color(0xFFF6EFE3),
+    primaryContainer = OldMoneyAccentDeep,
+    onPrimaryContainer = Color(0xFFF3D9DE),
+    secondary = OldMoneyGold,
+    onSecondary = Color(0xFF241A05),
+    secondaryContainer = OldMoneyGoldDeep,
+    onSecondaryContainer = Color(0xFFEBDDB4),
+    background = OldMoneyBackground,
+    onBackground = OldMoneyTextPrimary,
+    surface = OldMoneySurface,
+    onSurface = OldMoneyTextPrimary,
+    surfaceVariant = OldMoneySurfaceRaised,
+    onSurfaceVariant = OldMoneyTextSecondary,
+    error = Color(0xFFFF6B6B),
+    onError = Color.White,
+    errorContainer = Color(0xFF4A1616),
+    onErrorContainer = Color(0xFFFFD8D8),
+    outline = OldMoneyOutline
 )
 
 private val AppTypography = Typography(
@@ -1017,6 +1114,72 @@ private val SereneTypography = Typography(
     )
 )
 
+/** Batch 176: typography KHUSUS Old Money — SEMUA style 8 slot yang dipakai app
+ *  pakai `FontFamily.Serif` (font sistem, 0 file font/dependency baru). Weight
+ *  ringan-sedang (display Normal, bukan Bold/Black), `headlineSmall` ITALIC
+ *  (kesan surat/monogram), label (tombol/chip) tracking lebar 1.0-1.2sp ala
+ *  small-caps berkelas, body tracking halus 0.3sp. Beda dari glass (sans,
+ *  tracking negatif), Neumorphism (tracked-out Bold) & Serene (sans lapang). */
+private val OldMoneyTypography = Typography(
+    headlineMedium = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 31.sp,
+        lineHeight = 39.sp,
+        letterSpacing = 0.3.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontStyle = FontStyle.Italic,
+        fontSize = 22.sp,
+        lineHeight = 29.sp,
+        letterSpacing = 0.3.sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 16.sp,
+        lineHeight = 23.sp,
+        letterSpacing = 0.6.sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 24.sp,
+        letterSpacing = 0.3.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        lineHeight = 21.sp,
+        letterSpacing = 0.3.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.3.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 14.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 1.0.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 1.2.sp
+    )
+)
+
 // iOS-style rounded — radius dinaikkan di semua step (dipakai otomatis oleh
 // komponen Material3 default: AlertDialog, Button, OutlinedButton, TextButton, dst
 // yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
@@ -1079,6 +1242,17 @@ private val SereneShapes = Shapes(
     extraLarge = CutCornerShape(topEnd = 26.dp, topStart = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp)
 )
 
+/** Batch 176: shape khusus Old Money — chamfer simetris kecil (bingkai/plakat),
+ *  `extraSmall` rounded 2dp biar komponen mungil tak "ribut". `large` REUSE
+ *  `OldMoneyCardShape` (1 sumber kebenaran, sama pola `SereneShapes`). */
+private val OldMoneyShapes = Shapes(
+    extraSmall = RoundedCornerShape(2.dp),
+    small = oldMoneyChamfer(4.dp),
+    medium = oldMoneyChamfer(6.dp),
+    large = OldMoneyCardShape,
+    extraLarge = oldMoneyChamfer(10.dp)
+)
+
 /** WAJIB dark-mode -> CompositionLocal ini dipertahankan (dipakai
  *  SkeuomorphicComponents.kt) tapi NILAINYA SELALU `true`, tidak ada resolusi/override
  *  light. */
@@ -1099,6 +1273,7 @@ fun AudioEnhancerTheme(
         themeStyle == AppThemeStyle.SKEUOMORPHISM -> NeumorphismDarkColors
         themeStyle == AppThemeStyle.STUDIO_EQ -> StudioEqDarkColors
         themeStyle == AppThemeStyle.SERENE_M3 -> SereneDarkColors
+        themeStyle == AppThemeStyle.OLD_MONEY -> OldMoneyDarkColors
         else -> DarkColors
     }
     val skeuTokens = when (themeStyle) {
@@ -1106,6 +1281,7 @@ fun AudioEnhancerTheme(
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismSkeuTokens
         AppThemeStyle.STUDIO_EQ -> StudioEqSkeuTokens
         AppThemeStyle.SERENE_M3 -> SereneSkeuTokens
+        AppThemeStyle.OLD_MONEY -> OldMoneySkeuTokens
         else -> AmoledGlassSkeuTokens
     }
     // Batch 39: shapes juga di-pilih per-varian (sebelumnya `AppShapes` statis buat
@@ -1118,6 +1294,7 @@ fun AudioEnhancerTheme(
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismShapes
         AppThemeStyle.STUDIO_EQ -> StudioEqShapes
         AppThemeStyle.SERENE_M3 -> SereneShapes
+        AppThemeStyle.OLD_MONEY -> OldMoneyShapes
         else -> AppShapes
     }
     // Batch 108: typography PERTAMA KALI jadi per-varian (sebelumnya `AppTypography`
@@ -1128,6 +1305,7 @@ fun AudioEnhancerTheme(
     val typography = when (themeStyle) {
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismTypography
         AppThemeStyle.SERENE_M3 -> SereneTypography
+        AppThemeStyle.OLD_MONEY -> OldMoneyTypography
         else -> AppTypography
     }
     CompositionLocalProvider(
