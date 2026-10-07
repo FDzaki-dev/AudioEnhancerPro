@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 174: Slider tidak lagi ngikut saat di-tap — nilai hanya berubah lewat geseran dari bulatan
+
+Perbaikan regresi Batch 173: ketukan di track yang jauh dari bulatan (thumb) membuat slider melompat mengikuti titik ketukan. Sekarang ketukan di mana pun, jauh maupun dekat thumb, tidak mengubah nilai. Nilai hanya berubah kalau kamu menggeser dari thumb (jari mendarat sampai kira-kira 32dp dari tengahnya). Thumb mengikuti gerakan jari secara relatif, tanpa lompatan di awal geseran; kelipatan Batch 169 dan getar di akhir geseran tetap. Geseran yang dimulai jauh dari thumb tidak mengubah nilai, dan menggulir halaman dengan jari di slider tetap jalan.
+Untuk pengembang: `Modifier.ignoreTouchFarFromThumb` + `fractionAtX` + `onTapFar` (B172-B173) diganti `Modifier.thumbOnlyDrag` di `SkeuomorphicComponents.kt`. Semua event down dikonsumsi di pass `Initial` sehingga onPress/onTap `Slider` M3 (sumber lompatan lewat `pressOffset`) tidak pernah jalan; drag dihitung relatif dari nilai saat jari mendarat dan di-snap lewat `snapToStep`. Emisi di-dedupe dengan variabel lokal per gesture, bukan dengan `value` yang bisa basi antar-rekomposisi. `Slider` M3 tetap dirender untuk tampilan, semantics, dan keyboard. Tanpa dependency, izin, thread, atau logger baru.
+
+**Perubahan** (1 file + 2 dokumen): `SkeuomorphicComponents.kt`. Revert: kembalikan file itu ke `Boomly_v171.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); belum diuji di perangkat. Keputusan Batch 173 ("tap track jauh boleh melompat") dicabut mengikuti keluhan terbaru.
+
 ## Batch 173: Slider jauh dari bulatan — ketukan tetap melompat, geseran diblok, scroll aman
 
 Perilaku slider (Bass, Virtualizer, Loudness, Compressor, tiap pita Equalizer) kini: ketukan singkat di track yang jauh dari bulatan (thumb) memindahkan nilai ke titik itu (sesuai kelipatan Batch 169, dengan getar), tapi baru terjadi saat jari diangkat, bukan saat baru menyentuh. Geseran yang dimulai jauh dari thumb tidak mengubah nilai. Menggulir halaman dengan jari yang mendarat di slider tidak mengubah nilai dan halaman tetap bisa digulir. Jari yang ditahan diam lama lalu diangkat tidak dianggap ketukan. Mulai dari dekat thumb tetap seperti biasa.
