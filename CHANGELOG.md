@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 172: Slider tidak lagi bergeser kalau disentuh jauh dari bulatannya
+
+Di Bass, Virtualizer, Loudness, Compressor, dan tiap pita Equalizer, menyentuh track di tempat yang jauh dari bulatan (thumb) tidak lagi memindahkan nilai. Sebelumnya satu ketukan atau jari yang kebetulan mendarat di slider (misalnya saat menggulir halaman) langsung melompatkan nilai. Sekarang nilai hanya berubah kalau jari mendarat dekat thumb (kira-kira 32dp ke kiri/kanan dari tengahnya), lalu menggesernya seperti biasa; setelah geseran dimulai, jari boleh bergerak sejauh apa pun. Snap per kelipatan (Batch 169) tidak berubah. Menggulir halaman dengan jari yang mendarat di slider tetap jalan.
+Untuk pengembang: percobaan ulang gatekeeper Batch 138 (di-revert Batch 140). `FeatureControl` memakai `Modifier.ignoreTouchFarFromThumb` (private): `pointerInput(Unit)` di pass `Initial` mengonsumsi event down yang jauh dari thumb sehingga `detectTapGestures` bawaan `Slider` (sumber lompatan) mengabaikannya; gerak jauh yang dominan horizontal (lewat `touchSlop`) ikut dikonsumsi, yang dominan vertikal dibiarkan. Beda dari Batch 138: key `Unit` tanpa `value`, nilai terkini via `rememberUpdatedState`, konsumsi di pass Initial. Posisi thumb dihitung dari lebar thumb 22dp (`SkeuSliderThumbSize`, dipakai juga oleh `SkeuSliderThumb`), RTL diperhitungkan. Tanpa dependency, izin, thread, atau logger baru.
+
+**Perubahan** (1 file + 2 dokumen): `SkeuomorphicComponents.kt`. Revert: kembalikan file itu ke `Boomly_v171.zip`.
+**NOT VERIFIED**: kompilasi, lint, dan detekt belum dijalankan (lingkungan penyusun tanpa Gradle); belum diuji di perangkat. Wajib dites di HP sebelum lanjut fitur lain.
+
 ## Batch 171: Kartu baterai lebih jelas, dan Boomly tidak tampil di daftar aplikasi terbaru saat menyala
 
 Kartu "Kenapa perlu izin baterai & autostart?" di layar utama kini menampilkan keadaan sebenarnya: centang "Baterai: Boomly berjalan tanpa batas" kalau sudah diizinkan, atau tombol "Izinkan berjalan tanpa batas" kalau belum. Kalau Android membatasi Boomly di latar belakang (pengaturan yang terpisah dari optimasi baterai), muncul peringatan merah dengan tombol ke Info Aplikasi. Status dibaca ulang setiap kali app dibuka.

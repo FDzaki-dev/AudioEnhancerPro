@@ -53,6 +53,8 @@ import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -79,14 +81,19 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** compose-bom 2024.06.00 -> `LocalIndication` non-null, jadi indication ripple
@@ -433,12 +440,63 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
     )
     Box(
         modifier = Modifier
-            .size(22.dp)
+            .size(SkeuSliderThumbSize)
             .shadow(elevation = if (enabled) 4.dp else 0.dp, shape = shape, clip = false)
             .clip(shape)
             .background(dialBrush)
             .border(2.dp, accentColor.copy(alpha = ringAlpha), shape)
     )
+}
+
+/** Batch 172: lebar thumb (dipakai `SkeuSliderThumb` DAN hitung posisi thumb di gate sentuh) dan
+ *  radius horizontal "pegang thumb" dari titik tengah thumb. */
+private val SkeuSliderThumbSize = 22.dp
+private val SliderGrabRadius = 32.dp
+
+/** Batch 172 (request user: slider sentuh-jauh-dari-thumb): sentuhan yang MENDARAT lebih jauh dari
+ *  [SliderGrabRadius] (horizontal) dari thumb TIDAK menggeser/meloncatkan slider. Mekanisme:
+ *  `pointerInput` di pass `Initial` (jalan SEBELUM handler tap/drag bawaan `Slider`) mengonsumsi
+ *  event down → `detectTapGestures` Slider (onPress/onTap = sumber lompatan) mengabaikannya.
+ *  Sentuhan yang mendarat dekat thumb TIDAK disentuh sama sekali (drag normal, tanpa batas jarak
+ *  setelah mulai). Sentuhan jauh yang kemudian bergerak dominan horizontal (setelah `touchSlop`)
+ *  ikut dikonsumsi supaya `draggable` Slider tidak menggeser thumb relatif; yang dominan vertikal
+ *  TIDAK dikonsumsi → scroll halaman tetap jalan. Beda dari Batch 138 (di-revert B140): key
+ *  `Unit` TANPA `value` (tak ada restart paksa), nilai terkini dibaca lewat [State]
+ *  (`rememberUpdatedState`), dan konsumsi di pass Initial, bukan Main. B169 (snap) tak disentuh. */
+private fun Modifier.ignoreTouchFarFromThumb(
+    enabled: State<Boolean>,
+    value: State<Float>,
+    range: State<ClosedFloatingPointRange<Float>>,
+    isRtl: State<Boolean>
+): Modifier = pointerInput(Unit) {
+    val thumbWidthPx = SkeuSliderThumbSize.toPx()
+    val grabRadiusPx = SliderGrabRadius.toPx()
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        if (!enabled.value) return@awaitEachGesture
+        val start = range.value.start
+        val span = range.value.endInclusive - start
+        val fraction = if (span > 0f) ((value.value - start) / span).coerceIn(0f, 1f) else 0f
+        val thumbX = thumbWidthPx / 2f + (size.width - thumbWidthPx) * fraction
+        val thumbCenterX = if (isRtl.value) size.width - thumbX else thumbX
+        if (abs(down.position.x - thumbCenterX) <= grabRadiusPx) return@awaitEachGesture
+        down.consume()
+        var decided = false
+        var horizontal = false
+        while (true) {
+            val change = awaitPointerEvent(PointerEventPass.Initial)
+                .changes.firstOrNull { it.id == down.id }
+            if (change == null || !change.pressed) return@awaitEachGesture
+            if (!decided) {
+                val delta = change.position - down.position
+                if (delta.getDistance() >= viewConfiguration.touchSlop) {
+                    decided = true
+                    horizontal = abs(delta.x) > abs(delta.y)
+                }
+            }
+            if (horizontal) change.consume()
+        }
+    }
 }
 
 /** Batch 169 (request user: slider terlalu licin/susah presisi): bulatkan [raw] ke kelipatan
@@ -468,6 +526,11 @@ internal fun FeatureControl(
     wrapInCard: Boolean = true
 ) {
     val haptics = LocalHapticFeedback.current
+    // Batch 172: nilai terkini untuk gate sentuh (dibaca di dalam pointerInput(Unit), tanpa restart).
+    val latestEnabled = rememberUpdatedState(enabled)
+    val latestValue = rememberUpdatedState(value)
+    val latestRange = rememberUpdatedState(valueRange)
+    val isRtl = rememberUpdatedState(LocalLayoutDirection.current == LayoutDirection.Rtl)
     val innerContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -527,6 +590,7 @@ internal fun FeatureControl(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp)
+                .ignoreTouchFarFromThumb(latestEnabled, latestValue, latestRange, isRtl)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
     }
