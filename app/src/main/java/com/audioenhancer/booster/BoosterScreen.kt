@@ -1156,11 +1156,16 @@ fun BoosterScreen(
 
         if (equalizerSupported && equalizerBandCount > 0) {
             EqualizerSection(
-                bandCount = equalizerBandCount,
-                levelMin = equalizerLevelMin,
-                levelMax = equalizerLevelMax,
-                centerFreqsHz = equalizerCenterFreqsHz,
-                initialLevels = eqOverrideLevels ?: equalizerInitialLevels,
+                // Batch 190: parameter list/angka dibungkus `EqualizerBands` (@Immutable, equals berdasar isi) —
+                // `List<...>` mentah dianggap TIDAK stabil oleh compiler Compose → kartu EQ (kurva + semua
+                // slider band) ikut rekomposisi tiap state lain di tab ini berubah (mis. drag Bass/Virtualizer).
+                bands = EqualizerBands(
+                    count = equalizerBandCount,
+                    levelMin = equalizerLevelMin,
+                    levelMax = equalizerLevelMax,
+                    centerFreqsHz = equalizerCenterFreqsHz,
+                    initialLevels = eqOverrideLevels ?: equalizerInitialLevels
+                ),
                 resetKey = eqResetCounter,
                 // Batch 59: surface equalizerEffectState (Batch 57/58) ke sini — sisa
                 // item yang dicatat eksplisit di PROJECT_STATE.md Batch 58 ("belum
@@ -1880,19 +1885,32 @@ fun BoosterScreen(
         )
     }
 }
+
+/** Batch 190: pembungkus parameter [EqualizerSection] supaya fungsi itu bisa di-SKIP saat rekomposisi parent
+ *  (semua isi stabil; `equals` data class membandingkan isi list). Hanya data baca-saja dari ViewModel. */
+@Immutable
+private data class EqualizerBands(
+    val count: Int,
+    val levelMin: Short,
+    val levelMax: Short,
+    val centerFreqsHz: List<Int>,
+    val initialLevels: List<Short>
+)
+
 /** Bagian equalizer manual per-pita-frekuensi — collapsible, disembunyikan by default supaya
  *  tidak membanjiri layar utama (fitur lanjutan, kebanyakan user cukup pakai preset/slider utama). */
 @Composable
 private fun EqualizerSection(
-    bandCount: Int,
-    levelMin: Short,
-    levelMax: Short,
-    centerFreqsHz: List<Int>,
-    initialLevels: List<Short>,
+    bands: EqualizerBands,
     resetKey: Int = 0,
     effectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     onBandChange: (Int, Short) -> Unit
 ) {
+    val bandCount = bands.count
+    val levelMin = bands.levelMin
+    val levelMax = bands.levelMax
+    val centerFreqsHz = bands.centerFreqsHz
+    val initialLevels = bands.initialLevels
     var expanded by remember { mutableStateOf(false) }
     val levels = remember(bandCount, resetKey) {
         mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })

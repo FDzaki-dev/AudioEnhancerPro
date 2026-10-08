@@ -70,7 +70,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.DrawResult
@@ -410,26 +409,27 @@ private object DepthBitmapStore {
     }
 }
 
-/** `drawWithCache` dgn lambda STABIL: [block] dari pemanggil disimpan lewat `remember(keys)`, jadi
- *  rekomposisi dgn kunci sama TIDAK mengganti lambda → cache gambar tak dibangun ulang & node tak
- *  di-invalidate (lihat poin 3 di komentar atas). Kunci = SEMUA parameter yang dipakai blok.
- *
- *  WAJIB (Batch 185, akar crash `ClassCastException` v224): SEMUA modifier `depth*` lewat SATU lambda
- *  `composed` ini → grup/slot compose-nya DIBAGI. `remember(*keys)` (vararg) memakai 1 slot PER kunci,
- *  jadi saat rantai modifier berganti varian di posisi yg sama (mis. `depthCastShadow` ↔
- *  `depthWellLip` ketika kunci ditekan) jumlah slot beda → slot lambda terbaca sbg kunci lama →
- *  cast gagal. Solusi: kunci digabung jadi SATU `List` (slot tetap = 1 kunci + 1 nilai, apa pun
- *  variannya) dan kunci PERTAMA selalu [tag] unik per jenis modifier supaya dua varian berkunci
- *  mirip tak pernah saling memakai lambda; `key(tag)` memisahkan grup per jenis modifier. Jangan ganti ke
- *  `remember(*keys)`. */
+/** Batch 190: pembungkus blok `drawWithCache` yang `equals`-nya = kesamaan KUNCI. `drawWithCache` (Compose UI 1.6)
+ *  adalah `ModifierNodeElement` ber-`equals` pada lambda-nya, jadi rantai modifier yang diulang saat rekomposisi
+ *  dgn kunci sama dianggap SAMA → node tak di-update & cache gambar tak di-invalidate. Ini menggantikan
+ *  `composed { remember(keys) }` (B184-B186): `composed` TIDAK bisa di-skip, dimaterialisasi ulang di SETIAP
+ *  rekomposisi parent (puluhan modifier depth per tab Kontrol, tiap tick drag slider & saat ganti tab/buka kartu EQ)
+ *  dan sumber slot bentrok `ClassCastException` B185. Kunci = SEMUA parameter yang dipakai blok (aturan lama sama). */
+private class DepthDrawBlock(
+    private val keys: List<Any?>,
+    private val block: CacheDrawScope.() -> DrawResult
+) : (CacheDrawScope) -> DrawResult {
+    override fun invoke(scope: CacheDrawScope): DrawResult = scope.block()
+
+    override fun equals(other: Any?): Boolean = other is DepthDrawBlock && other.keys == keys
+
+    override fun hashCode(): Int = keys.hashCode()
+}
+
+/** `drawWithCache` dgn lambda STABIL lewat [DepthDrawBlock] (tanpa `composed`). Kunci PERTAMA selalu [tag] unik per
+ *  jenis modifier supaya dua varian berkunci mirip tak pernah dianggap sama. */
 private fun Modifier.depthDraw(tag: String, vararg keys: Any?, block: CacheDrawScope.() -> DrawResult): Modifier =
-    composed {
-        val keyList = listOf(tag, *keys)
-        // `key(tag)` = grup compose TERPISAH per jenis modifier (lapis pengaman kedua, Batch 186):
-        // varian berbeda di posisi rantai yang sama tak pernah berbagi slot sama sekali.
-        val stable = key(tag) { remember(keyList) { block } }
-        this.drawWithCache(stable)
-    }
+    this.drawWithCache(DepthDrawBlock(listOf(tag, *keys), block))
 
 /** Tekstur butiran (kulit/kertas): tile 128px, derau halus + derau lembut (32px di-upsample
  *  bilinear, wrap → mulus saat di-tile). Deterministik (seed tetap). Putih gading di sisi +,
@@ -1651,8 +1651,7 @@ private fun SkeuSliderTrack(
                 .fillMaxWidth()
                 .height(10.dp)
                 .depthWellLip(shape, depth)
-                .clip(shape)
-                .background(floor)
+                .background(floor, shape)
                 .drawBehind {
                     val fillW = size.width * sliderFraction(sliderState)
                     if (fillW > 0f) {
@@ -1706,7 +1705,6 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
             modifier = Modifier
                 .size(SkeuSliderThumbSize)
                 .depthCastShadow(shape, depth, DepthKnobShadow)
-                .clip(shape)
                 .depthKnobFace(depth, tokens.sliderKnobHighlight, lo)
                 // Cincin aksen DI DALAM cincin tepi bevel (padding = lebar rim) supaya sorot/bayangan
                 // tepi tidak tertutup cincin aksen.

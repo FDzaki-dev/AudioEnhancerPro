@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 190: Scroll, ganti tab, dan buka kartu Equalizer lebih ringan di semua tema
+
+Tab Kontrol sekarang bekerja lebih sedikit setiap kali layar berubah. Efek timbul dan cekung tidak lagi disusun ulang di setiap rekomposisi, jadi menggeser slider Bass, Virtualizer, Loudness, atau Compressor tidak ikut menyusun ulang kartu Equalizer, dan ganti tab serta buka kartu Equalizer memuat lebih sedikit komponen. Thumb dan track slider kehilangan satu lapis render tambahan per slider dengan tampilan yang sama. Berlaku untuk keenam tema.
+Untuk pengembang: `depthDraw` (`SkeuomorphicComponents.kt`) tidak lagi memakai `composed`; blok `drawWithCache` dibungkus `DepthDrawBlock` yang `equals`-nya membandingkan kunci, sehingga `ModifierNodeElement` bawaan menganggap rantai modifier yang sama tidak berubah (tanpa materialisasi ulang, tanpa slot `remember` yang bisa bentrok seperti akar crash Batch 185). `SkeuSliderTrack` memakai `background(floor, shape)` menggantikan `clip(shape).background(floor)`, dan `SkeuSliderThumb` membuang `clip(shape)` yang tak berefek (dome, cincin, dan border sudah bulat). `BoosterScreen.kt`: parameter `EqualizerSection` dibungkus `@Immutable data class EqualizerBands` (`List` mentah dianggap tidak stabil oleh compiler Compose) sehingga kartu itu bisa dilewati saat tab merekomposisi.
+
+**Perubahan** (2 file source + 2 dokumen): `SkeuomorphicComponents.kt`, `BoosterScreen.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v189.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek: scroll tab Kontrol, ganti tab, dan buka kartu Equalizer terasa lebih mulus di keenam tema (terutama Aurora), thumb dan track slider tampil sama seperti sebelumnya, serta Equalizer tetap sinkron dengan preset, Reset, dan slider lain. Bila build debug dipakai untuk menguji, hasilnya jauh lebih lambat daripada release.
+
 ## Batch 189: Optimalisasi lanjutan tab Equalizer Manual
 
 Perubahan suara dari kurva dan slider band sekarang diterapkan di latar belakang, jadi layar tidak lagi menunggu pengaturan efek audio selesai setiap kali jari melewati satu notch. Kalau jari bergerak sangat cepat, hanya nilai terakhir tiap band yang dikirim ke efek audio. Isian warna pada track slider kini digambar langsung mengikuti posisi thumb tanpa menyusun ulang komponennya di setiap gerakan. Tiap band, kurva EQ, dan bar spectrum juga mendapat lapisan gambar sendiri, sehingga bergeraknya satu slider atau animasi spectrum tidak membuat seluruh kartu digambar ulang.
