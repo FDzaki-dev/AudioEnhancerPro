@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 183: Pil Preset Cepat ikut timbul dan cekung di tema Old Money
+
+Pil Preset Cepat (Flat, Bass Heavy, Vocal Boost, dan seterusnya, termasuk pil Simpan) sebelumnya masih datar karena memakai komponen chip bawaan yang belum tersambung ke efek timbul dan cekung. Sekarang pil yang tidak dipilih berupa tombol timbul: permukaannya lebih terang dari latar, tepi atas menangkap cahaya, tepi bawah gelap, dan ada bayangan jatuh tipis. Pil yang dipilih berubah menjadi alur cekung berisi enamel burgundy bergradasi dengan bayangan di dalamnya, tanpa lagi glow lebar di sekelilingnya. Saat pil ditekan ia sesaat tampak masuk ke dalam. Tema lain tidak berubah. Tab Kontrol, Tampilan, dan Bantuan belum disentuh.
+Untuk pengembang: `SkeuPresetPill` (internal) membungkus blok `FilterChip` dan `AssistChip` lama sebagai lambda `legacy`, sehingga tema tanpa kedalaman fisik menjalankan kode lama persis; `depthPillRim` menggambar tepi pil (garis lurus dan dua busur); baris pil mendapat padding vertikal 7dp hanya saat tema berkedalaman fisik karena `horizontalScroll` memotong bayangan.
+
+**Perubahan** (2 file source + 2 dokumen): `SkeuomorphicComponents.kt`, `BoosterScreen.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v182.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat. Cek: ukuran pil tetap 32dp, label terbaca di pil terpilih, pil ke-10 dan seterusnya tetap bisa di-scroll, bayangan tidak terpotong di bawah baris.
+
 ## Batch 182: Poles akhir efek timbul dan cekung Old Money
 
 Efek timbul dan cekung tema Old Money dipoles supaya terasa seperti benda nyata. Setiap kartu kini sedikit melengkung: ada kilau lembut dari arah cahaya di kiri-atas dan peredupan halus ke kanan-bawah. Di dalam tepi kartu ada alur ukir tipis berbentuk bingkai, seperti tooling pada kulit atau kertas surat, dengan sisi gelap dan sisi terang yang mengikuti arah cahaya. Kotak ikon, jalur slider, dan alur switch punya bayangan dalam yang lebih dalam di sekeliling tepinya. Knob mendapat titik kilau kecil seperti mutiara, isian slider berwarna burgundy punya gradasi seperti enamel, bayangan jatuh lebih tajam di dekat tepi kartu, dan latar layar diberi butiran halus seperti kulit gelap. Tema lain tidak berubah.

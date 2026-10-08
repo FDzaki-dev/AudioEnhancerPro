@@ -798,12 +798,17 @@ fun BoosterScreen(
             SectionLabel(stringResource(R.string.presets_title))
             Spacer(modifier = Modifier.height(8.dp))
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                // Batch 183: ruang vertikal utk bayangan jatuh pil timbul (horizontalScroll meng-clip
+                // ke batas Row) — hanya tema berkedalaman fisik (Old Money); tema lain 0 berubah.
+                modifier = Modifier
+                    .horizontalScroll(rememberScrollState())
+                    .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
                 presets.forEach { preset ->
                     val selected = activePreset == preset.label
+                    SkeuPresetPill(selected = selected, onClick = { applyPreset(preset) }, label = preset.label) {
                     Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(LocalSkeuTokens.current.primaryGlow, spread = 8.dp) else Modifier)) {
                         FilterChip(
                             selected = selected,
@@ -830,9 +835,24 @@ fun BoosterScreen(
                             )
                         )
                     }
+                    }
                 }
                 customPresets.forEach { custom ->
                     val selected = activePreset == custom.name
+                    SkeuPresetPill(
+                        selected = selected,
+                        onClick = { applyCustomPreset(custom) },
+                        label = custom.name,
+                        trailingIcon = {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = stringResource(R.string.cd_delete_preset, custom.name),
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clickable { presetPendingDelete = custom.name }
+                            )
+                        }
+                    ) {
                     Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(LocalSkeuTokens.current.primaryGlow, spread = 8.dp) else Modifier)) {
                         FilterChip(
                             selected = selected,
@@ -859,13 +879,22 @@ fun BoosterScreen(
                             )
                         )
                     }
+                    }
                 }
-                AssistChip(
+                SkeuPresetPill(
+                    selected = false,
                     onClick = { presetNameInput = ""; showSavePresetDialog = true },
-                    label = { Text(stringResource(R.string.preset_save_chip)) },
+                    label = stringResource(R.string.preset_save_chip),
                     leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(50)
-                )
+                    labelColor = MaterialTheme.colorScheme.onSurface
+                ) {
+                    AssistChip(
+                        onClick = { presetNameInput = ""; showSavePresetDialog = true },
+                        label = { Text(stringResource(R.string.preset_save_chip)) },
+                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                        shape = RoundedCornerShape(50)
+                    )
+                }
                 }
             }
             // Batch 30: empty state — sebelumnya user baru yang belum pernah simpan preset

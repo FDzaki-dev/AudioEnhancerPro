@@ -61,6 +61,7 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -665,6 +666,134 @@ private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = this
 
 private fun Modifier.depthKnobFace(style: DepthStyle, hi: Color, lo: Color): Modifier =
     this.depthDome(hi, lo, style).depthRingRim(style, 1.4.dp)
+
+// Batch 183 — PIL PRESET CEPAT fisik (request user: "kenapa pil preset cepat masih flat?!"). Root cause:
+// pil = `FilterChip`/`AssistChip` Material3 yang TIDAK pernah disambungkan ke mesin `depth*` B180-B182
+// (hanya kartu, track, switch, knob, power button) → unselected cuma outline tipis, selected cuma fill
+// datar + glow. Sekarang (hanya `depth != null`): pil diam = TIMBUL (bayangan jatuh + permukaan
+// pelat + rim stadium terang/gelap menurut arah cahaya); pil terpilih ATAU sedang ditekan = CEKUNG
+// (alur dengan bayangan dalam + bibir terang; terpilih = enamel burgundy bergradasi).
+
+private val DepthPillShadow = listOf(
+    DepthShadowLayer(0.5f, 0.9f, 1.2f, 0.85f),
+    DepthShadowLayer(1.6f, 2.8f, 4.0f, 0.55f)
+)
+private const val DepthPillBleedDp = 9f
+
+/** Rim pil stadium: sisi atas/bawah = garis lurus (facet datar → warna seragam: terang di atas,
+ *  gelap di bawah), ujung kiri/kanan = busur dgn gradien searah cahaya (kecerahan ∝ cos, sama
+ *  seperti `depthRingRim` untuk lingkaran). */
+private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = this.drawWithCache {
+    val w = size.width
+    val h = size.height
+    val rimW = width.toPx()
+    val half = rimW / 2f
+    val r = h / 2f
+    val litColor = style.rimLight.copy(alpha = style.rimLightAlpha)
+    val shadeColor = style.rimShade.copy(alpha = style.rimShadeAlpha)
+    fun capBrush(cx: Float, cy: Float): Brush = Brush.linearGradient(
+        0.00f to style.rimLight.copy(alpha = style.rimLightAlpha),
+        0.50f to style.rimLight.copy(alpha = 0f),
+        0.51f to style.rimShade.copy(alpha = 0f),
+        1.00f to style.rimShade.copy(alpha = style.rimShadeAlpha),
+        start = Offset(cx + style.lightX * r, cy + style.lightY * r),
+        end = Offset(cx - style.lightX * r, cy - style.lightY * r)
+    )
+    val leftBrush = capBrush(r, r)
+    val rightBrush = capBrush(w - r, r)
+    val arcSize = Size((h - rimW).coerceAtLeast(1f), (h - rimW).coerceAtLeast(1f))
+    onDrawBehind {
+        if (w > h) {
+            drawLine(litColor, Offset(r, half), Offset(w - r, half), strokeWidth = rimW)
+            drawLine(shadeColor, Offset(r, h - half), Offset(w - r, h - half), strokeWidth = rimW)
+        }
+        drawArc(
+            brush = leftBrush,
+            startAngle = 90f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(half, half),
+            size = arcSize,
+            style = Stroke(width = rimW)
+        )
+        drawArc(
+            brush = rightBrush,
+            startAngle = -90f,
+            sweepAngle = 180f,
+            useCenter = false,
+            topLeft = Offset(w - h + half, half),
+            size = arcSize,
+            style = Stroke(width = rimW)
+        )
+    }
+}
+
+/** Pil "Preset Cepat". `depth == null` (5 tema lain) → memanggil [legacy] (FilterChip/AssistChip
+ *  apa adanya dari pemanggil, 0 perubahan). `depth != null` → pil fisik di atas. [selected] =
+ *  cekung enamel; ditekan = cekung sesaat; diam = timbul. */
+@Composable
+internal fun SkeuPresetPill(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    labelColor: Color? = null,
+    legacy: @Composable () -> Unit
+) {
+    val tokens = LocalSkeuTokens.current
+    val depth = tokens.depth
+    if (depth == null) {
+        legacy()
+        return
+    }
+    val shape = RoundedCornerShape(50)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressedNow by interactionSource.collectIsPressedAsState()
+    val recessed = selected || isPressedNow
+    val enamel = lerp(depth.wellFloor, MaterialTheme.colorScheme.primary, 0.72f)
+    val textColor = if (selected) Color.White else (labelColor ?: tokens.mutedText)
+    val face = when {
+        selected -> Brush.verticalGradient(
+            listOf(lerp(enamel, depth.rimLight, 0.14f), enamel, lerp(enamel, Color.Black, 0.22f))
+        )
+        isPressedNow -> SolidColor(depth.wellFloor)
+        else -> Brush.verticalGradient(listOf(depth.faceTop, depth.faceBottom))
+    }
+    Row(
+        modifier = modifier
+            .heightIn(min = 32.dp)
+            .then(
+                if (recessed) {
+                    Modifier.depthWellLip(shape, depth)
+                } else {
+                    Modifier.depthCastShadow(shape, depth, DepthPillShadow, DepthPillBleedDp, DepthWellBitmapScale)
+                }
+            )
+            .clip(shape)
+            .background(face)
+            .then(
+                if (recessed) Modifier.depthWellInner(shape, depth) else Modifier.depthPillRim(depth, 1.2.dp)
+            )
+            .selectable(
+                selected = selected,
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.RadioButton,
+                onClick = onClick
+            )
+            .padding(horizontal = 14.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        CompositionLocalProvider(LocalContentColor provides textColor) {
+            if (leadingIcon != null) leadingIcon()
+            Text(text = label, style = MaterialTheme.typography.labelLarge, color = textColor, maxLines = 1)
+            if (trailingIcon != null) trailingIcon()
+        }
+    }
+}
 
 /** Soket cekung (kotak ikon Old Money): lantai gelap + bayangan dalam + bibir luar; [content]
  *  duduk DI ATAS lantai & bayangan. */
