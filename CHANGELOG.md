@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 181: Perbaikan build — efek timbul/cekung Old Money gagal dikompilasi
+
+Build CI nomor 220 gagal karena satu baris import yang salah di kode efek timbul dan cekung Old Money (Batch 180). Baris itu dihapus; tampilan dan perilaku tidak berubah dari yang dijelaskan di Batch 180.
+Untuk pengembang: `SkeuomorphicComponents.kt`, hapus `import androidx.compose.ui.graphics.asFrameworkPaint`. `asFrameworkPaint()` adalah fungsi anggota `Paint` (dipanggil langsung dari objek `Paint`), bukan fungsi top-level, sehingga import-nya menghasilkan `Unresolved reference` (baris 96) dan `compileDebugKotlin` gagal. Tiga pemanggilan `paint.asFrameworkPaint().maskFilter` tidak diubah. Log gagal hanya berisi satu error dan nol warning.
+
+**Perubahan** (1 file source + 2 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v179.zip`.
+**NOT VERIFIED**: belum dibuild ulang (lingkungan penyusun tanpa Gradle); tampilan belum diuji di perangkat.
+
 ## Batch 180: Efek timbul dan cekung tema Old Money dibuat fisik — tidak lagi menyatu dengan latar
 
 Sebelumnya kedalaman Old Money hanya mengandalkan sorot dan bayangan yang warnanya hampir sama dengan latar, sehingga kartu terlihat menyatu dengan background. Sekarang kartu berupa pelat timbul yang permukaannya jelas lebih terang dari latar: tepi atas dan kiri menangkap cahaya (sorot gading), tepi bawah dan kanan gelap, ada bayangan jatuh yang lembut ke kanan-bawah berlapis tiga (kontak, tengah, lebar), dan permukaan diberi butiran halus agar tidak terasa plastik. Kotak ikon, jalur slider, dan alur switch kini benar-benar cekung: lantainya lebih gelap, ada bayangan di dalam sisi kiri-atas dan bibir tipis yang terang di kanan-bawah. Knob slider dan switch berbentuk kubah champagne dengan tepi yang menangkap cahaya, tombol power timbul saat mati dan cekung saat menyala, dan garis pemisah dibuat seperti alur ukir. Warna, huruf serif, sudut bersiku, burgundy, dan sage tidak berubah; tema lain tidak tersentuh.
