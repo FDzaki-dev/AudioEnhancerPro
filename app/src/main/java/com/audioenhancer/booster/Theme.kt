@@ -583,12 +583,21 @@ val SereneScreenBackgroundBrush: Brush = Brush.verticalGradient(
  *  (stop terendah `0xFF171310`, bukan `0xFF0C0A09` yang nyaris hitam sehingga bayangan
  *  tak punya ruang). Identitas Old Money TETAP: serif, chamfer 8dp, burgundy + sage, hue
  *  netral hangat (B177), TANPA emas (B178). Hitungan alpha = simulasi statis, BELUM dicek
- *  di device. */
+ *  di device.
+ *  Batch 180 (request user: efek cekung & timbul "ultra hyper realistic", TANPA lighting murahan
+ *  yang nyaru dengan warna latar): neumorphism B179 (sorot gading 2% + bayangan 32% sehue latar =
+ *  keluhan "nyaru") DIGANTI mesin kedalaman fisik `DepthStyle` (`OldMoneyDepth`): kartu = pelat
+ *  timbul dgn permukaan LEBIH TERANG dari latar (`OldMoneyCardLight`/`Dark`), bevel FACET
+ *  per-sisi (sisi menghadap cahaya kiri-atas = sorot gading, sisi membelakangi = hitam hangat),
+ *  bayangan jatuh blur Gaussian 3 lapis (kontak/tengah/ambient) + grain halus; track slider,
+ *  groove switch, soket ikon & power button saat ON = sumur CEKUNG (lantai lebih gelap,
+ *  bayangan dalam sisi kiri-atas, bibir terang sisi kanan-bawah). Palet/identitas (serif,
+ *  chamfer 8dp, burgundy + sage, TANPA emas) TIDAK berubah. */
 val OldMoneyBackground = Color(0xFF1A1613)
 val OldMoneySurface = Color(0xFF1E1A17) // base neumorphism (analog `#1e222b` panduan)
 val OldMoneySurfaceRaised = Color(0xFF211D1A)
-val OldMoneyCardLight = Color(0xFF211D1A) // ujung kiri-atas gradien kartu (+3 dari base)
-val OldMoneyCardDark = Color(0xFF1B1714) // ujung kanan-bawah gradien kartu (-3 dari base)
+val OldMoneyCardLight = Color(0xFF2A241F) // B180: ujung kiri-atas permukaan pelat (jelas > latar 1A1613)
+val OldMoneyCardDark = Color(0xFF1F1B18) // B180: ujung kanan-bawah permukaan pelat
 // Sorot tepi kiri-atas: gading (sehue base, bukan putih pekat) alpha ~2%; akumulasi
 // concentric-fade `SkeuDualDirectionalShadow` di tepi ~5% (+~10 level di atas base).
 val OldMoneyEdgeHighlight = Color(0x05F2EADB)
@@ -637,6 +646,55 @@ val OldMoneyScreenBackgroundBrush: Brush = Brush.verticalGradient(
     listOf(OldMoneySurface, OldMoneyBackground, Color(0xFF171310))
 )
 
+// Batch 180: lantai sumur cekung (track/groove/soket) — SENGAJA jauh lebih gelap dari permukaan
+// pelat supaya cekungan terbaca dari LUMINANSI, bukan dari alpha tipis sehue latar.
+val OldMoneyWellFloor = Color(0xFF14100D)
+val OldMoneyKnobShade = Color(0xFF4A423A) // sisi gelap kubah knob: taupe hangat NETRAL (bukan emas, B178)
+
+/** Batch 180: profil kedalaman fisik Old Money — lihat [DepthStyle]. Cahaya dari kiri-atas
+ *  (vektor ke arah sumber, ternormalisasi). Sorot = gading `F2EADB` (satu hue dgn teks utama),
+ *  bayangan = hitam hangat `050302` (BUKAN hitam/putih pekat murni). */
+val OldMoneyDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = OldMoneyCardLight,
+    faceBottom = OldMoneyCardDark,
+    rimLight = Color(0xFFF2EADB),
+    rimLightAlpha = 0.50f,
+    rimShade = Color(0xFF050302),
+    rimShadeAlpha = 0.60f,
+    bevelWidth = 1.7.dp,
+    castShadow = Color(0xFF050302),
+    wellFloor = OldMoneyWellFloor,
+    knobShade = OldMoneyKnobShade,
+    grainAlpha = 0.07f
+)
+
+/** Batch 180: profil kedalaman FISIK (timbul + cekung) — dibaca mesin di SkeuomorphicComponents.kt
+ *  (`depthCastShadow`, `depthPlateSurface`, `depthWellInner`, dst). `SkeuTokens.depth == null` =
+ *  perilaku lama persis (5 varian lain 0 perubahan); hanya Old Money yang mengisi. Beda dari
+ *  `shadowLightTint`/`shadowDarkTint` (alpha tipis sehue latar → "nyaru"): kedalaman di sini
+ *  datang dari 3 sumber yang terbaca: (1) selisih LUMINANSI permukaan vs latar vs lantai sumur,
+ *  (2) bevel facet per-sisi menurut arah cahaya, (3) bayangan Gaussian berlapis.
+ *  [lightX]/[lightY] = vektor satuan ke arah sumber cahaya (kiri-atas = negatif/negatif).
+ *  [rimLightAlpha]/[rimShadeAlpha] = alpha facet paling terang/paling gelap (facet lain
+ *  berskala cos sudut). [bevelWidth] = lebar facet. [grainAlpha] = kekuatan tekstur butiran. */
+data class DepthStyle(
+    val lightX: Float,
+    val lightY: Float,
+    val faceTop: Color,
+    val faceBottom: Color,
+    val rimLight: Color,
+    val rimLightAlpha: Float,
+    val rimShade: Color,
+    val rimShadeAlpha: Float,
+    val bevelWidth: Dp,
+    val castShadow: Color,
+    val wellFloor: Color,
+    val knobShade: Color,
+    val grainAlpha: Float
+)
+
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
  *  lewat `LocalSkeuTokens.current` (SkeuomorphicComponents.kt) — 1 kode komponen,
  *  5 varian, TANPA duplikasi. Field baru WAJIB diisi di SEMUA instance di bawah
@@ -682,7 +740,10 @@ data class SkeuTokens(
     // — 4 varian lama diisi `RoundedCornerShape(cardRadius)` SAMA PERSIS dgn
     // behavior lama (0 perubahan visual), Serene M3 diisi `SereneShapes.large`
     // (cut-corner asli) supaya AKHIRNYA kebaca di kartu.
-    val cardShape: Shape
+    val cardShape: Shape,
+    // Batch 180: default null = 5 varian lama TIDAK disentuh (instance mereka tak perlu diubah);
+    // non-null = SkeuCard/SkeuTintedCard/track/switch/power button/knob pakai mesin kedalaman fisik.
+    val depth: DepthStyle? = null
 )
 
 /** Varian 1 (default): "Midnight Glass" — iOS glassmorphism restrained/tenang. */
@@ -830,7 +891,10 @@ val OldMoneySkeuTokens = SkeuTokens(
     iconBoxRadius = OldMoneyIconBoxRadius,
     shadowLightTint = OldMoneyEdgeHighlight,
     shadowDarkTint = OldMoneyEdgeShadow,
-    cardShape = OldMoneyCardShape
+    cardShape = OldMoneyCardShape,
+    // B180: mesin kedalaman fisik menggantikan dual-shadow alpha-tipis B179 (tint di atas tetap
+    // terisi hanya sebagai fallback; cabang `depth != null` melewati `SkeuDualDirectionalShadow`).
+    depth = OldMoneyDepth
 )
 
 /** Pilihan varian aktif — persisted lewat `PrefsHelper.getAppThemeStyle` (String
