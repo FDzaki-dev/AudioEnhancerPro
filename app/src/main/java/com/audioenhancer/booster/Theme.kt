@@ -667,7 +667,8 @@ val OldMoneyDepth = DepthStyle(
     castShadow = Color(0xFF050302),
     wellFloor = OldMoneyWellFloor,
     knobShade = OldMoneyKnobShade,
-    grainAlpha = 0.07f
+    grainAlpha = 0.07f,
+    frameInset = 5.dp
 )
 
 /** Batch 180: profil kedalaman FISIK (timbul + cekung) — dibaca mesin di SkeuomorphicComponents.kt
@@ -678,7 +679,8 @@ val OldMoneyDepth = DepthStyle(
  *  (2) bevel facet per-sisi menurut arah cahaya, (3) bayangan Gaussian berlapis.
  *  [lightX]/[lightY] = vektor satuan ke arah sumber cahaya (kiri-atas = negatif/negatif).
  *  [rimLightAlpha]/[rimShadeAlpha] = alpha facet paling terang/paling gelap (facet lain
- *  berskala cos sudut). [bevelWidth] = lebar facet. [grainAlpha] = kekuatan tekstur butiran. */
+ *  berskala cos sudut). [bevelWidth] = lebar facet. [grainAlpha] = kekuatan tekstur butiran.
+ *  [frameInset] = jarak alur ukir (bingkai cekung tipis) dari tepi pelat; 0.dp = tanpa bingkai. */
 data class DepthStyle(
     val lightX: Float,
     val lightY: Float,
@@ -692,7 +694,8 @@ data class DepthStyle(
     val castShadow: Color,
     val wellFloor: Color,
     val knobShade: Color,
-    val grainAlpha: Float
+    val grainAlpha: Float,
+    val frameInset: Dp
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca

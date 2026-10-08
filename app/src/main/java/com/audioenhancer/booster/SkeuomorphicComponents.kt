@@ -274,8 +274,8 @@ private fun BoxScope.SkeuDualDirectionalShadow(
 // Bevel, grain, bibir sumur = primitif vektor `drawPath`/`drawRect` (tajam di resolusi penuh).
 // =====================================================================================
 
-private const val DepthPlateBitmapScale = 0.25f
-private const val DepthWellBitmapScale = 0.5f
+private const val DepthPlateBitmapScale = 0.3333f // B182: naik dari 0.25 → bayangan kontak lebih tajam
+private const val DepthWellBitmapScale = 0.75f // B182: naik dari 0.5 → bibir/bayangan sumur lebih halus
 private const val DepthSqrt2 = 1.4142135f
 
 /** Satu lapis bayangan jatuh. [dx]/[dy] = offset (dp, + = kanan/bawah, menjauhi cahaya kiri-atas),
@@ -425,6 +425,14 @@ private fun renderDepthWellInner(shape: Shape, wPx: Float, hPx: Float, density: 
         addRect(Rect(-pad + dx, -pad + dy, bw + pad + dx, bh + pad + dy))
         addPath(shapePath, Offset(dx, dy))
     }
+    // B182: oklusi ambien — gelap lembut merata di sekeliling tepi dalam (kedalaman terasa, bukan
+    // hanya dari sisi kiri-atas), di bawah bayangan terarah.
+    val ao = Paint().apply {
+        isAntiAlias = true
+        color = style.castShadow.copy(alpha = 0.40f)
+    }
+    ao.asFrameworkPaint().maskFilter = BlurMaskFilter(depthBlurRadius(2.6f * k), BlurMaskFilter.Blur.NORMAL)
+    canvas.drawPath(outside(0.4f * k, 0.6f * k), ao)
     val shadow = Paint().apply {
         isAntiAlias = true
         color = style.castShadow.copy(alpha = 0.85f)
@@ -512,6 +520,25 @@ private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = t
     }
 }
 
+/** B182: butiran halus di latar layar (kulit gelap) — hanya Old Money (dipanggil dari MainActivity).
+ *  Menggambar tekstur yang sama dgn pelat dengan alpha rendah di BELAKANG semua konten. */
+internal fun Modifier.skeuBackdropGrain(): Modifier = this.drawBehind {
+    drawRect(brush = DepthGrainBrush, alpha = 0.05f)
+}
+
+/** Segi-8 chamfer pada jarak [inset] dari tepi (titik sudut = rumus segi-8 dalam bevel; [k] = c + inset*(√2-1)). */
+private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Path().apply {
+    moveTo(k, inset)
+    lineTo(w - k, inset)
+    lineTo(w - inset, k)
+    lineTo(w - inset, h - k)
+    lineTo(w - k, h - inset)
+    lineTo(k, h - inset)
+    lineTo(inset, h - k)
+    lineTo(inset, k)
+    close()
+}
+
 /** Permukaan pelat timbul: grain + bevel FACET 8 sisi (bentuk chamfer [chamfer] seragam).
  *  Tiap facet (atas, kanan, bawah, kiri, 4 diagonal) diwarnai menurut `dot(normal, arahCahaya)`:
  *  > 0 = sorot gading (alpha skala cos), < 0 = hitam hangat. Diagonal kiri-atas paling terang,
@@ -522,11 +549,36 @@ private fun Modifier.depthPlateSurface(style: DepthStyle, chamfer: Dp, accent: C
         val w = size.width
         val h = size.height
         val facets = ArrayList<Pair<Path, Color>>(8)
+        val lit = if (accent != null) lerp(style.rimLight, accent, 0.28f) else style.rimLight
+        // B182: kubah halus — kilau lembut dari sisi cahaya (kiri-atas) + peredupan lembut ke
+        // kanan-bawah, supaya pelat terasa melengkung tipis, bukan pelat datar bergradien.
+        val sheen = Brush.radialGradient(
+            colors = listOf(lit.copy(alpha = 0.07f), lit.copy(alpha = 0f)),
+            center = Offset(w * 0.20f, h * 0.05f),
+            radius = (max(w, h) * 0.85f).coerceAtLeast(1f)
+        )
+        val vignette = Brush.radialGradient(
+            colors = listOf(style.rimShade.copy(alpha = 0f), style.rimShade.copy(alpha = 0.14f)),
+            center = Offset(w * 0.40f, h * 0.35f),
+            radius = (max(w, h) * 1.0f).coerceAtLeast(1f)
+        )
+        // B182: alur ukir (bingkai cekung tipis) — garis gelap + garis sorot gading bergeser ke
+        // kanan-bawah (dinding alur menghadap cahaya) di dalam bevel, seperti tooling kulit/kertas.
+        val frameInset = style.frameInset.toPx()
+        val frameShiftX = 0.8.dp.toPx()
+        val frameShiftY = 0.9.dp.toPx()
+        val frameStroke = 1.dp.toPx()
+        val b = style.bevelWidth.toPx()
+        val c = min(chamfer.toPx(), min(w, h) / 2f)
+        val k = c + b * (DepthSqrt2 - 1f)
+        // 1 Path dipakai 2x (garis gelap, lalu garis terang digeser via translate).
+        val framePath: Path? =
+            if (frameInset > 0f && w > frameInset * 4f && h > frameInset * 4f) {
+                depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
+            } else {
+                null
+            }
         if (w >= 4f && h >= 4f) {
-            val b = style.bevelWidth.toPx()
-            val c = min(chamfer.toPx(), min(w, h) / 2f)
-            val k = c + b * (DepthSqrt2 - 1f)
-            val lit = if (accent != null) lerp(style.rimLight, accent, 0.28f) else style.rimLight
             // Segi-8 luar (O) & dalam (I, inset b). Facet i = O[i] -> O[i+1] -> I[i+1] -> I[i].
             val ox = floatArrayOf(c, w - c, w, w, w - c, c, 0f, 0f)
             val oy = floatArrayOf(0f, 0f, c, h - c, h, h, h - c, c)
@@ -555,7 +607,15 @@ private fun Modifier.depthPlateSurface(style: DepthStyle, chamfer: Dp, accent: C
             }
         }
         onDrawBehind {
+            drawRect(brush = vignette)
+            drawRect(brush = sheen)
             drawRect(brush = DepthGrainBrush, alpha = style.grainAlpha)
+            if (framePath != null) {
+                drawPath(framePath, style.rimShade.copy(alpha = 0.40f), style = Stroke(width = frameStroke))
+                translate(left = frameShiftX, top = frameShiftY) {
+                    drawPath(framePath, lit.copy(alpha = 0.09f), style = Stroke(width = frameStroke))
+                }
+            }
             for (f in facets) drawPath(f.first, f.second)
         }
     }
@@ -569,7 +629,16 @@ private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle): Modifie
         center = Offset(w / 2f + style.lightX * w * 0.22f, h / 2f + style.lightY * h * 0.22f),
         radius = (max(w, h) * 0.95f).coerceAtLeast(1f)
     )
-    onDrawBehind { drawCircle(brush = dome) }
+    // B182: titik kilau (specular) kecil di sisi cahaya — knob terbaca sebagai mutiara/kubah licin.
+    val spec = Brush.radialGradient(
+        colors = listOf(style.rimLight.copy(alpha = 0.55f), style.rimLight.copy(alpha = 0f)),
+        center = Offset(w / 2f + style.lightX * w * 0.24f, h / 2f + style.lightY * h * 0.24f),
+        radius = (max(w, h) * 0.26f).coerceAtLeast(1f)
+    )
+    onDrawBehind {
+        drawCircle(brush = dome)
+        drawCircle(brush = spec)
+    }
 }
 
 /** Cincin tepi bundar: terang di sisi cahaya, gelap di sisi sebaliknya (gradien linear searah
@@ -869,7 +938,16 @@ private fun SkeuSliderTrack(
                     .fillMaxWidth(fraction)
                     .fillMaxHeight()
                     .clip(shape)
-                    .background(trackColor)
+                    // B182: isian = enamel bulat (atas lebih terang, bawah lebih gelap), bukan warna datar.
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                lerp(trackColor, depth.rimLight, 0.18f),
+                                trackColor,
+                                lerp(trackColor, Color.Black, 0.25f)
+                            )
+                        )
+                    )
             )
             Box(Modifier.matchParentSize().depthWellInner(shape, depth))
         }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 182: Poles akhir efek timbul dan cekung Old Money
+
+Efek timbul dan cekung tema Old Money dipoles supaya terasa seperti benda nyata. Setiap kartu kini sedikit melengkung: ada kilau lembut dari arah cahaya di kiri-atas dan peredupan halus ke kanan-bawah. Di dalam tepi kartu ada alur ukir tipis berbentuk bingkai, seperti tooling pada kulit atau kertas surat, dengan sisi gelap dan sisi terang yang mengikuti arah cahaya. Kotak ikon, jalur slider, dan alur switch punya bayangan dalam yang lebih dalam di sekeliling tepinya. Knob mendapat titik kilau kecil seperti mutiara, isian slider berwarna burgundy punya gradasi seperti enamel, bayangan jatuh lebih tajam di dekat tepi kartu, dan latar layar diberi butiran halus seperti kulit gelap. Tema lain tidak berubah.
+Untuk pengembang: `DepthStyle` mendapat field `frameInset`; `depthPlateSurface` menambah vignette, kilau radial, dan bingkai alur ukir (`depthOctagon`); `renderDepthWellInner` menambah lapisan oklusi ambien; `depthDome` menambah specular; `skeuBackdropGrain` (internal) dipanggil dari `MainActivity.kt` hanya untuk Old Money; skala bitmap bayangan naik (pelat 0.25 ke 0.3333, sumur dan knob 0.5 ke 0.75).
+
+**Perubahan** (3 file source + 2 dokumen): `SkeuomorphicComponents.kt`, `Theme.kt`, `MainActivity.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v181.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); tampilan baru hanya disimulasikan statis. Cek di perangkat: scroll tetap mulus (tiap kartu kini menggambar dua gradien tambahan), bingkai alur ukir tidak bentrok dengan isi kartu, butiran latar tidak mengganggu keterbacaan.
+
 ## Batch 181: Perbaikan build — efek timbul/cekung Old Money gagal dikompilasi
 
 Build CI nomor 220 gagal karena satu baris import yang salah di kode efek timbul dan cekung Old Money (Batch 180). Baris itu dihapus; tampilan dan perilaku tidak berubah dari yang dijelaskan di Batch 180.

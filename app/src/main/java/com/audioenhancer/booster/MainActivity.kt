@@ -172,6 +172,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(screenBrush)
+                        // B182: butiran latar kulit gelap, hanya Old Money (tema lain 0 berubah).
+                        .then(if (appThemeStyle == AppThemeStyle.OLD_MONEY) Modifier.skeuBackdropGrain() else Modifier)
                         .safeDrawingPadding(),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground
