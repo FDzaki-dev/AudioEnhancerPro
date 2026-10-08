@@ -64,6 +64,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -71,6 +72,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.CacheDrawScope
+import androidx.compose.ui.draw.DrawResult
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
@@ -95,7 +98,9 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
@@ -104,7 +109,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -256,7 +260,7 @@ private fun BoxScope.SkeuDualDirectionalShadow(
 }
 
 // =====================================================================================
-// Batch 180 — MESIN KEDALAMAN FISIK (timbul + cekung), HANYA aktif saat
+// Batch 180-184 — MESIN KEDALAMAN FISIK (timbul + cekung), HANYA aktif saat
 // `LocalSkeuTokens.current.depth != null` (Old Money). 5 varian lain 0 perubahan: cabang
 // `depth == null` memanggil kode lama persis.
 //
@@ -267,43 +271,94 @@ private fun BoxScope.SkeuDualDirectionalShadow(
 // gading, sisi membelakangi = hitam hangat, bukan gradien miring palsu); (3) bayangan jatuh
 // Gaussian beneran 3 lapis (kontak / tengah / ambient) + grain halus agar permukaan bukan datar.
 //
-// Blur Gaussian di-render SEKALI ke `ImageBitmap` PERANGKAT LUNAK (Canvas(ImageBitmap) +
-// `BlurMaskFilter` — jalur software, identik di semua API; BUKAN canvas hardware yang jadi
-// alasan larangan B14/B32) pada resolusi 1/4 (pelat) / 1/2 (sumur kecil) lalu digambar 1x
-// `drawImage` per elemen. Cache per-call-site (`DepthBitmapHolder`): render ulang HANYA bila
-// ukuran/density/style berubah, bukan tiap rekomposisi (drag slider tak memicu render ulang).
-// Bevel, grain, bibir sumur = primitif vektor `drawPath`/`drawRect` (tajam di resolusi penuh).
+// OPTIMASI BEBAN PROSESOR (Batch 184, request user "efek jangan membebani prosesor device"):
+//  1. Blur Gaussian di-render di bitmap PERANGKAT LUNAK (`Canvas(ImageBitmap)` + `BlurMaskFilter`;
+//     BUKAN canvas hardware = alasan larangan B14/B32) — dan untuk kartu besar HANYA SEKALI:
+//     satu template 9-slice kecil dipakai bersama SEMUA kartu (8 `drawImage` irisan, bagian tengah
+//     meregang), jadi 0 render blur per kartu & 0 render ulang saat ukuran kartu berubah. Hanya
+//     elemen kecil/pendek (< 2x zona sudut template) memakai bitmap per-ukuran.
+//  2. Semua bitmap lewat cache GLOBAL ber-batas (`DepthBitmapStore`, LRU 48 entri): elemen berukuran
+//     sama (kotak ikon, knob, thumb) berbagi 1 bitmap; memori terbatas.
+//  3. Lambda gambar memakai `depthDraw` (kunci `remember`) → identitas lambda STABIL antar
+//     rekomposisi, sehingga `drawWithCache` TIDAK dibangun ulang & tidak di-invalidate tiap
+//     rekomposisi (mis. saat drag slider yang merekomposisi seluruh layar).
+//  4. Permukaan pelat (gradien + kilau + peredupan) di-bake ke 1 tekstur 48x48 bersama →
+//     1 `drawImage` menggantikan 4 pengisian gradien layar penuh per kartu.
+//  5. Tak ada alokasi di lambda gambar (Path/Brush dibangun di blok cache, bukan per frame).
 // =====================================================================================
 
-private const val DepthPlateBitmapScale = 0.3333f // B182: naik dari 0.25 → bayangan kontak lebih tajam
-private const val DepthWellBitmapScale = 0.75f // B182: naik dari 0.5 → bibir/bayangan sumur lebih halus
+private const val DepthWellBitmapScale = 0.75f
+private const val DepthFallbackScale = 0.3333f
+private const val DepthTemplateScale = 0.5f
 private const val DepthSqrt2 = 1.4142135f
+
+// Template 9-slice bayangan pelat (dp): zona sudut tak-meregang Kx/Ky (>= chamfer 8 + offset
+// maks + 2.5 sigma terlebar), margin kiri/atas/kanan/bawah, lebar pita tengah Z. Divalidasi simulasi:
+// selisih alpha maks 3%, rata-rata 0.2% vs render langsung. Elemen < 2*Kx x 2*Ky → bitmap sendiri.
+private const val SliceKx = 44f
+private const val SliceKy = 52f
+private const val SliceML = 16f
+private const val SliceMT = 10f
+private const val SliceMR = 34f
+private const val SliceMB = 40f
+private const val SliceZ = 8f
 
 /** Satu lapis bayangan jatuh. [dx]/[dy] = offset (dp, + = kanan/bawah, menjauhi cahaya kiri-atas),
  *  [blur] = lebar blur (~2 sigma, dp), [alpha] = kepekatan lapis. */
 private class DepthShadowLayer(val dx: Float, val dy: Float, val blur: Float, val alpha: Float)
 
-// Pelat/kartu: kontak tajam + tengah + ambient lebar. Bleed 34dp = jangkauan terjauh (offset 15 +
-// ~2 sigma 18) — di bawah itu ekor Gaussian < 1% (tak terlihat).
-private val DepthPlateShadow = listOf(
-    DepthShadowLayer(1.0f, 1.5f, 2.0f, 0.85f),
-    DepthShadowLayer(4.0f, 6.0f, 8.0f, 0.62f),
-    DepthShadowLayer(10.0f, 15.0f, 18.0f, 0.50f)
-)
-private const val DepthPlateBleedDp = 34f
+/** Kumpulan lapis + margin bleed seragam (dp) + skala bitmap untuk jalur bitmap-per-ukuran. */
+private class DepthShadowSpec(val layers: List<DepthShadowLayer>, val bleedDp: Float, val scale: Float)
 
-// Knob kecil (thumb slider/switch) & power button.
-private val DepthKnobShadow = listOf(
-    DepthShadowLayer(0.6f, 1.0f, 1.4f, 0.85f),
-    DepthShadowLayer(1.8f, 3.0f, 4.0f, 0.55f)
+// Pelat/kartu: kontak tajam + tengah + ambient lebar.
+private val DepthPlateShadow = DepthShadowSpec(
+    listOf(
+        DepthShadowLayer(1.0f, 1.5f, 2.0f, 0.85f),
+        DepthShadowLayer(4.0f, 6.0f, 8.0f, 0.62f),
+        DepthShadowLayer(10.0f, 15.0f, 18.0f, 0.50f)
+    ),
+    34f,
+    DepthFallbackScale
 )
-private const val DepthKnobBleedDp = 10f
-private val DepthButtonShadow = listOf(
-    DepthShadowLayer(0.8f, 1.2f, 2.0f, 0.85f),
-    DepthShadowLayer(2.5f, 4.0f, 6.0f, 0.60f),
-    DepthShadowLayer(6.0f, 9.0f, 12.0f, 0.45f)
+
+// Knob kecil (thumb slider/switch).
+private val DepthKnobShadow = DepthShadowSpec(
+    listOf(
+        DepthShadowLayer(0.6f, 1.0f, 1.4f, 0.85f),
+        DepthShadowLayer(1.8f, 3.0f, 4.0f, 0.55f)
+    ),
+    10f,
+    DepthWellBitmapScale
 )
-private const val DepthButtonBleedDp = 24f
+
+// Power button.
+private val DepthButtonShadow = DepthShadowSpec(
+    listOf(
+        DepthShadowLayer(0.8f, 1.2f, 2.0f, 0.85f),
+        DepthShadowLayer(2.5f, 4.0f, 6.0f, 0.60f),
+        DepthShadowLayer(6.0f, 9.0f, 12.0f, 0.45f)
+    ),
+    24f,
+    DepthWellBitmapScale
+)
+
+// Tombol/pil/tab (kunci).
+private val DepthKeyShadow = DepthShadowSpec(
+    listOf(
+        DepthShadowLayer(0.5f, 0.9f, 1.2f, 0.85f),
+        DepthShadowLayer(1.8f, 3.0f, 4.5f, 0.55f)
+    ),
+    10f,
+    DepthWellBitmapScale
+)
+
+/** Bagian dekorasi pelat yang digambar: [face] permukaan ter-bake, [grain] butiran, [frame] alur
+ *  ukir; [front] = digambar DI ATAS konten (overlay dialog), bukan di belakang. */
+private class DepthParts(val face: Boolean, val grain: Boolean, val frame: Boolean, val front: Boolean)
+
+private val DepthPartsPlate = DepthParts(face = true, grain = true, frame = true, front = false)
+private val DepthPartsKey = DepthParts(face = false, grain = false, frame = false, front = false)
+private val DepthPartsDialog = DepthParts(face = false, grain = true, frame = true, front = true)
 
 /** `BlurMaskFilter.radius` → sigma = 0.57735 * radius + 0.5 (konversi Skia). Dibalik di sini
  *  supaya parameter layer = sigma yang diinginkan (px bitmap), minimal radius 0.5 (radius <= 0
@@ -319,27 +374,45 @@ private fun Outline.toDepthPath(): Path {
     }
 }
 
-/** Cache 1 bitmap per call-site. Kunci = ukuran + density + (shape/style/param); beda = render ulang. */
-private class DepthBitmapHolder {
-    private var cachedW = -1f
-    private var cachedH = -1f
-    private var cachedDensity = -1f
-    private var cachedKey: Any? = null
-    private var cached: ImageBitmap? = null
+/** Kunci cache global. [kind]: 1 template bayangan pelat, 2 bayangan per-ukuran, 3 bayangan dalam
+ *  sumur, 4 permukaan pelat ter-bake. */
+private data class DepthStoreKey(
+    val kind: Int,
+    val w: Int,
+    val h: Int,
+    val density: Float,
+    val shape: Shape?,
+    val style: DepthStyle?,
+    val extra: Any?
+)
 
-    fun get(w: Float, h: Float, density: Float, key: Any, build: () -> ImageBitmap): ImageBitmap {
-        val hit = cached
-        if (hit != null && cachedW == w && cachedH == h && cachedDensity == density && cachedKey == key) {
-            return hit
-        }
-        val fresh = build()
-        cachedW = w
-        cachedH = h
-        cachedDensity = density
-        cachedKey = key
-        cached = fresh
-        return fresh
+/** Cache GLOBAL bitmap efek (LRU, maks 48 entri): dibagi lintas elemen berukuran sama & lintas
+ *  rekomposisi; memori terbatas. Hanya dipakai dari thread UI (blok cache gambar), tetap disinkronkan. */
+private object DepthBitmapStore {
+    private const val MAX_ENTRIES = 48
+    private val map = object : LinkedHashMap<Any, ImageBitmap>(64, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Any, ImageBitmap>?): Boolean =
+            size > MAX_ENTRIES
     }
+
+    fun get(key: Any, build: () -> ImageBitmap): ImageBitmap = synchronized(map) {
+        val hit = map[key]
+        if (hit != null) {
+            hit
+        } else {
+            val fresh = build()
+            map[key] = fresh
+            fresh
+        }
+    }
+}
+
+/** `drawWithCache` dgn lambda STABIL: [block] dari pemanggil disimpan lewat `remember(keys)`, jadi
+ *  rekomposisi dgn kunci sama TIDAK mengganti lambda → cache gambar tak dibangun ulang & node tak
+ *  di-invalidate (lihat poin 3 di komentar atas). Kunci = SEMUA parameter yang dipakai blok. */
+private fun Modifier.depthDraw(vararg keys: Any?, block: CacheDrawScope.() -> DrawResult): Modifier = composed {
+    val stable = remember(*keys) { block }
+    this.drawWithCache(stable)
 }
 
 /** Tekstur butiran (kulit/kertas): tile 128px, derau halus + derau lembut (32px di-upsample
@@ -378,8 +451,42 @@ private val DepthGrainBrush: Brush by lazy {
     ShaderBrush(ImageShader(DepthGrainTile, TileMode.Repeated, TileMode.Repeated))
 }
 
-/** Render bayangan jatuh (timbul) ke bitmap perangkat lunak. Bitmap = bentuk + margin [bleedDp]
- *  tiap sisi; koordinat bentuk di (margin, margin). Semua panjang dihitung dalam px-bitmap
+/** Permukaan pelat ter-bake 48x48 (tak bergantung ukuran kartu, di-skala bilinear): gradien
+ *  kiri-atas→kanan-bawah + peredupan lembut ke kanan-bawah + kilau lembut dari sisi cahaya. Menggantikan
+ *  4 pengisian gradien layar penuh per kartu dengan 1 `drawImage` (opak). [tint] = geser ke warna status. */
+private fun renderDepthFace(style: DepthStyle, tint: Color?): ImageBitmap {
+    val n = 48
+    val top = (if (tint != null) lerp(style.faceTop, tint, 0.16f) else style.faceTop).toArgb()
+    val bottom = (if (tint != null) lerp(style.faceBottom, tint, 0.12f) else style.faceBottom).toArgb()
+    val lit = (if (tint != null) lerp(style.rimLight, tint, 0.28f) else style.rimLight).toArgb()
+    val shade = style.rimShade.toArgb()
+    val px = IntArray(n * n)
+    for (y in 0 until n) {
+        val v = (y + 0.5f) / n
+        for (x in 0 until n) {
+            val u = (x + 0.5f) / n
+            val t = (u + v) * 0.5f
+            val dv = kotlin.math.hypot(u - 0.40f, v - 0.35f).coerceIn(0f, 1f)
+            val va = dv * 0.14f
+            val ds = (kotlin.math.hypot(u - 0.20f, v - 0.05f) / 0.85f).coerceIn(0f, 1f)
+            val sa = (1f - ds) * 0.07f
+            var rgb = 0
+            for (shift in intArrayOf(16, 8, 0)) {
+                val c0 = ((top shr shift) and 255).toFloat()
+                val c1 = ((bottom shr shift) and 255).toFloat()
+                var c = c0 + (c1 - c0) * t
+                c = c * (1f - va) + ((shade shr shift) and 255).toFloat() * va
+                c = c * (1f - sa) + ((lit shr shift) and 255).toFloat() * sa
+                rgb = rgb or (c.roundToInt().coerceIn(0, 255) shl shift)
+            }
+            px[y * n + x] = (0xFF shl 24) or rgb
+        }
+    }
+    return Bitmap.createBitmap(px, n, n, Bitmap.Config.ARGB_8888).asImageBitmap()
+}
+
+/** Render bayangan jatuh (timbul) ke bitmap perangkat lunak. Bitmap = bentuk + margin
+ *  ([mL],[mT],[mR],[mB] dp); bentuk digambar di (mL, mT). Semua panjang dihitung dalam px-bitmap
  *  (`dp * density * scale`), `Density(k)` membuat sudut chamfer/rounded (dalam dp) ikut skala. */
 private fun renderDepthCastShadow(
     shape: Shape,
@@ -388,18 +495,20 @@ private fun renderDepthCastShadow(
     density: Float,
     style: DepthStyle,
     layers: List<DepthShadowLayer>,
-    bleedDp: Float,
+    mL: Float,
+    mT: Float,
+    mR: Float,
+    mB: Float,
     scale: Float
 ): ImageBitmap {
     val k = density * scale
-    val margin = bleedDp * k
-    val bw = ceil(wPx * scale + margin * 2f).toInt().coerceAtLeast(2)
-    val bh = ceil(hPx * scale + margin * 2f).toInt().coerceAtLeast(2)
+    val bw = ceil((wPx + (mL + mR) * density) * scale).toInt().coerceAtLeast(2)
+    val bh = ceil((hPx + (mT + mB) * density) * scale).toInt().coerceAtLeast(2)
     val bmp = ImageBitmap(bw, bh, ImageBitmapConfig.Argb8888)
     val canvas = GfxCanvas(bmp)
     val base = shape.createOutline(Size(wPx * scale, hPx * scale), LayoutDirection.Ltr, Density(k)).toDepthPath()
     for (layer in layers) {
-        val path = Path().apply { addPath(base, Offset(margin + layer.dx * k, margin + layer.dy * k)) }
+        val path = Path().apply { addPath(base, Offset(mL * k + layer.dx * k, mT * k + layer.dy * k)) }
         val paint = Paint().apply {
             isAntiAlias = true
             color = style.castShadow.copy(alpha = layer.alpha)
@@ -411,8 +520,9 @@ private fun renderDepthCastShadow(
     return bmp
 }
 
-/** Render bayangan DALAM (cekung): bayangan gelap dari dinding sisi kiri-atas + bibir terang tipis
- *  di dinding sisi kanan-bawah, dipotong ke bentuk (`DstOut` pada area luar = tepi tetap mulus). */
+/** Render bayangan DALAM (cekung): oklusi ambien merata + bayangan gelap dari dinding sisi kiri-atas
+ *  + bibir terang tipis di dinding sisi kanan-bawah, dipotong ke bentuk (`DstOut` pada area luar =
+ *  tepi tetap mulus). */
 private fun renderDepthWellInner(shape: Shape, wPx: Float, hPx: Float, density: Float, style: DepthStyle): ImageBitmap {
     val bw = (wPx * DepthWellBitmapScale).roundToInt().coerceAtLeast(1)
     val bh = (hPx * DepthWellBitmapScale).roundToInt().coerceAtLeast(1)
@@ -426,8 +536,6 @@ private fun renderDepthWellInner(shape: Shape, wPx: Float, hPx: Float, density: 
         addRect(Rect(-pad + dx, -pad + dy, bw + pad + dx, bh + pad + dy))
         addPath(shapePath, Offset(dx, dy))
     }
-    // B182: oklusi ambien — gelap lembut merata di sekeliling tepi dalam (kedalaman terasa, bukan
-    // hanya dari sisi kiri-atas), di bawah bayangan terarah.
     val ao = Paint().apply {
         isAntiAlias = true
         color = style.castShadow.copy(alpha = 0.40f)
@@ -455,62 +563,107 @@ private fun renderDepthWellInner(shape: Shape, wPx: Float, hPx: Float, density: 
     return bmp
 }
 
-/** Bayangan jatuh pelat/knob (digambar DI BELAKANG, boleh keluar batas — jangan di-clip di atasnya). */
+/** Gambar bitmap bayangan per-ukuran (margin seragam [bleedDp] di semua sisi). */
+private fun DrawScope.drawShadowBitmap(bmp: ImageBitmap, density: Float, scale: Float, bleedDp: Float) {
+    val m = (bleedDp * density).roundToInt()
+    drawImage(
+        image = bmp,
+        dstOffset = IntOffset(-m, -m),
+        dstSize = IntSize((bmp.width / scale).roundToInt(), (bmp.height / scale).roundToInt())
+    )
+}
+
+/** Gambar template bayangan pelat sebagai 8 irisan (9-slice; irisan tengah tertutup permukaan
+ *  pelat opak jadi dilewati). Sudut tak meregang, pita tepi meregang sepanjang sumbunya. */
+private fun DrawScope.drawShadowSlices(bmp: ImageBitmap, w: Float, h: Float, density: Float, scale: Float) {
+    val q = density * scale
+    val f = 1f / scale
+    val lw = ((SliceML + SliceKx) * q).roundToInt()
+    val cw = (SliceZ * q).roundToInt()
+    val rw = bmp.width - lw - cw
+    val th = ((SliceMT + SliceKy) * q).roundToInt()
+    val ch = (SliceZ * q).roundToInt()
+    val bth = bmp.height - th - ch
+    val xL0 = -SliceML * density
+    val xL1 = xL0 + lw * f
+    val xR1 = w + SliceMR * density
+    val xR0 = xR1 - rw * f
+    val yT0 = -SliceMT * density
+    val yT1 = yT0 + th * f
+    val yB1 = h + SliceMB * density
+    val yB0 = yB1 - bth * f
+    fun patch(sx: Int, sy: Int, sw: Int, sh: Int, x0: Float, y0: Float, x1: Float, y1: Float) {
+        val ix0 = x0.roundToInt()
+        val iy0 = y0.roundToInt()
+        val ix1 = x1.roundToInt()
+        val iy1 = y1.roundToInt()
+        if (sw > 0 && sh > 0 && ix1 > ix0 && iy1 > iy0) {
+            drawImage(bmp, IntOffset(sx, sy), IntSize(sw, sh), IntOffset(ix0, iy0), IntSize(ix1 - ix0, iy1 - iy0))
+        }
+    }
+    patch(0, 0, lw, th, xL0, yT0, xL1, yT1)
+    patch(lw, 0, cw, th, xL1, yT0, xR0, yT1)
+    patch(lw + cw, 0, rw, th, xR0, yT0, xR1, yT1)
+    patch(0, th, lw, ch, xL0, yT1, xL1, yB0)
+    patch(lw + cw, th, rw, ch, xR0, yT1, xR1, yB0)
+    patch(0, th + ch, lw, bth, xL0, yB0, xL1, yB1)
+    patch(lw, th + ch, cw, bth, xL1, yB0, xR0, yB1)
+    patch(lw + cw, th + ch, rw, bth, xR0, yB0, xR1, yB1)
+}
+
+/** Bayangan jatuh (digambar DI BELAKANG, boleh keluar batas — jangan di-clip di atasnya).
+ *  [slice] = pakai template 9-slice bersama bila ukuran cukup besar (kartu); selain itu bitmap per-ukuran. */
 private fun Modifier.depthCastShadow(
     shape: Shape,
     style: DepthStyle,
-    layers: List<DepthShadowLayer>,
-    bleedDp: Float,
-    scale: Float = DepthPlateBitmapScale
-): Modifier = composed {
-    val holder = remember { DepthBitmapHolder() }
-    val density = LocalDensity.current.density
-    this.drawWithCache {
-        val w = size.width
-        val h = size.height
-        val bmp = if (w >= 1f && h >= 1f) {
-            holder.get(w, h, density, listOf(shape, style, layers, bleedDp, scale)) {
-                renderDepthCastShadow(shape, w, h, density, style, layers, bleedDp, scale)
-            }
-        } else {
-            null
+    spec: DepthShadowSpec,
+    slice: Boolean = false
+): Modifier = depthDraw(shape, style, spec, slice) {
+    val w = size.width
+    val h = size.height
+    val d = density
+    if (w < 1f || h < 1f) {
+        onDrawBehind { }
+    } else if (slice && w >= 2f * SliceKx * d && h >= 2f * SliceKy * d) {
+        val tpl = DepthBitmapStore.get(DepthStoreKey(1, 0, 0, d, shape, style, spec)) {
+            renderDepthCastShadow(
+                shape, (2f * SliceKx + SliceZ) * d, (2f * SliceKy + SliceZ) * d, d, style, spec.layers,
+                SliceML, SliceMT, SliceMR, SliceMB, DepthTemplateScale
+            )
         }
-        onDrawBehind {
-            if (bmp != null) {
-                val m = (bleedDp * density).roundToInt()
-                drawImage(
-                    image = bmp,
-                    dstOffset = IntOffset(-m, -m),
-                    dstSize = IntSize((bmp.width / scale).roundToInt(), (bmp.height / scale).roundToInt())
-                )
-            }
+        onDrawBehind { drawShadowSlices(tpl, w, h, d, DepthTemplateScale) }
+    } else {
+        val bmp = DepthBitmapStore.get(DepthStoreKey(2, w.roundToInt(), h.roundToInt(), d, shape, style, spec)) {
+            renderDepthCastShadow(
+                shape, w, h, d, style, spec.layers, spec.bleedDp, spec.bleedDp, spec.bleedDp, spec.bleedDp, spec.scale
+            )
         }
+        onDrawBehind { drawShadowBitmap(bmp, d, spec.scale, spec.bleedDp) }
     }
 }
 
 /** Bayangan dalam sumur cekung — digambar di ATAS lantai sumur, di dalam bentuk (bitmap sudah
  *  dipotong ke bentuk). Taruh SETELAH `.background(lantai)`, SEBELUM konten/thumb. */
-private fun Modifier.depthWellInner(shape: Shape, style: DepthStyle): Modifier = composed {
-    val holder = remember { DepthBitmapHolder() }
-    val density = LocalDensity.current.density
-    this.drawWithCache {
-        val w = size.width
-        val h = size.height
-        val bmp = if (w >= 2f && h >= 2f) {
-            holder.get(w, h, density, Pair(shape, style)) { renderDepthWellInner(shape, w, h, density, style) }
-        } else {
-            null
+private fun Modifier.depthWellInner(shape: Shape, style: DepthStyle): Modifier = depthDraw(shape, style) {
+    val w = size.width
+    val h = size.height
+    val d = density
+    if (w < 2f || h < 2f) {
+        onDrawBehind { }
+    } else {
+        val wi = w.roundToInt()
+        val hi = h.roundToInt()
+        val bmp = DepthBitmapStore.get(DepthStoreKey(3, wi, hi, d, shape, style, null)) {
+            renderDepthWellInner(shape, wi.toFloat(), hi.toFloat(), d, style)
         }
-        onDrawBehind {
-            if (bmp != null) drawImage(bmp, dstSize = IntSize(w.roundToInt(), h.roundToInt()))
-        }
+        onDrawBehind { drawImage(bmp, dstSize = IntSize(wi, hi)) }
     }
 }
 
 /** Bibir luar sumur: garis terang tipis di tepi kanan-bawah LUAR sumur (tempat cahaya menangkap
  *  bibir lubang). Dipasang SEBELUM `.clip(shape)` supaya tidak terpotong; lantai sumur menutupi
  *  sisanya sehingga hanya sabit tipis di kanan-bawah yang tampak. */
-private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = this.drawWithCache {
+private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = depthDraw(shape, style) {
     val w = size.width
     val h = size.height
     val shift = Offset(0.7.dp.toPx(), 1.0.dp.toPx())
@@ -521,7 +674,7 @@ private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = t
     }
 }
 
-/** B182: butiran halus di latar layar (kulit gelap) — hanya Old Money (dipanggil dari MainActivity).
+/** Butiran halus di latar layar (kulit gelap) — hanya Old Money (dipanggil dari MainActivity).
  *  Menggambar tekstur yang sama dgn pelat dengan alpha rendah di BELAKANG semua konten. */
 internal fun Modifier.skeuBackdropGrain(): Modifier = this.drawBehind {
     drawRect(brush = DepthGrainBrush, alpha = 0.05f)
@@ -540,111 +693,117 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
     close()
 }
 
-/** Permukaan pelat timbul: grain + bevel FACET 8 sisi (bentuk chamfer [chamfer] seragam).
- *  Tiap facet (atas, kanan, bawah, kiri, 4 diagonal) diwarnai menurut `dot(normal, arahCahaya)`:
- *  > 0 = sorot gading (alpha skala cos), < 0 = hitam hangat. Diagonal kiri-atas paling terang,
- *  kanan-bawah paling gelap, sisi kiri/atas terang, kanan/bawah gelap — seperti pelat logam/kulit
- *  yang di-emboss dgn sumber cahaya tunggal. [accent] (kartu bertint) menggeser sorot ke warna status. */
-private fun Modifier.depthPlateSurface(style: DepthStyle, chamfer: Dp, accent: Color? = null): Modifier =
-    this.drawWithCache {
-        val w = size.width
-        val h = size.height
-        val facets = ArrayList<Pair<Path, Color>>(8)
-        val lit = if (accent != null) lerp(style.rimLight, accent, 0.28f) else style.rimLight
-        // B182: kubah halus — kilau lembut dari sisi cahaya (kiri-atas) + peredupan lembut ke
-        // kanan-bawah, supaya pelat terasa melengkung tipis, bukan pelat datar bergradien.
-        val sheen = Brush.radialGradient(
-            colors = listOf(lit.copy(alpha = 0.07f), lit.copy(alpha = 0f)),
-            center = Offset(w * 0.20f, h * 0.05f),
-            radius = (max(w, h) * 0.85f).coerceAtLeast(1f)
-        )
-        val vignette = Brush.radialGradient(
-            colors = listOf(style.rimShade.copy(alpha = 0f), style.rimShade.copy(alpha = 0.14f)),
-            center = Offset(w * 0.40f, h * 0.35f),
-            radius = (max(w, h) * 1.0f).coerceAtLeast(1f)
-        )
-        // B182: alur ukir (bingkai cekung tipis) — garis gelap + garis sorot gading bergeser ke
-        // kanan-bawah (dinding alur menghadap cahaya) di dalam bevel, seperti tooling kulit/kertas.
-        val frameInset = style.frameInset.toPx()
-        val frameShiftX = 0.8.dp.toPx()
-        val frameShiftY = 0.9.dp.toPx()
-        val frameStroke = 1.dp.toPx()
-        val b = style.bevelWidth.toPx()
-        val c = min(chamfer.toPx(), min(w, h) / 2f)
-        val k = c + b * (DepthSqrt2 - 1f)
-        // 1 Path dipakai 2x (garis gelap, lalu garis terang digeser via translate).
-        val framePath: Path? =
-            if (frameInset > 0f && w > frameInset * 4f && h > frameInset * 4f) {
-                depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
-            } else {
-                null
-            }
-        if (w >= 4f && h >= 4f) {
-            // Segi-8 luar (O) & dalam (I, inset b). Facet i = O[i] -> O[i+1] -> I[i+1] -> I[i].
-            val ox = floatArrayOf(c, w - c, w, w, w - c, c, 0f, 0f)
-            val oy = floatArrayOf(0f, 0f, c, h - c, h, h, h - c, c)
-            val ix = floatArrayOf(k, w - k, w - b, w - b, w - k, k, b, b)
-            val iy = floatArrayOf(b, b, k, h - k, h - b, h - b, h - k, k)
-            // Normal keluar tiap facet, urut: atas, kanan-atas, kanan, kanan-bawah, bawah, kiri-bawah, kiri, kiri-atas.
-            val nx = floatArrayOf(0f, 0.7071f, 1f, 0.7071f, 0f, -0.7071f, -1f, -0.7071f)
-            val ny = floatArrayOf(-1f, -0.7071f, 0f, 0.7071f, 1f, 0.7071f, 0f, -0.7071f)
-            for (i in 0 until 8) {
-                val j = (i + 1) % 8
-                val l = nx[i] * style.lightX + ny[i] * style.lightY
-                val scaled = min(1f, abs(l) / 0.83f)
-                val color = if (l > 0f) {
-                    lit.copy(alpha = style.rimLightAlpha * scaled)
-                } else {
-                    style.rimShade.copy(alpha = style.rimShadeAlpha * scaled)
-                }
-                val quad = Path().apply {
-                    moveTo(ox[i], oy[i])
-                    lineTo(ox[j], oy[j])
-                    lineTo(ix[j], iy[j])
-                    lineTo(ix[i], iy[i])
-                    close()
-                }
-                facets.add(Pair(quad, color))
-            }
-        }
-        onDrawBehind {
-            drawRect(brush = vignette)
-            drawRect(brush = sheen)
-            drawRect(brush = DepthGrainBrush, alpha = style.grainAlpha)
-            if (framePath != null) {
-                drawPath(framePath, style.rimShade.copy(alpha = 0.40f), style = Stroke(width = frameStroke))
-                translate(left = frameShiftX, top = frameShiftY) {
-                    drawPath(framePath, lit.copy(alpha = 0.09f), style = Stroke(width = frameStroke))
-                }
-            }
-            for (f in facets) drawPath(f.first, f.second)
-        }
-    }
-
-/** Kubah knob: sorot radial miring ke arah cahaya (kiri-atas), makin gelap ke kanan-bawah. */
-private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle): Modifier = this.drawWithCache {
+/** Dekorasi pelat timbul: permukaan ter-bake + grain + alur ukir + bevel FACET 8 sisi (bentuk
+ *  chamfer [chamfer] seragam), bagian yang aktif menurut [parts]. Tiap facet (atas, kanan, bawah,
+ *  kiri, 4 diagonal) diwarnai menurut `dot(normal, arahCahaya)`: > 0 = sorot gading (alpha skala
+ *  cos), < 0 = hitam hangat — seperti pelat logam/kulit di-emboss dgn sumber cahaya tunggal.
+ *  [tint] (kartu bertint) menggeser permukaan & sorot ke warna status. [bevel] = lebar facet. */
+private fun Modifier.depthPlateSurface(
+    style: DepthStyle,
+    chamfer: Dp,
+    parts: DepthParts = DepthPartsPlate,
+    tint: Color? = null,
+    bevel: Dp = style.bevelWidth
+): Modifier = depthDraw(style, chamfer, parts, tint, bevel) {
     val w = size.width
     val h = size.height
-    val dome = Brush.radialGradient(
-        colors = listOf(hi, lo),
-        center = Offset(w / 2f + style.lightX * w * 0.22f, h / 2f + style.lightY * h * 0.22f),
-        radius = (max(w, h) * 0.95f).coerceAtLeast(1f)
-    )
-    // B182: titik kilau (specular) kecil di sisi cahaya — knob terbaca sebagai mutiara/kubah licin.
-    val spec = Brush.radialGradient(
-        colors = listOf(style.rimLight.copy(alpha = 0.55f), style.rimLight.copy(alpha = 0f)),
-        center = Offset(w / 2f + style.lightX * w * 0.24f, h / 2f + style.lightY * h * 0.24f),
-        radius = (max(w, h) * 0.26f).coerceAtLeast(1f)
-    )
-    onDrawBehind {
-        drawCircle(brush = dome)
-        drawCircle(brush = spec)
+    val lit = if (tint != null) lerp(style.rimLight, tint, 0.28f) else style.rimLight
+    val b = bevel.toPx()
+    val c = min(chamfer.toPx(), min(w, h) / 2f)
+    val k = c + b * (DepthSqrt2 - 1f)
+    val frameInset = style.frameInset.toPx()
+    val frameShiftX = 0.8.dp.toPx()
+    val frameShiftY = 0.9.dp.toPx()
+    val frameStroke = 1.dp.toPx()
+    val framePath: Path? =
+        if (parts.frame && frameInset > 0f && w > frameInset * 4f && h > frameInset * 4f) {
+            depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
+        } else {
+            null
+        }
+    val face: ImageBitmap? =
+        if (parts.face && w >= 4f && h >= 4f) {
+            DepthBitmapStore.get(DepthStoreKey(4, 0, 0, 1f, null, style, tint)) { renderDepthFace(style, tint) }
+        } else {
+            null
+        }
+    val facets = ArrayList<Pair<Path, Color>>(8)
+    if (w >= 4f && h >= 4f) {
+        // Segi-8 luar (O) & dalam (I, inset b). Facet i = O[i] -> O[i+1] -> I[i+1] -> I[i].
+        val ox = floatArrayOf(c, w - c, w, w, w - c, c, 0f, 0f)
+        val oy = floatArrayOf(0f, 0f, c, h - c, h, h, h - c, c)
+        val ix = floatArrayOf(k, w - k, w - b, w - b, w - k, k, b, b)
+        val iy = floatArrayOf(b, b, k, h - k, h - b, h - b, h - k, k)
+        // Normal keluar tiap facet, urut: atas, kanan-atas, kanan, kanan-bawah, bawah, kiri-bawah, kiri, kiri-atas.
+        val nx = floatArrayOf(0f, 0.7071f, 1f, 0.7071f, 0f, -0.7071f, -1f, -0.7071f)
+        val ny = floatArrayOf(-1f, -0.7071f, 0f, 0.7071f, 1f, 0.7071f, 0f, -0.7071f)
+        for (i in 0 until 8) {
+            val j = (i + 1) % 8
+            val l = nx[i] * style.lightX + ny[i] * style.lightY
+            val scaled = min(1f, abs(l) / 0.83f)
+            val color = if (l > 0f) {
+                lit.copy(alpha = style.rimLightAlpha * scaled)
+            } else {
+                style.rimShade.copy(alpha = style.rimShadeAlpha * scaled)
+            }
+            val quad = Path().apply {
+                moveTo(ox[i], oy[i])
+                lineTo(ox[j], oy[j])
+                lineTo(ix[j], iy[j])
+                lineTo(ix[i], iy[i])
+                close()
+            }
+            facets.add(Pair(quad, color))
+        }
+    }
+    val wi = w.roundToInt()
+    val hi = h.roundToInt()
+    val ops: DrawScope.() -> Unit = {
+        if (face != null) drawImage(face, dstSize = IntSize(wi, hi))
+        if (parts.grain) drawRect(brush = DepthGrainBrush, alpha = style.grainAlpha)
+        if (framePath != null) {
+            drawPath(framePath, style.rimShade.copy(alpha = 0.40f), style = Stroke(width = frameStroke))
+            translate(left = frameShiftX, top = frameShiftY) {
+                drawPath(framePath, lit.copy(alpha = 0.09f), style = Stroke(width = frameStroke))
+            }
+        }
+        for (f in facets) drawPath(f.first, f.second)
+    }
+    if (parts.front) {
+        onDrawWithContent {
+            drawContent()
+            ops()
+        }
+    } else {
+        onDrawBehind(ops)
     }
 }
 
+/** Kubah knob: sorot radial miring ke arah cahaya (kiri-atas), makin gelap ke kanan-bawah, plus
+ *  titik kilau (specular) kecil di sisi cahaya — terbaca sebagai mutiara/kubah licin. */
+private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle): Modifier =
+    depthDraw(hi, lo, style) {
+        val w = size.width
+        val h = size.height
+        val dome = Brush.radialGradient(
+            colors = listOf(hi, lo),
+            center = Offset(w / 2f + style.lightX * w * 0.22f, h / 2f + style.lightY * h * 0.22f),
+            radius = (max(w, h) * 0.95f).coerceAtLeast(1f)
+        )
+        val spec = Brush.radialGradient(
+            colors = listOf(style.rimLight.copy(alpha = 0.55f), style.rimLight.copy(alpha = 0f)),
+            center = Offset(w / 2f + style.lightX * w * 0.24f, h / 2f + style.lightY * h * 0.24f),
+            radius = (max(w, h) * 0.26f).coerceAtLeast(1f)
+        )
+        onDrawBehind {
+            drawCircle(brush = dome)
+            drawCircle(brush = spec)
+        }
+    }
+
 /** Cincin tepi bundar: terang di sisi cahaya, gelap di sisi sebaliknya (gradien linear searah
  *  cahaya = kecerahan ∝ cos sudut, persis fisika tepi silinder). */
-private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = this.drawWithCache {
+private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = depthDraw(style, width) {
     val w = size.width
     val h = size.height
     val rimW = width.toPx()
@@ -667,23 +826,10 @@ private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = this
 private fun Modifier.depthKnobFace(style: DepthStyle, hi: Color, lo: Color): Modifier =
     this.depthDome(hi, lo, style).depthRingRim(style, 1.4.dp)
 
-// Batch 183 — PIL PRESET CEPAT fisik (request user: "kenapa pil preset cepat masih flat?!"). Root cause:
-// pil = `FilterChip`/`AssistChip` Material3 yang TIDAK pernah disambungkan ke mesin `depth*` B180-B182
-// (hanya kartu, track, switch, knob, power button) → unselected cuma outline tipis, selected cuma fill
-// datar + glow. Sekarang (hanya `depth != null`): pil diam = TIMBUL (bayangan jatuh + permukaan
-// pelat + rim stadium terang/gelap menurut arah cahaya); pil terpilih ATAU sedang ditekan = CEKUNG
-// (alur dengan bayangan dalam + bibir terang; terpilih = enamel burgundy bergradasi).
-
-private val DepthPillShadow = listOf(
-    DepthShadowLayer(0.5f, 0.9f, 1.2f, 0.85f),
-    DepthShadowLayer(1.6f, 2.8f, 4.0f, 0.55f)
-)
-private const val DepthPillBleedDp = 9f
-
 /** Rim pil stadium: sisi atas/bawah = garis lurus (facet datar → warna seragam: terang di atas,
  *  gelap di bawah), ujung kiri/kanan = busur dgn gradien searah cahaya (kecerahan ∝ cos, sama
  *  seperti `depthRingRim` untuk lingkaran). */
-private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = this.drawWithCache {
+private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = depthDraw(style, width) {
     val w = size.width
     val h = size.height
     val rimW = width.toPx()
@@ -728,9 +874,252 @@ private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = this
     }
 }
 
+/** Bentuk kunci: chamfer (tombol/tab, identitas Old Money), pil (preset), bundar (tombol ikon). */
+private enum class DepthKeyShape { Chamfer, Pill, Circle }
+
+/** Keadaan diam kunci: [Raised] = timbul; [Flat] = tak terlihat sampai aktif/ditekan (tab tak terpilih). */
+private enum class DepthRest { Raised, Flat }
+
+/** Kunci fisik serbaguna (tombol, pil, tab, tombol ikon). Diam = timbul (bayangan jatuh + permukaan
+ *  + rim menurut bentuk); ditekan = cekung sesaat (lantai gelap + bayangan dalam + bibir terang).
+ *  [selected] != null = kunci terpilih-tunggal (semantik selectable); [selectedRecessed] true =
+ *  terpilih tampak cekung (pil preset: "tertekan"), false = terpilih tampak timbul (tab: "terangkat").
+ *  [enamel] != null = isian berwarna bergradasi (tombol utama, pil terpilih). Area sentuh diperluas
+ *  oleh [touchPad] DI LUAR visual. Dipakai HANYA saat `depth != null` (pemanggil menjaga cabang lama). */
+@Composable
+private fun DepthKeyBox(
+    onClick: () -> Unit,
+    modifier: Modifier,
+    enabled: Boolean,
+    selected: Boolean?,
+    role: Role,
+    kind: DepthKeyShape,
+    enamel: Color?,
+    selectedRecessed: Boolean,
+    rest: DepthRest,
+    contentColor: Color,
+    minWidth: Dp,
+    minHeight: Dp,
+    contentPadding: PaddingValues,
+    touchPad: PaddingValues,
+    spacing: Dp,
+    content: @Composable RowScope.() -> Unit
+) {
+    val depth = LocalSkeuTokens.current.depth ?: return
+    val shape: Shape = when (kind) {
+        DepthKeyShape.Chamfer -> CutCornerShape(6.dp)
+        DepthKeyShape.Pill -> RoundedCornerShape(50)
+        DepthKeyShape.Circle -> CircleShape
+    }
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val active = selected == true
+    val recessed = pressed || (active && selectedRecessed)
+    val flat = rest == DepthRest.Flat && !active && !pressed
+    val faceBrush: Brush? = when {
+        flat -> null
+        recessed && enamel != null -> {
+            val e = lerp(depth.wellFloor, enamel, 0.72f)
+            Brush.verticalGradient(listOf(lerp(e, depth.rimLight, 0.14f), e, lerp(e, Color.Black, 0.22f)))
+        }
+        recessed -> SolidColor(depth.wellFloor)
+        enamel != null ->
+            Brush.verticalGradient(
+                listOf(lerp(enamel, depth.rimLight, 0.18f), enamel, lerp(enamel, Color.Black, 0.25f))
+            )
+        else -> Brush.verticalGradient(listOf(depth.faceTop, depth.faceBottom))
+    }
+    Box(
+        modifier = modifier
+            .alpha(if (enabled) 1f else 0.38f)
+            .then(
+                if (selected != null) {
+                    Modifier.selectable(
+                        selected = selected,
+                        interactionSource = interactionSource,
+                        indication = null,
+                        enabled = enabled,
+                        role = role,
+                        onClick = onClick
+                    )
+                } else {
+                    Modifier.clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        enabled = enabled,
+                        role = role,
+                        onClick = onClick
+                    )
+                }
+            )
+            .padding(touchPad),
+        propagateMinConstraints = true
+    ) {
+        Row(
+            modifier = Modifier
+                .defaultMinSize(minWidth = minWidth, minHeight = minHeight)
+                .then(
+                    when {
+                        flat -> Modifier
+                        recessed -> Modifier.depthWellLip(shape, depth)
+                        else -> Modifier.depthCastShadow(shape, depth, DepthKeyShadow)
+                    }
+                )
+                .clip(shape)
+                .then(if (faceBrush != null) Modifier.background(faceBrush) else Modifier)
+                .then(
+                    when {
+                        flat -> Modifier
+                        recessed -> Modifier.depthWellInner(shape, depth)
+                        kind == DepthKeyShape.Chamfer -> Modifier.depthPlateSurface(depth, 6.dp, DepthPartsKey, null, 1.2.dp)
+                        kind == DepthKeyShape.Pill -> Modifier.depthPillRim(depth, 1.2.dp)
+                        else -> Modifier.depthRingRim(depth, 1.4.dp)
+                    }
+                )
+                .padding(contentPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing, Alignment.CenterHorizontally)
+        ) {
+            CompositionLocalProvider(LocalContentColor provides contentColor) {
+                ProvideTextStyle(MaterialTheme.typography.labelLarge) { content() }
+            }
+        }
+    }
+}
+
+/** Tombol utama (isian enamel burgundy). `depth == null` → `Button` Material lama persis. */
+@Composable
+internal fun SkeuButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    if (LocalSkeuTokens.current.depth == null) {
+        Button(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        return
+    }
+    DepthKeyBox(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        selected = null,
+        role = Role.Button,
+        kind = DepthKeyShape.Chamfer,
+        enamel = MaterialTheme.colorScheme.primary,
+        selectedRecessed = false,
+        rest = DepthRest.Raised,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        minWidth = 58.dp,
+        minHeight = 40.dp,
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        touchPad = PaddingValues(vertical = 4.dp),
+        spacing = 0.dp,
+        content = content
+    )
+}
+
+/** Tombol sekunder (kunci timbul, label burgundy diterangkan agar terbaca di permukaan pelat). */
+@Composable
+internal fun SkeuOutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    val depth = LocalSkeuTokens.current.depth
+    if (depth == null) {
+        OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        return
+    }
+    DepthKeyBox(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        selected = null,
+        role = Role.Button,
+        kind = DepthKeyShape.Chamfer,
+        enamel = null,
+        selectedRecessed = false,
+        rest = DepthRest.Raised,
+        contentColor = lerp(MaterialTheme.colorScheme.primary, depth.rimLight, 0.30f),
+        minWidth = 58.dp,
+        minHeight = 40.dp,
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        touchPad = PaddingValues(vertical = 4.dp),
+        spacing = 0.dp,
+        content = content
+    )
+}
+
+/** Tombol teks (kunci timbul kecil). */
+@Composable
+internal fun SkeuTextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    val depth = LocalSkeuTokens.current.depth
+    if (depth == null) {
+        TextButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        return
+    }
+    DepthKeyBox(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        selected = null,
+        role = Role.Button,
+        kind = DepthKeyShape.Chamfer,
+        enamel = null,
+        selectedRecessed = false,
+        rest = DepthRest.Raised,
+        contentColor = lerp(MaterialTheme.colorScheme.primary, depth.rimLight, 0.30f),
+        minWidth = 48.dp,
+        minHeight = 40.dp,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+        touchPad = PaddingValues(vertical = 4.dp),
+        spacing = 0.dp,
+        content = content
+    )
+}
+
+/** Tombol ikon (kunci bundar timbul 40dp, area sentuh 48dp). */
+@Composable
+internal fun SkeuIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable () -> Unit
+) {
+    if (LocalSkeuTokens.current.depth == null) {
+        IconButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        return
+    }
+    DepthKeyBox(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        selected = null,
+        role = Role.Button,
+        kind = DepthKeyShape.Circle,
+        enamel = null,
+        selectedRecessed = false,
+        rest = DepthRest.Raised,
+        contentColor = LocalContentColor.current,
+        minWidth = 40.dp,
+        minHeight = 40.dp,
+        contentPadding = PaddingValues(8.dp),
+        touchPad = PaddingValues(4.dp),
+        spacing = 0.dp,
+        content = { content() }
+    )
+}
+
 /** Pil "Preset Cepat". `depth == null` (5 tema lain) → memanggil [legacy] (FilterChip/AssistChip
- *  apa adanya dari pemanggil, 0 perubahan). `depth != null` → pil fisik di atas. [selected] =
- *  cekung enamel; ditekan = cekung sesaat; diam = timbul. */
+ *  apa adanya dari pemanggil, 0 perubahan). `depth != null` → pil fisik: [selected] = cekung enamel
+ *  burgundy; ditekan = cekung sesaat; diam = timbul. */
 @Composable
 internal fun SkeuPresetPill(
     selected: Boolean,
@@ -743,55 +1132,138 @@ internal fun SkeuPresetPill(
     legacy: @Composable () -> Unit
 ) {
     val tokens = LocalSkeuTokens.current
+    if (tokens.depth == null) {
+        legacy()
+        return
+    }
+    val textColor = if (selected) Color.White else (labelColor ?: tokens.mutedText)
+    DepthKeyBox(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = true,
+        selected = selected,
+        role = Role.RadioButton,
+        kind = DepthKeyShape.Pill,
+        enamel = if (selected) MaterialTheme.colorScheme.primary else null,
+        selectedRecessed = true,
+        rest = DepthRest.Raised,
+        contentColor = textColor,
+        minWidth = 0.dp,
+        minHeight = 32.dp,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+        touchPad = PaddingValues(0.dp),
+        spacing = 6.dp
+    ) {
+        if (leadingIcon != null) leadingIcon()
+        Text(text = label, style = MaterialTheme.typography.labelLarge, color = textColor, maxLines = 1)
+        if (trailingIcon != null) trailingIcon()
+    }
+}
+
+/** Bilah tab fisik: palung CEKUNG berisi kunci-kunci; tab terpilih = kunci TIMBUL (terangkat) dgn
+ *  label burgundy tebal, tab lain rata (tak terlihat) dgn label redup. `depth == null` → [legacy]
+ *  (ScrollableTabRow lama apa adanya). */
+@Composable
+internal fun SkeuTabBar(
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    legacy: @Composable () -> Unit
+) {
+    val tokens = LocalSkeuTokens.current
     val depth = tokens.depth
     if (depth == null) {
         legacy()
         return
     }
-    val shape = RoundedCornerShape(50)
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressedNow by interactionSource.collectIsPressedAsState()
-    val recessed = selected || isPressedNow
-    val enamel = lerp(depth.wellFloor, MaterialTheme.colorScheme.primary, 0.72f)
-    val textColor = if (selected) Color.White else (labelColor ?: tokens.mutedText)
-    val face = when {
-        selected -> Brush.verticalGradient(
-            listOf(lerp(enamel, depth.rimLight, 0.14f), enamel, lerp(enamel, Color.Black, 0.22f))
-        )
-        isPressedNow -> SolidColor(depth.wellFloor)
-        else -> Brush.verticalGradient(listOf(depth.faceTop, depth.faceBottom))
-    }
-    Row(
-        modifier = modifier
-            .heightIn(min = 32.dp)
-            .then(
-                if (recessed) {
-                    Modifier.depthWellLip(shape, depth)
-                } else {
-                    Modifier.depthCastShadow(shape, depth, DepthPillShadow, DepthPillBleedDp, DepthWellBitmapScale)
-                }
-            )
-            .clip(shape)
-            .background(face)
-            .then(
-                if (recessed) Modifier.depthWellInner(shape, depth) else Modifier.depthPillRim(depth, 1.2.dp)
-            )
-            .selectable(
-                selected = selected,
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.RadioButton,
-                onClick = onClick
-            )
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    val trough = CutCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .depthWellLip(trough, depth)
+            .clip(trough)
+            .background(depth.wellFloor)
     ) {
-        CompositionLocalProvider(LocalContentColor provides textColor) {
-            if (leadingIcon != null) leadingIcon()
-            Text(text = label, style = MaterialTheme.typography.labelLarge, color = textColor, maxLines = 1)
-            if (trailingIcon != null) trailingIcon()
+        Box(Modifier.matchParentSize().depthWellInner(trough, depth))
+        Row(modifier = Modifier.fillMaxWidth().padding(3.dp)) {
+            labels.forEachIndexed { index, label ->
+                val sel = index == selectedIndex
+                DepthKeyBox(
+                    onClick = { onSelect(index) },
+                    modifier = Modifier.weight(1f),
+                    enabled = true,
+                    selected = sel,
+                    role = Role.Tab,
+                    kind = DepthKeyShape.Chamfer,
+                    enamel = null,
+                    selectedRecessed = false,
+                    rest = DepthRest.Flat,
+                    contentColor = if (sel) MaterialTheme.colorScheme.primary else tokens.mutedText,
+                    minWidth = 0.dp,
+                    minHeight = 42.dp,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    touchPad = PaddingValues(0.dp),
+                    spacing = 0.dp
+                ) {
+                    Text(
+                        text = label,
+                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1
+                    )
+                }
+            }
         }
+    }
+}
+
+/** Dialog fisik: `depth == null` → `AlertDialog` Material lama persis; `depth != null` → pelat
+ *  chamfer dgn bayangan jatuh di belakang + bevel/grain/alur ukir di atas permukaan. */
+@Composable
+internal fun SkeuAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: @Composable (() -> Unit)? = null,
+    title: @Composable (() -> Unit)? = null,
+    text: @Composable (() -> Unit)? = null
+) {
+    val depth = LocalSkeuTokens.current.depth
+    if (depth == null) {
+        AlertDialog(
+            onDismissRequest = onDismissRequest,
+            confirmButton = confirmButton,
+            dismissButton = dismissButton,
+            title = title,
+            text = text
+        )
+        return
+    }
+    val dialogShape = CutCornerShape(8.dp)
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        confirmButton = confirmButton,
+        modifier = Modifier
+            .depthCastShadow(dialogShape, depth, DepthPlateShadow, slice = true)
+            .depthPlateSurface(depth, 8.dp, DepthPartsDialog),
+        dismissButton = dismissButton,
+        title = title,
+        text = text,
+        shape = dialogShape,
+        containerColor = lerp(depth.faceTop, depth.faceBottom, 0.5f)
+    )
+}
+
+/** Warna kolom isian: `depth != null` → wadah = lantai sumur gelap (cekung secara tonal);
+ *  selain itu = default Material persis. */
+@Composable
+internal fun skeuFieldColors(): TextFieldColors {
+    val depth = LocalSkeuTokens.current.depth
+    return if (depth == null) {
+        OutlinedTextFieldDefaults.colors()
+    } else {
+        OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = depth.wellFloor,
+            unfocusedContainerColor = depth.wellFloor
+        )
     }
 }
 
@@ -843,11 +1315,10 @@ internal fun SkeuCard(
         if (radius != tokens.cardRadius) {
             DepthSocket(modifier, shape, depth, content)
         } else {
-            Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, DepthPlateBleedDp)) {
+            Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, slice = true)) {
                 Column(
                     modifier = modifier
                         .clip(shape)
-                        .background(tokens.cardBrush)
                         .depthPlateSurface(depth, tokens.cardRadius),
                     content = content
                 )
@@ -900,16 +1371,11 @@ internal fun SkeuTintedCard(
     // kartu biasa.
     val depth = tokens.depth
     if (depth != null) {
-        Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, DepthPlateBleedDp)) {
+        Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, slice = true)) {
             Column(
                 modifier = modifier
                     .clip(shape)
-                    .background(
-                        Brush.linearGradient(
-                            listOf(lerp(depth.faceTop, tint, 0.16f), lerp(depth.faceBottom, tint, 0.12f))
-                        )
-                    )
-                    .depthPlateSurface(depth, tokens.cardRadius, tint),
+                    .depthPlateSurface(depth, tokens.cardRadius, DepthPartsPlate, tint),
                 content = content
             )
         }
@@ -987,7 +1453,7 @@ internal fun SkeuPowerButton(
             Box(
                 Modifier
                     .matchParentSize()
-                    .depthCastShadow(shape, depth, DepthButtonShadow, DepthButtonBleedDp, DepthWellBitmapScale)
+                    .depthCastShadow(shape, depth, DepthButtonShadow)
             )
         }
         Box(
@@ -1118,7 +1584,7 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
         Box(
             modifier = Modifier
                 .size(SkeuSliderThumbSize)
-                .depthCastShadow(shape, depth, DepthKnobShadow, DepthKnobBleedDp, DepthWellBitmapScale)
+                .depthCastShadow(shape, depth, DepthKnobShadow)
                 .clip(shape)
                 .depthKnobFace(depth, tokens.sliderKnobHighlight, lo)
                 // Cincin aksen DI DALAM cincin tepi bevel (padding = lebar rim) supaya sorot/bayangan
@@ -1452,7 +1918,7 @@ internal fun SkeuSwitch(
                 .scale(thumbScale)
                 .then(
                     if (depth != null) {
-                        Modifier.depthCastShadow(CircleShape, depth, DepthKnobShadow, DepthKnobBleedDp, DepthWellBitmapScale)
+                        Modifier.depthCastShadow(CircleShape, depth, DepthKnobShadow)
                     } else {
                         Modifier.shadow(elevation = thumbElevation, shape = CircleShape, clip = false)
                     }

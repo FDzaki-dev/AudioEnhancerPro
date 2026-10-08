@@ -40,9 +40,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -103,7 +101,7 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
+            SkeuIconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.cd_back))
             }
             Spacer(modifier = Modifier.width(4.dp))
@@ -173,7 +171,7 @@ fun SettingsScreen(
                 SkeuGroupDivider(startIndent = 0.dp)
 
                 val isChecking = manualUpdateCheckState == BoosterViewModel.ManualUpdateCheckState.CHECKING
-                OutlinedButton(
+                SkeuOutlinedButton(
                     onClick = onCheckUpdate,
                     enabled = !isChecking,
                     modifier = Modifier.fillMaxWidth()
@@ -234,7 +232,7 @@ fun SettingsScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     val isDownloading = updateDownloadProgress != null
-                    OutlinedButton(
+                    SkeuOutlinedButton(
                         onClick = onDownloadAndInstall,
                         enabled = !isDownloading,
                         modifier = Modifier.fillMaxWidth()
@@ -348,7 +346,7 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
+                    SkeuOutlinedButton(
                         onClick = {
                             AudioEnhancerService.cancelSleepTimer(context)
                             sleepEndAt = 0L
@@ -669,7 +667,7 @@ fun SettingsScreen(
                     color = LocalSkeuTokens.current.mutedText
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
+                SkeuOutlinedButton(
                     onClick = {
                         if (PrefsHelper.getCustomPresets(context).isEmpty()) {
                             backupStatusIsError = true
@@ -683,7 +681,7 @@ fun SettingsScreen(
                     Text(stringResource(R.string.settings_export_preset_button))
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
+                SkeuOutlinedButton(
                     onClick = { importLauncher.launch(arrayOf("application/json", "text/plain")) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -725,7 +723,7 @@ fun SettingsScreen(
                     color = LocalSkeuTokens.current.mutedText
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
+                SkeuOutlinedButton(
                     onClick = {
                         PrefsHelper.resetUsageStats(context)
                         AudioEnhancerService.restartSessionClock()
@@ -799,9 +797,18 @@ private fun AutoProfileRouteRow(label: String, presetNames: List<String>, select
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(6.dp))
         Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Batch 184: pil fisik di tema berkedalaman fisik; tema lain = FilterChip lama (lambda `legacy`).
+            SkeuPresetPill(
+                selected = selected == null,
+                onClick = { onSelect(null) },
+                label = stringResource(R.string.settings_auto_profile_none)
+            ) {
             FilterChip(
                 selected = selected == null,
                 onClick = { onSelect(null) },
@@ -815,8 +822,10 @@ private fun AutoProfileRouteRow(label: String, presetNames: List<String>, select
                     selectedLabelColor = Color.White
                 )
             )
+            }
             presetNames.forEach { name ->
                 val isSelected = selected == name
+                SkeuPresetPill(selected = isSelected, onClick = { onSelect(name) }, label = name) {
                 FilterChip(
                     selected = isSelected,
                     onClick = { onSelect(name) },
@@ -830,6 +839,7 @@ private fun AutoProfileRouteRow(label: String, presetNames: List<String>, select
                         selectedLabelColor = Color.White
                     )
                 )
+                }
             }
         }
     }
@@ -843,7 +853,7 @@ private fun SleepTimerDurationRow(minutes: List<Int>, enabled: Boolean, onPick: 
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         minutes.forEach { m ->
-            OutlinedButton(
+            SkeuOutlinedButton(
                 onClick = { onPick(m) },
                 enabled = enabled,
                 modifier = Modifier.weight(1f)
@@ -869,7 +879,7 @@ private fun ScheduleTimeRow(label: String, minutesOfDay: Int, onPick: (Int) -> U
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.weight(1f)
         )
-        OutlinedButton(onClick = {
+        SkeuOutlinedButton(onClick = {
             android.app.TimePickerDialog(
                 context,
                 { _, hour, minute -> onPick(hour * 60 + minute) },

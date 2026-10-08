@@ -108,7 +108,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             .padding(24.dp)
     ) {
 
-        TextButton(
+        SkeuTextButton(
             onClick = onFinish,
             modifier = Modifier.align(Alignment.End)
         ) {
@@ -204,7 +204,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
         }
 
         val isLastPage = pagerState.currentPage == onboardingPages.size - 1
-        Button(
+        SkeuButton(
             onClick = {
                 if (isLastPage) {
                     onFinish()

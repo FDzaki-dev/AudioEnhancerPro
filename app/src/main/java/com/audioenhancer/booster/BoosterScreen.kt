@@ -114,7 +114,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 // SkeuPowerButton (Batch 15) — feedback tekan sekarang murni dari
                 // scale (SkeuPowerButton), bukan ripple, di SELURUH komponen interaktif.
                 CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                    Button(onClick = {
+                    SkeuButton(onClick = {
                         onRestartService()
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     }) {
@@ -245,7 +245,7 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { showDialog = true }) {
+            SkeuTextButton(onClick = { showDialog = true }) {
                 Text(stringResource(R.string.crash_view_button))
             }
         }
@@ -256,7 +256,7 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
         LaunchedEffect(entry) {
             crashText = withContext(Dispatchers.IO) { entry.readText(context) }
         }
-        AlertDialog(
+        SkeuAlertDialog(
             onDismissRequest = { dismiss() },
             title = { Text(stringResource(R.string.crash_dialog_title)) },
             text = {
@@ -269,7 +269,7 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
+                SkeuTextButton(onClick = {
                     showDialog = false
                     crashEntry = null
                     scope.launch {
@@ -282,7 +282,7 @@ private fun CrashBanner(onCrashLogsDeleted: () -> Unit = {}) {
                 }) { Text(stringResource(R.string.crash_delete_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { dismiss() }) {
+                SkeuTextButton(onClick = { dismiss() }) {
                     Text(stringResource(R.string.crash_dismiss_button))
                 }
             }
@@ -330,7 +330,7 @@ private fun ControlRecoveryBanner(
                 modifier = Modifier.weight(1f)
             )
             CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                TextButton(onClick = {
+                SkeuTextButton(onClick = {
                     onRetryControl()
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onRetryAttempted()
@@ -382,7 +382,7 @@ private fun OutputRouteBanner(
                 modifier = Modifier.weight(1f)
             )
             CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                TextButton(onClick = {
+                SkeuTextButton(onClick = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     onDismiss()
                 }) {
@@ -432,7 +432,7 @@ private fun UpdateBanner(
                 )
                 if (downloadProgress == null) {
                     CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                        TextButton(onClick = { if (hasDownloadedUpdate) onReinstall() else onDownload() }) {
+                        SkeuTextButton(onClick = { if (hasDownloadedUpdate) onReinstall() else onDownload() }) {
                             Text(
                                 stringResource(
                                     if (hasDownloadedUpdate) R.string.update_install_button
@@ -929,7 +929,7 @@ fun BoosterScreen(
             val trimmedPresetName = presetNameInput.trim()
             val nameCollidesWithBuiltIn = presets.any { it.label.equals(trimmedPresetName, ignoreCase = true) } ||
                 customPresets.any { it.name != trimmedPresetName && it.name.equals(trimmedPresetName, ignoreCase = true) }
-            AlertDialog(
+            SkeuAlertDialog(
                 onDismissRequest = { showSavePresetDialog = false },
                 title = { Text(stringResource(R.string.preset_save_dialog_title)) },
                 text = {
@@ -941,6 +941,9 @@ fun BoosterScreen(
                         // ke-truncate paksa oleh sistem tanpa peringatan ke user.
                         onValueChange = { if (it.length <= PRESET_NAME_MAX_LENGTH) presetNameInput = it },
                         singleLine = true,
+                        // Batch 184: wadah kolom isian = lantai sumur gelap di tema berkedalaman fisik
+                        // (default Material persis di tema lain).
+                        colors = skeuFieldColors(),
                         label = { Text(stringResource(R.string.preset_save_dialog_hint)) },
                         isError = nameCollidesWithBuiltIn,
                         supportingText = {
@@ -963,7 +966,7 @@ fun BoosterScreen(
                     )
                 },
                 confirmButton = {
-                    TextButton(
+                    SkeuTextButton(
                         enabled = trimmedPresetName.isNotBlank() && !nameCollidesWithBuiltIn,
                         onClick = {
                             // Batch 63 (roadmap Fase 0 #7, audit Gap #16): snapshot EQ SAAT
@@ -994,7 +997,7 @@ fun BoosterScreen(
                     ) { Text(stringResource(R.string.preset_save_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showSavePresetDialog = false }) {
+                    SkeuTextButton(onClick = { showSavePresetDialog = false }) {
                         Text(stringResource(R.string.preset_save_cancel))
                     }
                 }
@@ -1002,12 +1005,12 @@ fun BoosterScreen(
         }
 
         presetPendingDelete?.let { nameToDelete ->
-            AlertDialog(
+            SkeuAlertDialog(
                 onDismissRequest = { presetPendingDelete = null },
                 title = { Text(stringResource(R.string.preset_delete_dialog_title)) },
                 text = { Text(stringResource(R.string.preset_delete_dialog_body, nameToDelete)) },
                 confirmButton = {
-                    TextButton(onClick = {
+                    SkeuTextButton(onClick = {
                         PrefsHelper.deleteCustomPreset(context, nameToDelete)
                         customPresets = PrefsHelper.getCustomPresets(context)
                         ShortcutHelper.refreshCustomPresetShortcuts(context)
@@ -1018,7 +1021,7 @@ fun BoosterScreen(
                     }) { Text(stringResource(R.string.preset_delete_confirm)) }
                 },
                 dismissButton = {
-                    TextButton(onClick = { presetPendingDelete = null }) {
+                    SkeuTextButton(onClick = { presetPendingDelete = null }) {
                         Text(stringResource(R.string.preset_delete_cancel))
                     }
                 }
@@ -1399,7 +1402,7 @@ fun BoosterScreen(
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(modifier = Modifier.height(10.dp))
-                OutlinedButton(onClick = { OemAutostartHelper.openAutostartSettings(context) }) {
+                SkeuOutlinedButton(onClick = { OemAutostartHelper.openAutostartSettings(context) }) {
                     Icon(Icons.Filled.Settings, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
@@ -1424,7 +1427,7 @@ fun BoosterScreen(
                 } else {
                     Text(stringResource(R.string.battery_status_limited), style = MaterialTheme.typography.bodySmall)
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(onClick = onRequestBatteryExemption) {
+                    SkeuOutlinedButton(onClick = onRequestBatteryExemption) {
                         Text(stringResource(R.string.battery_status_allow_button))
                     }
                 }
@@ -1437,7 +1440,7 @@ fun BoosterScreen(
                         color = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(onClick = onOpenAppInfo) {
+                    SkeuOutlinedButton(onClick = onOpenAppInfo) {
                         Text(stringResource(R.string.battery_restricted_button))
                     }
                 }
@@ -1456,7 +1459,7 @@ fun BoosterScreen(
         // otomatis mirror RTL kalau suatu saat RTL didukung (belum di-scope, lihat
         // PROJECT_STATE.md TODO). String `see_full_explanation` (ID+EN) dilucuti
         // ekor " →"-nya — lihat strings.xml/values-en/strings.xml.
-        TextButton(onClick = onOpenHelp) {
+        SkeuTextButton(onClick = onOpenHelp) {
             Text(stringResource(R.string.see_full_explanation))
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
@@ -1555,10 +1558,10 @@ fun BoosterScreen(
                 Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onOpenSettings) {
+                SkeuIconButton(onClick = onOpenSettings) {
                     Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
                 }
-                IconButton(onClick = onOpenHelp) {
+                SkeuIconButton(onClick = onOpenHelp) {
                     Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
                 }
             }
@@ -1640,7 +1643,7 @@ fun BoosterScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                         )
                         CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                            Button(onClick = {
+                            SkeuButton(onClick = {
                                 onRetryConnection()
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             }) {
@@ -1671,7 +1674,7 @@ fun BoosterScreen(
                         modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                     )
                     CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                        Button(onClick = {
+                        SkeuButton(onClick = {
                             onOpenNotificationSettings()
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }) {
@@ -1714,7 +1717,7 @@ fun BoosterScreen(
                             modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
                         )
                         CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
-                            Button(onClick = {
+                            SkeuButton(onClick = {
                                 recordAudioLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             }) {
@@ -1820,6 +1823,16 @@ fun BoosterScreen(
         // Batch 103: komponen tab-bar ini SENDIRI tidak disentuh, cuma sumber
         // `selectedTabIndex`/`onClick`-nya yang berubah (lihat di bawah — langsung set
         // index, TIDAK lagi lewat `pagerState.animateScrollToPage`/coroutine).
+        // Batch 184: bilah tab fisik (palung cekung + tab terpilih timbul) di tema berkedalaman
+        // fisik; tema lain menjalankan ScrollableTabRow di bawah ini apa adanya (lambda `legacy`).
+        SkeuTabBar(
+            labels = tabLabels,
+            selectedIndex = selectedTabIndex,
+            onSelect = { index ->
+                selectedTabIndex = index
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+        ) {
         ScrollableTabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
@@ -1843,6 +1856,7 @@ fun BoosterScreen(
                     }
                 )
             }
+        }
         }
 
         // Batch 103: dulu di sini ada `HorizontalPager` + Column per-halaman ber-scroll
@@ -1929,7 +1943,7 @@ private fun EqualizerSection(
                 val resetLevel = 0.coerceIn(levelMin.toInt(), levelMax.toInt()).toShort()
                 val allFlat = levels.all { it == resetLevel }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    OutlinedButton(
+                    SkeuOutlinedButton(
                         onClick = {
                             for (band in 0 until bandCount) {
                                 levels[band] = resetLevel
