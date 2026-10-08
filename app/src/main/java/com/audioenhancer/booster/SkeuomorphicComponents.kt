@@ -49,9 +49,11 @@ import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
@@ -138,6 +140,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 
 /** compose-bom 2024.06.00 -> `LocalIndication` non-null, jadi indication ripple
@@ -1279,15 +1282,16 @@ internal fun SkeuPresetPill(
     }
 }
 
-/** Gerak pill tab saat PINDAH TAB (tap / lepas drag). Diukur dari video referensi user (B191): kurva
- *  ease-out TANPA overshoot = spring teredam kritis, omega ~9-10 rad/s -> `stiffness` ~100. Satuan nilai =
- *  "indeks tab" kontinu (0f..n-1f), jadi tak bergantung lebar layar; ambang 0.002 tab (< 1dp) agar akhir
- *  gerak tidak terlihat "snap". */
-private val DepthTabSettleSpec = spring<Float>(dampingRatio = 1f, stiffness = 100f, visibilityThreshold = 0.002f)
+/** Gerak pill tab saat PINDAH TAB (tap / lepas drag). B192: tween ease-out TANPA overshoot (langsung
+ *  bergerak cepat di frame pertama, lalu mengerem pelan di ujung). Spring teredam kritis B191 (stiffness 100)
+ *  mulai dari kecepatan NOL sehingga ~50 ms pertama nyaris diam = terasa delay saat tap. Satuan nilai =
+ *  "indeks tab" kontinu (0f..n-1f), jadi tak bergantung lebar layar. */
+private val DepthTabEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+private val DepthTabSettleSpec = tween<Float>(durationMillis = 380, easing = DepthTabEasing)
 
-/** Pill mengikuti jari SAAT DRAG (B191): spring kaku (teredam kritis) = nyaris 1:1 dgn sedikit penghalusan,
- *  seperti video referensi (selisih pill-jari <= ~20px pada geseran cepat). */
-private val DepthTabFollowSpec = spring<Float>(dampingRatio = 1f, stiffness = 1200f, visibilityThreshold = 0.002f)
+/** Pill mengikuti jari SAAT DRAG: spring sangat kaku (teredam kritis) = nyaris 1:1 (B192: stiffness 1200 ->
+ *  4000; tertinggal jari saat geser pelan jauh lebih kecil), tetap menghaluskan lompatan awal. */
+private val DepthTabFollowSpec = spring<Float>(dampingRatio = 1f, stiffness = 4000f, visibilityThreshold = 0.002f)
 
 /** Tinggi minimum satu tab (sama dgn kunci tab B184-B190). */
 private val DepthTabMinHeight = 42.dp
@@ -1400,8 +1404,16 @@ internal fun SkeuTabBar(
     val latestSelected by rememberUpdatedState(selectedIndex)
     // true selama jari menyeret pill: LaunchedEffect di bawah TIDAK boleh menimpa posisi drag.
     val draggingFlag = remember { BooleanArray(1) }
+    // B192: tujuan glide yang SUDAH diminta langsung di event sentuh (tanpa menunggu rekomposisi + LaunchedEffect
+    // = 1 frame lebih cepat). LaunchedEffect hanya animasi bila tujuannya BEDA (pindah tab dari luar bilah).
+    val glideTarget = remember { FloatArray(1) { selectedIndex.toFloat() } }
+    fun glideTo(target: Float) {
+        glideTarget[0] = target
+        scope.launch(start = CoroutineStart.UNDISPATCHED) { position.animateTo(target, DepthTabSettleSpec) }
+    }
     LaunchedEffect(selectedIndex) {
-        if (!draggingFlag[0]) {
+        if (!draggingFlag[0] && glideTarget[0] != selectedIndex.toFloat()) {
+            glideTarget[0] = selectedIndex.toFloat()
             position.animateTo(selectedIndex.toFloat(), DepthTabSettleSpec)
         }
     }
@@ -1438,34 +1450,42 @@ internal fun SkeuTabBar(
                                         val target = (position.value + vUnits * DepthTabFlingProjectionSec)
                                             .roundToInt()
                                             .coerceIn(0, count - 1)
-                                        scope.launch { position.animateTo(target.toFloat(), DepthTabSettleSpec) }
+                                        glideTo(target.toFloat())
                                         if (target != latestSelected) latestOnSelect(target)
                                     } else if (!decided) {
                                         val index = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
-                                        if (index != latestSelected) latestOnSelect(index)
+                                        if (index != latestSelected) {
+                                            glideTo(index.toFloat())
+                                            latestOnSelect(index)
+                                        }
                                     }
                                     return@awaitEachGesture
                                 }
-                                if (!decided && (change.position - down.position).getDistance() >= viewConfiguration.touchSlop) {
+                                // B192: ambang keputusan drag = setengah touchSlop (zona mati awal lebih pendek).
+                                val slop = viewConfiguration.touchSlop * 0.5f
+                                if (!decided && (change.position - down.position).getDistance() >= slop) {
                                     decided = true
                                     val delta = change.position - down.position
                                     if (abs(delta.x) <= abs(delta.y)) return@awaitEachGesture
                                     dragging = true
                                     draggingFlag[0] = true
+                                    glideTarget[0] = Float.NaN
                                     tracker.addPosition(down.uptimeMillis, down.position)
                                 }
                                 if (dragging) {
                                     change.consume()
                                     tracker.addPosition(change.uptimeMillis, change.position)
                                     val target = (change.position.x / slotW - 0.5f).coerceIn(0f, maxUnit)
-                                    scope.launch { position.animateTo(target, DepthTabFollowSpec) }
+                                    scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                                        position.animateTo(target, DepthTabFollowSpec)
+                                    }
                                 }
                             }
                         } finally {
                             // gestur dibatalkan di tengah drag: lepas kunci & kembalikan pill ke tab terpilih.
                             if (draggingFlag[0]) {
                                 draggingFlag[0] = false
-                                scope.launch { position.animateTo(latestSelected.toFloat(), DepthTabSettleSpec) }
+                                glideTo(latestSelected.toFloat())
                             }
                         }
                     }

@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 192: Slider tab langsung bergerak saat ditekan dan saat digeser pelan
+
+Pill pada bilah tab sekarang mulai bergerak sesaat setelah jari menyentuh tab, tidak lagi diam sebentar lebih dulu. Gerak antar tab memakai kurva yang langsung melaju lalu mengerem pelan di ujung, tetap tanpa memantul, dan selesai dalam sekitar sepertiga detik. Saat pill digeser dengan jari pelan-pelan, ia mengikuti jari lebih rapat dan zona diam di awal geseran dipersingkat.
+Untuk pengembang: `DepthTabSettleSpec` (`SkeuomorphicComponents.kt`) berganti dari spring teredam kritis (stiffness 100, mulai dari kecepatan nol sehingga sekitar 50 ms pertama nyaris tak bergerak) menjadi `tween` 380 ms dengan `CubicBezierEasing(0.05, 0.7, 0.1, 1)`. `SkeuTabBar` memulai glide lewat `glideTo()` langsung di event sentuh (`CoroutineStart.UNDISPATCHED`) tanpa menunggu rekomposisi dan `LaunchedEffect(selectedIndex)`; `glideTarget` mencegah efek itu memulai ulang tween yang sudah berjalan. Ambang keputusan drag menjadi setengah `touchSlop`, dan `DepthTabFollowSpec` naik dari stiffness 1200 ke 4000. `BoosterScreen.kt` tidak berubah.
+
+**Perubahan** (1 file source + 3 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`. Revert: `Boomly_v191.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek di build release: tap tab langsung bergerak, drag pelan mengikuti jari, geser vertikal dari bilah tetap menggulir halaman.
+
 ## Batch 191: Slider antar tab Kontrol, Tampilan, dan Bantuan meluncur mulus di semua tema
 
 Bilah tab sekarang punya satu pill timbul yang meluncur dari tab ke tab, mengikuti gerak pada video contoh: pelan mengerem di ujung tanpa memantul, ukuran pill tetap, dan warna label berganti tepat di tepi pill yang sedang lewat, bukan sekali ganti. Pill juga bisa digeser dengan jari: ia ikut ke kiri atau kanan, lalu mendarat di tab terdekat saat jari dilepas (sentakan pendek ke arah tab sebelah ikut memindahkan tab). Menggeser vertikal dari bilah tetap menggulir halaman, dan pindah tab lewat geser di konten ikut menggerakkan pill. Berlaku untuk keenam tema, mengikuti bentuk sudut tiap tema (bersiku atau membulat).
