@@ -1448,7 +1448,7 @@ internal fun SkeuTabBar(
                         val tracker = VelocityTracker()
                         var decided = false
                         var dragging = false
-                        // B193: tab terdekat dari pill; berganti saat pill melewati batas tab = 1 "tik" haptic.
+                        // B193: tab terdekat dari pill; berganti saat pill melewati batas tab = 1 haptic (B194: LongPress spt seluruh app).
                         var tickSlot = position.value.roundToInt()
                         try {
                             while (true) {
@@ -1461,12 +1461,16 @@ internal fun SkeuTabBar(
                                             .roundToInt()
                                             .coerceIn(0, count - 1)
                                         glideTo(target.toFloat())
+                                        // B194: tab tujuan beda dari tik terakhir (mis. flick pendek) = tik penutup.
+                                        if (target != tickSlot) {
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        }
                                         if (target != latestSelected) latestOnSelect(target)
                                     } else if (!decided) {
                                         val index = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
                                         if (index != latestSelected) {
                                             glideTo(index.toFloat())
-                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                             latestOnSelect(index)
                                         }
                                     }
@@ -1490,7 +1494,7 @@ internal fun SkeuTabBar(
                                     val slot = target.roundToInt()
                                     if (slot != tickSlot) {
                                         tickSlot = slot
-                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                     }
                                     scope.launch(start = CoroutineStart.UNDISPATCHED) {
                                         position.animateTo(target, DepthTabFollowSpec)

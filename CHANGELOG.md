@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 194: Haptic bilah tab sekarang terasa
+
+Getaran pada bilah tab di Batch 193 tidak terasa sama sekali di HP; sekarang memakai jenis getaran yang sama dengan semua tombol lain di app, sehingga terasa saat mengetuk tab lain dan saat pill diseret melewati batas tab. Satu celah ikut ditutup: kalau pill dilepas dan mendarat di tab yang berbeda dari tab terakhir yang dilewati (misalnya sentakan pendek), sekarang ada satu getaran saat mendarat, sebelumnya diam. Mengetuk tab yang sudah aktif tetap tanpa getaran.
+Untuk pengembang: `SkeuTabBar` (`SkeuomorphicComponents.kt`) mengganti `HapticFeedbackType.TextHandleMove` (di Compose UI 1.6.8 dipetakan ke `CLOCK_TICK`, efek lemah yang di banyak perangkat tidak bergetar) dengan `HapticFeedbackType.LongPress`. Saat lepas-drag, getaran tambahan hanya dipicu bila `target != tickSlot`, jadi tidak dobel dengan getaran batas tab. `BoosterScreen.kt` tidak berubah.
+
+**Perubahan** (1 file source + 2 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v193.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek di tiap tema: tap tab lain bergetar, drag pill bergetar tiap melewati batas tab, tap tab aktif diam.
+
 ## Batch 193: Polish slider tab: durasi sebanding jarak dan tik haptic
 
 Lompat dua tab sekarang sedikit lebih lama daripada pindah ke tab sebelah, jadi pill tidak terasa kebut-kebutan saat menempuh jarak jauh; pindah satu tab tetap sekitar sepertiga detik. Ada tik haptic halus saat tab berpindah lewat ketukan, dan saat pill diseret ada satu tik setiap pill melewati batas tab, bukan terus-menerus. Mengetuk tab yang sudah aktif tidak menimbulkan tik.
