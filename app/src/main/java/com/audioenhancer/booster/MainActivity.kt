@@ -172,8 +172,13 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(screenBrush)
-                        // B182: butiran latar kulit gelap, hanya Old Money (tema lain 0 berubah).
-                        .then(if (appThemeStyle == AppThemeStyle.OLD_MONEY) Modifier.skeuBackdropGrain() else Modifier)
+                        // B182: butiran latar kulit gelap (Old Money). B187: ikut SEMUA tema yang punya profil
+                        // kedalaman (`depth != null`); kekuatannya = `depth.backdropGrain` per tema.
+                        .then(
+                            LocalSkeuTokens.current.depth.let { d ->
+                                if (d != null) Modifier.skeuBackdropGrain(d.backdropGrain) else Modifier
+                            }
+                        )
                         .safeDrawingPadding(),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground

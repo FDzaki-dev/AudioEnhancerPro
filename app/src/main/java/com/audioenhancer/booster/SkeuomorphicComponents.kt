@@ -81,6 +81,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -260,9 +261,10 @@ private fun BoxScope.SkeuDualDirectionalShadow(
 }
 
 // =====================================================================================
-// Batch 180-184 — MESIN KEDALAMAN FISIK (timbul + cekung), HANYA aktif saat
-// `LocalSkeuTokens.current.depth != null` (Old Money). 5 varian lain 0 perubahan: cabang
-// `depth == null` memanggil kode lama persis.
+// Batch 180-187 — MESIN KEDALAMAN FISIK (timbul + cekung), aktif saat
+// `LocalSkeuTokens.current.depth != null`. B180-B186: hanya Old Money; B187: SEMUA 6 tema mengisi
+// `depth` (profil per tema di Theme.kt; bentuk sudut lewat `DepthStyle.corner`). Cabang
+// `depth == null` (kode lama) tetap ada sebagai fallback token tanpa profil.
 //
 // Kenapa B179 "nyaru": sorot gading alpha 2% + bayangan alpha 32% SEHUE dgn latar, permukaan
 // kartu cuma +-3 level dari latar → kedalaman nyaris tak terbaca. Mesin ini memakai 3 sumber
@@ -687,10 +689,91 @@ private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = d
     }
 }
 
-/** Butiran halus di latar layar (kulit gelap) — hanya Old Money (dipanggil dari MainActivity).
- *  Menggambar tekstur yang sama dgn pelat dengan alpha rendah di BELAKANG semua konten. */
-internal fun Modifier.skeuBackdropGrain(): Modifier = this.drawBehind {
-    drawRect(brush = DepthGrainBrush, alpha = 0.05f)
+/** Butiran halus di latar layar (dipanggil dari MainActivity untuk tema yang punya profil kedalaman).
+ *  Menggambar tekstur yang sama dgn pelat dengan alpha rendah di BELAKANG semua konten.
+ *  [alpha] default 0.05 = nilai Old Money B182 (B187: tema lain memakai `DepthStyle.backdropGrain`-nya). */
+internal fun Modifier.skeuBackdropGrain(alpha: Float = 0.05f): Modifier = this.drawBehind {
+    drawRect(brush = DepthGrainBrush, alpha = alpha)
+}
+
+/** Batch 187: bentuk sudut sesuai gaya tema — chamfer (Old Money, Serene) atau membulat (tema lain). */
+private fun depthCornerShape(style: DepthStyle, size: Dp): Shape =
+    if (style.corner == DepthCorner.ROUND) RoundedCornerShape(size) else CutCornerShape(size)
+
+/** Batch 187: jumlah facet per sudut bulat (90 derajat dibagi rata; 22.5 derajat per facet). */
+private const val DepthCornerSteps = 4
+
+private fun depthQuad(x0: Float, y0: Float, x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float): Path =
+    Path().apply {
+        moveTo(x0, y0)
+        lineTo(x1, y1)
+        lineTo(x2, y2)
+        lineTo(x3, y3)
+        close()
+    }
+
+/** Batch 187: alur ukir bingkai untuk pelat bersudut bulat (analog [depthOctagon]). */
+private fun depthRoundFrame(w: Float, h: Float, inset: Float, r: Float): Path = Path().apply {
+    val rr = (r - inset).coerceAtLeast(0f)
+    addRoundRect(RoundRect(inset, inset, w - inset, h - inset, rr, rr))
+}
+
+/** Batch 187: bevel FACET untuk pelat bersudut bulat radius [r], lebar [b]. 4 sisi lurus + 4 sudut
+ *  yang dipecah [DepthCornerSteps] irisan busur; tiap facet diwarnai menurut `dot(normal, arahCahaya)`
+ *  PERSIS aturan segi-8 chamfer di `depthPlateSurface` (sisi menghadap cahaya = sorot, membelakangi = gelap). */
+private fun depthRoundFacets(
+    out: MutableList<Pair<Path, Color>>,
+    w: Float,
+    h: Float,
+    r: Float,
+    b: Float,
+    lit: Color,
+    style: DepthStyle
+) {
+    fun colorFor(nx: Float, ny: Float): Color {
+        val l = nx * style.lightX + ny * style.lightY
+        val scaled = min(1f, abs(l) / 0.83f)
+        return if (l > 0f) {
+            lit.copy(alpha = style.rimLightAlpha * scaled)
+        } else {
+            style.rimShade.copy(alpha = style.rimShadeAlpha * scaled)
+        }
+    }
+    val bi = (r - b).coerceAtLeast(0f)
+    if (w - 2f * r > 0.5f) {
+        out.add(Pair(depthQuad(r, 0f, w - r, 0f, w - r, b, r, b), colorFor(0f, -1f)))
+        out.add(Pair(depthQuad(r, h, w - r, h, w - r, h - b, r, h - b), colorFor(0f, 1f)))
+    }
+    if (h - 2f * r > 0.5f) {
+        out.add(Pair(depthQuad(w, r, w, h - r, w - b, h - r, w - b, r), colorFor(1f, 0f)))
+        out.add(Pair(depthQuad(0f, r, 0f, h - r, b, h - r, b, r), colorFor(-1f, 0f)))
+    }
+    // Pusat busur & sudut awal (derajat, y ke bawah): kiri-atas 180->270, kanan-atas 270->360,
+    // kanan-bawah 0->90, kiri-bawah 90->180.
+    val cxs = floatArrayOf(r, w - r, w - r, r)
+    val cys = floatArrayOf(r, r, h - r, h - r)
+    val starts = floatArrayOf(180f, 270f, 0f, 90f)
+    val step = 90f / DepthCornerSteps
+    for (i in 0 until 4) {
+        val cx = cxs[i]
+        val cy = cys[i]
+        val outerRect = Rect(cx - r, cy - r, cx + r, cy + r)
+        val innerRect = Rect(cx - bi, cy - bi, cx + bi, cy + bi)
+        for (s in 0 until DepthCornerSteps) {
+            val a0 = starts[i] + s * step
+            val mid = Math.toRadians((a0 + step / 2f).toDouble())
+            val path = Path().apply {
+                arcTo(outerRect, a0, step, true)
+                if (bi > 0.05f) {
+                    arcTo(innerRect, a0 + step, -step, false)
+                } else {
+                    lineTo(cx, cy)
+                }
+                close()
+            }
+            out.add(Pair(path, colorFor(kotlin.math.cos(mid).toFloat(), kotlin.math.sin(mid).toFloat())))
+        }
+    }
 }
 
 /** Segi-8 chamfer pada jarak [inset] dari tepi (titik sudut = rumus segi-8 dalam bevel; [k] = c + inset*(√2-1)). */
@@ -710,7 +793,9 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
  *  chamfer [chamfer] seragam), bagian yang aktif menurut [parts]. Tiap facet (atas, kanan, bawah,
  *  kiri, 4 diagonal) diwarnai menurut `dot(normal, arahCahaya)`: > 0 = sorot gading (alpha skala
  *  cos), < 0 = hitam hangat — seperti pelat logam/kulit di-emboss dgn sumber cahaya tunggal.
- *  [tint] (kartu bertint) menggeser permukaan & sorot ke warna status. [bevel] = lebar facet. */
+ *  [tint] (kartu bertint) menggeser permukaan & sorot ke warna status. [bevel] = lebar facet.
+ *  B187: bila `style.corner == ROUND`, [chamfer] dibaca sebagai RADIUS sudut & facet/alur ukir
+ *  mengikuti busur (`depthRoundFacets`/`depthRoundFrame`); `CHAMFER` = segi-8 persis seperti B186. */
 private fun Modifier.depthPlateSurface(
     style: DepthStyle,
     chamfer: Dp,
@@ -724,13 +809,18 @@ private fun Modifier.depthPlateSurface(
     val b = bevel.toPx()
     val c = min(chamfer.toPx(), min(w, h) / 2f)
     val k = c + b * (DepthSqrt2 - 1f)
+    val round = style.corner == DepthCorner.ROUND
     val frameInset = style.frameInset.toPx()
     val frameShiftX = 0.8.dp.toPx()
     val frameShiftY = 0.9.dp.toPx()
     val frameStroke = 1.dp.toPx()
     val framePath: Path? =
         if (parts.frame && frameInset > 0f && w > frameInset * 4f && h > frameInset * 4f) {
-            depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
+            if (round) {
+                depthRoundFrame(w, h, frameInset, c)
+            } else {
+                depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
+            }
         } else {
             null
         }
@@ -740,8 +830,10 @@ private fun Modifier.depthPlateSurface(
         } else {
             null
         }
-    val facets = ArrayList<Pair<Path, Color>>(8)
-    if (w >= 4f && h >= 4f) {
+    val facets = ArrayList<Pair<Path, Color>>(if (round) 4 + 4 * DepthCornerSteps else 8)
+    if (w >= 4f && h >= 4f && round) {
+        depthRoundFacets(facets, w, h, c, b, lit, style)
+    } else if (w >= 4f && h >= 4f) {
         // Segi-8 luar (O) & dalam (I, inset b). Facet i = O[i] -> O[i+1] -> I[i+1] -> I[i].
         val ox = floatArrayOf(c, w - c, w, w, w - c, c, 0f, 0f)
         val oy = floatArrayOf(0f, 0f, c, h - c, h, h, h - c, c)
@@ -887,7 +979,8 @@ private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = dept
     }
 }
 
-/** Bentuk kunci: chamfer (tombol/tab, identitas Old Money), pil (preset), bundar (tombol ikon). */
+/** Bentuk kunci: sudut tema (tombol/tab; chamfer Old Money/Serene, membulat tema lain — lihat
+ *  `depthCornerShape`), pil (preset), bundar (tombol ikon). */
 private enum class DepthKeyShape { Chamfer, Pill, Circle }
 
 /** Keadaan diam kunci: [Raised] = timbul; [Flat] = tak terlihat sampai aktif/ditekan (tab tak terpilih). */
@@ -920,7 +1013,7 @@ private fun DepthKeyBox(
 ) {
     val depth = LocalSkeuTokens.current.depth ?: return
     val shape: Shape = when (kind) {
-        DepthKeyShape.Chamfer -> CutCornerShape(6.dp)
+        DepthKeyShape.Chamfer -> depthCornerShape(depth, depth.keyCorner)
         DepthKeyShape.Pill -> RoundedCornerShape(50)
         DepthKeyShape.Circle -> CircleShape
     }
@@ -984,7 +1077,7 @@ private fun DepthKeyBox(
                     when {
                         flat -> Modifier
                         recessed -> Modifier.depthWellInner(shape, depth)
-                        kind == DepthKeyShape.Chamfer -> Modifier.depthPlateSurface(depth, 6.dp, DepthPartsKey, null, 1.2.dp)
+                        kind == DepthKeyShape.Chamfer -> Modifier.depthPlateSurface(depth, depth.keyCorner, DepthPartsKey, null, 1.2.dp)
                         kind == DepthKeyShape.Pill -> Modifier.depthPillRim(depth, 1.2.dp)
                         else -> Modifier.depthRingRim(depth, 1.4.dp)
                     }
@@ -1189,7 +1282,7 @@ internal fun SkeuTabBar(
         legacy()
         return
     }
-    val trough = CutCornerShape(8.dp)
+    val trough = depthCornerShape(depth, depth.panelCorner)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1230,7 +1323,7 @@ internal fun SkeuTabBar(
 }
 
 /** Dialog fisik: `depth == null` → `AlertDialog` Material lama persis; `depth != null` → pelat
- *  chamfer dgn bayangan jatuh di belakang + bevel/grain/alur ukir di atas permukaan. */
+ *  bersudut tema (chamfer/membulat, B187) dgn bayangan jatuh di belakang + bevel/grain/alur ukir di atas permukaan. */
 @Composable
 internal fun SkeuAlertDialog(
     onDismissRequest: () -> Unit,
@@ -1250,13 +1343,13 @@ internal fun SkeuAlertDialog(
         )
         return
     }
-    val dialogShape = CutCornerShape(8.dp)
+    val dialogShape = depthCornerShape(depth, depth.panelCorner)
     AlertDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = confirmButton,
         modifier = Modifier
             .depthCastShadow(dialogShape, depth, DepthPlateShadow, slice = true)
-            .depthPlateSurface(depth, 8.dp, DepthPartsDialog),
+            .depthPlateSurface(depth, depth.panelCorner, DepthPartsDialog),
         dismissButton = dismissButton,
         title = title,
         text = text,

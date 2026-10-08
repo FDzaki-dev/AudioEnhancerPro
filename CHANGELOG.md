@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 187: Efek timbul dan cekung kini ada di semua tema
+
+Lima tema yang tadinya masih datar (Midnight Glass, Aurora Glass, Neumorphism, Studio Equalizer, dan Serene M3) sekarang memakai mesin timbul dan cekung yang sama dengan Old Money. Kartu menjadi pelat yang lebih terang dari latar dengan bayangan jatuh lembut, tepi bersorot menurut cahaya dari kiri-atas, dan permukaan berbutir halus. Track slider, groove switch, kotak ikon, dan tombol daya yang menyala menjadi alur cekung. Tombol, pil preset, tab, dan dialog ikut menjadi kunci fisik. Tiap tema tetap berbentuk aslinya: Midnight Glass, Aurora Glass, dan Studio Equalizer bersudut membulat, Neumorphism hampir tegas (4dp), Serene M3 tetap cut-corner, dan masing-masing memakai paletnya sendiri. Alur ukir bingkai tetap ciri khas Old Money saja. Butiran latar layar ikut tiap tema dengan kekuatan yang lebih halus.
+Untuk pengembang: `Theme.kt` menambah `DepthCorner` (CHAMFER/ROUND), field `corner`/`keyCorner`/`panelCorner`/`backdropGrain` pada `DepthStyle` (default = nilai Old Money, jadi `OldMoneyDepth` tidak berubah), dan 5 profil baru `GlassDepth`, `AuroraDepth`, `NeumoDepth`, `StudioEqDepth`, `SereneDepth` yang diisikan ke `depth` pada token tiap tema. `SkeuomorphicComponents.kt`: bevel pelat bersudut bulat (`depthRoundFacets`, `depthRoundFrame`), bentuk kunci/tab/dialog lewat `depthCornerShape`, dan `skeuBackdropGrain(alpha)`. `MainActivity.kt`: butiran latar mengikuti `depth.backdropGrain`.
+
+**Perubahan** (3 file source + 3 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`, `MainActivity.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`. Revert: `Boomly_v186.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); warna dan alpha kelima profil baru hasil simulasi statis dan belum dilihat di HP. Cek per tema: kartu terbaca timbul dari latar, sudut tidak bergerigi, tombol/tab/dialog tidak bergeser ukurannya, dan scroll serta drag slider tetap mulus.
+
 ## Batch 186: Pengaman tambahan untuk crash tombol, pil, dan tab
 
 Crash baru yang Anda kirim ternyata bertanda versi 224, sama persis dengan build Batch 184 yang bermasalah, jadi itu bukan kegagalan perbaikan Batch 185. Perbaikan ada di build yang lebih baru (nomor 225 atau lebih), dan crash log berikutnya harus menunjukkan nomor itu. Karena crash ini terjadi berulang, saya menambahkan lapis pengaman kedua: tiap jenis efek gambar sekarang punya grup Compose sendiri sehingga dua jenis efek tidak mungkin lagi berbagi slot. Tampilan tidak berubah.

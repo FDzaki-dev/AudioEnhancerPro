@@ -680,7 +680,9 @@ val OldMoneyDepth = DepthStyle(
  *  [lightX]/[lightY] = vektor satuan ke arah sumber cahaya (kiri-atas = negatif/negatif).
  *  [rimLightAlpha]/[rimShadeAlpha] = alpha facet paling terang/paling gelap (facet lain
  *  berskala cos sudut). [bevelWidth] = lebar facet. [grainAlpha] = kekuatan tekstur butiran.
- *  [frameInset] = jarak alur ukir (bingkai cekung tipis) dari tepi pelat; 0.dp = tanpa bingkai. */
+ *  [frameInset] = jarak alur ukir (bingkai cekung tipis) dari tepi pelat; 0.dp = tanpa bingkai.
+ *  [corner]/[keyCorner]/[panelCorner] (B187) = gaya & ukuran sudut kunci (tombol/tab) dan panel
+ *  (dialog, palung tab); pelat kartu memakai `SkeuTokens.cardRadius`. [backdropGrain] = alpha butiran latar layar. */
 data class DepthStyle(
     val lightX: Float,
     val lightY: Float,
@@ -695,7 +697,138 @@ data class DepthStyle(
     val wellFloor: Color,
     val knobShade: Color,
     val grainAlpha: Float,
-    val frameInset: Dp
+    val frameInset: Dp,
+    // Batch 187: bentuk sudut pelat/kunci/dialog. Default = nilai Old Money (chamfer 6dp/8dp) →
+    // `OldMoneyDepth` TIDAK perlu diubah & render-nya identik dgn B186.
+    val corner: DepthCorner = DepthCorner.CHAMFER,
+    val keyCorner: Dp = 6.dp,
+    val panelCorner: Dp = 8.dp,
+    // B187: kekuatan butiran latar layar (`skeuBackdropGrain`); default 0.05 = nilai Old Money B182.
+    val backdropGrain: Float = 0.05f
+)
+
+/** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
+ *  bevel segi-8); [ROUND] = sudut membulat (Midnight/Aurora Glass, Neumorphism, Studio Equalizer —
+ *  bevel mengikuti busur). Dipakai `depthPlateSurface`/kunci/tab/dialog di SkeuomorphicComponents.kt
+ *  supaya tiap tema TETAP berbentuk aslinya (bukan dipaksa chamfer Old Money). */
+enum class DepthCorner { CHAMFER, ROUND }
+
+// Batch 187 (request user "terapkan konfigurasi ini ke semua theme yang masih flat"): profil
+// kedalaman fisik untuk 5 tema lain. Mesin & aturan SAMA dgn Old Money (permukaan pelat LEBIH
+// TERANG dari latar, lantai sumur jauh lebih gelap, bevel per-sisi menurut cahaya kiri-atas,
+// bayangan jatuh Gaussian), hanya palet/kekuatan/sudut yang mengikuti identitas tiap tema.
+// WAJIB didefinisikan DI ATAS `*SkeuTokens` (inisialisasi top-level berurutan; di bawah = null).
+// Alpha/warna = hasil simulasi statis, BELUM di-tuning di device. `frameInset` 0.dp = tanpa alur
+// ukir bingkai (ciri khas Old Money, tidak dibawa ke tema lain).
+
+/** Midnight Glass: pelat navy tegas di atas latar biru-hitam, sudut membulat 26dp. */
+val GlassDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = Color(0xFF223058),
+    faceBottom = Color(0xFF16203F),
+    rimLight = Color(0xFFF3F6FF),
+    rimLightAlpha = 0.42f,
+    rimShade = Color(0xFF02030A),
+    rimShadeAlpha = 0.60f,
+    bevelWidth = 1.7.dp,
+    castShadow = Color(0xFF010207),
+    wellFloor = Color(0xFF070A19),
+    knobShade = Color(0xFF3A4670),
+    grainAlpha = 0.045f,
+    frameInset = 0.dp,
+    corner = DepthCorner.ROUND,
+    keyCorner = 20.dp,
+    panelCorner = 24.dp,
+    backdropGrain = 0.03f
+)
+
+/** Aurora Glass: sama dgn Midnight tapi lebih vivid & sorot sedikit lebih kuat. */
+val AuroraDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = Color(0xFF2A3978),
+    faceBottom = Color(0xFF1A2558),
+    rimLight = Color(0xFFF6F8FF),
+    rimLightAlpha = 0.46f,
+    rimShade = Color(0xFF03040C),
+    rimShadeAlpha = 0.62f,
+    bevelWidth = 1.7.dp,
+    castShadow = Color(0xFF01020A),
+    wellFloor = Color(0xFF070A1A),
+    knobShade = Color(0xFF46528A),
+    grainAlpha = 0.045f,
+    frameInset = 0.dp,
+    corner = DepthCorner.ROUND,
+    keyCorner = 20.dp,
+    panelCorner = 24.dp,
+    backdropGrain = 0.03f
+)
+
+/** Neumorphism (Blade Runner): slate gelap, sudut nyaris tegas 4dp, bevel tipis. */
+val NeumoDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = Color(0xFF2B3A52),
+    faceBottom = Color(0xFF1D2A3D),
+    rimLight = Color(0xFFF8FAFC),
+    rimLightAlpha = 0.38f,
+    rimShade = Color(0xFF03060C),
+    rimShadeAlpha = 0.60f,
+    bevelWidth = 1.4.dp,
+    castShadow = Color(0xFF02050B),
+    wellFloor = Color(0xFF080D18),
+    knobShade = Color(0xFF475569),
+    grainAlpha = 0.04f,
+    frameInset = 0.dp,
+    corner = DepthCorner.ROUND,
+    keyCorner = 4.dp,
+    panelCorner = 4.dp,
+    backdropGrain = 0.03f
+)
+
+/** Studio Equalizer: abu-abu studio, sudut membulat 20dp, sorot netral. */
+val StudioEqDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = Color(0xFF3A4150),
+    faceBottom = Color(0xFF2C323E),
+    rimLight = Color(0xFFF0F2F5),
+    rimLightAlpha = 0.34f,
+    rimShade = Color(0xFF0C0E12),
+    rimShadeAlpha = 0.55f,
+    bevelWidth = 1.6.dp,
+    castShadow = Color(0xFF07080B),
+    wellFloor = Color(0xFF12151A),
+    knobShade = Color(0xFF565E6D),
+    grainAlpha = 0.04f,
+    frameInset = 0.dp,
+    corner = DepthCorner.ROUND,
+    keyCorner = 16.dp,
+    panelCorner = 20.dp,
+    backdropGrain = 0.03f
+)
+
+/** Serene M3: hijau-abu sage, sudut cut-corner (chamfer) seperti bentuk aslinya, efek paling halus. */
+val SereneDepth = DepthStyle(
+    lightX = -0.5522f,
+    lightY = -0.8337f,
+    faceTop = Color(0xFF2F362D),
+    faceBottom = Color(0xFF262C25),
+    rimLight = Color(0xFFE7ECE6),
+    rimLightAlpha = 0.30f,
+    rimShade = Color(0xFF070905),
+    rimShadeAlpha = 0.50f,
+    bevelWidth = 1.5.dp,
+    castShadow = Color(0xFF040603),
+    wellFloor = Color(0xFF121510),
+    knobShade = Color(0xFF4B5448),
+    grainAlpha = 0.03f,
+    frameInset = 0.dp,
+    corner = DepthCorner.CHAMFER,
+    keyCorner = 8.dp,
+    panelCorner = 12.dp,
+    backdropGrain = 0.025f
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
@@ -770,7 +903,9 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     shadowDarkTint = Color.Transparent,
     // Batch 112: `RoundedCornerShape(SkeuCardRadius)` — SAMA PERSIS shape yang
     // sebelumnya dibikin inline di `SkeuCard`, 0 perubahan visual.
-    cardShape = RoundedCornerShape(SkeuCardRadius)
+    cardShape = RoundedCornerShape(SkeuCardRadius),
+    // B187: mesin kedalaman fisik (timbul/cekung) sama dgn Old Money, sudut membulat.
+    depth = GlassDepth
 )
 
 /** Varian 2: "Aurora Glass" — iOS glassmorphism lebih vivid/saturated, sheen &
@@ -792,7 +927,9 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     iconBoxRadius = SkeuIconBoxRadius,
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
-    cardShape = RoundedCornerShape(SkeuCardRadius)
+    cardShape = RoundedCornerShape(SkeuCardRadius),
+    // B187: mesin kedalaman fisik (timbul/cekung) sama dgn Old Money, sudut membulat.
+    depth = AuroraDepth
 )
 
 /** Varian 3: "Neumorphism" — Batch 52: palet Deep Navy & Classic Brass, kartu
@@ -819,7 +956,9 @@ val NeumorphismSkeuTokens = SkeuTokens(
     iconBoxRadius = NeumoIconBoxRadius,
     shadowLightTint = NeumoEdgeHighlight,
     shadowDarkTint = NeumoEdgeShadow,
-    cardShape = RoundedCornerShape(NeumoCardRadius)
+    cardShape = RoundedCornerShape(NeumoCardRadius),
+    // B187: mesin kedalaman fisik menggantikan dual-shadow B47-B56 (tint di atas = fallback saja).
+    depth = NeumoDepth
 )
 
 /** Varian 4: "Studio Equalizer" — neumorphism soft-UI (Batch 43), palet abu-abu
@@ -843,7 +982,9 @@ val StudioEqSkeuTokens = SkeuTokens(
     // (lihat komentar Batch 43), bukan target "ultra realistic" kayak varian 3.
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
-    cardShape = RoundedCornerShape(StudioEqCardRadius)
+    cardShape = RoundedCornerShape(StudioEqCardRadius),
+    // B187: mesin kedalaman fisik (timbul/cekung), sudut membulat.
+    depth = StudioEqDepth
 )
 
 /** Varian 5: "Serene M3" (Batch 111) — flat tonal Material 3, 0 bevel/dual-shadow/
@@ -867,7 +1008,9 @@ val SereneSkeuTokens = SkeuTokens(
     iconBoxRadius = SereneIconBoxRadius,
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
-    cardShape = SereneCardShape
+    cardShape = SereneCardShape,
+    // B187: mesin kedalaman fisik, sudut cut-corner tetap; bevel segi-8 chamfer `cardRadius` 18dp.
+    depth = SereneDepth
 )
 
 /** Varian 6: "Old Money" (Batch 176) — kartu timbul neumorphism dark (B179): gradien
