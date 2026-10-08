@@ -79,6 +79,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
@@ -1599,6 +1600,13 @@ internal fun SkeuPowerButton(
     }
 }
 
+/** Batch 189: fraksi posisi slider 0..1 — dipanggil di fase GAMBAR (jalur depth) atau komposisi (legacy). */
+@OptIn(ExperimentalMaterial3Api::class)
+private fun sliderFraction(state: SliderState): Float {
+    val range = state.valueRange.endInclusive - state.valueRange.start
+    return if (range != 0f) ((state.value - state.valueRange.start) / range).coerceIn(0f, 1f) else 0f
+}
+
 /** Track slider flat/minimal buat 3 varian (guide poin 3), TAPI Batch 52: track
  *  yang belum terisi (`bgColor`) sekarang dapat inset shadow cekung KHUSUS
  *  Neumorphism (`SkeuDualDirectionalShadow(invert=true)`, 0 efek 3 varian lain)
@@ -1614,10 +1622,6 @@ private fun SkeuSliderTrack(
     enabled: Boolean
 ) {
     val tokens = LocalSkeuTokens.current
-    val range = sliderState.valueRange.endInclusive - sliderState.valueRange.start
-    val fraction = if (range != 0f) {
-        ((sliderState.value - sliderState.valueRange.start) / range).coerceIn(0f, 1f)
-    } else 0f
     val trackColor = if (enabled) activeColor else activeColor.copy(alpha = 0.35f)
     val bgColor = if (enabled) inactiveColor else inactiveColor.copy(alpha = 0.5f)
     val shape = RoundedCornerShape(5.dp)
@@ -1625,7 +1629,23 @@ private fun SkeuSliderTrack(
     // ATAS bagian terisi, jadi isian pun terlihat tenggelam di alur).
     val depth = tokens.depth
     if (depth != null) {
-        val floor = lerp(depth.wellFloor, inactiveColor.copy(alpha = 1f), if (enabled) 0.14f else 0.05f)
+        // Batch 189: warna lantai & gradien isian di-`remember` (sebelumnya dihitung ulang tiap
+        // rekomposisi), dan isian digambar di fase GAMBAR (`drawBehind` membaca `sliderState.value`)
+        // — SEBELUMNYA `fillMaxWidth(fraction)` membaca nilai di komposisi sehingga track + 2 Box
+        // anak rekomposisi & re-layout di SETIAP tick drag. Kini 0 rekomposisi track per tick.
+        val floor = remember(depth, inactiveColor, enabled) {
+            lerp(depth.wellFloor, inactiveColor.copy(alpha = 1f), if (enabled) 0.14f else 0.05f)
+        }
+        // B182: isian = enamel bulat (atas lebih terang, bawah lebih gelap), bukan warna datar.
+        val fillBrush = remember(depth, trackColor) {
+            Brush.verticalGradient(
+                listOf(
+                    lerp(trackColor, depth.rimLight, 0.18f),
+                    trackColor,
+                    lerp(trackColor, Color.Black, 0.25f)
+                )
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1633,27 +1653,22 @@ private fun SkeuSliderTrack(
                 .depthWellLip(shape, depth)
                 .clip(shape)
                 .background(floor)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(fraction)
-                    .fillMaxHeight()
-                    .clip(shape)
-                    // B182: isian = enamel bulat (atas lebih terang, bawah lebih gelap), bukan warna datar.
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(
-                                lerp(trackColor, depth.rimLight, 0.18f),
-                                trackColor,
-                                lerp(trackColor, Color.Black, 0.25f)
-                            )
+                .drawBehind {
+                    val fillW = size.width * sliderFraction(sliderState)
+                    if (fillW > 0f) {
+                        drawRoundRect(
+                            brush = fillBrush,
+                            size = Size(fillW, size.height),
+                            cornerRadius = CornerRadius(5.dp.toPx())
                         )
-                    )
-            )
+                    }
+                }
+        ) {
             Box(Modifier.matchParentSize().depthWellInner(shape, depth))
         }
         return
     }
+    val fraction = sliderFraction(sliderState)
     Box(
         modifier = Modifier
             .fillMaxWidth()

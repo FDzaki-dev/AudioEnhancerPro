@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -139,6 +140,9 @@ internal fun EqCurveEditor(
         modifier = modifier
             .fillMaxWidth()
             .height(150.dp)
+            // Batch 189: layer render sendiri — gerak slider band di bawah kurva tak lagi memicu
+            // jalan ulang lambda gambar kurva, dan drag kurva hanya me-rekam ulang layer ini.
+            .graphicsLayer()
             .pointerInput(bandCount) {
                 val topPad = topPadDp.toPx()
                 val bottomPad = bottomPadDp.toPx()

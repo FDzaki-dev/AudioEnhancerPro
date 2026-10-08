@@ -12,11 +12,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
 // koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel,
@@ -51,7 +54,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     // Batch 152 (lint StaticFieldLeak): Service = Context, tapi referensi ini DILEPAS di
     // `onServiceDisconnected()` & `onCleared()` (dan semua akses digerbang `bound`), jadi tidak bocor.
     @android.annotation.SuppressLint("StaticFieldLeak")
-    private var service: AudioEnhancerService? = null
+    // Batch 189: @Volatile — dibaca juga oleh worker apply EQ di Dispatchers.IO (ditulis di Main).
+    @Volatile private var service: AudioEnhancerService? = null
     private var bound = false
 
     // Status koneksi ke service, dipakai untuk tampilkan loading/error state eksplisit di UI —
@@ -131,6 +135,37 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingCompressor: Int? = null // Batch 121
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
+    // Batch 189 (request user "gejala masih kambuh, perluas optimalisasi" — tab Equalizer Manual):
+    // `AudioEnhancerService.setEqualizerBand` = `Equalizer.setBandLevel` (binder ke audioserver,
+    // BISA memblok puluhan ms) + tulis prefs. SEBELUMNYA dipanggil LANGSUNG di Main tiap notch drag →
+    // UI tersendat. Sekarang: nilai terbaru per band ditaruh di `eqLatestMb` (last-write-wins) lalu
+    // worker tunggal di `Dispatchers.IO` mengosongkannya — drag cepat melewati banyak notch cuma
+    // meng-apply nilai TERAKHIR tiap band. Urutan per band terjaga; `Service` tak berubah.
+    private val eqLatestMb = ConcurrentHashMap<Int, Short>()
+    private val eqApplyKick = Channel<Unit>(Channel.CONFLATED)
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            while (true) {
+                if (eqApplyKick.receiveCatching().isClosed) break
+                applyLatestEqualizerBands()
+            }
+        }
+    }
+
+    private fun applyLatestEqualizerBands() {
+        for (band in eqLatestMb.keys.sorted()) {
+            // Service putus: nilai TETAP di map, diterapkan saat konek lagi (kick di onServiceConnected).
+            val svc = service ?: return
+            val level = eqLatestMb.remove(band) ?: continue
+            try {
+                svc.setEqualizerBand(band.toShort(), level)
+            } catch (e: Exception) {
+                android.util.Log.e("BoosterViewModel", "Gagal apply EQ band $band", e)
+            }
+        }
+    }
+
     // Fitur baru: in-app update (UpdateManager.kt, diminta user eksplisit). `updateInfo`
     // null = belum ada update (atau belum dicek/gagal cek — checkForUpdate() menelan
     // exception jadi null, lihat komentar di sana). `downloadProgress` null = TIDAK
@@ -180,6 +215,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingCompressor?.let { service?.setCompressorAmount(it) }; pendingCompressor = null
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
+            // Batch 189: nilai yang sempat tertahan di `eqLatestMb` saat service putus.
+            if (eqLatestMb.isNotEmpty()) eqApplyKick.trySend(Unit)
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
@@ -304,7 +341,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setEqualizerBand(band: Int, level: Short) {
-        if (bound) service?.setEqualizerBand(band.toShort(), level) else pendingEqualizerBands[band] = level
+        if (bound) {
+            eqLatestMb[band] = level
+            eqApplyKick.trySend(Unit)
+        } else pendingEqualizerBands[band] = level
     }
 
     /** Batch 62 (roadmap Fase 0 #4 lanjutan): surface `AudioEnhancerService.

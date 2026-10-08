@@ -61,6 +61,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -470,7 +471,9 @@ private fun SpectrumBars(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier) {
+    // Batch 189: `graphicsLayer()` = layer render sendiri — update ~20x/detik hanya me-rekam ulang bar,
+    // bukan seluruh layer kartu pembungkus (permukaan pelat/bevel/grain ikut tergambar ulang).
+    Canvas(modifier = modifier.graphicsLayer()) {
         val current = levels()
         if (current.isEmpty()) return@Canvas
         val gapFraction = 0.25f
@@ -2006,24 +2009,28 @@ private fun EqBandSlider(
     onBandChange: (Int, Short) -> Unit
 ) {
     val level = levels[band]
-    FeatureControl(
-        title = formatFreqLabel(freqHz),
-        helpText = "",
-        value = level.toFloat(),
-        valueLabel = "$level mB",
-        onValueChange = {
-            val newLevel = it.toInt().toShort()
-            if (newLevel != levels[band]) {
-                levels[band] = newLevel
-                onBandChange(band, newLevel)
-            }
-        },
-        valueRange = levelMin.toFloat()..levelMax.toFloat(),
-        step = 50f,
-        accentColor = EqualizerAccent,
-        accentColor2 = EqualizerAccent2,
-        wrapInCard = false
-    )
+    // Batch 189: `graphicsLayer()` = layer render per band — geser 1 slider hanya me-rekam ulang band itu,
+    // bukan seluruh kartu EQ (kurva + 5 slider + permukaan pelat).
+    Box(modifier = Modifier.graphicsLayer()) {
+        FeatureControl(
+            title = formatFreqLabel(freqHz),
+            helpText = "",
+            value = level.toFloat(),
+            valueLabel = "$level mB",
+            onValueChange = {
+                val newLevel = it.toInt().toShort()
+                if (newLevel != levels[band]) {
+                    levels[band] = newLevel
+                    onBandChange(band, newLevel)
+                }
+            },
+            valueRange = levelMin.toFloat()..levelMax.toFloat(),
+            step = 50f,
+            accentColor = EqualizerAccent,
+            accentColor2 = EqualizerAccent2,
+            wrapInCard = false
+        )
+    }
 }
 
 internal fun formatFreqLabel(hz: Int): String =

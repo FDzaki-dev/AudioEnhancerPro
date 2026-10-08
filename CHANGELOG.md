@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 189: Optimalisasi lanjutan tab Equalizer Manual
+
+Perubahan suara dari kurva dan slider band sekarang diterapkan di latar belakang, jadi layar tidak lagi menunggu pengaturan efek audio selesai setiap kali jari melewati satu notch. Kalau jari bergerak sangat cepat, hanya nilai terakhir tiap band yang dikirim ke efek audio. Isian warna pada track slider kini digambar langsung mengikuti posisi thumb tanpa menyusun ulang komponennya di setiap gerakan. Tiap band, kurva EQ, dan bar spectrum juga mendapat lapisan gambar sendiri, sehingga bergeraknya satu slider atau animasi spectrum tidak membuat seluruh kartu digambar ulang.
+Untuk pengembang: `BoosterViewModel.setEqualizerBand` menaruh nilai terbaru per band ke `eqLatestMb` (`ConcurrentHashMap`) dan membangunkan satu worker `Dispatchers.IO` lewat `Channel.CONFLATED`; worker memanggil `AudioEnhancerService.setEqualizerBand` (yang juga menulis prefs) per band secara berurutan. Jika service terputus, nilai tertahan dan dikirim lagi di `onServiceConnected`; `service` kini `@Volatile`. `SkeuSliderTrack` (jalur depth) memakai `drawBehind` yang membaca `sliderState.value` di fase gambar lewat `sliderFraction`, dan `floor`/`fillBrush` di-`remember`. `graphicsLayer()` ditambahkan pada `EqBandSlider`, kanvas `EqCurveEditor`, dan `SpectrumBars`. `AudioEnhancerService.kt` dan `PrefsHelper.kt` tidak berubah.
+
+**Perubahan** (4 file source + 2 dokumen): `BoosterViewModel.kt`, `SkeuomorphicComponents.kt`, `BoosterScreen.kt`, `EqCurveEditor.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v188.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek: drag kurva dan slider band mulus, suara tetap mengikuti band, isian track mengikuti thumb di semua tema, dan tampilan kartu tidak berubah atau terpotong.
+
 ## Batch 188: Tab Equalizer Manual lebih ringan dan responsif
 
 Menggeser kurva atau slider band di Equalizer Manual sekarang jauh lebih ringan. Kurva kini melompat per kelipatan 50 mB, sama seperti slider band (sebelumnya per 1 mB, sehingga setiap gerakan kecil jari memanggil efek audio dan menulis pengaturan berulang-ulang), dan gerakan yang tetap di notch yang sama diabaikan. Saat satu band digeser, hanya band itu yang digambar ulang, bukan seluruh kartu beserta kurva dan semua slider. Gambar kurva juga tidak lagi membuat objek baru di setiap frame. Satu bug ikut diperbaiki: setelah preset atau tombol Reset dipakai, titik pada kurva kadang tidak bisa diraih karena area sentuhnya masih memakai posisi lama.
