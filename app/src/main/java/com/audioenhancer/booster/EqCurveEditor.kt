@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -35,10 +36,31 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
+
+/** Batch 188: kelipatan snap kurva (mB) = `step` slider band di `EqualizerSection` (Batch 169),
+ *  supaya drag kurva tak memicu apply-efek (binder) + tulis prefs per 1 mB — cukup per notch 50 mB. */
+private const val EQ_CURVE_STEP_MB = 50
+
+private fun eqLevelToY(level: Short, lvMin: Short, lvMax: Short, topPad: Float, bottomPad: Float, h: Float): Float {
+    val range = (lvMax - lvMin).toFloat().coerceAtLeast(1f)
+    val fraction = (level - lvMin).toFloat() / range // 0 = min, 1 = max
+    val usable = h - topPad - bottomPad
+    return (h - bottomPad) - fraction * usable
+}
+
+private fun eqYToLevel(y: Float, lvMin: Short, lvMax: Short, topPad: Float, bottomPad: Float, h: Float): Short {
+    val usable = (h - topPad - bottomPad).coerceAtLeast(1f)
+    val clampedY = y.coerceIn(topPad, h - bottomPad)
+    val fraction = 1f - (clampedY - topPad) / usable
+    val raw = lvMin + fraction * (lvMax - lvMin)
+    val snapped = (raw / EQ_CURVE_STEP_MB).roundToInt() * EQ_CURVE_STEP_MB
+    return snapped.coerceIn(lvMin.toInt(), lvMax.toInt()).toShort()
+}
 
 /**
  * Kurva EQ drag-point. Titik per band cuma bisa digeser VERTIKAL (gain) — posisi
@@ -60,7 +82,15 @@ internal fun EqCurveEditor(
     if (bandCount < 2) return // Kurva butuh minimal 2 titik — guard, bukan skenario nyata (fallback selalu 5 band)
 
     val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
     var draggedBand by remember { mutableIntStateOf(-1) }
+    // Batch 188: `pointerInput(bandCount)` TIDAK restart saat `levels` berganti instance (reset /
+    // preset di EqualizerSection = `remember(bandCount, resetKey)` → list BARU) — lambda gesture
+    // lama membaca list basi → hit-test titik meleset. Baca lewat State terbaru.
+    val latestLevels by rememberUpdatedState(levels)
+    val latestOnBandChange by rememberUpdatedState(onBandChange)
+    val latestMin by rememberUpdatedState(levelMin)
+    val latestMax by rememberUpdatedState(levelMax)
 
     // topPad: clearance titik paling atas (gain max) + label nilai saat drag.
     // bottomPad: ruang label frekuensi di bawah kurva.
@@ -73,20 +103,37 @@ internal fun EqCurveEditor(
     val accent = EqualizerAccent
     val accent2 = EqualizerAccent2
 
-    fun levelToY(level: Short, topPad: Float, bottomPad: Float, h: Float): Float {
-        val range = (levelMax - levelMin).toFloat().coerceAtLeast(1f)
-        val fraction = (level - levelMin).toFloat() / range // 0 = min, 1 = max
-        val usable = h - topPad - bottomPad
-        return (h - bottomPad) - fraction * usable
+    // Batch 188: objek gambar di-cache lintas frame (sebelumnya Path/Paint/Brush/List/String
+    // dialokasi ulang di SETIAP frame draw selama drag).
+    val labelPaint = remember(mutedColor, density) {
+        android.graphics.Paint().apply {
+            color = mutedColor.copy(alpha = 0.85f).toArgb()
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = with(density) { 10.sp.toPx() }
+            isAntiAlias = true
+        }
     }
-
-    fun yToLevel(y: Float, topPad: Float, bottomPad: Float, h: Float): Short {
-        val usable = (h - topPad - bottomPad).coerceAtLeast(1f)
-        val clampedY = y.coerceIn(topPad, h - bottomPad)
-        val fraction = 1f - (clampedY - topPad) / usable
-        val level = levelMin + fraction * (levelMax - levelMin)
-        return level.roundToInt().coerceIn(levelMin.toInt(), levelMax.toInt()).toShort()
+    val valuePaint = remember(accent, density) {
+        android.graphics.Paint().apply {
+            color = accent.toArgb()
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = with(density) { 11.sp.toPx() }
+            isAntiAlias = true
+            isFakeBoldText = true
+        }
     }
+    val freqLabels = remember(centerFreqsHz, bandCount) {
+        List(bandCount) { i -> formatFreqLabel(centerFreqsHz.getOrElse(i) { 0 }) }
+    }
+    val dashEffect = remember { PathEffect.dashPathEffect(floatArrayOf(6f, 6f)) }
+    val fillBrush = remember(accent, accent2) {
+        Brush.verticalGradient(colors = listOf(accent.copy(alpha = 0.28f), accent2.copy(alpha = 0.04f)))
+    }
+    val strokeBrush = remember(accent, accent2) { Brush.horizontalGradient(colors = listOf(accent, accent2)) }
+    val curveStroke = remember(density) { Stroke(width = with(density) { 2.5.dp.toPx() }) }
+    val curvePath = remember { Path() }
+    val fillPath = remember { Path() }
+    val ys = remember(bandCount) { FloatArray(bandCount) }
 
     Canvas(
         modifier = modifier
@@ -115,25 +162,32 @@ internal fun EqCurveEditor(
                     onDragStart = { offset ->
                         val w = size.width.toFloat()
                         val h = size.height.toFloat()
+                        val lv = latestLevels
+                        val lMin = latestMin
+                        val lMax = latestMax
                         val stepX = w / (bandCount - 1).coerceAtLeast(1)
                         val nearest = (offset.x / stepX).roundToInt().coerceIn(0, bandCount - 1)
                         val nearestX = nearest * stepX
-                        val nearestY = levelToY(levels.getOrElse(nearest) { 0 }, topPad, bottomPad, h)
+                        val current = lv.getOrElse(nearest) { 0 }
+                        val nearestY = eqLevelToY(current, lMin, lMax, topPad, bottomPad, h)
                         val dx = offset.x - nearestX
                         val dy = offset.y - nearestY
                         if (dx * dx + dy * dy <= hitRadiusPx * hitRadiusPx) {
                             draggedBand = nearest
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onBandChange(nearest, yToLevel(offset.y, topPad, bottomPad, h))
+                            val newLevel = eqYToLevel(offset.y, lMin, lMax, topPad, bottomPad, h)
+                            if (newLevel != current) latestOnBandChange(nearest, newLevel)
                         }
                         // else: sentuhan di luar radius titik manapun -> dibiarkan, 0 efek.
                     },
                     onDragEnd = { draggedBand = -1 },
                     onDragCancel = { draggedBand = -1 }
                 ) { change, _ ->
-                    if (draggedBand < 0) return@detectDragGestures
-                    val newLevel = yToLevel(change.position.y, topPad, bottomPad, size.height.toFloat())
-                    onBandChange(draggedBand, newLevel)
+                    val band = draggedBand
+                    if (band < 0) return@detectDragGestures
+                    val newLevel = eqYToLevel(change.position.y, latestMin, latestMax, topPad, bottomPad, size.height.toFloat())
+                    // Batch 188: lewati kalau tetap di notch yang sama → 0 apply efek/tulis prefs/recompose berulang.
+                    if (newLevel != latestLevels.getOrElse(band) { 0 }) latestOnBandChange(band, newLevel)
                 }
             }
     ) {
@@ -143,11 +197,11 @@ internal fun EqCurveEditor(
         val bottomPad = bottomPadDp.toPx()
         val stepX = w / (bandCount - 1).coerceAtLeast(1)
 
-        val points = (0 until bandCount).map { i ->
-            val level = levels.getOrElse(i) { 0 }
-            Offset(i * stepX, levelToY(level, topPad, bottomPad, h))
+        val lv = latestLevels
+        for (i in 0 until bandCount) {
+            ys[i] = eqLevelToY(lv.getOrElse(i) { 0 }, levelMin, levelMax, topPad, bottomPad, h)
         }
-        val zeroY = levelToY(0, topPad, bottomPad, h)
+        val zeroY = eqLevelToY(0, levelMin, levelMax, topPad, bottomPad, h)
 
         // Garis baseline 0 gain, putus-putus
         drawLine(
@@ -155,68 +209,36 @@ internal fun EqCurveEditor(
             start = Offset(0f, zeroY),
             end = Offset(w, zeroY),
             strokeWidth = 1.dp.toPx(),
-            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+            pathEffect = dashEffect
         )
 
         // Kurva smooth lewat titik-titik (cubic bezier titik-tengah per segmen)
-        val curvePath = Path().apply {
-            moveTo(points[0].x, points[0].y)
-            for (i in 1 until points.size) {
-                val prev = points[i - 1]
-                val cur = points[i]
-                val midX = (prev.x + cur.x) / 2f
-                cubicTo(midX, prev.y, midX, cur.y, cur.x, cur.y)
-            }
+        curvePath.reset()
+        curvePath.moveTo(0f, ys[0])
+        for (i in 1 until bandCount) {
+            val midX = ((i - 1) * stepX + i * stepX) / 2f
+            curvePath.cubicTo(midX, ys[i - 1], midX, ys[i], i * stepX, ys[i])
         }
 
         // Area fill tipis dari kurva ke garis 0 gain (nuansa "spectrum EQ" asli)
-        val fillPath = Path().apply {
-            addPath(curvePath)
-            lineTo(points.last().x, zeroY)
-            lineTo(points.first().x, zeroY)
-            close()
-        }
-        drawPath(
-            path = fillPath,
-            brush = Brush.verticalGradient(
-                colors = listOf(accent.copy(alpha = 0.28f), accent2.copy(alpha = 0.04f))
-            ),
-            style = Fill
-        )
-        drawPath(
-            path = curvePath,
-            brush = Brush.horizontalGradient(colors = listOf(accent, accent2)),
-            style = Stroke(width = 2.5.dp.toPx())
-        )
+        fillPath.reset()
+        fillPath.addPath(curvePath)
+        fillPath.lineTo((bandCount - 1) * stepX, zeroY)
+        fillPath.lineTo(0f, zeroY)
+        fillPath.close()
+        drawPath(path = fillPath, brush = fillBrush, style = Fill)
+        drawPath(path = curvePath, brush = strokeBrush, style = curveStroke)
 
-        val labelPaint = android.graphics.Paint().apply {
-            color = mutedColor.copy(alpha = 0.85f).toArgb()
-            textAlign = android.graphics.Paint.Align.CENTER
-            textSize = 10.sp.toPx()
-            isAntiAlias = true
-        }
-        val valuePaint = android.graphics.Paint().apply {
-            color = accent.toArgb()
-            textAlign = android.graphics.Paint.Align.CENTER
-            textSize = 11.sp.toPx()
-            isAntiAlias = true
-            isFakeBoldText = true
-        }
-
-        points.forEachIndexed { i, p ->
+        for (i in 0 until bandCount) {
+            val p = Offset(i * stepX, ys[i])
             val isActive = i == draggedBand
             val radius = if (isActive) pointRadiusActiveDp.toPx() else pointRadiusDp.toPx()
             drawCircle(color = Color.White, radius = radius + 1.dp.toPx(), center = p)
             drawCircle(color = if (isActive) accent else accent2, radius = radius, center = p)
 
-            drawContext.canvas.nativeCanvas.drawText(
-                formatFreqLabel(centerFreqsHz.getOrElse(i) { 0 }),
-                p.x,
-                h - 4.dp.toPx(),
-                labelPaint
-            )
+            drawContext.canvas.nativeCanvas.drawText(freqLabels[i], p.x, h - 4.dp.toPx(), labelPaint)
             if (isActive) {
-                val mb = levels.getOrElse(i) { 0 }
+                val mb = lv.getOrElse(i) { 0 }
                 val sign = if (mb > 0) "+" else ""
                 drawContext.canvas.nativeCanvas.drawText(
                     "$sign$mb mB",

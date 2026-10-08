@@ -1941,7 +1941,11 @@ private fun EqualizerSection(
                 // Flat (`onEqualizerBand(band, 0)`) — 0 logic baru di Service/ViewModel.
                 // Nonaktif kalau semua band sudah flat.
                 val resetLevel = 0.coerceIn(levelMin.toInt(), levelMax.toInt()).toShort()
-                val allFlat = levels.all { it == resetLevel }
+                // Batch 188: derivedStateOf — SEBELUMNYA `levels.all{}` dibaca langsung di scope
+                // EqualizerSection → SELURUH kartu (kurva + semua slider band) recompose tiap tick
+                // drag. Sekarang scope ini hanya recompose saat status flat/tidak-flat berubah;
+                // tiap slider band membaca `levels[band]` di scope `EqBandSlider` miliknya sendiri.
+                val allFlat by remember(bandCount, resetKey, resetLevel) { derivedStateOf { levels.all { it == resetLevel } } }
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     SkeuOutlinedButton(
                         onClick = {
@@ -1968,32 +1972,58 @@ private fun EqualizerSection(
                     centerFreqsHz = centerFreqsHz,
                     levels = levels,
                     onBandChange = { band, level ->
-                        levels[band] = level
-                        onBandChange(band, level)
+                        if (levels[band] != level) {
+                            levels[band] = level
+                            onBandChange(band, level)
+                        }
                     }
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 for (band in 0 until bandCount) {
-                    FeatureControl(
-                        title = formatFreqLabel(centerFreqsHz.getOrElse(band) { 0 }),
-                        helpText = "",
-                        value = levels[band].toFloat(),
-                        valueLabel = "${levels[band]} mB",
-                        onValueChange = {
-                            val level = it.toInt().toShort()
-                            levels[band] = level
-                            onBandChange(band, level)
-                        },
-                        valueRange = levelMin.toFloat()..levelMax.toFloat(),
-                        step = 50f,
-                        accentColor = EqualizerAccent,
-                        accentColor2 = EqualizerAccent2,
-                        wrapInCard = false
+                    EqBandSlider(
+                        band = band,
+                        freqHz = centerFreqsHz.getOrElse(band) { 0 },
+                        levels = levels,
+                        levelMin = levelMin,
+                        levelMax = levelMax,
+                        onBandChange = onBandChange
                     )
                 }
             }
         }
     }
+}
+
+/** Batch 188: 1 slider band = scope recompose sendiri — hanya band yang digeser yang recompose
+ *  (sebelumnya semua band + kurva ikut recompose tiap tick). Perilaku/tampilan identik. */
+@Composable
+private fun EqBandSlider(
+    band: Int,
+    freqHz: Int,
+    levels: MutableList<Short>,
+    levelMin: Short,
+    levelMax: Short,
+    onBandChange: (Int, Short) -> Unit
+) {
+    val level = levels[band]
+    FeatureControl(
+        title = formatFreqLabel(freqHz),
+        helpText = "",
+        value = level.toFloat(),
+        valueLabel = "$level mB",
+        onValueChange = {
+            val newLevel = it.toInt().toShort()
+            if (newLevel != levels[band]) {
+                levels[band] = newLevel
+                onBandChange(band, newLevel)
+            }
+        },
+        valueRange = levelMin.toFloat()..levelMax.toFloat(),
+        step = 50f,
+        accentColor = EqualizerAccent,
+        accentColor2 = EqualizerAccent2,
+        wrapInCard = false
+    )
 }
 
 internal fun formatFreqLabel(hz: Int): String =

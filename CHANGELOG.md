@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 188: Tab Equalizer Manual lebih ringan dan responsif
+
+Menggeser kurva atau slider band di Equalizer Manual sekarang jauh lebih ringan. Kurva kini melompat per kelipatan 50 mB, sama seperti slider band (sebelumnya per 1 mB, sehingga setiap gerakan kecil jari memanggil efek audio dan menulis pengaturan berulang-ulang), dan gerakan yang tetap di notch yang sama diabaikan. Saat satu band digeser, hanya band itu yang digambar ulang, bukan seluruh kartu beserta kurva dan semua slider. Gambar kurva juga tidak lagi membuat objek baru di setiap frame. Satu bug ikut diperbaiki: setelah preset atau tombol Reset dipakai, titik pada kurva kadang tidak bisa diraih karena area sentuhnya masih memakai posisi lama.
+Untuk pengembang: `EqCurveEditor.kt` menambah `EQ_CURVE_STEP_MB` (50) dan fungsi `eqLevelToY`/`eqYToLevel` (snap + dedupe di `onDragStart`/`onDrag`), membaca `levels`/`onBandChange`/range lewat `rememberUpdatedState` (gesture tidak lagi memegang list basi), dan menyimpan Path/Paint/Brush/PathEffect/Stroke/label/array titik dengan `remember`. `BoosterScreen.kt`: `allFlat` memakai `derivedStateOf`, slider band diekstrak menjadi `EqBandSlider` (scope recompose sendiri), dan callback kurva/slider melewati nilai yang sama. `AudioEnhancerService.kt`, `PrefsHelper.kt`, dan `BoosterViewModel.kt` tidak berubah.
+
+**Perubahan** (2 file source + 3 dokumen): `EqCurveEditor.kt`, `BoosterScreen.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`. Revert: `Boomly_v187.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek: drag kurva terasa mulus dan melompat per 50 mB, slider dan kurva tetap sinkron, titik kurva bisa diraih setelah preset atau Reset, band lain tidak berkedip saat satu band digeser.
+
+
 ## Batch 187: Efek timbul dan cekung kini ada di semua tema
 
 Lima tema yang tadinya masih datar (Midnight Glass, Aurora Glass, Neumorphism, Studio Equalizer, dan Serene M3) sekarang memakai mesin timbul dan cekung yang sama dengan Old Money. Kartu menjadi pelat yang lebih terang dari latar dengan bayangan jatuh lembut, tepi bersorot menurut cahaya dari kiri-atas, dan permukaan berbutir halus. Track slider, groove switch, kotak ikon, dan tombol daya yang menyala menjadi alur cekung. Tombol, pil preset, tab, dan dialog ikut menjadi kunci fisik. Tiap tema tetap berbentuk aslinya: Midnight Glass, Aurora Glass, dan Studio Equalizer bersudut membulat, Neumorphism hampir tegas (4dp), Serene M3 tetap cut-corner, dan masing-masing memakai paletnya sendiri. Alur ukir bingkai tetap ciri khas Old Money saja. Butiran latar layar ikut tiap tema dengan kekuatan yang lebih halus.
