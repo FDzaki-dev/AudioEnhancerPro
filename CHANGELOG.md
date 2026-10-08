@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 186: Pengaman tambahan untuk crash tombol, pil, dan tab
+
+Crash baru yang Anda kirim ternyata bertanda versi 224, sama persis dengan build Batch 184 yang bermasalah, jadi itu bukan kegagalan perbaikan Batch 185. Perbaikan ada di build yang lebih baru (nomor 225 atau lebih), dan crash log berikutnya harus menunjukkan nomor itu. Karena crash ini terjadi berulang, saya menambahkan lapis pengaman kedua: tiap jenis efek gambar sekarang punya grup Compose sendiri sehingga dua jenis efek tidak mungkin lagi berbagi slot. Tampilan tidak berubah.
+Untuk pengembang: `SkeuomorphicComponents.kt`, `depthDraw` memakai `key(tag) { remember(keyList) { block } }`.
+
+**Perubahan** (1 file source + 2 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v183.zip` (v184 membawa crash; v185 belum punya pengaman kedua).
+**NOT VERIFIED**: belum dikompilasi dan belum direproduksi; konfirmasi hanya dari crash log baru yang bernomor versi 225 atau lebih (sertakan mapping.txt dari build itu bila crash masih ada).
+
 ## Batch 185: Perbaikan crash saat menekan tombol, pil, atau tab di tema Old Money
 
 Aplikasi build 224 bisa tertutup sendiri (ClassCastException) saat sebuah tombol, pil preset, atau tab berpindah antara keadaan timbul dan cekung, misalnya ketika ditekan atau dipilih. Penyebabnya ada di kode efek gambar yang ditambahkan di Batch 184: penyimpanan sementara lambda gambar memakai jumlah kunci yang berbeda untuk tiap jenis efek, padahal semuanya berbagi satu lokasi penyimpanan di dalam Compose, sehingga saat efek berganti, data lama terbaca sebagai lambda. Sekarang semua kunci digabung menjadi satu daftar yang tetap satu slot, dan tiap jenis efek diberi penanda unik supaya tidak pernah saling memakai lambda. Tampilan tidak berubah.

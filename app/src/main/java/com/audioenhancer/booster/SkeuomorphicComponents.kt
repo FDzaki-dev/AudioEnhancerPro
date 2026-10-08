@@ -417,11 +417,14 @@ private object DepthBitmapStore {
  *  `depthWellLip` ketika kunci ditekan) jumlah slot beda → slot lambda terbaca sbg kunci lama →
  *  cast gagal. Solusi: kunci digabung jadi SATU `List` (slot tetap = 1 kunci + 1 nilai, apa pun
  *  variannya) dan kunci PERTAMA selalu [tag] unik per jenis modifier supaya dua varian berkunci
- *  mirip tak pernah saling memakai lambda. Jangan ganti ke `remember(*keys)`. */
+ *  mirip tak pernah saling memakai lambda; `key(tag)` memisahkan grup per jenis modifier. Jangan ganti ke
+ *  `remember(*keys)`. */
 private fun Modifier.depthDraw(tag: String, vararg keys: Any?, block: CacheDrawScope.() -> DrawResult): Modifier =
     composed {
         val keyList = listOf(tag, *keys)
-        val stable = remember(keyList) { block }
+        // `key(tag)` = grup compose TERPISAH per jenis modifier (lapis pengaman kedua, Batch 186):
+        // varian berbeda di posisi rantai yang sama tak pernah berbagi slot sama sekali.
+        val stable = key(tag) { remember(keyList) { block } }
         this.drawWithCache(stable)
     }
 
