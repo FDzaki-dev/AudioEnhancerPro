@@ -409,11 +409,21 @@ private object DepthBitmapStore {
 
 /** `drawWithCache` dgn lambda STABIL: [block] dari pemanggil disimpan lewat `remember(keys)`, jadi
  *  rekomposisi dgn kunci sama TIDAK mengganti lambda → cache gambar tak dibangun ulang & node tak
- *  di-invalidate (lihat poin 3 di komentar atas). Kunci = SEMUA parameter yang dipakai blok. */
-private fun Modifier.depthDraw(vararg keys: Any?, block: CacheDrawScope.() -> DrawResult): Modifier = composed {
-    val stable = remember(*keys) { block }
-    this.drawWithCache(stable)
-}
+ *  di-invalidate (lihat poin 3 di komentar atas). Kunci = SEMUA parameter yang dipakai blok.
+ *
+ *  WAJIB (Batch 185, akar crash `ClassCastException` v224): SEMUA modifier `depth*` lewat SATU lambda
+ *  `composed` ini → grup/slot compose-nya DIBAGI. `remember(*keys)` (vararg) memakai 1 slot PER kunci,
+ *  jadi saat rantai modifier berganti varian di posisi yg sama (mis. `depthCastShadow` ↔
+ *  `depthWellLip` ketika kunci ditekan) jumlah slot beda → slot lambda terbaca sbg kunci lama →
+ *  cast gagal. Solusi: kunci digabung jadi SATU `List` (slot tetap = 1 kunci + 1 nilai, apa pun
+ *  variannya) dan kunci PERTAMA selalu [tag] unik per jenis modifier supaya dua varian berkunci
+ *  mirip tak pernah saling memakai lambda. Jangan ganti ke `remember(*keys)`. */
+private fun Modifier.depthDraw(tag: String, vararg keys: Any?, block: CacheDrawScope.() -> DrawResult): Modifier =
+    composed {
+        val keyList = listOf(tag, *keys)
+        val stable = remember(keyList) { block }
+        this.drawWithCache(stable)
+    }
 
 /** Tekstur butiran (kulit/kertas): tile 128px, derau halus + derau lembut (32px di-upsample
  *  bilinear, wrap → mulus saat di-tile). Deterministik (seed tetap). Putih gading di sisi +,
@@ -618,7 +628,7 @@ private fun Modifier.depthCastShadow(
     style: DepthStyle,
     spec: DepthShadowSpec,
     slice: Boolean = false
-): Modifier = depthDraw(shape, style, spec, slice) {
+): Modifier = depthDraw("castShadow", shape, style, spec, slice) {
     val w = size.width
     val h = size.height
     val d = density
@@ -644,7 +654,7 @@ private fun Modifier.depthCastShadow(
 
 /** Bayangan dalam sumur cekung — digambar di ATAS lantai sumur, di dalam bentuk (bitmap sudah
  *  dipotong ke bentuk). Taruh SETELAH `.background(lantai)`, SEBELUM konten/thumb. */
-private fun Modifier.depthWellInner(shape: Shape, style: DepthStyle): Modifier = depthDraw(shape, style) {
+private fun Modifier.depthWellInner(shape: Shape, style: DepthStyle): Modifier = depthDraw("wellInner", shape, style) {
     val w = size.width
     val h = size.height
     val d = density
@@ -663,7 +673,7 @@ private fun Modifier.depthWellInner(shape: Shape, style: DepthStyle): Modifier =
 /** Bibir luar sumur: garis terang tipis di tepi kanan-bawah LUAR sumur (tempat cahaya menangkap
  *  bibir lubang). Dipasang SEBELUM `.clip(shape)` supaya tidak terpotong; lantai sumur menutupi
  *  sisanya sehingga hanya sabit tipis di kanan-bawah yang tampak. */
-private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = depthDraw(shape, style) {
+private fun Modifier.depthWellLip(shape: Shape, style: DepthStyle): Modifier = depthDraw("wellLip", shape, style) {
     val w = size.width
     val h = size.height
     val shift = Offset(0.7.dp.toPx(), 1.0.dp.toPx())
@@ -704,7 +714,7 @@ private fun Modifier.depthPlateSurface(
     parts: DepthParts = DepthPartsPlate,
     tint: Color? = null,
     bevel: Dp = style.bevelWidth
-): Modifier = depthDraw(style, chamfer, parts, tint, bevel) {
+): Modifier = depthDraw("plateSurface", style, chamfer, parts, tint, bevel) {
     val w = size.width
     val h = size.height
     val lit = if (tint != null) lerp(style.rimLight, tint, 0.28f) else style.rimLight
@@ -782,7 +792,7 @@ private fun Modifier.depthPlateSurface(
 /** Kubah knob: sorot radial miring ke arah cahaya (kiri-atas), makin gelap ke kanan-bawah, plus
  *  titik kilau (specular) kecil di sisi cahaya — terbaca sebagai mutiara/kubah licin. */
 private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle): Modifier =
-    depthDraw(hi, lo, style) {
+    depthDraw("dome", hi, lo, style) {
         val w = size.width
         val h = size.height
         val dome = Brush.radialGradient(
@@ -803,7 +813,7 @@ private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle): Modifie
 
 /** Cincin tepi bundar: terang di sisi cahaya, gelap di sisi sebaliknya (gradien linear searah
  *  cahaya = kecerahan ∝ cos sudut, persis fisika tepi silinder). */
-private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = depthDraw(style, width) {
+private fun Modifier.depthRingRim(style: DepthStyle, width: Dp): Modifier = depthDraw("ringRim", style, width) {
     val w = size.width
     val h = size.height
     val rimW = width.toPx()
@@ -829,7 +839,7 @@ private fun Modifier.depthKnobFace(style: DepthStyle, hi: Color, lo: Color): Mod
 /** Rim pil stadium: sisi atas/bawah = garis lurus (facet datar → warna seragam: terang di atas,
  *  gelap di bawah), ujung kiri/kanan = busur dgn gradien searah cahaya (kecerahan ∝ cos, sama
  *  seperti `depthRingRim` untuk lingkaran). */
-private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = depthDraw(style, width) {
+private fun Modifier.depthPillRim(style: DepthStyle, width: Dp): Modifier = depthDraw("pillRim", style, width) {
     val w = size.width
     val h = size.height
     val rimW = width.toPx()

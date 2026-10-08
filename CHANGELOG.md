@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 185: Perbaikan crash saat menekan tombol, pil, atau tab di tema Old Money
+
+Aplikasi build 224 bisa tertutup sendiri (ClassCastException) saat sebuah tombol, pil preset, atau tab berpindah antara keadaan timbul dan cekung, misalnya ketika ditekan atau dipilih. Penyebabnya ada di kode efek gambar yang ditambahkan di Batch 184: penyimpanan sementara lambda gambar memakai jumlah kunci yang berbeda untuk tiap jenis efek, padahal semuanya berbagi satu lokasi penyimpanan di dalam Compose, sehingga saat efek berganti, data lama terbaca sebagai lambda. Sekarang semua kunci digabung menjadi satu daftar yang tetap satu slot, dan tiap jenis efek diberi penanda unik supaya tidak pernah saling memakai lambda. Tampilan tidak berubah.
+Dua laporan crash lain (versi 1.67, 7 Agustus, "Invalid token LIMIT") adalah bug lama yang sudah diperbaiki di Batch 29 dan tidak ada lagi di kode sekarang, jadi tidak ada perubahan untuk keduanya.
+Untuk pengembang: `SkeuomorphicComponents.kt`, `depthDraw(tag, vararg keys, block)` memakai `remember(listOf(tag, *keys))` sebagai ganti `remember(*keys)`; ketujuh pemanggilnya memberi tag ("castShadow", "wellInner", "wellLip", "plateSurface", "dome", "ringRim", "pillRim").
+
+**Perubahan** (1 file source + 2 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v184.zip` (membawa crash ini) atau `Boomly_v183.zip`.
+**NOT VERIFIED**: belum dikompilasi dan belum direproduksi; trace R8 tidak dapat dibaca nama aslinya tanpa file mapping, sehingga akar masalah disimpulkan dari struktur tumpukan dan perubahan Batch 184. Setelah build, uji menekan tombol, pil, dan tab bergantian; jika crash masih muncul, kirim crash log beserta file mapping.txt dari build tersebut.
+
 ## Batch 184: Semua komponen yang tersisa ikut timbul dan cekung, plus optimasi beban render
 
 Di tema Old Money, komponen yang tadinya masih datar kini ikut berbentuk fisik. Tombol utama menjadi kunci timbul berisi enamel burgundy bergradasi, tombol sekunder dan tombol teks menjadi kunci timbul dengan label burgundy yang diterangkan agar lebih terbaca, dan tombol ikon di bilah atas menjadi kunci bundar. Semua kunci tampak masuk ke dalam saat ditekan. Tab Kontrol, Tampilan, dan Bantuan kini berada di palung cekung; tab yang aktif terangkat seperti kunci timbul. Dialog menjadi pelat bersudut siku dengan bayangan jatuh, bevel, butiran halus, dan alur ukir, kolom isian nama preset punya wadah gelap yang tampak cekung, dan pil pilihan di Pengaturan sama dengan pil Preset Cepat. Tema lain tidak berubah.
