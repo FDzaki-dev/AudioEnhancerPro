@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 191: Slider antar tab Kontrol, Tampilan, dan Bantuan meluncur mulus di semua tema
+
+Bilah tab sekarang punya satu pill timbul yang meluncur dari tab ke tab, mengikuti gerak pada video contoh: pelan mengerem di ujung tanpa memantul, ukuran pill tetap, dan warna label berganti tepat di tepi pill yang sedang lewat, bukan sekali ganti. Pill juga bisa digeser dengan jari: ia ikut ke kiri atau kanan, lalu mendarat di tab terdekat saat jari dilepas (sentakan pendek ke arah tab sebelah ikut memindahkan tab). Menggeser vertikal dari bilah tetap menggulir halaman, dan pindah tab lewat geser di konten ikut menggerakkan pill. Berlaku untuk keenam tema, mengikuti bentuk sudut tiap tema (bersiku atau membulat).
+Untuk pengembang: `SkeuTabBar` (`SkeuomorphicComponents.kt`) tidak lagi memakai satu `DepthKeyBox` per tab. Posisi pill = `Animatable<Float>` dalam satuan indeks tab; pill digeser lewat `graphicsLayer.translationX`, jadi tidak ada rekomposisi per frame. Dua baris label dengan tata letak identik (`DepthTabLabelRow`) digambar bergantian di dalam dan di luar bentuk pill (`depthTabReveal`, `clipPath` Intersect/Difference), sehingga tepi warna selalu ikut pill. Kurva gerak diukur dari video: spring teredam kritis, stiffness 100 (~0,65 detik per tab); saat drag memakai stiffness 1200. Bobot huruf label kini sama (Bold) di kedua lapisan agar clip pas. `BoosterScreen.kt` tidak berubah; semantik Tab/selected/klik untuk TalkBack dipertahankan.
+
+**Perubahan** (1 file source + 3 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`. Revert: `Boomly_v190.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek di tiap tema: tap tab lain membuat pill meluncur mulus tanpa memantul, warna label berganti di tepi pill, drag pill mengikuti jari lalu mendarat di tab terdekat, geser vertikal dari bilah tetap menggulir halaman, tinggi bilah dan label (terutama Tampilan dan Bantuan di layar sempit) tidak berubah atau terpotong.
+
 ## Batch 190: Scroll, ganti tab, dan buka kartu Equalizer lebih ringan di semua tema
 
 Tab Kontrol sekarang bekerja lebih sedikit setiap kali layar berubah. Efek timbul dan cekung tidak lagi disusun ulang di setiap rekomposisi, jadi menggeser slider Bass, Virtualizer, Loudness, atau Compressor tidak ikut menyusun ulang kartu Equalizer, dan ganti tab serta buka kartu Equalizer memuat lebih sedikit komponen. Thumb dan track slider kehilangan satu lapis render tambahan per slider dengan tampilan yang sama. Berlaku untuk keenam tema.

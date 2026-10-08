@@ -48,8 +48,10 @@ package com.audioenhancer.booster
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.IndicationInstance
 import androidx.compose.foundation.background
@@ -62,6 +64,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CutCornerShape
@@ -86,6 +89,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas as GfxCanvas
+import androidx.compose.ui.graphics.ClipOp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.ImageBitmapConfig
@@ -99,20 +103,27 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
@@ -127,6 +138,7 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /** compose-bom 2024.06.00 -> `LocalIndication` non-null, jadi indication ripple
  *  dimatikan lewat no-op instance ini (bukan `provides null`). Dipertahankan dari
@@ -1267,8 +1279,104 @@ internal fun SkeuPresetPill(
     }
 }
 
-/** Bilah tab fisik: palung CEKUNG berisi kunci-kunci; tab terpilih = kunci TIMBUL (terangkat) dgn
- *  label burgundy tebal, tab lain rata (tak terlihat) dgn label redup. `depth == null` → [legacy]
+/** Gerak pill tab saat PINDAH TAB (tap / lepas drag). Diukur dari video referensi user (B191): kurva
+ *  ease-out TANPA overshoot = spring teredam kritis, omega ~9-10 rad/s -> `stiffness` ~100. Satuan nilai =
+ *  "indeks tab" kontinu (0f..n-1f), jadi tak bergantung lebar layar; ambang 0.002 tab (< 1dp) agar akhir
+ *  gerak tidak terlihat "snap". */
+private val DepthTabSettleSpec = spring<Float>(dampingRatio = 1f, stiffness = 100f, visibilityThreshold = 0.002f)
+
+/** Pill mengikuti jari SAAT DRAG (B191): spring kaku (teredam kritis) = nyaris 1:1 dgn sedikit penghalusan,
+ *  seperti video referensi (selisih pill-jari <= ~20px pada geseran cepat). */
+private val DepthTabFollowSpec = spring<Float>(dampingRatio = 1f, stiffness = 1200f, visibilityThreshold = 0.002f)
+
+/** Tinggi minimum satu tab (sama dgn kunci tab B184-B190). */
+private val DepthTabMinHeight = 42.dp
+
+/** Proyeksi kecepatan lepas-jari (detik) utk memilih tab tujuan saat drag dilepas (flick pendek tetap pindah tab). */
+private const val DepthTabFlingProjectionSec = 0.12f
+
+/** Satu baris label tab. Dipakai DUA kali dgn tata letak IDENTIK (lapisan warna redup + lapisan warna aktif) agar
+ *  reveal ber-clip pas sampai ke piksel. [interactive] = true HANYA utk lapisan redup (semantik Tab utk TalkBack);
+ *  lapisan aktif disembunyikan dari semantik supaya tidak terbaca ganda. Sentuhan ditangani bilah, bukan sel. */
+@Composable
+private fun DepthTabLabelRow(
+    labels: List<String>,
+    color: Color,
+    selectedIndex: Int,
+    interactive: Boolean,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (interactive) Modifier else Modifier.clearAndSetSemantics { })
+    ) {
+        labels.forEachIndexed { index, label ->
+            val isSel = index == selectedIndex
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (interactive) {
+                            Modifier.semantics(mergeDescendants = true) {
+                                role = Role.Tab
+                                selected = isSel
+                                onClick {
+                                    onSelect(index)
+                                    true
+                                }
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .heightIn(min = DepthTabMinHeight)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = color,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+/** Menggambar konten HANYA di dalam ([inside] = true) atau HANYA di luar ([inside] = false) bentuk [shape] seukuran
+ *  satu slot tab yang digeser ke `position() * lebarSlot`. Dipakai utk reveal warna: label aktif (di dalam pill)
+ *  dan label redup (di luar pill) berbagi tepi clip yang sama -> warna berganti persis di tepi pill yang bergerak
+ *  (seperti video referensi). Path di-cache per ukuran; posisi dibaca di fase gambar (0 rekomposisi per frame). */
+private fun Modifier.depthTabReveal(
+    shape: Shape,
+    count: Int,
+    inside: Boolean,
+    position: () -> Float
+): Modifier = this.drawWithCache {
+    val slot = (size.width / count).roundToInt().toFloat()
+    val path = shape.createOutline(Size(slot, size.height), layoutDirection, this).toDepthPath()
+    val op = if (inside) ClipOp.Intersect else ClipOp.Difference
+    onDrawWithContent {
+        val x = position() * slot
+        withTransform({
+            translate(x, 0f)
+            clipPath(path, op)
+            translate(-x, 0f)
+        }) {
+            this@onDrawWithContent.drawContent()
+        }
+    }
+}
+
+/** Bilah tab fisik: palung CEKUNG berisi SATU kunci timbul (pill) yang MELUNCUR antar tab (spring, tanpa overshoot)
+ *  dan bisa DI-DRAG mengikuti jari; warna label berganti lewat clip di tepi pill (B191, mengikuti video referensi
+ *  user). Berlaku di SEMUA tema berkedalaman fisik (`depth != null` = keenam tema sejak B187); bentuk pill = sudut
+ *  tema (chamfer/membulat). Tap = pilih tab di titik sentuh; geser horizontal = pill ikut jari, lepas -> snap ke tab
+ *  terdekat (+ proyeksi kecepatan); geser vertikal diserahkan ke scroll halaman. `depth == null` -> [legacy]
  *  (ScrollableTabRow lama apa adanya). */
 @Composable
 internal fun SkeuTabBar(
@@ -1284,6 +1392,20 @@ internal fun SkeuTabBar(
         return
     }
     val trough = depthCornerShape(depth, depth.panelCorner)
+    val keyShape = depthCornerShape(depth, depth.keyCorner)
+    val count = labels.size.coerceAtLeast(1)
+    val scope = rememberCoroutineScope()
+    val position = remember { Animatable(selectedIndex.toFloat()) }
+    val latestOnSelect by rememberUpdatedState(onSelect)
+    val latestSelected by rememberUpdatedState(selectedIndex)
+    // true selama jari menyeret pill: LaunchedEffect di bawah TIDAK boleh menimpa posisi drag.
+    val draggingFlag = remember { BooleanArray(1) }
+    LaunchedEffect(selectedIndex) {
+        if (!draggingFlag[0]) {
+            position.animateTo(selectedIndex.toFloat(), DepthTabSettleSpec)
+        }
+    }
+    val keyFace = remember(depth) { Brush.verticalGradient(listOf(depth.faceTop, depth.faceBottom)) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1292,33 +1414,94 @@ internal fun SkeuTabBar(
             .background(depth.wellFloor)
     ) {
         Box(Modifier.matchParentSize().depthWellInner(trough, depth))
-        Row(modifier = Modifier.fillMaxWidth().padding(3.dp)) {
-            labels.forEachIndexed { index, label ->
-                val sel = index == selectedIndex
-                DepthKeyBox(
-                    onClick = { onSelect(index) },
-                    modifier = Modifier.weight(1f),
-                    enabled = true,
-                    selected = sel,
-                    role = Role.Tab,
-                    kind = DepthKeyShape.Chamfer,
-                    enamel = null,
-                    selectedRecessed = false,
-                    rest = DepthRest.Flat,
-                    contentColor = if (sel) MaterialTheme.colorScheme.primary else tokens.mutedText,
-                    minWidth = 0.dp,
-                    minHeight = 42.dp,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    touchPad = PaddingValues(0.dp),
-                    spacing = 0.dp
-                ) {
-                    Text(
-                        text = label,
-                        fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
-                        maxLines = 1
-                    )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(3.dp)
+                .selectableGroup()
+                .pointerInput(count) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val slotW = size.width.toFloat() / count
+                        if (slotW <= 0f) return@awaitEachGesture
+                        val maxUnit = (count - 1).toFloat()
+                        val tracker = VelocityTracker()
+                        var decided = false
+                        var dragging = false
+                        try {
+                            while (true) {
+                                val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
+                                if (change == null || !change.pressed) {
+                                    if (dragging) {
+                                        draggingFlag[0] = false
+                                        val vUnits = (tracker.calculateVelocity().x / slotW).coerceIn(-6f, 6f)
+                                        val target = (position.value + vUnits * DepthTabFlingProjectionSec)
+                                            .roundToInt()
+                                            .coerceIn(0, count - 1)
+                                        scope.launch { position.animateTo(target.toFloat(), DepthTabSettleSpec) }
+                                        if (target != latestSelected) latestOnSelect(target)
+                                    } else if (!decided) {
+                                        val index = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
+                                        if (index != latestSelected) latestOnSelect(index)
+                                    }
+                                    return@awaitEachGesture
+                                }
+                                if (!decided && (change.position - down.position).getDistance() >= viewConfiguration.touchSlop) {
+                                    decided = true
+                                    val delta = change.position - down.position
+                                    if (abs(delta.x) <= abs(delta.y)) return@awaitEachGesture
+                                    dragging = true
+                                    draggingFlag[0] = true
+                                    tracker.addPosition(down.uptimeMillis, down.position)
+                                }
+                                if (dragging) {
+                                    change.consume()
+                                    tracker.addPosition(change.uptimeMillis, change.position)
+                                    val target = (change.position.x / slotW - 0.5f).coerceIn(0f, maxUnit)
+                                    scope.launch { position.animateTo(target, DepthTabFollowSpec) }
+                                }
+                            }
+                        } finally {
+                            // gestur dibatalkan di tengah drag: lepas kunci & kembalikan pill ke tab terpilih.
+                            if (draggingFlag[0]) {
+                                draggingFlag[0] = false
+                                scope.launch { position.animateTo(latestSelected.toFloat(), DepthTabSettleSpec) }
+                            }
+                        }
+                    }
                 }
+        ) {
+            // 1) pill timbul (kunci) — meluncur; berada DI BAWAH kedua lapisan label.
+            Box(Modifier.matchParentSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(1f / count)
+                        .fillMaxHeight()
+                        .graphicsLayer { translationX = position.value * size.width }
+                        .depthCastShadow(keyShape, depth, DepthKeyShadow)
+                        .clip(keyShape)
+                        .background(keyFace)
+                        .depthPlateSurface(depth, depth.keyCorner, DepthPartsKey, null, 1.2.dp)
+                )
             }
+            // 2) label redup, digambar HANYA di luar pill.
+            DepthTabLabelRow(
+                labels = labels,
+                color = tokens.mutedText,
+                selectedIndex = selectedIndex,
+                interactive = true,
+                onSelect = { latestOnSelect(it) },
+                modifier = Modifier.depthTabReveal(keyShape, count, inside = false) { position.value }
+            )
+            // 3) label aktif (primary), digambar HANYA di dalam pill.
+            DepthTabLabelRow(
+                labels = labels,
+                color = MaterialTheme.colorScheme.primary,
+                selectedIndex = selectedIndex,
+                interactive = false,
+                onSelect = { },
+                modifier = Modifier.depthTabReveal(keyShape, count, inside = true) { position.value }
+            )
         }
     }
 }
