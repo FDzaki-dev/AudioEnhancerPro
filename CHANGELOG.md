@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 193: Polish slider tab: durasi sebanding jarak dan tik haptic
+
+Lompat dua tab sekarang sedikit lebih lama daripada pindah ke tab sebelah, jadi pill tidak terasa kebut-kebutan saat menempuh jarak jauh; pindah satu tab tetap sekitar sepertiga detik. Ada tik haptic halus saat tab berpindah lewat ketukan, dan saat pill diseret ada satu tik setiap pill melewati batas tab, bukan terus-menerus. Mengetuk tab yang sudah aktif tidak menimbulkan tik.
+Untuk pengembang: `DepthTabSettleSpec` (konstanta `tween`) diganti `depthTabSettleMs(distance)` di `SkeuomorphicComponents.kt` (300 + 80 x jarak dalam indeks tab, dibatasi 300 sampai 540 ms); `glideTo()` dan `LaunchedEffect(selectedIndex)` membuat `tween` per pemanggilan dengan `DepthTabEasing` yang sama. Haptic memakai `HapticFeedbackType.TextHandleMove` lewat `LocalHapticFeedback`; `tickSlot` di dalam gestur menyimpan tab terdekat dari pill dan memicu tik hanya saat berganti. Efek skala pill saat disentuh sengaja tidak dibuat karena clip warna label tidak ikut skala. `BoosterScreen.kt` tidak berubah.
+
+**Perubahan** (1 file source + 2 dokumen): `SkeuomorphicComponents.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v192.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek di build release: durasi 1 tab dan 2 tab terasa pas, tik haptic tidak berlebihan saat drag, tap tab aktif tanpa tik.
+
 ## Batch 192: Slider tab langsung bergerak saat ditekan dan saat digeser pelan
 
 Pill pada bilah tab sekarang mulai bergerak sesaat setelah jari menyentuh tab, tidak lagi diam sebentar lebih dulu. Gerak antar tab memakai kurva yang langsung melaju lalu mengerem pelan di ujung, tetap tanpa memantul, dan selesai dalam sekitar sepertiga detik. Saat pill digeser dengan jari pelan-pelan, ia mengikuti jari lebih rapat dan zona diam di awal geseran dipersingkat.

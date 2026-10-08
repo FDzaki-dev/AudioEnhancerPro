@@ -1287,7 +1287,10 @@ internal fun SkeuPresetPill(
  *  mulai dari kecepatan NOL sehingga ~50 ms pertama nyaris diam = terasa delay saat tap. Satuan nilai =
  *  "indeks tab" kontinu (0f..n-1f), jadi tak bergantung lebar layar. */
 private val DepthTabEasing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-private val DepthTabSettleSpec = tween<Float>(durationMillis = 380, easing = DepthTabEasing)
+
+/** B193: durasi glide sebanding jarak tempuh (dlm "indeks tab"): 1 tab = 380 ms, 2 tab = 460 ms, sisa jarak kecil
+ *  (mis. lepas drag dekat tab) = lebih singkat tapi tak kurang dari 300 ms — lompat 2 tab tak terasa kebut-kebutan. */
+private fun depthTabSettleMs(distance: Float): Int = (300f + 80f * distance).roundToInt().coerceIn(300, 540)
 
 /** Pill mengikuti jari SAAT DRAG: spring sangat kaku (teredam kritis) = nyaris 1:1 (B192: stiffness 1200 ->
  *  4000; tertinggal jari saat geser pelan jauh lebih kecil), tetap menghaluskan lompatan awal. */
@@ -1399,6 +1402,7 @@ internal fun SkeuTabBar(
     val keyShape = depthCornerShape(depth, depth.keyCorner)
     val count = labels.size.coerceAtLeast(1)
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     val position = remember { Animatable(selectedIndex.toFloat()) }
     val latestOnSelect by rememberUpdatedState(onSelect)
     val latestSelected by rememberUpdatedState(selectedIndex)
@@ -1409,12 +1413,16 @@ internal fun SkeuTabBar(
     val glideTarget = remember { FloatArray(1) { selectedIndex.toFloat() } }
     fun glideTo(target: Float) {
         glideTarget[0] = target
-        scope.launch(start = CoroutineStart.UNDISPATCHED) { position.animateTo(target, DepthTabSettleSpec) }
+        val ms = depthTabSettleMs(abs(target - position.value))
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            position.animateTo(target, tween<Float>(durationMillis = ms, easing = DepthTabEasing))
+        }
     }
     LaunchedEffect(selectedIndex) {
         if (!draggingFlag[0] && glideTarget[0] != selectedIndex.toFloat()) {
             glideTarget[0] = selectedIndex.toFloat()
-            position.animateTo(selectedIndex.toFloat(), DepthTabSettleSpec)
+            val ms = depthTabSettleMs(abs(selectedIndex - position.value))
+            position.animateTo(selectedIndex.toFloat(), tween<Float>(durationMillis = ms, easing = DepthTabEasing))
         }
     }
     val keyFace = remember(depth) { Brush.verticalGradient(listOf(depth.faceTop, depth.faceBottom)) }
@@ -1440,6 +1448,8 @@ internal fun SkeuTabBar(
                         val tracker = VelocityTracker()
                         var decided = false
                         var dragging = false
+                        // B193: tab terdekat dari pill; berganti saat pill melewati batas tab = 1 "tik" haptic.
+                        var tickSlot = position.value.roundToInt()
                         try {
                             while (true) {
                                 val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id }
@@ -1456,6 +1466,7 @@ internal fun SkeuTabBar(
                                         val index = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
                                         if (index != latestSelected) {
                                             glideTo(index.toFloat())
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                             latestOnSelect(index)
                                         }
                                     }
@@ -1476,6 +1487,11 @@ internal fun SkeuTabBar(
                                     change.consume()
                                     tracker.addPosition(change.uptimeMillis, change.position)
                                     val target = (change.position.x / slotW - 0.5f).coerceIn(0f, maxUnit)
+                                    val slot = target.roundToInt()
+                                    if (slot != tickSlot) {
+                                        tickSlot = slot
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
                                     scope.launch(start = CoroutineStart.UNDISPATCHED) {
                                         position.animateTo(target, DepthTabFollowSpec)
                                     }
