@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 195: Getar bilah tab dikirim langsung ke motor getar
+
+Getaran bilah tab di Batch 193 dan 194 tetap tidak terasa karena bergantung pada setelan umpan balik sentuh di HP. Sekarang getaran dikirim langsung ke motor getar: klik berat saat mengetuk tab lain atau saat pill dilepas dan mendarat di tab baru, dan klik ringan setiap kali pill yang diseret melewati batas tab. Mengetuk tab yang sudah aktif tetap diam. Jika HP tidak punya motor getar, app kembali memakai getaran bawaan Compose seperti sebelumnya.
+Untuk pengembang: `SkeuomorphicComponents.kt` menambah kelas privat `DepthTabHaptics` yang memegang `Vibrator` (Android 12 ke atas lewat `VibratorManager.defaultVibrator`) dan memanggil `VibrationEffect.createPredefined` dengan `EFFECT_CLICK` (`tick()`) atau `EFFECT_HEAVY_CLICK` (`click()`), dijaga `SDK_INT >= Q` dan `hasVibrator()`. `AndroidManifest.xml` menambah izin normal `VIBRATE`, yang diberikan otomatis tanpa dialog ke pengguna. Getaran slider nilai dan tombol lain tidak diubah.
+
+**Perubahan** (2 file source + 2 dokumen): `SkeuomorphicComponents.kt`, `AndroidManifest.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v194.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek di tiap tema: tap tab lain bergetar, drag pill bergetar tiap melewati batas tab, tap tab aktif diam.
+
 ## Batch 194: Haptic bilah tab sekarang terasa
 
 Getaran pada bilah tab di Batch 193 tidak terasa sama sekali di HP; sekarang memakai jenis getaran yang sama dengan semua tombol lain di app, sehingga terasa saat mengetuk tab lain dan saat pill diseret melewati batas tab. Satu celah ikut ditutup: kalau pill dilepas dan mendarat di tab yang berbeda dari tab terakhir yang dilewati (misalnya sentakan pendek), sekarang ada satu getaran saat mendarat, sebelumnya diam. Mengetuk tab yang sudah aktif tetap tanpa getaran.

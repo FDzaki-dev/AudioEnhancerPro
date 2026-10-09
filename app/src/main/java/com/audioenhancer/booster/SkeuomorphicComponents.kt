@@ -45,8 +45,13 @@ package com.audioenhancer.booster
 // 4. Glow (§18) HANYA buat state aktif/selected/focused, alpha direstrain — bukan
 //    material, bukan Color.White.
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
@@ -114,10 +119,12 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
@@ -1296,6 +1303,35 @@ private fun depthTabSettleMs(distance: Float): Int = (300f + 80f * distance).rou
  *  4000; tertinggal jari saat geser pelan jauh lebih kecil), tetap menghaluskan lompatan awal. */
 private val DepthTabFollowSpec = spring<Float>(dampingRatio = 1f, stiffness = 4000f, visibilityThreshold = 0.002f)
 
+/** Getar bilah tab (B195). `performHapticFeedback` (LongPress/CLOCK_TICK) DIABAIKAN sistem bila setelan "umpan balik
+ *  sentuh" HP mati / tak didukung (B193-B194 = nol getar di HP user). Di sini getar dikirim LANGSUNG ke `Vibrator`
+ *  (efek bawaan sistem `EFFECT_CLICK` utk tik batas tab, `EFFECT_HEAVY_CLICK` utk pindah tab/mendarat; butuh izin
+ *  normal `VIBRATE` di manifest, otomatis diberikan). Tanpa motor getar / API < 29 -> jatuh ke haptic Compose. */
+private class DepthTabHaptics(context: Context, private val fallback: HapticFeedback) {
+    private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        context.getSystemService(VibratorManager::class.java)?.defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    }
+
+    /** Pill melewati batas tab saat drag. */
+    fun tick() = play(strong = false)
+
+    /** Tap pindah tab / lepas-drag mendarat di tab baru. */
+    fun click() = play(strong = true)
+
+    private fun play(strong: Boolean) {
+        val motor = vibrator
+        if (motor != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && motor.hasVibrator()) {
+            val effect = if (strong) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_CLICK
+            motor.vibrate(VibrationEffect.createPredefined(effect))
+        } else {
+            fallback.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
+}
+
 /** Tinggi minimum satu tab (sama dgn kunci tab B184-B190). */
 private val DepthTabMinHeight = 42.dp
 
@@ -1402,7 +1438,9 @@ internal fun SkeuTabBar(
     val keyShape = depthCornerShape(depth, depth.keyCorner)
     val count = labels.size.coerceAtLeast(1)
     val scope = rememberCoroutineScope()
-    val haptics = LocalHapticFeedback.current
+    val appContext = LocalContext.current.applicationContext
+    val composeHaptics = LocalHapticFeedback.current
+    val haptics = remember(appContext, composeHaptics) { DepthTabHaptics(appContext, composeHaptics) }
     val position = remember { Animatable(selectedIndex.toFloat()) }
     val latestOnSelect by rememberUpdatedState(onSelect)
     val latestSelected by rememberUpdatedState(selectedIndex)
@@ -1462,15 +1500,13 @@ internal fun SkeuTabBar(
                                             .coerceIn(0, count - 1)
                                         glideTo(target.toFloat())
                                         // B194: tab tujuan beda dari tik terakhir (mis. flick pendek) = tik penutup.
-                                        if (target != tickSlot) {
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        }
+                                        if (target != tickSlot) haptics.click()
                                         if (target != latestSelected) latestOnSelect(target)
                                     } else if (!decided) {
                                         val index = (down.position.x / slotW).toInt().coerceIn(0, count - 1)
                                         if (index != latestSelected) {
                                             glideTo(index.toFloat())
-                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            haptics.click()
                                             latestOnSelect(index)
                                         }
                                     }
@@ -1494,7 +1530,7 @@ internal fun SkeuTabBar(
                                     val slot = target.roundToInt()
                                     if (slot != tickSlot) {
                                         tickSlot = slot
-                                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        haptics.tick()
                                     }
                                     scope.launch(start = CoroutineStart.UNDISPATCHED) {
                                         position.animateTo(target, DepthTabFollowSpec)
