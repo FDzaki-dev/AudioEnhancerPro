@@ -49,6 +49,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.os.Build
+import android.os.SystemClock
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -1303,25 +1304,36 @@ private fun depthTabSettleMs(distance: Float): Int = (300f + 80f * distance).rou
  *  4000; tertinggal jari saat geser pelan jauh lebih kecil), tetap menghaluskan lompatan awal. */
 private val DepthTabFollowSpec = spring<Float>(dampingRatio = 1f, stiffness = 4000f, visibilityThreshold = 0.002f)
 
-/** Getar bilah tab (B195). `performHapticFeedback` (LongPress/CLOCK_TICK) DIABAIKAN sistem bila setelan "umpan balik
- *  sentuh" HP mati / tak didukung (B193-B194 = nol getar di HP user). Di sini getar dikirim LANGSUNG ke `Vibrator`
- *  (efek bawaan sistem `EFFECT_CLICK` utk tik batas tab, `EFFECT_HEAVY_CLICK` utk pindah tab/mendarat; butuh izin
- *  normal `VIBRATE` di manifest, otomatis diberikan). Tanpa motor getar / API < 29 -> jatuh ke haptic Compose. */
-private class DepthTabHaptics(context: Context, private val fallback: HapticFeedback) {
+/** Getar SELURUH app (B195 bilah tab, B196 migrasi semua). `performHapticFeedback` Compose (LongPress/CLOCK_TICK)
+ *  DIABAIKAN sistem bila setelan "umpan balik sentuh" HP mati / tak didukung (B193-B194 = nol getar di HP user).
+ *  Di sini getar dikirim LANGSUNG ke `Vibrator` (efek bawaan sistem `EFFECT_CLICK` = [tick], `EFFECT_HEAVY_CLICK` =
+ *  [click]; butuh izin normal `VIBRATE`, otomatis diberikan). Implementasi [HapticFeedback] SAMA dgn Compose, jadi
+ *  semua pemanggilan `haptics.performHapticFeedback(HapticFeedbackType.LongPress)` yg sudah ada tak berubah:
+ *  `TextHandleMove` -> [tick], selain itu -> [click]. Jeda minimum 30 ms antar getar. Tanpa motor getar / API < 29
+ *  -> jatuh ke haptic Compose. Dapatkan lewat [rememberAppHaptics]; JANGAN pakai `LocalHapticFeedback.current` langsung. */
+internal class AppHaptics(context: Context, private val fallback: HapticFeedback) : HapticFeedback {
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         context.getSystemService(VibratorManager::class.java)?.defaultVibrator
     } else {
         @Suppress("DEPRECATION")
         context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
+    private var lastPlayedMs = 0L
 
-    /** Pill melewati batas tab saat drag. */
+    override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
+        if (hapticFeedbackType == HapticFeedbackType.TextHandleMove) tick() else click()
+    }
+
+    /** Ringan: pill tab melewati batas tab saat drag. */
     fun tick() = play(strong = false)
 
-    /** Tap pindah tab / lepas-drag mendarat di tab baru. */
+    /** Berat: ketukan/aksi (tombol, switch, akhir drag slider, pindah tab). */
     fun click() = play(strong = true)
 
     private fun play(strong: Boolean) {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastPlayedMs < AppHapticMinGapMs) return
+        lastPlayedMs = now
         val motor = vibrator
         if (motor != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && motor.hasVibrator()) {
             val effect = if (strong) VibrationEffect.EFFECT_HEAVY_CLICK else VibrationEffect.EFFECT_CLICK
@@ -1330,6 +1342,16 @@ private class DepthTabHaptics(context: Context, private val fallback: HapticFeed
             fallback.performHapticFeedback(HapticFeedbackType.LongPress)
         }
     }
+}
+
+private const val AppHapticMinGapMs = 30L
+
+/** Satu [AppHaptics] per pemanggil komposisi (pengganti `LocalHapticFeedback.current`). */
+@Composable
+internal fun rememberAppHaptics(): AppHaptics {
+    val appContext = LocalContext.current.applicationContext
+    val composeHaptics = LocalHapticFeedback.current
+    return remember(appContext, composeHaptics) { AppHaptics(appContext, composeHaptics) }
 }
 
 /** Tinggi minimum satu tab (sama dgn kunci tab B184-B190). */
@@ -1438,9 +1460,7 @@ internal fun SkeuTabBar(
     val keyShape = depthCornerShape(depth, depth.keyCorner)
     val count = labels.size.coerceAtLeast(1)
     val scope = rememberCoroutineScope()
-    val appContext = LocalContext.current.applicationContext
-    val composeHaptics = LocalHapticFeedback.current
-    val haptics = remember(appContext, composeHaptics) { DepthTabHaptics(appContext, composeHaptics) }
+    val haptics = rememberAppHaptics()
     val position = remember { Animatable(selectedIndex.toFloat()) }
     val latestOnSelect by rememberUpdatedState(onSelect)
     val latestSelected by rememberUpdatedState(selectedIndex)
@@ -2085,7 +2105,7 @@ internal fun FeatureControl(
     accentColor2: Color = accentColor,
     wrapInCard: Boolean = true
 ) {
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     // Batch 172: nilai terkini untuk gate sentuh (dibaca di dalam pointerInput(Unit), tanpa restart).
     val latestEnabled = rememberUpdatedState(enabled)
     val latestValue = rememberUpdatedState(value)

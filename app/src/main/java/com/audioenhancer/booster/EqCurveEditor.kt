@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
@@ -82,7 +81,7 @@ internal fun EqCurveEditor(
 ) {
     if (bandCount < 2) return // Kurva butuh minimal 2 titik — guard, bukan skenario nyata (fallback selalu 5 band)
 
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     val density = LocalDensity.current
     var draggedBand by remember { mutableIntStateOf(-1) }
     // Batch 188: `pointerInput(bandCount)` TIDAK restart saat `levels` berganti instance (reset /

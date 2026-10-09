@@ -56,7 +56,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -79,7 +78,7 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     // Batch 97: dibaca+ditulis LANGSUNG di sini (pola sama seperti `customPresets` di
     // BoosterScreen.kt) — SENGAJA TIDAK di-hoist ke MainActivity.kt (0 param/callback baru
     // di SettingsScreen/BoosterScreen buat ini). Aman karena MainActivity.kt me-render

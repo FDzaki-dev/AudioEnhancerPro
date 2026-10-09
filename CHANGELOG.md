@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 196: Semua getaran app dipindah ke motor getar
+
+Getaran tombol, switch, chip preset, tombol di Pengaturan, akhir geser slider nilai, dan titik kurva Equalizer sekarang dikirim langsung ke motor getar, sama seperti bilah tab di Batch 195 yang sudah terasa. Semuanya kini memberi klik berat, dan getaran tidak bisa berentet lebih rapat dari 30 milidetik. Getaran tidak lagi bergantung pada setelan umpan balik sentuh di HP. Tidak ada tampilan atau logika lain yang berubah.
+Untuk pengembang: `DepthTabHaptics` menjadi `AppHaptics` (internal, mengimplementasikan `HapticFeedback` Compose) di `SkeuomorphicComponents.kt`, dengan `rememberAppHaptics()` sebagai pengganti `LocalHapticFeedback.current`. Karena antarmukanya sama, seluruh pemanggilan `haptics.performHapticFeedback(HapticFeedbackType.LongPress)` yang sudah ada tidak diubah: `LongPress` menjadi `EFFECT_HEAVY_CLICK`, `TextHandleMove` menjadi `EFFECT_CLICK`. Sembilan titik deklarasi di `BoosterScreen.kt` (6), `SettingsScreen.kt` (1), `EqCurveEditor.kt` (1), dan `FeatureControl` (1) berganti ke `rememberAppHaptics()`, dan import `LocalHapticFeedback` yang tak terpakai dihapus dari tiga file. Tanpa motor getar atau di bawah Android 10, app kembali memakai haptic Compose.
+
+**Perubahan** (4 file source + 2 dokumen): `SkeuomorphicComponents.kt`, `BoosterScreen.kt`, `SettingsScreen.kt`, `EqCurveEditor.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`. Revert: `Boomly_v195.zip`.
+**NOT VERIFIED**: belum dikompilasi, lint, dan detekt (lingkungan penyusun tanpa Gradle); perilaku di HP belum diuji. Cek: tombol, switch, chip, dan Restart bergetar; akhir geser slider dan titik kurva EQ bergetar; bilah tab tetap seperti sebelumnya; tidak ada getaran dobel atau berentet.
+
 ## Batch 195: Getar bilah tab dikirim langsung ke motor getar
 
 Getaran bilah tab di Batch 193 dan 194 tetap tidak terasa karena bergantung pada setelan umpan balik sentuh di HP. Sekarang getaran dikirim langsung ke motor getar: klik berat saat mengetuk tab lain atau saat pill dilepas dan mendarat di tab baru, dan klik ringan setiap kali pill yang diseret melewati batas tab. Mengetuk tab yang sudah aktif tetap diam. Jika HP tidak punya motor getar, app kembali memakai getaran bawaan Compose seperti sebelumnya.

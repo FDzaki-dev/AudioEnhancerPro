@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -80,7 +79,7 @@ import kotlinx.coroutines.withContext
 @Composable
 private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
     var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
 
     // Cek status tiap 1 detik selagi layar ini terbuka, biar badge selalu akurat.
     LaunchedEffect(Unit) {
@@ -137,7 +136,7 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
 @Composable
 private fun PowerToggleRow() {
     val context = LocalContext.current
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     var isRunning by remember { mutableStateOf(AudioEnhancerService.isRunning) }
 
     LaunchedEffect(Unit) {
@@ -311,7 +310,7 @@ private fun ControlRecoveryBanner(
         it == AudioEnhancerService.EffectState.CONTROL_LOST || it == AudioEnhancerService.EffectState.FAILED
     }
     if (!needsRecovery) return
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
 
     SkeuTintedCard(tint = MaterialTheme.colorScheme.error) {
         Row(
@@ -363,7 +362,7 @@ private fun OutputRouteBanner(
     onDismiss: () -> Unit
 ) {
     if (routeInfo == null || dismissed) return
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
 
     SkeuTintedCard(tint = MaterialTheme.colorScheme.primary) {
         Row(
@@ -662,7 +661,7 @@ fun BoosterScreen(
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     // Counter yang di-increment tiap preset diterapkan, dipakai buat maksa EqualizerSection
     // reset tampilannya ke flat (0) juga — supaya konsisten sama nama presetnya. Sebelumnya
     // preset cuma reset bass/virtualizer/loudness, equalizer manual dibiarkan di posisi lama.
@@ -1915,7 +1914,7 @@ private fun EqualizerSection(
     val levels = remember(bandCount, resetKey) {
         mutableStateListOf(*Array(bandCount) { i -> initialLevels.getOrElse(i) { 0 } })
     }
-    val haptics = LocalHapticFeedback.current
+    val haptics = rememberAppHaptics()
     // Batch 59: subtitle ganti pesan singkat saat CONTROL_LOST/FAILED — string
     // DIPAKAI ULANG dari feature_help_control_lost/feature_help_failed (sudah ada
     // sejak Batch 58 buat Bass/Virtualizer/Loudness), 0 string baru ditambah,
