@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 197: Pemeriksaan analisis statis Batch 196 (tanpa perubahan kode)
+
+Hasil pemeriksaan otomatis untuk Batch 196, yang memindahkan semua getaran ke motor getar, bersih: detekt (biasa dan dengan resolusi tipe) tidak menemukan masalah dan lint hanya memunculkan satu peringatan lama tentang targetSdk 34, yang sengaja dipertahankan. Tidak ada tampilan atau perilaku app yang berubah di batch ini.
+Untuk pengembang: artefak `AudioEnhancerPro_static_analysis_v236-run236` (commit 0807e7b) menunjukkan `detektDebug` 0 temuan pada 21 file dan 11.726 baris, `detekt.sarif` 0 result, dan lint 0 error, 1 warning (`OldTargetApi`), 0 info. Kode sama dengan `Boomly_v196.zip`.
+
+**Perubahan** (0 file source + 2 dokumen): `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: Batch 196 lolos analisis statis; perilaku di HP belum diuji.
+
 ## Batch 196: Semua getaran app dipindah ke motor getar
 
 Getaran tombol, switch, chip preset, tombol di Pengaturan, akhir geser slider nilai, dan titik kurva Equalizer sekarang dikirim langsung ke motor getar, sama seperti bilah tab di Batch 195 yang sudah terasa. Semuanya kini memberi klik berat, dan getaran tidak bisa berentet lebih rapat dari 30 milidetik. Getaran tidak lagi bergantung pada setelan umpan balik sentuh di HP. Tidak ada tampilan atau logika lain yang berubah.
