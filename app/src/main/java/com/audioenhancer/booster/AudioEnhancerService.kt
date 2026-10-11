@@ -137,6 +137,18 @@ class AudioEnhancerService : Service() {
         private const val COMPRESSOR_KNEE_DB = 6f
         private const val COMPRESSOR_NOISE_GATE_DB = -90f
 
+        // Batch 198 (request user: Compressor 100% "dimaksimalkan sampai mentok"): ujung 100% dari
+        // kurva `setCompressorAmount()`, interpolasi linear dari nilai netral (0% = bypass).
+        // Sebelumnya 100% = 6:1 / -24 dB / +6 dB / attack 10 ms / release 150 ms (B121). Rasio 20:1 =
+        // SAMA dgn limiter B84 (nilai yang terbukti diterima DynamicsProcessing di app ini); makeup
+        // +24 dB mengembalikan level yang tertekan (sinyal di atas threshold mendarat rata ±-11 dBFS);
+        // limiter -1 dBFS (stage terakhir objek yang sama) menjaga puncak. NOT VERIFIED di device.
+        private const val COMPRESSOR_RATIO_MAX = 20f
+        private const val COMPRESSOR_THRESHOLD_MAX_DB = -36f
+        private const val COMPRESSOR_POST_GAIN_MAX_DB = 24f
+        private const val COMPRESSOR_ATTACK_MAX_MS = 3f
+        private const val COMPRESSOR_RELEASE_MAX_MS = 100f
+
         // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): 4 bucket kategori
         // output yang DIEKSPOS ke UI (SettingsScreen.kt) buat auto-profile, dipakai SEBAGAI
         // KEY PrefsHelper — JANGAN diubah string-nya tanpa migrasi (akan memutus mapping
@@ -1399,7 +1411,8 @@ class AudioEnhancerService : Service() {
      *  konstanta `COMPRESSOR_*` di companion). [amount] 0 = band di-nonaktifkan (bypass
      *  total, 0 beda audible dari sebelum fitur ini ada); >0 menaikkan ratio + menurunkan
      *  threshold BERSAMAAN, `postGain` makeup ikut naik supaya loudness tidak terasa
-     *  drop drastis saat kompresi aktif. Kurva 0..100 di bawah PERKIRAAN (tidak ada API
+     *  drop drastis saat kompresi aktif (Batch 198: attack/release ikut mengencang ke arah
+     *  100%; ujung kurva = 20:1 / -36 dB / +24 dB, lihat `COMPRESSOR_*_MAX*`). Kurva 0..100 di bawah PERKIRAAN (tidak ada API
      *  resmi query "kurva ideal" per device) — NOT VERIFIED di device fisik, kandidat
      *  pertama kalau user lapor kompresi terlalu halus/agresif. `dynamicsProcessing`
      *  null (API<28 atau gagal construct) = no-op aman, sama pola seperti `setLoudnessGain()`
@@ -1417,15 +1430,16 @@ class AudioEnhancerService : Service() {
                 DynamicsProcessing.MbcBand(
                     /* enabled            = */ clamped > 0,
                     /* cutoffFrequency    = */ COMPRESSOR_BAND_CUTOFF_HZ,
-                    /* attackTime         = */ COMPRESSOR_ATTACK_MS,
-                    /* releaseTime        = */ COMPRESSOR_RELEASE_MS,
-                    /* ratio              = */ 1f + fraction * 5f,   // 1:1 (off) .. 6:1 (max)
-                    /* threshold          = */ -1f - fraction * 23f, // -1 dB (off) .. -24 dB (max)
+                    // Batch 198: kurva dimaksimalkan (konstanta `COMPRESSOR_*_MAX*` di companion)
+                    /* attackTime         = */ COMPRESSOR_ATTACK_MS + fraction * (COMPRESSOR_ATTACK_MAX_MS - COMPRESSOR_ATTACK_MS),     // 10 ms (off) .. 3 ms (max)
+                    /* releaseTime        = */ COMPRESSOR_RELEASE_MS + fraction * (COMPRESSOR_RELEASE_MAX_MS - COMPRESSOR_RELEASE_MS), // 150 ms (off) .. 100 ms (max)
+                    /* ratio              = */ 1f + fraction * (COMPRESSOR_RATIO_MAX - 1f),            // 1:1 (off) .. 20:1 (max)
+                    /* threshold          = */ -1f + fraction * (COMPRESSOR_THRESHOLD_MAX_DB + 1f),    // -1 dB (off) .. -36 dB (max)
                     /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
                     /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
                     /* expanderRatio      = */ 1f,
                     /* preGain            = */ 0f,
-                    /* postGain           = */ fraction * 6f         // 0 dB (off) .. +6 dB makeup (max)
+                    /* postGain           = */ fraction * COMPRESSOR_POST_GAIN_MAX_DB                  // 0 dB (off) .. +24 dB makeup (max)
                 )
             )
         } catch (e: Exception) {

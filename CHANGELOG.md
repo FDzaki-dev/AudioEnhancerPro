@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 198: Compressor di 100% dimaksimalkan sampai mentok
+
+Slider Compressor yang sudah di 100% sekarang menekan jauh lebih keras: suara pelan dan kencang dirapatkan hampir rata, lalu volumenya dinaikkan kembali supaya tidak terasa mengecil. Slider tetap 0% = mati, dan nilai di bawah 100% ikut lebih kuat secara proporsional.
+Untuk pengembang: kurva `AudioEnhancerService.setCompressorAmount()` di ujung 100% berubah dari rasio 6:1, threshold -24 dB, makeup +6 dB, attack 10 ms, release 150 ms menjadi rasio 20:1, threshold -36 dB, makeup +24 dB, attack 3 ms, release 100 ms (interpolasi linear dari 0%). Angka ujung ada di konstanta `COMPRESSOR_*_MAX*` (companion). Limiter -1 dBFS (stage terakhir objek `DynamicsProcessing` yang sama) tetap menjaga puncak. Kalau terdengar pecah/berdesis di 100%, turunkan dulu `COMPRESSOR_POST_GAIN_MAX_DB`.
+
+**Perubahan** (1 file source + 3 dokumen): `AudioEnhancerService.kt`, `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`.
+**Status**: NOT VERIFIED. Kompilasi, lint, dan detekt belum dijalankan (sandbox tanpa Gradle), bracket-balance OK, dan suaranya belum diuji di HP.
+
 ## Batch 197: Pemeriksaan analisis statis Batch 196 (tanpa perubahan kode)
 
 Hasil pemeriksaan otomatis untuk Batch 196, yang memindahkan semua getaran ke motor getar, bersih: detekt (biasa dan dengan resolusi tipe) tidak menemukan masalah dan lint hanya memunculkan satu peringatan lama tentang targetSdk 34, yang sengaja dipertahankan. Tidak ada tampilan atau perilaku app yang berubah di batch ini.
