@@ -1,5 +1,8 @@
 name: Build AudioEnhancerPro Release APK
 
+# Batch 199: static analysis + tes unit PINDAH ke `android-artifact.yml` (laporan ringkas untuk Claude).
+# Workflow ini = build + Release + artifact APK saja. Detail: komentar di step "Publish build summary".
+
 on:
   push:
     branches: [ "main", "master" ]
@@ -308,84 +311,37 @@ jobs:
           name: AudioEnhancerPro-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
           path: ${{ steps.rename.outputs.path }}
 
-      # Batch 142: analisis statis NON-BLOCKING (detekt + lintDebug), SENGAJA ditaruh PALING AKHIR
-      # job — APK release sudah ter-publish sebelum step ini jalan, jadi tidak bisa memperlambat
-      # atau menggagalkan rilis. `continue-on-error: true` → step gagal/timeout TIDAK mengubah
-      # status job (step `if: failure()` di atas juga tidak terpicu). `--continue` → lintDebug
-      # tetap jalan walau detekt gagal (mis. salah ketik nama rule di config/detekt/detekt.yml).
-      # Rule detekt: config/detekt/detekt.yml · severity lint: app/lint.xml.
-      - name: Static analysis (detekt + lintDebug) NON-BLOCKING
-        id: static_analysis
+      # Batch 199 — analisis statis (detekt + detektDebug + lintDebug), tes unit, dan peringatan kompilator Kotlin
+      # DIPINDAH keluar dari workflow ini ke `.github/workflows/android-artifact.yml` (adaptasi template user):
+      # hasilnya kini 1 berkas `laporan-untuk-claude.txt` (artifact `<Repo>_laporan-untuk-claude_run<N>`), bukan
+      # artifact zip `<Repo>_static_analysis_v*` + `STATIC_ANALYSIS_MARKER.txt` (Batch 142/162/164) lagi. Workflow ini
+      # sekarang HANYA: build debug (cek kompilasi) -> build + publish Release signed -> artifact APK -> ringkasan run.
+      # Step ringkasan (adaptasi `build_yml.txt` template user, Batch 276 SONIX): 100% aditif, `continue-on-error`,
+      # jalan SETELAH release — tidak bisa menunda/menggagalkan rilis. Nama tag/judul Release & versi TIDAK berubah.
+      - name: Publish build summary
+        if: always()
         continue-on-error: true
-        timeout-minutes: 15
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          APK_PATH: ${{ steps.rename.outputs.path }}
+          HAS_SECRET: ${{ steps.secret_check.outputs.has_secret }}
         run: |
-          set -o pipefail
-          ./gradlew detekt lintDebug --continue --stacktrace 2>&1 | tee gradle-static-analysis.log
-
-      # Batch 164: jaring detekt type-resolution (`detektDebug`, rule tambahan di config/detekt/detekt-typed.yml),
-      # SENGAJA step TERPISAH dari step di atas: kalau nama task/rule salah, Gradle berhenti sebelum eksekusi
-      # (`--continue` tak menolong "task not found") dan akan ikut mematikan lintDebug + detekt lama. Terpisah =
-      # kegagalan di sini cuma kehilangan laporan typed. Tetap NON-BLOCKING (continue-on-error).
-      - name: Static analysis typed (detektDebug) NON-BLOCKING
-        id: static_analysis_typed
-        if: always() && steps.static_analysis.outcome != 'skipped'
-        continue-on-error: true
-        timeout-minutes: 15
-        run: |
-          set -o pipefail
-          ./gradlew detektDebug --continue --stacktrace 2>&1 | tee gradle-static-analysis-typed.log
-
-      - name: Summarize static analysis findings
-        if: always() && steps.static_analysis.outcome != 'skipped'
-        run: |
-          DET=$(grep -c '<error ' app/build/reports/detekt/detekt.xml 2>/dev/null || true)
-          LNT=$(grep -c '<issue ' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
-          LNE=$(grep -c 'severity="Error"\|severity="Fatal"' app/build/reports/lint-results-debug.xml 2>/dev/null || true)
-          DETT=n/a
-          if [ "$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' 2>/dev/null | wc -l)" -gt 0 ]; then
-            DETT=$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' -exec grep -h '<error ' {} + 2>/dev/null | wc -l)
-          fi
-          echo "::notice::Static analysis (non-blocking) — detekt: ${DET:-n/a} temuan · detektDebug (typed): ${DETT} temuan · lintDebug: ${LNT:-n/a} isu (${LNE:-n/a} error) · outcome step: ${{ steps.static_analysis.outcome }} / typed: ${{ steps.static_analysis_typed.outcome }}"
-          # Tripwire: hanya ANOTASI di ringkasan run (tidak menggagalkan step/job) kalau ada temuan baru.
-          for N in "${DET}" "${DETT}"; do
-            case "$N" in ''|n/a|0) ;; *) echo "::warning::detekt melaporkan ${N} temuan — baca artifact static_analysis."; break ;; esac
-          done
-          case "${LNE}" in ''|0) ;; *) echo "::warning::lintDebug melaporkan ${LNE} error/fatal — baca artifact static_analysis." ;; esac
-
-      # Batch 162 (request user "tambahkan penanda pada static analysis biar gak ketukar dengan
-      # project lain"): artifact diberi awalan nama repo + file `STATIC_ANALYSIS_MARKER.txt` berisi
-      # identitas proyek (diambil DINAMIS dari repo/gradle/strings, bukan literal). `continue-on-error`
-      # + `|| echo n/a` → step ini TIDAK PERNAH menggagalkan job (jalan setelah release publish).
-      - name: Write static analysis marker (identitas proyek)
-        if: always() && steps.static_analysis.outcome != 'skipped'
-        continue-on-error: true
-        run: |
+          TAG="v${VERSION_NAME}-run${{ github.run_id }}"
           {
-            echo "PROJECT=${{ github.event.repository.name }}"
-            echo "APP_NAME=$(grep -m1 'name="app_name"' app/src/main/res/values/strings.xml | sed -E 's/.*>([^<]*)<.*/\1/' || echo n/a)"
-            echo "APPLICATION_ID=$(grep -m1 'applicationId' app/build.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo n/a)"
-            echo "GRADLE_ROOT_PROJECT=$(grep -m1 'rootProject.name' settings.gradle.kts | sed -E 's/.*"([^"]+)".*/\1/' || echo n/a)"
-            echo "BATCH_PROJECT_STATE=$(grep -o -m1 'Batch terakhir\*\*: [0-9]*' PROJECT_STATE.md | grep -o '[0-9]*$' || echo n/a)"
-            echo "RUN_NUMBER=${{ github.run_number }}"
-            echo "RUN_ID=${{ github.run_id }}"
-            echo "COMMIT=${{ github.sha }}"
-            echo "BRANCH=${{ github.ref_name }}"
-            echo "STEP_DETEKT_LINT=${{ steps.static_analysis.outcome }}"
-            echo "STEP_DETEKT_TYPED=${{ steps.static_analysis_typed.outcome }}"
-            echo "GENERATED_UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          } > STATIC_ANALYSIS_MARKER.txt
-          cat STATIC_ANALYSIS_MARKER.txt
-
-      - name: Upload static analysis reports
-        if: always() && steps.static_analysis.outcome != 'skipped'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.repository.name }}_static_analysis_v${{ steps.version.outputs.name }}-run${{ github.run_number }}
-          path: |
-            STATIC_ANALYSIS_MARKER.txt
-            gradle-static-analysis.log
-            gradle-static-analysis-typed.log
-            app/build/reports/detekt/**
-            app/build/reports/lint-results-debug.*
-          retention-days: 14
-          if-no-files-found: warn
+            echo "## 🔊 Boomly — Build ${VERSION_NAME:-N/A}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| **Versi** | \`${VERSION_NAME:-gagal ditentukan}\` |"
+            echo "| **Commit** | \`$(git rev-parse --short HEAD)\` |"
+            echo "| **Trigger** | ${{ github.event_name }} oleh @${{ github.actor }} |"
+            echo "| **Pesan commit** | $(git log -1 --pretty=%s | cut -c1-120) |"
+            if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
+              echo "| **Release** | [Lihat di GitHub Releases](${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}) |"
+            elif [ "$HAS_SECRET" = "false" ]; then
+              echo "| **Release** | ⚠️ Secret keystore belum lengkap — release di-skip (build debug tetap dicek) |"
+            else
+              echo "| **Release** | ⚠️ APK tidak sampai dibuat — cek log step build di atas |"
+            fi
+            echo "| **Laporan Claude** | workflow \"Android CI Artifact for Claude\" (paralel, artifact \`laporan-untuk-claude\`) |"
+          } >> "$GITHUB_STEP_SUMMARY"

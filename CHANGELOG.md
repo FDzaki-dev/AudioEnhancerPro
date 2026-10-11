@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 199: Laporan CI untuk Claude dipisah jadi satu berkas ringkas
+
+Hasil pemeriksaan kode otomatis (detekt, Android Lint, tes unit, dan peringatan kompilator) sekarang berjalan di workflow GitHub Actions tersendiri dan dirangkum dalam satu berkas teks `laporan-untuk-claude.txt`, bukan lagi zip berisi banyak log. Workflow build dan rilis APK jadi lebih ringan dan tidak lagi menunggu analisis. Tidak ada tampilan atau perilaku app yang berubah.
+Untuk pengembang: workflow baru `android-artifact.yml` ("Android CI Artifact for Claude", adaptasi template SONIX) menjalankan `detekt lintDebug`, `detektDebug`, dan `testDebugUnitTest` di tiga invocation Gradle terpisah (`--no-build-cache`), semuanya non-blocking. Laporan memuat penanda proyek (PROJECT, APPLICATION_ID, COMMIT, BATCH_PROJECT_STATE, DETEKT_TYPED_DIAG), ringkasan per alat, temuan per titik (rule, file:baris, pesan), dan kutipan akar masalah bila alat gagal; alat yang tak jalan dicatat `NOT VERIFIED`. Artifact `<Repo>_laporan-untuk-claude_run<N>`, retensi 7 hari. `build.yml` kehilangan lima step analisis statis dan mendapat step "Publish build summary"; versi, tag, judul Release, dan artifact APK tidak berubah. ArchUnit dan SpotBugs dari template sengaja tidak dibawa karena proyek ini tidak memilikinya.
+
+**Perubahan** (2 file workflow + 4 dokumen): `.github/workflows/android-artifact.yml` (baru), `.github/workflows/build.yml`, `FILE_MANIFEST.txt`, `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`.
+**Status**: NOT VERIFIED. Workflow belum pernah dijalankan di GitHub Actions (sandbox tanpa Gradle/Actions). Skrip perakit laporan diuji lokal dengan laporan tiruan (ada temuan, tanpa laporan, bersih) dan YAML lolos parse.
+
 ## Batch 198: Compressor di 100% dimaksimalkan sampai mentok
 
 Slider Compressor yang sudah di 100% sekarang menekan jauh lebih keras: suara pelan dan kencang dirapatkan hampir rata, lalu volumenya dinaikkan kembali supaya tidak terasa mengecil. Slider tetap 0% = mati, dan nilai di bawah 100% ikut lebih kuat secara proporsional.

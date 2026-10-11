@@ -1,0 +1,311 @@
+name: Android CI Artifact for Claude
+
+# Batch 199 — adaptasi `android-artifact_yml.txt` (template user, dari proyek SONIX) ke AudioEnhancerPro/Boomly.
+# Menghasilkan SATU berkas teks ringkas `laporan-untuk-claude.txt` sebagai artifact resmi GitHub
+# (upload-artifact@v4, retensi 7 hari). Menggantikan artifact `<Repo>_static_analysis_v*-run*` (zip berisi
+# STATIC_ANALYSIS_MARKER.txt + log + laporan mentah, Batch 142/162/164) yang sebelumnya dibuat di akhir `build.yml`.
+# Penanda proyek (PROJECT/APP_NAME/APPLICATION_ID/GRADLE_ROOT_PROJECT/BATCH_PROJECT_STATE/COMMIT) dan baris
+# `DETEKT_TYPED_DIAG` (Batch 162/165) dipindah ke kepala laporan, jadi aturan triase "cek penanda dulu" tetap berlaku.
+#
+# Workflow TERPISAH dari `build.yml` (build + release): runner sendiri dan berjalan paralel, jadi tidak mengambil
+# jatah waktu build/rilis, dan kegagalan di sini TIDAK memengaruhi APK/Release. Semua langkah analisis NON-BLOCKING;
+# alat yang tak jalan / laporan yang tak terbentuk dicatat `NOT VERIFIED` (alat gagal != lulus) — TIDAK PERNAH "bersih".
+# Gerbang validasi proyek tetap lintDebug + detekt; baris tes unit hanya informasi.
+#
+# Beda dari berkas contoh (alasan):
+#  - Tanpa ArchUnit & SpotBugs: proyek ini tak punya keduanya (tak ada plugin/dependency/`ArchitectureTest`);
+#    menambahnya = fitur baru di luar permintaan. Slot "tes" diisi tes unit proyek (`testDebugUnitTest`).
+#  - Gradle Wrapper di-bootstrap dgn langkah yang SAMA seperti `build.yml` (`gradle wrapper --gradle-version 8.7`,
+#    repo tak menyimpan `gradlew`), BUKAN `setup-gradle` 8.14.3 (mengganti versi Gradle = di luar planning).
+#  - Varian DEBUG semua (detekt, `detektDebug` typed, lintDebug, tes, kompilasi Kotlin); tanpa keystore/secret.
+#  - `detekt lintDebug` dan `detektDebug` tetap di invocation TERPISAH (alasan Batch 164: task/rule typed yang salah
+#    tak boleh mematikan yang lama); tes unit di invocation ketiga (tes yang macet tak menghilangkan hasil lint/detekt).
+#  - Semua invocation `--no-build-cache`: tugas kompilasi dari cache TIDAK mencetak peringatan -> tanpa ini 0
+#    peringatan bisa berarti "dari cache", bukan "bersih". Tak ada tugas `compileDebugKotlin` yang benar-benar
+#    dieksekusi -> peringatan kompilator `NOT VERIFIED`.
+#  - Pemicu: push `main`/`master` + manual (selaras `build.yml`). RUN_NUMBER di laporan = counter workflow ini,
+#    BUKAN versionCode APK (itu counter `build.yml`) -> cocokkan build lewat COMMIT.
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+concurrency:
+  group: android-artifact-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # Salinan langkah `build.yml` (alasan wrapper di-generate di direktori scratch: lihat komentar di sana).
+      # `continue-on-error`: gagal di sini -> laporan tetap terbentuk dan memuat `NOT VERIFIED` + kutipan log.
+      - name: Bootstrap Gradle Wrapper (isolated dir)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          {
+            if [ ! -f gradlew ]; then
+              BOOTSTRAP_DIR=$(mktemp -d)
+              echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
+              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
+              cp "$BOOTSTRAP_DIR/gradlew" .
+              cp "$BOOTSTRAP_DIR/gradlew.bat" .
+              mkdir -p gradle/wrapper
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.jar" gradle/wrapper/
+              cp "$BOOTSTRAP_DIR/gradle/wrapper/gradle-wrapper.properties" gradle/wrapper/
+              rm -rf "$BOOTSTRAP_DIR"
+            fi
+            chmod +x gradlew
+          } 2>&1 | tee gradle-wrapper-bootstrap.log
+
+      # 1. Tiga invocation Gradle TERPISAH (kegagalan satu tak menjatuhkan yang lain). Exit code disimpan ke
+      #    berkas; langkah ini SELALU sukses. Urutan: lint/detekt dulu (gerbang proyek), tes unit terakhir.
+      - name: detekt + lintDebug + detektDebug + tes unit (NON-BLOCKING)
+        id: analysis
+        continue-on-error: true
+        timeout-minutes: 35
+        run: |
+          set +e
+          ./gradlew detekt lintDebug --continue --no-build-cache > gradle-static.log 2>&1
+          echo "STATIC_EXIT=$?" > gradle-exit.txt
+          ./gradlew detektDebug --continue --no-build-cache > gradle-typed.log 2>&1
+          echo "TYPED_EXIT=$?" >> gradle-exit.txt
+          ./gradlew testDebugUnitTest --continue --no-build-cache > gradle-test.log 2>&1
+          echo "TEST_EXIT=$?" >> gradle-exit.txt
+          cat gradle-exit.txt
+          exit 0
+
+      # 2. Rakit laporan ringkas. Status tiap alat HANYA dari berkas laporan yang benar-benar ada.
+      - name: Create Compact Report for Claude
+        if: always()
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ID: ${{ github.run_id }}
+          COMMIT_SHA: ${{ github.sha }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set +e
+          DET_XML=app/build/reports/detekt/detekt.xml
+          DETT_XML=$(find app/build/reports/detekt -maxdepth 1 -name '*.xml' ! -name 'detekt.xml' 2>/dev/null | head -n 1)
+          LINT_XML=app/build/reports/lint-results-debug.xml
+          LINT_TXT=app/build/reports/lint-results-debug.txt
+          TEST_DIR=app/build/test-results/testDebugUnitTest
+          STATIC_EXIT=$(sed -n 's/^STATIC_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
+          TYPED_EXIT=$(sed -n 's/^TYPED_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
+          TEST_EXIT=$(sed -n 's/^TEST_EXIT=//p' gradle-exit.txt 2>/dev/null | head -n 1)
+          STATIC_EXIT=${STATIC_EXIT:-n/a}
+          TYPED_EXIT=${TYPED_EXIT:-n/a}
+          TEST_EXIT=${TEST_EXIT:-n/a}
+          : > report-static.tmp
+          : > report-test.tmp
+          : > report-kwarn.tmp
+
+          # Kutipan akar masalah dari log Gradle (tanpa baris stack frame): blok FAILURE/"What went wrong",
+          # baris kompilasi `e:`, task FAILED, lalu ekor log.
+          excerpt() {
+            [ -f "$1" ] || { echo "(log $1 tidak ada)"; return; }
+            echo "-- AKAR MASALAH (kutipan $1) --"
+            sed -n '/^FAILURE:/,/^\* Try:/p' "$1" | grep -v -E '^\s+at ' | head -n 60
+            grep -E '^e: |^> Task .* FAILED|Script compilation error|Could not resolve|Unresolved reference|No such file' "$1" | head -n 30
+            echo "-- EKOR LOG $1 (40 baris terakhir, tanpa stack frame) --"
+            grep -v -E '^\s+at ' "$1" | tail -n 40
+          }
+
+          # detekt_report <label> <xml> <berkas-detail>: cetak 1 baris ringkasan, detail temuan ditambahkan ke
+          # <berkas-detail>. Status 1 = laporan XML tidak ada (NOT VERIFIED).
+          detekt_report() {
+            label="$1"; xml="$2"; out="$3"
+            if [ -n "$xml" ] && [ -f "$xml" ]; then
+              n=$(grep -c '<error ' "$xml" 2>/dev/null)
+              n=${n:-0}
+              if [ "$n" = "0" ]; then
+                echo "$label: LULUS (0 temuan)"
+              else
+                echo "$label: $n temuan"
+                {
+                  echo "$label (maks 60):"
+                  awk 'function dec(x) { gsub(/&quot;/, "\"", x); gsub(/&apos;/, "\047", x); gsub(/&lt;/, "<", x); gsub(/&gt;/, ">", x); gsub(/&amp;/, "\\&", x); return x } /<file name=/ { match($0, /name="[^"]*"/); f = substr($0, RSTART + 6, RLENGTH - 7); sub(/.*\/com\/audioenhancer\/booster\//, "", f) } /<error / { match($0, /line="[0-9]+"/); l = substr($0, RSTART + 6, RLENGTH - 7); match($0, /message="[^"]*"/); m = dec(substr($0, RSTART + 9, RLENGTH - 10)); match($0, /source="[^"]*"/); s = substr($0, RSTART + 8, RLENGTH - 9); print "- " s " @ " f ":" l " - " substr(m, 1, 140) }' "$xml" | head -n 60
+                } >> "$out"
+              fi
+              return 0
+            fi
+            echo "$label: NOT VERIFIED (laporan XML tidak terbentuk; lihat kutipan log)"
+            echo "Laporan XML $label tidak ada." >> "$out"
+            return 1
+          }
+
+          # --- detekt polos + detekt typed (detektDebug) + lintDebug ---
+          NEED_STATIC_LOG=0
+          NEED_TYPED_LOG=0
+          DET_SUMMARY=$(detekt_report "detekt" "$DET_XML" report-static.tmp) || NEED_STATIC_LOG=1
+          DETT_SUMMARY=$(detekt_report "detekt typed (detektDebug)" "$DETT_XML" report-static.tmp) || NEED_TYPED_LOG=1
+          DETEKT_TYPED_DIAG=$(grep -h -m1 'DETEKT_TYPED_DIAG' gradle-typed.log 2>/dev/null | head -n 1 | cut -c1-200)
+          DETEKT_TYPED_DIAG=${DETEKT_TYPED_DIAG:-n/a}
+          if [ -f "$LINT_XML" ]; then
+            LNT=$(grep -c -E '<issue([[:space:]]|$)' "$LINT_XML" 2>/dev/null)
+            LNE=$(grep -c -E 'severity="(Error|Fatal)"' "$LINT_XML" 2>/dev/null)
+            LNW=$(grep -c 'severity="Warning"' "$LINT_XML" 2>/dev/null)
+            LNI=$(grep -c 'severity="Informational"' "$LINT_XML" 2>/dev/null)
+            LNT=${LNT:-0}
+            LNE=${LNE:-0}
+            LNW=${LNW:-0}
+            LNI=${LNI:-0}
+            if [ "$LNT" = "0" ]; then
+              LINT_SUMMARY="lintDebug: LULUS (0 isu)"
+            else
+              LINT_SUMMARY="lintDebug: $LNT isu ($LNE error, $LNW warning, $LNI info)"
+              {
+                echo "lintDebug (maks 60 baris):"
+                grep -E '^[^[:space:]].*: (Fatal|Error|Warning|Information): ' "$LINT_TXT" 2>/dev/null | cut -c1-220 | head -n 60
+              } >> report-static.tmp
+            fi
+          else
+            LINT_SUMMARY="lintDebug: NOT VERIFIED (lint-results-debug.xml tidak terbentuk; lihat kutipan log)"
+            echo "Berkas $LINT_XML tidak ada." >> report-static.tmp
+            NEED_STATIC_LOG=1
+          fi
+          if [ "$NEED_STATIC_LOG" = "1" ] || [ "$STATIC_EXIT" != "0" ]; then
+            { echo ""; excerpt gradle-static.log; } >> report-static.tmp
+          fi
+          if [ "$NEED_TYPED_LOG" = "1" ] || [ "$TYPED_EXIT" != "0" ]; then
+            { echo ""; excerpt gradle-typed.log; } >> report-static.tmp
+          fi
+
+          # --- Tes unit (JUnit XML Gradle): status HANYA dari laporan tes, bukan dari nama kelas di log ---
+          NEED_TEST_LOG=0
+          if ls "$TEST_DIR"/*.xml > /dev/null 2>&1; then
+            T_SUM=$(awk '/<testsuite / { match($0, / tests="[0-9]+"/); t += substr($0, RSTART + 8, RLENGTH - 9); match($0, / failures="[0-9]+"/); f += substr($0, RSTART + 11, RLENGTH - 12); match($0, / errors="[0-9]+"/); e += substr($0, RSTART + 9, RLENGTH - 10); match($0, / skipped="[0-9]+"/); s += substr($0, RSTART + 10, RLENGTH - 11) } END { print t + 0, f + 0, e + 0, s + 0 }' "$TEST_DIR"/*.xml)
+            set -- $T_SUM
+            T_TOTAL=${1:-0}; T_FAIL=$(( ${2:-0} + ${3:-0} )); T_SKIP=${4:-0}
+            if [ "$T_TOTAL" = "0" ]; then
+              TEST_SUMMARY="Tes unit: NOT VERIFIED (0 tes dieksekusi; lihat kutipan log)"
+              NEED_TEST_LOG=1
+            elif [ "$T_FAIL" = "0" ]; then
+              TEST_SUMMARY="Tes unit: LULUS ($T_TOTAL tes, $T_SKIP dilewati)"
+            else
+              TEST_SUMMARY="Tes unit: GAGAL ($T_FAIL gagal dari $T_TOTAL tes)"
+              {
+                echo "Tes gagal (maks 40):"
+                awk 'function dec(x) { gsub(/&quot;/, "\"", x); gsub(/&apos;/, "\047", x); gsub(/&lt;/, "<", x); gsub(/&gt;/, ">", x); gsub(/&amp;/, "\\&", x); return x } /<testcase / { match($0, /classname="[^"]*"/); c = substr($0, RSTART + 11, RLENGTH - 12); match($0, / name="[^"]*"/); n = dec(substr($0, RSTART + 7, RLENGTH - 8)); sub(/.*\./, "", c) } /<(failure|error) / { match($0, /message="[^"]*"/); m = dec(substr($0, RSTART + 9, RLENGTH - 10)); print "- " c "." n ": " substr(m, 1, 160) }' "$TEST_DIR"/*.xml | head -n 40
+              } >> report-test.tmp
+            fi
+          else
+            TEST_SUMMARY="Tes unit: NOT VERIFIED (laporan tes tidak terbentuk: kompilasi/tes gagal sebelum jalan; lihat kutipan log)"
+            echo "Direktori $TEST_DIR tidak ada / kosong." >> report-test.tmp
+            NEED_TEST_LOG=1
+          fi
+          if [ "$NEED_TEST_LOG" = "1" ] || { [ "$TEST_EXIT" != "0" ] && [ "${T_FAIL:-0}" = "0" ]; }; then
+            { echo ""; excerpt gradle-test.log; } >> report-test.tmp
+          fi
+
+          # --- Peringatan kompilator Kotlin: baris `w: file://...`, tanpa kode tes, dedupe ---
+          if grep -q -E '^> Task :app:compileDebugKotlin$' gradle-static.log gradle-typed.log gradle-test.log 2>/dev/null; then
+            grep -h '^w: file://' gradle-static.log gradle-typed.log gradle-test.log 2>/dev/null | grep -v -E '/src/(test|androidTest)/' | sed -E 's#^w: file://.*/com/audioenhancer/booster/#w: #' | cut -c1-140 | sort -u > kwarn.list
+            KW=$(wc -l < kwarn.list | tr -d ' ')
+            KW=${KW:-0}
+            if [ "$KW" = "0" ]; then
+              KWARN_SUMMARY="Peringatan kompilator Kotlin: LULUS (0)"
+            else
+              KWD=$(grep -c 'deprecated' kwarn.list)
+              KWD=${KWD:-0}
+              KWARN_SUMMARY="Peringatan kompilator Kotlin: $KW ($KWD deprecated, $((KW - KWD)) lainnya)"
+              {
+                if [ "$((KW - KWD))" -gt 0 ]; then
+                  echo "Selain deprecated (maks 40):"
+                  grep -v 'deprecated' kwarn.list | head -n 40
+                fi
+                if [ "$KWD" -gt 0 ]; then
+                  echo "Deprecated (maks 40):"
+                  grep 'deprecated' kwarn.list | head -n 40
+                fi
+              } > report-kwarn.tmp
+            fi
+          else
+            KWARN_SUMMARY="Peringatan kompilator Kotlin: NOT VERIFIED (tak ada tugas :app:compileDebugKotlin yang dieksekusi / log tidak ada)"
+            echo "Tak ada baris '> Task :app:compileDebugKotlin' yang dieksekusi di gradle-static.log / gradle-typed.log / gradle-test.log." > report-kwarn.tmp
+          fi
+
+          APP_NAME=$(grep -m1 'name="app_name"' app/src/main/res/values/strings.xml 2>/dev/null | sed -E 's/.*>([^<]*)<.*/\1/')
+          APPLICATION_ID=$(grep -m1 'applicationId' app/build.gradle.kts 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')
+          GRADLE_ROOT=$(grep -m1 'rootProject.name' settings.gradle.kts 2>/dev/null | sed -E 's/.*"([^"]+)".*/\1/')
+          BATCH_PS=$(grep -o -m1 'Batch terakhir\*\*: [0-9]*' PROJECT_STATE.md 2>/dev/null | grep -o '[0-9]*$')
+
+          {
+            echo "=== LAPORAN EVALUASI UNTUK CLAUDE ==="
+            echo "Dibuat (UTC): $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo ""
+            echo "--- PENANDA PROYEK (WAJIB cocok sebelum dipakai) ---"
+            echo "PROJECT=$REPO_NAME"
+            echo "APP_NAME=${APP_NAME:-n/a}"
+            echo "APPLICATION_ID=${APPLICATION_ID:-n/a}"
+            echo "GRADLE_ROOT_PROJECT=${GRADLE_ROOT:-n/a}"
+            echo "BATCH_PROJECT_STATE=${BATCH_PS:-n/a}"
+            echo "COMMIT=$COMMIT_SHA"
+            echo "BRANCH=$REF_NAME"
+            echo "RUN_NUMBER=$RUN_NUMBER (counter workflow laporan; BUKAN versionCode APK) · RUN_ID=$RUN_ID"
+            echo "DETEKT_TYPED_DIAG=$DETEKT_TYPED_DIAG"
+            echo "Gradle exit: detekt+lintDebug=$STATIC_EXIT · detektDebug=$TYPED_EXIT · tes unit=$TEST_EXIT"
+            echo ""
+            echo "--- RINGKASAN ---"
+            echo "$DET_SUMMARY"
+            echo "$DETT_SUMMARY"
+            echo "$LINT_SUMMARY"
+            echo "$TEST_SUMMARY"
+            echo "$KWARN_SUMMARY"
+            echo "Catatan: NOT VERIFIED = alat tidak jalan / laporan tidak ada; BUKAN berarti bersih."
+            if [ -s report-static.tmp ]; then
+              echo ""
+              echo "--- STATIC ANALYSIS (DETEKT · LINT) ---"
+              cat report-static.tmp
+            fi
+            if [ -s report-test.tmp ]; then
+              echo ""
+              echo "--- TES UNIT ---"
+              cat report-test.tmp
+            fi
+            if [ -s report-kwarn.tmp ]; then
+              echo ""
+              echo "--- PERINGATAN KOMPILATOR KOTLIN ---"
+              cat report-kwarn.tmp
+            fi
+          } > laporan-untuk-claude.txt
+
+          echo "::notice::$DET_SUMMARY · $DETT_SUMMARY · $LINT_SUMMARY · $TEST_SUMMARY · $KWARN_SUMMARY"
+          {
+            echo "### 🔎 Laporan untuk Claude (non-blocking)"
+            echo ""
+            echo "- $DET_SUMMARY"
+            echo "- $DETT_SUMMARY"
+            echo "- $LINT_SUMMARY"
+            echo "- $TEST_SUMMARY"
+            echo "- $KWARN_SUMMARY"
+            echo "- Artifact: \`${REPO_NAME}_laporan-untuk-claude_run${RUN_NUMBER}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat laporan-untuk-claude.txt
+
+      # 3. Artifact resmi GitHub (berkas tunggal .txt; mudah diunduh di HP lalu diunggah ke Claude).
+      - name: Upload Report for Claude
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}_laporan-untuk-claude_run${{ github.run_number }}
+          path: laporan-untuk-claude.txt
+          retention-days: 7
+          if-no-files-found: warn
