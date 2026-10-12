@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 203: Laporan SpotBugs dibersihkan dari noise Kotlin dan Compose
+
+Laporan SpotBugs di laporan CI sebelumnya memuat 285 temuan, hampir semuanya bukan bug: artefak yang dihasilkan kompilator Kotlin dan Compose. Filter SpotBugs sekarang menyingkirkan noise itu, supaya yang tersisa di laporan hanya temuan yang bisa dijadikan landasan perbaikan. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode app yang disentuh.
+Untuk pengembang: `config/spotbugs/exclude.xml` ditambah enam blok. Yang disingkirkan: `NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE` (142, parameter `$composer`), `BC_VACUOUS_INSTANCEOF` dan `BC_BAD_CAST_TO_ABSTRACT_COLLECTION` (59, isi fungsi inline), `NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE` (36), `NM_METHOD_NAMING_CONVENTION` (16, fungsi `@Composable` PascalCase), empat pattern satu-titik (`BIT_AND_ZZ`, `NP_LOAD_OF_KNOWN_NULL_VALUE`, `NP_NONNULL_PARAM_VIOLATION`, `DMI_RANDOM_USED_ONLY_ONCE`), dan `UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD` khusus field `$stable`. Yang tetap dilaporkan: `DE_MIGHT_IGNORE` (4), `RV_RETURN_VALUE_IGNORED_BAD_PRACTICE` (4), `SA_FIELD_SELF_ASSIGNMENT` (2), dan `ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD` (2). Tiap blok bisa dipulihkan dengan menghapusnya.
+
+**Perubahan** (1 file target + 2 dokumen): `config/spotbugs/exclude.xml`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: NOT VERIFIED. SpotBugs tidak bisa dijalankan di sandbox (tanpa akses Maven dan Gradle), jadi filter belum terbukti di CI; berkas XML lolos parse. Kategori dipilih dari lokasi temuan di laporan run2 dan kode sumber: nomor baris di luar panjang file (isi fungsi inline), lokasi berupa pemanggilan Composable, atau fungsi `@Composable`. Perkiraan sisa temuan sekitar 12, belum terbukti.
+
 ## Batch 202: Tes unit Robolectric tidak lagi gagal karena WorkManager
 
 Dua kelas tes unit yang memakai Robolectric (`PrefsHelperTest` dan `AudioEnhancerServiceStateTest`) sekarang berjalan dengan Application polos, bukan `AudioEnhancerApp`. Sebelumnya 34 dari 37 tes gagal sebelum sempat dieksekusi, karena `AudioEnhancerApp.onCreate` memasang watchdog lewat WorkManager yang belum terinisialisasi di lingkungan Robolectric. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode produksi yang disentuh.

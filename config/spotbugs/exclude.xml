@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Batch 201 — filter SpotBugs REPORT-ONLY untuk Boomly (adaptasi `config/spotbugs/exclude.xml` template SONIX, Batch 574).
      Hanya membuang NOISE khas bytecode Kotlin/Compose (bukan bug nyata) supaya `laporan-untuk-claude.txt` tetap ringkas.
-     Pola yang DIBUANG bisa dipulihkan satu per satu bila ingin dicek ulang. Bug pattern lain (NP_*, RV_*, DM_*, IS2_*,
-     MS_*, dst) TETAP dilaporkan. Dipakai hanya lewat `./gradlew spotbugsDebug -Pboomly.spotbugs=true` (workflow
-     `android-artifact.yml`); build/rilis biasa tidak menyentuh file ini. NOT VERIFIED: belum pernah dijalankan. -->
+     Pola yang DIBUANG bisa dipulihkan satu per satu bila ingin dicek ulang (hapus blok `<Match>`-nya). Pattern yang tidak
+     disaring (mis. DE_*, RV_*, SA_*, ST_*, DM_*, IS2_*, MS_*) TETAP dilaporkan. Dipakai hanya lewat
+     `./gradlew spotbugsDebug -Pboomly.spotbugs=true` (workflow `android-artifact.yml`); build/rilis biasa tidak menyentuh
+     file ini. Pertama jalan di laporan CI run2 (Batch 201): 285 temuan; blok Batch 203 di bawah = hasil triase run2. -->
 <FindBugsFilter>
     <!-- Kelas hasil generator: resource R, singleton Compose, lambda/inline sintetis. -->
     <Match>
@@ -55,5 +56,46 @@
     <!-- Metode privat yang hanya dipanggil dari lambda/akses sintetis. -->
     <Match>
         <Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+    </Match>
+    <!-- Batch 203 (permintaan user: noise yang tak bisa jadi landasan perbaikan DISINGKIRKAN). Tiap blok di bawah
+         diverifikasi terhadap laporan CI run2 (285 temuan) + sumber v202. Hapus satu blok untuk memulihkan pattern-nya. -->
+
+    <!-- Parameter `$composer: Composer?` hasil Compose compiler terbaca "nullable tapi tak dicek" (142 temuan; semua
+         lokasi yang terlihat = pemanggilan Row/Column/Text/SkeuButton atau baris 0). Kotlin murni tidak bisa
+         menghasilkan pola ini dari kode sendiri (param nullable tanpa cek = galat kompilasi). -->
+    <Match>
+        <Bug pattern="NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE"/>
+    </Match>
+
+    <!-- `instanceof` dan cast koleksi di dalam fungsi inline Compose/stdlib (59 temuan): semua nomor baris jatuh DI LUAR
+         panjang file sumbernya = isi fungsi inline dari berkas lain, bukan kode proyek. -->
+    <Match>
+        <Bug pattern="BC_VACUOUS_INSTANCEOF,BC_BAD_CAST_TO_ABSTRACT_COLLECTION"/>
+    </Match>
+
+    <!-- Nilai kembali delegasi state, fungsi `suspend`, dan pemanggilan Composable dibaca "bisa null" (36 temuan; seluruhnya
+         terlihat di laporan, tidak ada satu pun akses null nyata). -->
+    <Match>
+        <Bug pattern="NP_NULL_ON_SOME_PATH_FROM_RETURN_VALUE"/>
+    </Match>
+
+    <!-- Fungsi `@Composable` wajib PascalCase (konvensi Compose): 16 temuan, semuanya fungsi @Composable. -->
+    <Match>
+        <Bug pattern="NM_METHOD_NAMING_CONVENTION"/>
+    </Match>
+
+    <!-- Artefak kompilator Kotlin/Compose pada 1 titik masing-masing: mask `$default`/`$changed` di baris tanda tangan
+         `BoosterScreen` (BIT_AND_ZZ), elvis `?: return` (NP_LOAD_OF_KNOWN_NULL_VALUE), bytecode tanpa nomor baris
+         (NP_NONNULL_PARAM_VIOLATION, UpdateManager), dan `Random(180L)` BERSEED sengaja yang dipakai di dua loop inline
+         (DMI_RANDOM_USED_ONLY_ONCE, tekstur butiran deterministik). -->
+    <Match>
+        <Bug pattern="BIT_AND_ZZ,NP_LOAD_OF_KNOWN_NULL_VALUE,NP_NONNULL_PARAM_VIOLATION,DMI_RANDOM_USED_ONLY_ONCE"/>
+    </Match>
+
+    <!-- Field `$stable` yang disisipkan Compose compiler tiap kelas dibaca "tak pernah dibaca". Hanya field bernama
+         `$stable`: UUF lain (bila ada) TETAP dilaporkan. -->
+    <Match>
+        <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
+        <Field name="$stable"/>
     </Match>
 </FindBugsFilter>
