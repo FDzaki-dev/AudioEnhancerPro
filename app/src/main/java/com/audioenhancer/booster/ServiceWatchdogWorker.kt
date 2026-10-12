@@ -195,6 +195,7 @@ class ServiceWatchdogWorker(context: Context, params: WorkerParameters) : Corout
          *  SEKALI terakhir, `performWatchdogCheck` tetap jalan normal (resync + restart
          *  kalau perlu), lalu berhenti sendiri karena reschedule berikutnya no-op — 0
          *  alarm yatim permanen. */
+        @Suppress("UNUSED_PARAMETER") // Batch 206: tanda tangan dipertahankan (3 caller), badan no-op sejak B132.
         fun scheduleExactRecovery(context: Context) {
             // Sengaja kosong — lihat KDoc di atas (Batch 132).
         }

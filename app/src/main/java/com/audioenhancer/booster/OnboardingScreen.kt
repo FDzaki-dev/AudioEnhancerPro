@@ -8,12 +8,12 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Headset
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SurroundSound
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -57,7 +57,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             description = stringResource(R.string.ob1_desc)
         ),
         OnboardingPage(
-            icon = Icons.Filled.VolumeUp,
+            icon = Icons.AutoMirrored.Filled.VolumeUp,
             accentColor = BassAccent,
             accentColor2 = BassAccent2,
             title = stringResource(R.string.ob2_title),

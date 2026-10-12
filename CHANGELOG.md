@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 206: Temuan SpotBugs terakhir dan empat peringatan kompilator dibersihkan
+
+Laporan CI terbaru memastikan perbaikan Batch 205: temuan SpotBugs turun dari 12 menjadi 1, tes unit lulus 37 dari 37, dan ArchUnit tetap lulus. Batch ini menutup sisa temuan tersebut, yaitu satu galat yang ditelan diam-diam saat menaikkan prioritas thread audio, dan membersihkan empat peringatan kompilator Kotlin. Tidak ada perubahan perilaku atau tampilan.
+
+Untuk pengembang: `AudioEnhancerService.kt` mencatat kegagalan `setThreadPriority` ke Logcat lalu tetap lanjut di prioritas default. `ServiceWatchdogWorker.scheduleExactRecovery` diberi `@Suppress("UNUSED_PARAMETER")`; fungsi dan tanda tangannya dipertahankan karena masih dipanggil dari tiga tempat. `BoosterScreen.kt` dan `OnboardingScreen.kt` memakai `Icons.AutoMirrored.Filled.VolumeUp` (identik di layar kiri-ke-kanan), dan `LinearProgressIndicator` di kartu update memakai overload lambda.
+
+**Perubahan** (4 file source + 2 dokumen): `app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt`, `ServiceWatchdogWorker.kt`, `BoosterScreen.kt`, `OnboardingScreen.kt`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: NOT VERIFIED. Sandbox tidak punya akses Maven, Gradle, atau Actions, jadi perubahan belum dikompilasi. Target laporan CI berikutnya: SpotBugs 0 temuan, peringatan kompilator 0, tes unit tetap 37 dari 37.
+
 ## Batch 205: Temuan nyata SpotBugs diperbaiki, noise bytecode disaring
 
 Dari 12 temuan SpotBugs di laporan CI terakhir, tujuh diperbaiki di kode, empat disaring karena bukan bug, dan satu tersisa untuk batch berikutnya. Hasil pembuatan dan penghapusan folder (log crash dan folder unduhan update) sekarang diperiksa, dan tiga tempat yang menelan galat tanpa jejak kini mencatatnya ke Logcat. Laporan yang sama juga memastikan perbaikan Batch 204: tes unit lulus 37 dari 37. Tidak ada perubahan tampilan atau fitur; perilaku di sisi pengguna sama seperti sebelumnya.

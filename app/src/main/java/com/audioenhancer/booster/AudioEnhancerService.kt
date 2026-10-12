@@ -481,7 +481,10 @@ class AudioEnhancerService : Service() {
         // (bukan crash) kalau device tidak mengizinkan.
         try {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            // Batch 206: dicatat (SpotBugs DE_MIGHT_IGNORE); tetap lanjut di prioritas default.
+            android.util.Log.w(TAG, "Gagal menaikkan prioritas thread audio, lanjut prioritas default", e)
+        }
         createNotificationChannel()
         attachEffects()
         // Batch 82: register SETELAH attachEffects() — urutan tidak kritis (callback baru

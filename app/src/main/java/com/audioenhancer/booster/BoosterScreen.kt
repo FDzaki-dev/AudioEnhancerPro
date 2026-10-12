@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
@@ -52,7 +53,6 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
@@ -445,7 +445,7 @@ private fun UpdateBanner(
             }
             if (downloadProgress != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(progress = downloadProgress, modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(progress = { downloadProgress }, modifier = Modifier.fillMaxWidth())
                 Text(
                     stringResource(R.string.update_downloading_label, (downloadProgress * 100).toInt()),
                     style = MaterialTheme.typography.bodySmall,
@@ -1047,7 +1047,7 @@ fun BoosterScreen(
             Column(modifier = Modifier.padding(16.dp)) {
                 FeatureControl(
                     title = stringResource(R.string.feature_bass_title),
-                    icon = Icons.Filled.VolumeUp,
+                    icon = Icons.AutoMirrored.Filled.VolumeUp,
                     accentColor = BassAccent,
                     accentColor2 = BassAccent2,
                     helpText = when {
