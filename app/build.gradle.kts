@@ -185,4 +185,13 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")
     testImplementation("androidx.test:core:1.6.1")
+    // Batch 201: ArchUnit REPORT-ONLY (`ArchitectureTest`, dipakai workflow
+    // `android-artifact.yml`). Hanya classpath tes unit — tidak masuk APK/R8, tidak menyentuh assembleRelease.
+    testImplementation("com.tngtech.archunit:archunit:1.3.0")
+}
+
+// Batch 201: SpotBugs REPORT-ONLY. Skrip terpisah di-apply HANYA bila `-Pboomly.spotbugs=true` (workflow laporan),
+// jadi build/rilis/lint/detekt/tes biasa tidak memuat apa pun dari sini. Rasional & cara kerja: config/spotbugs/spotbugs.gradle.kts.
+if (providers.gradleProperty("boomly.spotbugs").orNull == "true") {
+    apply(from = rootProject.file("config/spotbugs/spotbugs.gradle.kts"))
 }

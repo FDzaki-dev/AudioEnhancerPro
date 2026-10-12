@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 201: Laporan CI dilengkapi pemeriksaan arsitektur (ArchUnit) dan SpotBugs
+
+Laporan CI untuk Claude kini juga memeriksa arsitektur kode dengan ArchUnit dan mencari pola bug dengan SpotBugs, di samping detekt, Android Lint, tes unit, dan peringatan kompilator. Semuanya berjalan sendiri di workflow laporan dan tidak pernah menggagalkan build atau rilis. Tidak ada tampilan atau perilaku app yang berubah, dan workflow build/rilis tidak disentuh.
+Untuk pengembang: `ArchitectureTest` (ArchUnit 1.3.0, JUnit polos, report-only) menegakkan 12 aturan: lapisan UI Compose dan service/worker/prefs/ViewModel searah, `PrefsHelper` berdiri sendiri, ViewModel tanpa Compose UI atau Activity, serta larangan `readBytes()`, `GlobalScope`, `Timer`, `Thread.sleep`, `System.exit`, `System.out`, dan `java.util.logging`. SpotBugs 4.8.6 berjalan sebagai task `spotbugsDebug` (JavaExec, keluaran SARIF) yang hanya dimuat dengan `-Pboomly.spotbugs=true`, dengan filter noise Kotlin di `config/spotbugs/exclude.xml`. `android-artifact.yml` menjalankan lima invocation Gradle terpisah dan merangkum hasilnya ke `laporan-untuk-claude.txt`; status tiap alat hanya dari berkas laporannya, jadi alat yang gagal tercatat `NOT VERIFIED`, bukan lulus. Catatan: batch 200 (`Boomly_v200.zip`) ditarik karena memuat tambahan yang tidak diminta.
+
+**Perubahan** (5 file target + 4 dokumen): `.github/workflows/android-artifact.yml`, `app/build.gradle.kts`, `app/src/test/java/com/audioenhancer/booster/ArchitectureTest.kt` (baru), `config/spotbugs/spotbugs.gradle.kts` (baru), `config/spotbugs/exclude.xml` (baru), `FILE_MANIFEST.txt`, `PROJECT_STATE.md`, `CHANGELOG.md`, `README.md`.
+**Status**: NOT VERIFIED. Sandbox tidak punya akses Maven, Gradle, atau Actions, jadi kode Kotlin/Gradle baru belum dikompilasi dan belum pernah dijalankan. YAML workflow lolos parse, skrip perakit laporan diuji lokal dengan data tiruan (ada temuan, tanpa laporan, bersih), dan `exclude.xml` valid.
+
 ## Batch 199: Laporan CI untuk Claude dipisah jadi satu berkas ringkas
 
 Hasil pemeriksaan kode otomatis (detekt, Android Lint, tes unit, dan peringatan kompilator) sekarang berjalan di workflow GitHub Actions tersendiri dan dirangkum dalam satu berkas teks `laporan-untuk-claude.txt`, bukan lagi zip berisi banyak log. Workflow build dan rilis APK jadi lebih ringan dan tidak lagi menunggu analisis. Tidak ada tampilan atau perilaku app yang berubah.

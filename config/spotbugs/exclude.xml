@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Batch 201 — filter SpotBugs REPORT-ONLY untuk Boomly (adaptasi `config/spotbugs/exclude.xml` template SONIX, Batch 574).
+     Hanya membuang NOISE khas bytecode Kotlin/Compose (bukan bug nyata) supaya `laporan-untuk-claude.txt` tetap ringkas.
+     Pola yang DIBUANG bisa dipulihkan satu per satu bila ingin dicek ulang. Bug pattern lain (NP_*, RV_*, DM_*, IS2_*,
+     MS_*, dst) TETAP dilaporkan. Dipakai hanya lewat `./gradlew spotbugsDebug -Pboomly.spotbugs=true` (workflow
+     `android-artifact.yml`); build/rilis biasa tidak menyentuh file ini. NOT VERIFIED: belum pernah dijalankan. -->
+<FindBugsFilter>
+    <!-- Kelas hasil generator: resource R, singleton Compose, lambda/inline sintetis. -->
+    <Match>
+        <Class name="~.*\.R(\$.*)?"/>
+    </Match>
+    <Match>
+        <Class name="~.*ComposableSingletons.*"/>
+    </Match>
+    <Match>
+        <Class name="~.*\$\$inlined\$.*"/>
+    </Match>
+    <Match>
+        <Class name="~.*\$\$ExternalSyntheticLambda.*"/>
+    </Match>
+
+    <!-- Null-check yang disisipkan kompilator Kotlin (Intrinsics.checkNotNull*) dibaca sebagai "redundant". -->
+    <Match>
+        <Bug pattern="RCN_REDUNDANT_NULLCHECK_WOULD_HAVE_BEEN_A_NPE,RCN_REDUNDANT_NULLCHECK_OF_NONNULL_VALUE"/>
+    </Match>
+
+    <!-- Kotlin tidak punya checked exception: `catch (e: Exception)` / `catch (e: RuntimeException)` wajar
+         (mis. konstruktor AudioEffect yang melempar RuntimeException). -->
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+
+    <!-- Store lokal "mati" hasil ekspansi fungsi inline / destructuring Kotlin. -->
+    <Match>
+        <Bug pattern="DLS_DEAD_LOCAL_STORE,DLS_DEAD_LOCAL_STORE_OF_NULL"/>
+    </Match>
+
+    <!-- Lambda/objek anonim Kotlin yang menangkap `this`, data class yang mengembalikan List/array apa adanya,
+         properti `lateinit`. -->
+    <Match>
+        <Bug pattern="SIC_INNER_SHOULD_BE_STATIC_ANON,SIC_INNER_SHOULD_BE_STATIC,SIC_INNER_SHOULD_BE_STATIC_NEEDS_THIS"/>
+    </Match>
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Bug pattern="UWF_FIELD_NOT_INITIALIZED_IN_CONSTRUCTOR"/>
+    </Match>
+
+    <!-- Cast generik hasil `as`/smart-cast di lambda Compose. -->
+    <Match>
+        <Bug pattern="BC_UNCONFIRMED_CAST,BC_UNCONFIRMED_CAST_OF_RETURN_VALUE"/>
+    </Match>
+
+    <!-- Metode privat yang hanya dipanggil dari lambda/akses sintetis. -->
+    <Match>
+        <Bug pattern="UPM_UNCALLED_PRIVATE_METHOD"/>
+    </Match>
+</FindBugsFilter>
