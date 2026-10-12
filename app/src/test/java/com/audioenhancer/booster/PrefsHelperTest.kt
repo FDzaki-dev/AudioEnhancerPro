@@ -1,5 +1,6 @@
 package com.audioenhancer.booster
 
+import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -7,6 +8,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
  * Unit test pertama untuk PrefsHelper. Sebelumnya semua verifikasi persistensi
@@ -16,6 +18,11 @@ import org.robolectric.RobolectricTestRunner
  * Pakai Robolectric karena PrefsHelper bergantung ke android.content.Context
  * (SharedPreferences) — bukan pure-Kotlin, jadi tidak bisa dites dengan JUnit polos.
  */
+// Batch 202: Application POLOS, bukan `AudioEnhancerApp` dari manifest. `AudioEnhancerApp.onCreate`
+// memanggil `ServiceWatchdogWorker.schedule` → `WorkManager.getInstance`, yang di Robolectric melempar
+// "WorkManager is not initialized properly" sebelum satu tes pun jalan (laporan CI run1/run2).
+// Tes ini hanya butuh Context + SharedPreferences, tidak butuh watchdog.
+@Config(application = Application::class)
 @RunWith(RobolectricTestRunner::class)
 class PrefsHelperTest {
 

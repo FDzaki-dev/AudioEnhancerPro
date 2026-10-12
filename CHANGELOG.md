@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 202: Tes unit Robolectric tidak lagi gagal karena WorkManager
+
+Dua kelas tes unit yang memakai Robolectric (`PrefsHelperTest` dan `AudioEnhancerServiceStateTest`) sekarang berjalan dengan Application polos, bukan `AudioEnhancerApp`. Sebelumnya 34 dari 37 tes gagal sebelum sempat dieksekusi, karena `AudioEnhancerApp.onCreate` memasang watchdog lewat WorkManager yang belum terinisialisasi di lingkungan Robolectric. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode produksi yang disentuh.
+Untuk pengembang: tiap kelas tes ditambah `@Config(application = Application::class)`. Tidak ada file konfigurasi baru (bukan `robolectric.properties`) dan tidak ada dependency baru. Jalur Service yang dites (`onCreate`, pemasangan efek, `requestStart`, `requestStop`) tidak memanggil WorkManager; yang tidak lagi dijalankan di tes hanyalah `CrashLogger.install` dan penjadwalan watchdog dari `AudioEnhancerApp`. ArchUnit (12 aturan lulus) dan SpotBugs (285 temuan, hanya informasi) tidak disentuh.
+
+**Perubahan** (2 file target + 2 dokumen): `app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt`, `app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: NOT VERIFIED. Sandbox tidak punya akses Maven, Gradle, atau Actions, jadi perubahan belum dikompilasi dan tes belum dijalankan. Akar masalah ditentukan dari penelusuran jalur kode (`WorkManager.getInstance` hanya terjangkau dari `AudioEnhancerApp.onCreate` dan jalur Pengaturan). Bila setelah ini ada tes yang masih gagal, itu kegagalan baru yang sebelumnya tertutup error Application.
+
 ## Batch 201: Laporan CI dilengkapi pemeriksaan arsitektur (ArchUnit) dan SpotBugs
 
 Laporan CI untuk Claude kini juga memeriksa arsitektur kode dengan ArchUnit dan mencari pola bug dengan SpotBugs, di samping detekt, Android Lint, tes unit, dan peringatan kompilator. Semuanya berjalan sendiri di workflow laporan dan tidak pernah menggagalkan build atau rilis. Tidak ada tampilan atau perilaku app yang berubah, dan workflow build/rilis tidak disentuh.

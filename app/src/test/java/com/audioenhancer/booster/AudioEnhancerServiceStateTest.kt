@@ -1,5 +1,6 @@
 package com.audioenhancer.booster
 
+import android.app.Application
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
@@ -12,6 +13,7 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.android.controller.ServiceController
+import org.robolectric.annotation.Config
 
 /**
  * Automated audio-engine test — roadmap.md Fase 0 #8.
@@ -42,6 +44,11 @@ import org.robolectric.android.controller.ServiceController
  *  di-compile-check sebelum dikirim. Verifikasi alternatif: balance brace/
  *  paren/bracket dicek terprogram sebelum zip dikirim (0 selisih = clean).
  */
+// Batch 202: Application POLOS, bukan `AudioEnhancerApp` dari manifest. `AudioEnhancerApp.onCreate`
+// memanggil `ServiceWatchdogWorker.schedule` → `WorkManager.getInstance`, yang di Robolectric melempar
+// "WorkManager is not initialized properly" sebelum satu tes pun jalan (laporan CI run1/run2).
+// Jalur Service yang dites (onCreate/attach efek/requestStart/requestStop) tidak menyentuh WorkManager.
+@Config(application = Application::class)
 @RunWith(RobolectricTestRunner::class)
 class AudioEnhancerServiceStateTest {
 
