@@ -55,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -388,6 +389,9 @@ fun SettingsScreen(
         var scheduleStartMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
         var scheduleStopMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
         var scheduleTimeConflict by remember { mutableStateOf(false) }
+        // Batch 207: hari aktif jadwal (bitmask, default semua hari); minimal 1 hari tetap aktif.
+        var scheduleDays by remember { mutableIntStateOf(PrefsHelper.getScheduleDays(context)) }
+        var scheduleDaysMinOne by remember { mutableStateOf(false) }
         // Batch 151: preset per jadwal — snapshot nama preset sekali (pola SAMA `autoProfilePresetNames` di bawah).
         val schedulePresetNames = remember { PrefsHelper.getCustomPresets(context).map { it.name } }
         var schedulePreset by remember { mutableStateOf(PrefsHelper.getSchedulePreset(context)) }
@@ -447,6 +451,19 @@ fun SettingsScreen(
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    ScheduleDaysRow(stringResource(R.string.settings_schedule_days_label), scheduleDays) { bit ->
+                        val next = scheduleDays xor (1 shl bit)
+                        if (next == 0) {
+                            scheduleDaysMinOne = true
+                        } else {
+                            scheduleDaysMinOne = false
+                            scheduleDays = next
+                            PrefsHelper.setScheduleDays(context, next)
+                            ScheduleWorker.reschedule(context)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                    }
                     if (schedulePresetNames.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(10.dp))
                         AutoProfileRouteRow(
@@ -462,6 +479,14 @@ fun SettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             stringResource(R.string.settings_schedule_same_time),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    if (scheduleDaysMinOne) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.settings_schedule_days_min_one),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
@@ -858,6 +883,47 @@ private fun SleepTimerDurationRow(minutes: List<Int>, enabled: Boolean, onPick: 
                 modifier = Modifier.weight(1f)
             ) {
                 Text(stringResource(R.string.settings_sleep_timer_minutes_short, m))
+            }
+        }
+    }
+}
+
+/** Batch 207: pilihan hari aktif jadwal — 7 pil (Senin..Minggu, nama singkat ikut bahasa aplikasi) dalam baris
+ *  yang bisa di-scroll horizontal (pola SAMA `AutoProfileRouteRow`). [daysMask]: bit 0 = Minggu .. bit 6 = Sabtu
+ *  (= `Calendar.DAY_OF_WEEK - 1`); [onToggle] menerima indeks bit yang diketuk. */
+@Composable
+private fun ScheduleDaysRow(label: String, daysMask: Int, onToggle: (Int) -> Unit) {
+    val locale = LocalConfiguration.current.locales[0]
+    val dayNames = remember(locale) { java.text.DateFormatSymbols.getInstance(locale).shortWeekdays }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Urutan tampil Senin..Minggu; `shortWeekdays` berindeks 1 = Minggu (bit + 1).
+            intArrayOf(1, 2, 3, 4, 5, 6, 0).forEach { bit ->
+                val isSelected = ((daysMask shr bit) and 1) == 1
+                val name = dayNames[bit + 1]
+                SkeuPresetPill(selected = isSelected, onClick = { onToggle(bit) }, label = name) {
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onToggle(bit) },
+                        label = { Text(name) },
+                        shape = RoundedCornerShape(50),
+                        border = if (isSelected) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = Color.Transparent,
+                            labelColor = LocalSkeuTokens.current.mutedText,
+                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                            selectedLabelColor = Color.White
+                        )
+                    )
+                }
             }
         }
     }

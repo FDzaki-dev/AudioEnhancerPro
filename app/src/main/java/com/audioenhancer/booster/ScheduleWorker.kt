@@ -18,7 +18,7 @@ import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
- * Batch 134 (Fase 8 B, ROI #7 "Scheduler"): jadwal HARIAN nyala/mati Boomly.
+ * Batch 134 (Fase 8 B, ROI #7 "Scheduler"): jadwal nyala/mati Boomly (harian; sejak Batch 207 hari bisa dipilih).
  *
  * Desain: rantai `OneTimeWork` tunggal (unique name [UNIQUE_WORK_NAME]) — selalu ada
  * PALING BANYAK 1 work pending untuk event terdekat (nyala atau mati). Tiap work selesai
@@ -38,7 +38,10 @@ import java.util.concurrent.TimeUnit
  *     dgn watchdog, Batch 124) — fallback: notifikasi "ketuk untuk menyalakan"
  *     (`PendingIntent.getForegroundService`, ketukan user = jalur resmi exempted).
  *     Exemption battery optimization membuat start otomatis tanpa sentuhan.
- * (3) Belum: hari tertentu, event non-jam (butuh sentuh Service).
+ * (3) Batch 207: hari tertentu SUDAH ada ([PrefsHelper.getScheduleDays], default semua hari = perilaku lama).
+ *     Event NYALA terjadi hanya di hari terpilih; event MATI mengikuti hari event NYALA-nya (jendela
+ *     lewat tengah malam, mis. 22:00-06:00: mati jam 06:00 hari berikutnya tetap milik jendela hari
+ *     kemarin). Belum: event non-jam (butuh sentuh Service).
  * (4) Batch 151: preset per jadwal — saat event NYALA benar-benar menyalakan Service,
  *     preset pilihan user ([PrefsHelper.getSchedulePreset]) ditulis ke prefs dulu, lalu
  *     Service membacanya lewat jalur start normal. Kalau Service SUDAH hidup pada jam
@@ -158,8 +161,14 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 return
             }
             val now = System.currentTimeMillis()
-            val startAt = nextOccurrence(now, PrefsHelper.getScheduleStartMinutes(context))
-            val stopAt = nextOccurrence(now, PrefsHelper.getScheduleStopMinutes(context))
+            val days = PrefsHelper.getScheduleDays(context)
+            val startMin = PrefsHelper.getScheduleStartMinutes(context)
+            val stopMin = PrefsHelper.getScheduleStopMinutes(context)
+            // Jendela lewat tengah malam (nyala > mati): event MATI jatuh di hari kalender berikutnya,
+            // tapi hari aktifnya = hari event NYALA (kemarin) -> geser -1 hari saat cek hari.
+            val stopDayShift = if (startMin > stopMin) -1 else 0
+            val startAt = nextOccurrence(now, startMin, days)
+            val stopAt = nextOccurrence(now, stopMin, days, stopDayShift)
             val event = if (startAt <= stopAt) EVENT_START else EVENT_STOP
             val at = if (startAt <= stopAt) startAt else stopAt
             val request = OneTimeWorkRequestBuilder<ScheduleWorker>()
@@ -175,8 +184,17 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
         }
 
         /** Epoch-ms kemunculan berikutnya (STRIKT setelah [nowMs]) jam [minutesOfDay]
-         *  (0..1439) di zona waktu lokal — `Calendar` menangani DST. */
-        internal fun nextOccurrence(nowMs: Long, minutesOfDay: Int): Long {
+         *  (0..1439) di zona waktu lokal — `Calendar` menangani DST. Batch 207: hanya pada hari
+         *  yang ada di [daysMask] (bit 0 = Minggu .. bit 6 = Sabtu; default semua hari = perilaku lama);
+         *  hari dicek pada tanggal event digeser [dayShift] hari (-1 = event MATI jendela lewat tengah malam).
+         *  Mask 0 diperlakukan semua hari. Maks 8 kandidat tanggal (hari ini + 7) cukup untuk 1 hari terpilih. */
+        internal fun nextOccurrence(
+            nowMs: Long,
+            minutesOfDay: Int,
+            daysMask: Int = PrefsHelper.SCHEDULE_ALL_DAYS,
+            dayShift: Int = 0
+        ): Long {
+            val mask = (daysMask and PrefsHelper.SCHEDULE_ALL_DAYS).let { if (it == 0) PrefsHelper.SCHEDULE_ALL_DAYS else it }
             val cal = Calendar.getInstance().apply {
                 timeInMillis = nowMs
                 set(Calendar.HOUR_OF_DAY, minutesOfDay / 60)
@@ -184,8 +202,19 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
                 set(Calendar.SECOND, 0)
                 set(Calendar.MILLISECOND, 0)
             }
-            if (cal.timeInMillis <= nowMs) cal.add(Calendar.DAY_OF_YEAR, 1)
-            return cal.timeInMillis
+            repeat(CANDIDATE_DAYS) {
+                if (cal.timeInMillis > nowMs && isDayEnabled(cal, mask, dayShift)) return cal.timeInMillis
+                cal.add(Calendar.DAY_OF_YEAR, 1)
+            }
+            return cal.timeInMillis // tak tercapai: mask != 0 menjamin ada hari cocok dalam 8 kandidat
+        }
+
+        private const val CANDIDATE_DAYS = 8
+
+        private fun isDayEnabled(eventTime: Calendar, mask: Int, dayShift: Int): Boolean {
+            val shifted = (eventTime.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, dayShift) }
+            val bit = shifted.get(Calendar.DAY_OF_WEEK) - 1 // Minggu = 0 .. Sabtu = 6
+            return ((mask shr bit) and 1) == 1
         }
     }
 }

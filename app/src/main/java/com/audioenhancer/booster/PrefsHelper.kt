@@ -20,6 +20,7 @@ object PrefsHelper {
     private const val KEY_SCHEDULE_START_MIN = "schedule_start_min"
     private const val KEY_SCHEDULE_STOP_MIN = "schedule_stop_min"
     private const val KEY_SCHEDULE_PRESET = "schedule_preset"
+    private const val KEY_SCHEDULE_DAYS = "schedule_days"
     private const val KEY_STATS_TOTAL_MS = "stats_total_ms" // Batch 154 (Fase 9 M5)
     private const val KEY_STATS_START_COUNT = "stats_start_count"
     private const val KEY_STATS_PRESET_COUNTS = "stats_preset_counts"
@@ -158,6 +159,22 @@ object PrefsHelper {
 
     fun setScheduleStopMinutes(context: Context, minutes: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_SCHEDULE_STOP_MIN, minutes.coerceIn(0, 1439)).apply()
+    }
+
+    /** Batch 207: hari aktif jadwal sebagai bitmask — bit 0 = Minggu .. bit 6 = Sabtu (= `Calendar.DAY_OF_WEEK - 1`).
+     *  Default = semua hari (perilaku jadwal harian lama; user lama tak perlu migrasi). Nilai 0 / di luar 7 bit
+     *  (prefs rusak) dibaca sebagai semua hari, supaya jadwal tak pernah "mati diam-diam" tanpa hari. */
+    const val SCHEDULE_ALL_DAYS = 0x7F
+
+    fun getScheduleDays(context: Context): Int {
+        val mask = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getInt(KEY_SCHEDULE_DAYS, SCHEDULE_ALL_DAYS) and SCHEDULE_ALL_DAYS
+        return if (mask == 0) SCHEDULE_ALL_DAYS else mask
+    }
+
+    fun setScheduleDays(context: Context, mask: Int) {
+        val safe = (mask and SCHEDULE_ALL_DAYS).let { if (it == 0) SCHEDULE_ALL_DAYS else it }
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_SCHEDULE_DAYS, safe).apply()
     }
 
     /** Batch 151: nama preset custom yang diterapkan saat JADWAL menyalakan Boomly (null =

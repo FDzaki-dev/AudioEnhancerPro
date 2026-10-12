@@ -116,38 +116,20 @@ class AudioEnhancerService : Service() {
         // limiter di bawahnya tetap jadi pengaman terakhir).
         private const val FALLBACK_EQ_RANGE_MB: Short = 1200
 
-        // Batch 121 (Fase 8 ROI #4 "Compressor", PROJECT_STATE.md): parameter tetap
-        // kompresor MBC 1-band full-range, TIDAK di-expose ke UI granular — SENGAJA 1
-        // slider "Amount" 0..100 (lihat setCompressorAmount() di bawah) yang menyetir
-        // ratio+threshold+postGain sekaligus, bukan attack/release/knee terpisah,
-        // konsisten filosofi "1 kontrol per effect baru" seperti Loudness/Bass/
-        // Virtualizer. cutoffFrequency 20000 Hz = band TUNGGAL cover seluruh rentang
-        // audible (mbcBandCount=1, tidak ada "band kedua" yang butuh batas). Angka
-        // attack/release/knee dipilih dari rentang umum kompresor "program"/vocal-safe
-        // — TIDAK ADA API resmi query kurva ideal per device (sama filosofi seperti
-        // FALLBACK_EQ_RANGE_MB di atas) — NOT VERIFIED di device fisik, kandidat
-        // pertama kalau user lapor kompresi kurang/lewat agresif. noiseGateThreshold
-        // sangat rendah + expanderRatio 1:1 SENGAJA menonaktifkan noise-gate/expander
-        // bawaan MbcBand (fitur ini murni kompresor, bukan gate) — constructor
-        // `DynamicsProcessing.MbcBand` TIDAK punya varian tanpa parameter itu, jadi
-        // harus tetap diisi walau tidak dipakai fungsinya.
-        private const val COMPRESSOR_BAND_CUTOFF_HZ = 20000f
-        private const val COMPRESSOR_ATTACK_MS = 10f
-        private const val COMPRESSOR_RELEASE_MS = 150f
+        // Batch 121 (Fase 8 ROI #4 "Compressor", PROJECT_STATE.md): kompresor user-adjustable di
+        // objek `DynamicsProcessing` yang sama dgn limiter; TIDAK di-expose ke UI granular —
+        // SENGAJA 1 slider "Amount" 0..100 (lihat setCompressorAmount() di bawah) yang menyetir
+        // ratio+threshold+postGain+attack+release sekaligus, konsisten filosofi "1 kontrol per
+        // effect baru" seperti Loudness/Bass/Virtualizer. noiseGateThreshold sangat rendah +
+        // expanderRatio 1:1 SENGAJA menonaktifkan noise-gate/expander bawaan MbcBand (fitur ini
+        // murni kompresor, bukan gate) — constructor `DynamicsProcessing.MbcBand` TIDAK punya
+        // varian tanpa parameter itu, jadi harus tetap diisi walau tidak dipakai fungsinya.
+        // Batch 208 (request user: vokal kalah dari backsound noisy): kompresor jadi 3 band
+        // (<=250 Hz / 250-5000 Hz = vokal / >5000 Hz). Angka per-band + kurva interpolasi 0..100
+        // ada di `CompressorCurve` (bawah file, fungsi murni + tes). knee & noise-gate tetap sama
+        // di semua band (konstanta di bawah).
         private const val COMPRESSOR_KNEE_DB = 6f
         private const val COMPRESSOR_NOISE_GATE_DB = -90f
-
-        // Batch 198 (request user: Compressor 100% "dimaksimalkan sampai mentok"): ujung 100% dari
-        // kurva `setCompressorAmount()`, interpolasi linear dari nilai netral (0% = bypass).
-        // Sebelumnya 100% = 6:1 / -24 dB / +6 dB / attack 10 ms / release 150 ms (B121). Rasio 20:1 =
-        // SAMA dgn limiter B84 (nilai yang terbukti diterima DynamicsProcessing di app ini); makeup
-        // +24 dB mengembalikan level yang tertekan (sinyal di atas threshold mendarat rata ±-11 dBFS);
-        // limiter -1 dBFS (stage terakhir objek yang sama) menjaga puncak. NOT VERIFIED di device.
-        private const val COMPRESSOR_RATIO_MAX = 20f
-        private const val COMPRESSOR_THRESHOLD_MAX_DB = -36f
-        private const val COMPRESSOR_POST_GAIN_MAX_DB = 24f
-        private const val COMPRESSOR_ATTACK_MAX_MS = 3f
-        private const val COMPRESSOR_RELEASE_MAX_MS = 100f
 
         // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): 4 bucket kategori
         // output yang DIEKSPOS ke UI (SettingsScreen.kt) buat auto-profile, dipakai SEBAGAI
@@ -772,7 +754,7 @@ class AudioEnhancerService : Service() {
      *    pengganti/duplikat `LoudnessEnhancer` yang MEMANG untuk menaikkan loudness.
      *
      *  Batch 121 (Fase 8 ROI #4 "Compressor"): objek `DynamicsProcessing` YANG SAMA di
-     *  atas SEKARANG JUGA membawa 1 band MBC (`mbcInUse=true, mbcBandCount=1`,
+     *  atas SEKARANG JUGA membawa MBC (`mbcInUse=true`; Batch 121 = 1 band, Batch 208 = 3 band `CompressorCurve.BAND_COUNT`,
      *  full-range, `cutoffFrequency` 20000 Hz) — kompresor yang BENERAN bisa diatur
      *  user (beda dari limiter di atas yang hardcoded/tidak ada slider), pelengkap
      *  `LoudnessEnhancer`. Band ini dipasang `enabled=false` di sini (netral) — nilai
@@ -827,7 +809,7 @@ class AudioEnhancerService : Service() {
                 DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
                 2,                                                // channelCount (stereo, lihat catatan panjang di atas)
                 needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
-                true, 1, // Batch 121: 1 band MBC full-range = kompresor user-adjustable baru (lihat setCompressorAmount()); SEBELUMNYA "false, 0" (di luar scope Batch 84)
+                true, CompressorCurve.BAND_COUNT, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`)
                 false, 0, // post-EQ: tidak dipakai
                 true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
@@ -859,23 +841,26 @@ class AudioEnhancerService : Service() {
                 // Batch 121: band kompresor mulai NONAKTIF (enabled=false, netral) — nilai
                 // asli (kalau ada) diterapkan belakangan lewat restoreSavedSettings() ->
                 // setCompressorAmount(), SAMA pola seperti PreEq fallback di atas (jangan
-                // duplikat logic restore di sini).
-                setMbcBandAllChannelsTo(
-                    0,
-                    DynamicsProcessing.MbcBand(
-                        /* enabled            = */ false,
-                        /* cutoffFrequency    = */ COMPRESSOR_BAND_CUTOFF_HZ,
-                        /* attackTime         = */ COMPRESSOR_ATTACK_MS,
-                        /* releaseTime        = */ COMPRESSOR_RELEASE_MS,
-                        /* ratio              = */ 1f,
-                        /* threshold          = */ 0f,
-                        /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                        /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
-                        /* expanderRatio      = */ 1f,
-                        /* preGain            = */ 0f,
-                        /* postGain           = */ 0f
+                // duplikat logic restore di sini). Batch 208: 3 band, cutoff naik (250/5000/20000 Hz).
+                for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
+                    val spec = CompressorCurve.band(bandIndex, 0f)
+                    setMbcBandAllChannelsTo(
+                        bandIndex,
+                        DynamicsProcessing.MbcBand(
+                            /* enabled            = */ false,
+                            /* cutoffFrequency    = */ spec.cutoffHz,
+                            /* attackTime         = */ spec.attackMs,
+                            /* releaseTime        = */ spec.releaseMs,
+                            /* ratio              = */ spec.ratio,
+                            /* threshold          = */ spec.thresholdDb,
+                            /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
+                            /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
+                            /* expanderRatio      = */ 1f,
+                            /* preGain            = */ 0f,
+                            /* postGain           = */ spec.postGainDb
+                        )
                     )
-                )
+                }
                 enabled = true
                 // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
                 // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
@@ -1410,12 +1395,13 @@ class AudioEnhancerService : Service() {
     }
 
     /** Batch 121 (Fase 8 ROI #4 "Compressor"): 1 slider "Amount" 0..100 menyetir band
-     *  MBC full-range di `dynamicsProcessing` (lihat `attachDynamicsProcessing()` &
-     *  konstanta `COMPRESSOR_*` di companion). [amount] 0 = band di-nonaktifkan (bypass
+     *  MBC 3 band (Batch 208) di `dynamicsProcessing` (lihat `attachDynamicsProcessing()`,
+     *  `CompressorCurve`, konstanta `COMPRESSOR_*` di companion). [amount] 0 = band di-nonaktifkan (bypass
      *  total, 0 beda audible dari sebelum fitur ini ada); >0 menaikkan ratio + menurunkan
      *  threshold BERSAMAAN, `postGain` makeup ikut naik supaya loudness tidak terasa
      *  drop drastis saat kompresi aktif (Batch 198: attack/release ikut mengencang ke arah
-     *  100%; ujung kurva = 20:1 / -36 dB / +24 dB, lihat `COMPRESSOR_*_MAX*`). Kurva 0..100 di bawah PERKIRAAN (tidak ada API
+     *  100%; ujung kurva band vokal = 20:1 / -36 dB / +24 dB, band bass/treble makeup lebih kecil,
+     *  lihat `CompressorCurve`). Kurva 0..100 di bawah PERKIRAAN (tidak ada API
      *  resmi query "kurva ideal" per device) — NOT VERIFIED di device fisik, kandidat
      *  pertama kalau user lapor kompresi terlalu halus/agresif. `dynamicsProcessing`
      *  null (API<28 atau gagal construct) = no-op aman, sama pola seperti `setLoudnessGain()`
@@ -1428,23 +1414,27 @@ class AudioEnhancerService : Service() {
         val clamped = amount.coerceIn(0, 100)
         val fraction = clamped / 100f
         try {
-            dynamicsProcessing?.setMbcBandAllChannelsTo(
-                0,
-                DynamicsProcessing.MbcBand(
-                    /* enabled            = */ clamped > 0,
-                    /* cutoffFrequency    = */ COMPRESSOR_BAND_CUTOFF_HZ,
-                    // Batch 198: kurva dimaksimalkan (konstanta `COMPRESSOR_*_MAX*` di companion)
-                    /* attackTime         = */ COMPRESSOR_ATTACK_MS + fraction * (COMPRESSOR_ATTACK_MAX_MS - COMPRESSOR_ATTACK_MS),     // 10 ms (off) .. 3 ms (max)
-                    /* releaseTime        = */ COMPRESSOR_RELEASE_MS + fraction * (COMPRESSOR_RELEASE_MAX_MS - COMPRESSOR_RELEASE_MS), // 150 ms (off) .. 100 ms (max)
-                    /* ratio              = */ 1f + fraction * (COMPRESSOR_RATIO_MAX - 1f),            // 1:1 (off) .. 20:1 (max)
-                    /* threshold          = */ -1f + fraction * (COMPRESSOR_THRESHOLD_MAX_DB + 1f),    // -1 dB (off) .. -36 dB (max)
-                    /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                    /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
-                    /* expanderRatio      = */ 1f,
-                    /* preGain            = */ 0f,
-                    /* postGain           = */ fraction * COMPRESSOR_POST_GAIN_MAX_DB                  // 0 dB (off) .. +24 dB makeup (max)
+            // Batch 208: 3 band (bass / VOKAL / treble). Band tengah = kurva B198 persis; band luar
+            // dapat makeup lebih kecil agar vokal menonjol dari backsound (lihat `CompressorCurve`).
+            for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
+                val spec = CompressorCurve.band(bandIndex, fraction)
+                dynamicsProcessing?.setMbcBandAllChannelsTo(
+                    bandIndex,
+                    DynamicsProcessing.MbcBand(
+                        /* enabled            = */ clamped > 0,
+                        /* cutoffFrequency    = */ spec.cutoffHz,
+                        /* attackTime         = */ spec.attackMs,
+                        /* releaseTime        = */ spec.releaseMs,
+                        /* ratio              = */ spec.ratio,
+                        /* threshold          = */ spec.thresholdDb,
+                        /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
+                        /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
+                        /* expanderRatio      = */ 1f,
+                        /* preGain            = */ 0f,
+                        /* postGain           = */ spec.postGainDb
+                    )
                 )
-            )
+            }
         } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Compressor MBC band", e)
         }
@@ -1640,5 +1630,65 @@ class AudioEnhancerService : Service() {
             .setContentIntent(openPending)
             .addAction(0, getString(R.string.notif_action_stop), stopPending)
             .build()
+    }
+}
+
+/** Parameter 1 band MBC kompresor (hasil [CompressorCurve.band]). Murni data, tanpa dependency Android. */
+internal data class CompressorBandSpec(
+    val cutoffHz: Float,
+    val attackMs: Float,
+    val releaseMs: Float,
+    val ratio: Float,
+    val thresholdDb: Float,
+    val postGainDb: Float
+)
+
+/**
+ * Batch 208 (request user: "kompresor sudah bertenaga, tapi vokal manusia kurang kedengeran dibanding
+ * backsound yang noisy banget"). Penyebab: kompresor B198 = 1 band full-range 20:1 / -36 dB / +24 dB. Satu
+ * detektor untuk seluruh spektrum -> bass/noise backsound ikut menurunkan gain vokal, dan makeup +24 dB
+ * mengangkat lantai noise sama besar dgn vokal (selisih vokal-vs-backsound habis).
+ *
+ * Perbaikan: 3 band. Band TENGAH (250-5000 Hz = fundamental + formant + presence vokal) memakai kurva B198
+ * PERSIS (ratio/threshold/makeup/attack/release identik di semua posisi slider = kekuatan tidak berkurang),
+ * tetapi kini detektornya tidak lagi terpicu bass. Band BAWAH (<=250 Hz, gemuruh/bass/thump) dan ATAS
+ * (>5000 Hz, desis/cymbal) tetap dikompresi 20:1 namun makeup-nya lebih kecil -> vokal naik relatif terhadap
+ * keduanya. Slider 0 = bypass (semua band nonaktif, nilai netral); interpolasi linear netral -> ujung,
+ * sama bentuknya dgn B198.
+ *
+ * Tuning (ubah HANYA angka ini, bukan logika): vokal masih kurang menonjol -> turunkan `POST_GAIN_MAX_DB`
+ * band 0 & 2 (mis. 16 -> 12, 18 -> 14); bass/treble terlalu tipis -> naikkan keduanya (mis. 16 -> 20);
+ * batas vokal/noise-nya ada di `CUTOFFS_HZ` (250 / 5000). NOT VERIFIED di device.
+ */
+internal object CompressorCurve {
+    const val BAND_COUNT = 3
+
+    // Nilai netral (slider 0%) = sama dgn B121/B198: attack 10 ms, release 150 ms, ratio 1:1, threshold -1 dB, makeup 0 dB.
+    const val NEUTRAL_ATTACK_MS = 10f
+    const val NEUTRAL_RELEASE_MS = 150f
+    private const val NEUTRAL_RATIO = 1f
+    private const val NEUTRAL_THRESHOLD_DB = -1f
+
+    // Indeks band: 0 = bass/gemuruh, 1 = VOKAL, 2 = treble/desis. `cutoffFrequency` MbcBand = batas ATAS band
+    // (harus naik); band terakhir 20000 Hz = nilai yang sudah terbukti diterima (B121, kompresor 1 band).
+    private val CUTOFFS_HZ = floatArrayOf(250f, 5000f, 20000f)
+    private val ATTACK_MAX_MS = floatArrayOf(10f, 3f, 2f)
+    private val RELEASE_MAX_MS = floatArrayOf(250f, 100f, 80f)
+    private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
+    private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -36f, -36f)
+    private val POST_GAIN_MAX_DB = floatArrayOf(16f, 24f, 18f)
+
+    /** Parameter band [index] (0 until [BAND_COUNT]) pada posisi slider [fraction] (0..1, di luar rentang dipotong). */
+    fun band(index: Int, fraction: Float): CompressorBandSpec {
+        require(index in 0 until BAND_COUNT) { "band $index di luar 0..${BAND_COUNT - 1}" }
+        val f = fraction.coerceIn(0f, 1f)
+        return CompressorBandSpec(
+            cutoffHz = CUTOFFS_HZ[index],
+            attackMs = NEUTRAL_ATTACK_MS + f * (ATTACK_MAX_MS[index] - NEUTRAL_ATTACK_MS),
+            releaseMs = NEUTRAL_RELEASE_MS + f * (RELEASE_MAX_MS[index] - NEUTRAL_RELEASE_MS),
+            ratio = NEUTRAL_RATIO + f * (RATIO_MAX[index] - NEUTRAL_RATIO),
+            thresholdDb = NEUTRAL_THRESHOLD_DB + f * (THRESHOLD_MAX_DB[index] - NEUTRAL_THRESHOLD_DB),
+            postGainDb = f * POST_GAIN_MAX_DB[index]
+        )
     }
 }

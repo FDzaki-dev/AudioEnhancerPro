@@ -255,11 +255,13 @@
     <!-- Batch 128: Fast Recovery card (Alarms & reminders permission) -->
     <string name="settings_schedule_section_title">Auto Schedule</string>
     <string name="settings_schedule_title">Daily schedule</string>
-    <string name="settings_schedule_desc">Turn Boomly on and off automatically every day at the times you choose.</string>
+    <string name="settings_schedule_desc">Turn Boomly on and off automatically on the days and times you choose.</string>
     <string name="settings_schedule_start_label">Turn on at</string>
     <string name="settings_schedule_stop_label">Turn off at</string>
     <string name="settings_schedule_preset_label">Preset when the schedule turns on</string>
     <string name="settings_schedule_same_time">On and off times must be different.</string>
+    <string name="settings_schedule_days_label">Active days (by the day of the on time)</string>
+    <string name="settings_schedule_days_min_one">At least one day must stay active.</string>
     <string name="settings_schedule_note">Times may be delayed by a few minutes when the phone is saving power. On Android 12+, if the system blocks the automatic start, a notification appears — tap it to turn Boomly on.</string>
     <string name="notif_schedule_channel_name">Boomly Schedule</string>
     <string name="notif_schedule_title">Time to turn Boomly on</string>
