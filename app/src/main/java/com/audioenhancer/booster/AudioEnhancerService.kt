@@ -126,10 +126,9 @@ class AudioEnhancerService : Service() {
         // varian tanpa parameter itu, jadi harus tetap diisi walau tidak dipakai fungsinya.
         // Batch 208 (request user: vokal kalah dari backsound noisy): kompresor jadi 3 band
         // (<=250 Hz / 250-5000 Hz = vokal / >5000 Hz). Angka per-band + kurva interpolasi 0..100
-        // ada di `CompressorCurve` (bawah file, fungsi murni + tes). knee & noise-gate tetap sama
-        // di semua band (konstanta di bawah).
+        // ada di `CompressorCurve` (bawah file, fungsi murni + tes). Knee tetap sama di semua band (konstanta
+        // di bawah). Batch 210: noise-gate/expander band bass & treble + presence vokal (post-EQ) juga dari `CompressorCurve`.
         private const val COMPRESSOR_KNEE_DB = 6f
-        private const val COMPRESSOR_NOISE_GATE_DB = -90f
 
         // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): 4 bucket kategori
         // output yang DIEKSPOS ke UI (SettingsScreen.kt) buat auto-profile, dipakai SEBAGAI
@@ -810,7 +809,7 @@ class AudioEnhancerService : Service() {
                 2,                                                // channelCount (stereo, lihat catatan panjang di atas)
                 needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
                 true, CompressorCurve.BAND_COUNT, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`)
-                false, 0, // post-EQ: tidak dipakai
+                true, CompressorCurve.PRESENCE_BAND_COUNT, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); SEBELUMNYA "false, 0" (tidak dipakai)
                 true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
             dynamicsProcessing = DynamicsProcessing(0, 0, config).apply {
@@ -823,6 +822,14 @@ class AudioEnhancerService : Service() {
                     FALLBACK_EQ_BANDS_HZ.forEachIndexed { index, freqHz ->
                         setPreEqBandAllChannelsTo(index, DynamicsProcessing.EqBand(true, freqHz, 0f))
                     }
+                }
+                // Batch 210: band post-EQ presence mulai NONAKTIF & 0 dB (netral); nilai asli diterapkan
+                // lewat restoreSavedSettings() -> setCompressorAmount() -> applyCompressorBands().
+                for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                    setPostEqBandAllChannelsTo(
+                        presenceIndex,
+                        DynamicsProcessing.EqBand(false, CompressorCurve.presenceCutoffHz(presenceIndex), 0f)
+                    )
                 }
                 setLimiterAllChannelsTo(
                     DynamicsProcessing.Limiter(
@@ -854,8 +861,8 @@ class AudioEnhancerService : Service() {
                             /* ratio              = */ spec.ratio,
                             /* threshold          = */ spec.thresholdDb,
                             /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                            /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
-                            /* expanderRatio      = */ 1f,
+                            /* noiseGateThreshold = */ spec.noiseGateDb,
+                            /* expanderRatio      = */ spec.expanderRatio,
                             /* preGain            = */ 0f,
                             /* postGain           = */ spec.postGainDb
                         )
@@ -1446,10 +1453,21 @@ class AudioEnhancerService : Service() {
                         /* ratio              = */ spec.ratio,
                         /* threshold          = */ spec.thresholdDb,
                         /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                        /* noiseGateThreshold = */ COMPRESSOR_NOISE_GATE_DB,
-                        /* expanderRatio      = */ 1f,
+                        /* noiseGateThreshold = */ spec.noiseGateDb,
+                        /* expanderRatio      = */ spec.expanderRatio,
                         /* preGain            = */ 0f,
                         /* postGain           = */ spec.postGainDb
+                    )
+                )
+            }
+            // Batch 210: presence vokal (post-EQ 3 band: netral / +gain 2-4,5 kHz / netral), ikut Compressor & Vocal Focus.
+            for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                dynamicsProcessing?.setPostEqBandAllChannelsTo(
+                    presenceIndex,
+                    DynamicsProcessing.EqBand(
+                        amount > 0,
+                        CompressorCurve.presenceCutoffHz(presenceIndex),
+                        CompressorCurve.presenceGainDb(presenceIndex, fraction, focus)
                     )
                 )
             }
@@ -1657,7 +1675,9 @@ internal data class CompressorBandSpec(
     val releaseMs: Float,
     val ratio: Float,
     val thresholdDb: Float,
-    val postGainDb: Float
+    val postGainDb: Float,
+    val noiseGateDb: Float,
+    val expanderRatio: Float
 )
 
 /**
@@ -1675,6 +1695,9 @@ internal data class CompressorBandSpec(
  *
  * Batch 209: seberapa jauh makeup bass/treble ditarik di bawah band vokal kini diatur slider "Vocal Focus"
  * (0..100, default 50 = angka Batch 208: bass +16 / treble +18 / vokal +24 dB di Compressor 100%).
+ *
+ * Batch 210: + presence vokal (post-EQ 2-4,5 kHz, hingga +4 dB) dan expander/noise-gate band bass/treble
+ * (ambang hingga -60 dB, rasio hingga 3:1), keduanya ikut slider Compressor & Vocal Focus.
  *
  * Tuning (ubah HANYA angka ini, bukan logika): jangkauan slider Vocal Focus = `FOCUS_DEPTH_DB` (bass 16,
  * treble 12; naikkan = efek slider lebih kuat); batas vokal/noise = `CUTOFFS_HZ` (250 / 5000).
@@ -1704,6 +1727,34 @@ internal object CompressorCurve {
     private val FOCUS_DEPTH_DB = floatArrayOf(16f, 0f, 12f)
     const val DEFAULT_FOCUS = 0.5f
 
+    // Batch 210 (polish, request user "1+2"): (2) noise-gate/expander ringan HANYA band bass & treble: di bawah
+    // ambang (-60 dB di Compressor 100%, level INPUT band, sebelum makeup) sinyal ditarik turun lebih jauh
+    // dgn rasio 1 + compressor * focus * EXPANDER_EXTRA (default: 2:1; focus 0 = mati) -> lantai noise yang
+    // terangkat makeup ikut diredam. Band VOKAL TIDAK PERNAH di-gate (ambang -90 dB, rasio 1:1 = kondisi B198)
+    // supaya vokal pelan tidak terpotong.
+    private const val NEUTRAL_GATE_DB = -90f
+    private val GATE_THRESHOLD_MAX_DB = floatArrayOf(-60f, -90f, -60f)
+    private val EXPANDER_EXTRA = floatArrayOf(2f, 0f, 2f)
+
+    // Batch 210: (1) presence vokal = post-EQ 3 band (<2000 Hz netral / 2000-4500 Hz naik / >4500 Hz netral);
+    // gain = compressor * focus * PRESENCE_MAX_DB (default 100% & focus 50 = +2 dB, focus 100 = +4 dB, focus 0 = 0).
+    const val PRESENCE_BAND_COUNT = 3
+    private val PRESENCE_CUTOFFS_HZ = floatArrayOf(2000f, 4500f, 20000f)
+    private const val PRESENCE_MAX_DB = 4f
+
+    /** Batas ATAS band post-EQ presence [index] (0 until [PRESENCE_BAND_COUNT]) dalam Hz; menaik. */
+    fun presenceCutoffHz(index: Int): Float {
+        require(index in 0 until PRESENCE_BAND_COUNT) { "band presence $index di luar 0..${PRESENCE_BAND_COUNT - 1}" }
+        return PRESENCE_CUTOFFS_HZ[index]
+    }
+
+    /** Gain dB band post-EQ presence [index]: hanya band tengah (indeks 1) naik, sisanya 0 dB. */
+    fun presenceGainDb(index: Int, fraction: Float, focus: Float = DEFAULT_FOCUS): Float {
+        require(index in 0 until PRESENCE_BAND_COUNT) { "band presence $index di luar 0..${PRESENCE_BAND_COUNT - 1}" }
+        if (index != 1) return 0f
+        return fraction.coerceIn(0f, 1f) * focus.coerceIn(0f, 1f) * PRESENCE_MAX_DB
+    }
+
     /** Parameter band [index] (0 until [BAND_COUNT]) pada posisi slider Compressor [fraction] dan Vocal Focus
      *  [focus] (keduanya 0..1, di luar rentang dipotong). */
     fun band(index: Int, fraction: Float, focus: Float = DEFAULT_FOCUS): CompressorBandSpec {
@@ -1716,7 +1767,9 @@ internal object CompressorCurve {
             releaseMs = NEUTRAL_RELEASE_MS + f * (RELEASE_MAX_MS[index] - NEUTRAL_RELEASE_MS),
             ratio = NEUTRAL_RATIO + f * (RATIO_MAX[index] - NEUTRAL_RATIO),
             thresholdDb = NEUTRAL_THRESHOLD_DB + f * (THRESHOLD_MAX_DB[index] - NEUTRAL_THRESHOLD_DB),
-            postGainDb = f * (POST_GAIN_MAX_DB[index] - g * FOCUS_DEPTH_DB[index])
+            postGainDb = f * (POST_GAIN_MAX_DB[index] - g * FOCUS_DEPTH_DB[index]),
+            noiseGateDb = NEUTRAL_GATE_DB + f * (GATE_THRESHOLD_MAX_DB[index] - NEUTRAL_GATE_DB),
+            expanderRatio = 1f + f * g * EXPANDER_EXTRA[index]
         )
     }
 }

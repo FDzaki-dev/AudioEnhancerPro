@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 208/209 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
+ * Batch 208/209/210 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
  * Yang dijaga: slider 0 = netral/bypass, band VOKAL (indeks 1) = kurva B198 persis (kekuatan tidak
  * berkurang), band bass/treble selalu makeup LEBIH KECIL dari band vokal (vokal menonjol dari backsound),
  * cutoff menaik, dan nilai interpolasi monoton.
@@ -132,6 +132,53 @@ class CompressorCurveTest {
     fun `focus outside 0 to 1 is clamped`() {
         assertEquals(CompressorCurve.band(0, 1f, 0f).postGainDb, CompressorCurve.band(0, 1f, -2f).postGainDb, delta)
         assertEquals(CompressorCurve.band(0, 1f, 1f).postGainDb, CompressorCurve.band(0, 1f, 9f).postGainDb, delta)
+    }
+
+    @Test
+    fun `vocal band is never gated`() {
+        for (f in floatArrayOf(0f, 0.5f, 1f)) for (g in floatArrayOf(0f, 0.5f, 1f)) {
+            val b = CompressorCurve.band(vocal, f, g)
+            assertEquals(-90f, b.noiseGateDb, delta)
+            assertEquals(1f, b.expanderRatio, delta)
+        }
+    }
+
+    @Test
+    fun `outer bands get a gentle expander that follows compressor and focus`() {
+        for (i in intArrayOf(0, 2)) {
+            val full = CompressorCurve.band(i, 1f)
+            assertEquals(-60f, full.noiseGateDb, delta)
+            assertEquals(2f, full.expanderRatio, delta)
+            assertEquals(3f, CompressorCurve.band(i, 1f, 1f).expanderRatio, delta)
+            assertEquals(1f, CompressorCurve.band(i, 1f, 0f).expanderRatio, delta)
+            assertEquals(1f, CompressorCurve.band(i, 0f, 1f).expanderRatio, delta)
+            assertEquals(-90f, CompressorCurve.band(i, 0f, 1f).noiseGateDb, delta)
+        }
+    }
+
+    @Test
+    fun `presence boost only lifts the middle post-EQ band`() {
+        assertEquals(0f, CompressorCurve.presenceGainDb(0, 1f, 1f), delta)
+        assertEquals(0f, CompressorCurve.presenceGainDb(2, 1f, 1f), delta)
+        assertEquals(2f, CompressorCurve.presenceGainDb(1, 1f), delta)
+        assertEquals(4f, CompressorCurve.presenceGainDb(1, 1f, 1f), delta)
+        assertEquals(0f, CompressorCurve.presenceGainDb(1, 1f, 0f), delta)
+        assertEquals(0f, CompressorCurve.presenceGainDb(1, 0f, 1f), delta)
+    }
+
+    @Test
+    fun `presence cutoffs ascend and end at full range`() {
+        val cutoffs = (0 until CompressorCurve.PRESENCE_BAND_COUNT).map { CompressorCurve.presenceCutoffHz(it) }
+        for (i in 1 until cutoffs.size) assertTrue(cutoffs[i] > cutoffs[i - 1])
+        assertEquals(20000f, cutoffs.last(), delta)
+    }
+
+    @Test
+    fun `presence band sits inside the vocal band`() {
+        val vocalLow = CompressorCurve.band(0, 1f).cutoffHz
+        val vocalHigh = CompressorCurve.band(vocal, 1f).cutoffHz
+        assertTrue(CompressorCurve.presenceCutoffHz(0) > vocalLow)
+        assertTrue(CompressorCurve.presenceCutoffHz(1) < vocalHigh)
     }
 
     @Test

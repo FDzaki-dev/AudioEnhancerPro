@@ -63,7 +63,7 @@
     <string name="feature_compressor_title">Compressor</string>
     <string name="feature_compressor_help_normal">Narrows the gap between quiet and loud parts so volume feels more even. 0 = off.</string>
     <string name="feature_vocal_focus_title">Vocal Focus</string>
-    <string name="feature_vocal_focus_help_normal">Brings vocals forward over background noise. Higher pulls bass and treble back. Only works while Compressor is on.</string>
+    <string name="feature_vocal_focus_help_normal">Brings vocals forward over background noise. Higher pulls bass and treble back and quiets their low-level noise, while adding vocal clarity. Only works while Compressor is on.</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —
