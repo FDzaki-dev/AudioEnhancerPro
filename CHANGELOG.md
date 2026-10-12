@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 209: Slider baru "Vocal Focus" di bawah Compressor
+
+Keseimbangan vokal terhadap bass dan treble pada Compressor sekarang bisa diatur dari layar. Slider "Vocal Focus" (0 sampai 100%, default 50%) berada tepat di bawah slider Compressor. Makin tinggi nilainya, makin kecil makeup band bass dan treble dibanding band vokal, jadi vokal makin menonjol dari backsound noisy. Pada Compressor 100%: Vocal Focus 0% = semua band +24 dB (rata), 50% = bass +16 dB / treble +18 dB (sama dengan Batch 208, jadi pengguna yang sudah memakai v208 tidak mendengar perubahan), 100% = bass +8 dB / treble +12 dB. Band vokal tidak pernah terpengaruh slider ini. Slider hanya berefek saat Compressor di atas 0%; nilainya tetap tersimpan dan langsung dipakai begitu Compressor dinyalakan. Seperti Compressor, slider ini tidak ikut preset.
+
+Untuk pengembang: `CompressorCurve.band(index, fraction, focus)` (parameter `focus` default 0.5) menghitung makeup band luar sebagai `POST_GAIN_MAX_DB - focus * FOCUS_DEPTH_DB`. Setter `AudioEnhancerService.setVocalFocus()` menyimpan ke `PrefsHelper` (kunci `vocal_focus`, default 50) lalu memakai jalur yang sama dengan Compressor lewat fungsi privat `applyCompressorBands()`; `setCompressorAmount()` membaca focus dari `PrefsHelper`, dan `restoreSavedSettings()` otomatis ikut. Jalur UI memakai pola Compressor: `BoosterViewModel.setVocalFocus()` (dengan `pendingVocalFocus` saat service belum terhubung), `MainActivity`, dan `BoosterScreen`. Enam tes baru di `CompressorCurveTest` (total 14).
+
+**Perubahan** (8 file + 4 dokumen): `AudioEnhancerService.kt`, `PrefsHelper.kt`, `BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`, `res/values/strings.xml`, `res/values-en/strings.xml`, `CompressorCurveTest.kt`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `FILE_MANIFEST.txt` tetap.
+**Status**: NOT VERIFIED. Belum dikompilasi, tes belum dijalankan, dan belum diuji di HP (sandbox tanpa kompiler Kotlin, Gradle, atau Actions).
+
 ## Batch 208: Vokal lebih menonjol dari backsound saat Compressor aktif
 
 Kompresor sebelumnya satu band untuk seluruh spektrum (20:1, makeup +24 dB di 100%). Bass dan noise backsound ikut memicu penurunan gain, jadi vokal ikut tertekan, dan makeup yang besar mengangkat lantai noise sama banyak dengan vokal, sehingga selisih vokal terhadap backsound habis. Kompresor sekarang tiga band: bawah sampai 250 Hz (bass dan gemuruh), tengah 250 sampai 5000 Hz (vokal), atas di atas 5000 Hz (desis dan cymbal). Band vokal memakai kurva Batch 198 persis di semua posisi slider, jadi tenaga kompresinya tidak berkurang, tetapi kini tidak lagi terpicu oleh bass. Band bawah dan atas tetap dikompresi 20:1 namun makeup di 100% lebih kecil (+16 dB dan +18 dB, vokal +24 dB), sehingga vokal naik relatif terhadap keduanya. Slider 0% tetap bypass total. Konsekuensinya bass dan treble terdengar sedikit lebih tipis dibanding v207 pada Compressor tinggi; slider Bass Boost bisa menutup selisih itu.

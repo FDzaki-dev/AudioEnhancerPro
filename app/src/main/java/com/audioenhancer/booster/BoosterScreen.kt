@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Compress
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -519,6 +520,8 @@ fun BoosterScreen(
     // loudnessSupported/loudnessEffectState/initialLoudness di atas — kartu baru,
     // BUKAN pengganti effect lain manapun.
     onCompressor: (Int) -> Unit = {},
+    // Batch 209: slider "Vocal Focus" (0..100) di bawah Compressor — keseimbangan vokal vs bass/treble.
+    onVocalFocus: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
@@ -553,6 +556,7 @@ fun BoosterScreen(
     initialVirtualizer: Float = 500f,
     initialLoudness: Float = 0f,
     initialCompressorAmount: Float = 0f,
+    initialVocalFocus: Float = 50f,
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -658,6 +662,7 @@ fun BoosterScreen(
     var virtualizer by remember { mutableFloatStateOf(initialVirtualizer) }
     var loudness by remember { mutableFloatStateOf(initialLoudness) }
     var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
+    var vocalFocus by remember { mutableFloatStateOf(initialVocalFocus) }
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -1145,6 +1150,32 @@ fun BoosterScreen(
                     value = compressorAmount,
                     valueLabel = "${compressorAmount.toInt()}%",
                     onValueChange = { compressorAmount = it; onCompressor(it.toInt()) },
+                    valueRange = 0f..100f,
+                    step = 5f,
+                    enabled = compressorSupported,
+                    wrapInCard = false
+                )
+
+                SkeuGroupDivider()
+
+                // Batch 209 (request user): keseimbangan vokal vs bass/treble untuk Compressor B208. Sama
+                // seperti Compressor: SENGAJA tidak ikut preset (nilai tersimpan di PrefsHelper terpisah).
+                FeatureControl(
+                    title = stringResource(R.string.feature_vocal_focus_title),
+                    icon = Icons.Filled.RecordVoiceOver,
+                    accentColor = CompressorAccent,
+                    accentColor2 = CompressorAccent2,
+                    helpText = when {
+                        !compressorSupported -> stringResource(R.string.feature_help_unsupported)
+                        compressorEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        else -> stringResource(R.string.feature_vocal_focus_help_normal)
+                    },
+                    value = vocalFocus,
+                    valueLabel = "${vocalFocus.toInt()}%",
+                    onValueChange = { vocalFocus = it; onVocalFocus(it.toInt()) },
                     valueRange = 0f..100f,
                     step = 5f,
                     enabled = compressorSupported,

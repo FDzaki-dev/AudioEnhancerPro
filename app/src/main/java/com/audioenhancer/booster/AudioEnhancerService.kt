@@ -1407,21 +1407,39 @@ class AudioEnhancerService : Service() {
      *  null (API<28 atau gagal construct) = no-op aman, sama pola seperti `setLoudnessGain()`
      *  di atas — setting TETAP disimpan ke `PrefsHelper` tanpa syarat (Batch 57, audit Gap
      *  #14: user tidak boleh kehilangan preferensi slider walau apply gagal). */
-    // Batch 143 (lint NewApi, false positive): `dynamicsProcessing` dijamin null di API<28 (guard
-    // SDK_INT<P di attachDynamicsProcessing) & akses via `?.` — argumen MbcBand() tidak dievaluasi.
-    @android.annotation.SuppressLint("NewApi")
     fun setCompressorAmount(amount: Int) {
         val clamped = amount.coerceIn(0, 100)
-        val fraction = clamped / 100f
+        applyCompressorBands(clamped, PrefsHelper.getVocalFocus(this))
+        PrefsHelper.setCompressorAmount(this, clamped)
+    }
+
+    /** Batch 209 (request user: slider "Vocal Focus" 0..100): seberapa jauh makeup band bass & treble
+     *  ditarik di bawah band vokal saat Compressor menyala (0 = makeup sama di semua band, 50 = Batch 208,
+     *  100 = bass/treble paling ditekan; lihat `CompressorCurve`). Tidak berefek bila Compressor 0%
+     *  (bypass), tapi nilainya TETAP disimpan ke `PrefsHelper` tanpa syarat (pola Batch 57) dan
+     *  langsung dipakai begitu Compressor dinyalakan. `dynamicsProcessing` null = no-op aman. */
+    fun setVocalFocus(amount: Int) {
+        val clamped = amount.coerceIn(0, 100)
+        PrefsHelper.setVocalFocus(this, clamped)
+        applyCompressorBands(PrefsHelper.getCompressorAmount(this), clamped)
+    }
+
+    // Batch 143 (lint NewApi, false positive): `dynamicsProcessing` dijamin null di API<28 (guard
+    // SDK_INT<P di attachDynamicsProcessing) & akses via `?.` — argumen MbcBand() tidak dievaluasi.
+    // Batch 209: isi 3 band dipisah dari setter publik supaya Compressor & Vocal Focus memakai 1 jalur.
+    @android.annotation.SuppressLint("NewApi")
+    private fun applyCompressorBands(amount: Int, focusPercent: Int) {
+        val fraction = amount.coerceIn(0, 100) / 100f
+        val focus = focusPercent.coerceIn(0, 100) / 100f
         try {
             // Batch 208: 3 band (bass / VOKAL / treble). Band tengah = kurva B198 persis; band luar
             // dapat makeup lebih kecil agar vokal menonjol dari backsound (lihat `CompressorCurve`).
             for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
-                val spec = CompressorCurve.band(bandIndex, fraction)
+                val spec = CompressorCurve.band(bandIndex, fraction, focus)
                 dynamicsProcessing?.setMbcBandAllChannelsTo(
                     bandIndex,
                     DynamicsProcessing.MbcBand(
-                        /* enabled            = */ clamped > 0,
+                        /* enabled            = */ amount > 0,
                         /* cutoffFrequency    = */ spec.cutoffHz,
                         /* attackTime         = */ spec.attackMs,
                         /* releaseTime        = */ spec.releaseMs,
@@ -1438,7 +1456,6 @@ class AudioEnhancerService : Service() {
         } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Compressor MBC band", e)
         }
-        PrefsHelper.setCompressorAmount(this, clamped)
     }
 
     // Batch 143 (lint NewApi, false positive): cabang fallback cuma aktif kalau `equalizerFallbackActive`
@@ -1652,13 +1669,16 @@ internal data class CompressorBandSpec(
  * Perbaikan: 3 band. Band TENGAH (250-5000 Hz = fundamental + formant + presence vokal) memakai kurva B198
  * PERSIS (ratio/threshold/makeup/attack/release identik di semua posisi slider = kekuatan tidak berkurang),
  * tetapi kini detektornya tidak lagi terpicu bass. Band BAWAH (<=250 Hz, gemuruh/bass/thump) dan ATAS
- * (>5000 Hz, desis/cymbal) tetap dikompresi 20:1 namun makeup-nya lebih kecil -> vokal naik relatif terhadap
- * keduanya. Slider 0 = bypass (semua band nonaktif, nilai netral); interpolasi linear netral -> ujung,
+ * (>5000 Hz, desis/cymbal) tetap dikompresi 20:1 namun makeup-nya lebih kecil (diatur Vocal Focus) -> vokal naik
+ * relatif terhadap keduanya. Slider 0 = bypass (semua band nonaktif, nilai netral); interpolasi linear netral -> ujung,
  * sama bentuknya dgn B198.
  *
- * Tuning (ubah HANYA angka ini, bukan logika): vokal masih kurang menonjol -> turunkan `POST_GAIN_MAX_DB`
- * band 0 & 2 (mis. 16 -> 12, 18 -> 14); bass/treble terlalu tipis -> naikkan keduanya (mis. 16 -> 20);
- * batas vokal/noise-nya ada di `CUTOFFS_HZ` (250 / 5000). NOT VERIFIED di device.
+ * Batch 209: seberapa jauh makeup bass/treble ditarik di bawah band vokal kini diatur slider "Vocal Focus"
+ * (0..100, default 50 = angka Batch 208: bass +16 / treble +18 / vokal +24 dB di Compressor 100%).
+ *
+ * Tuning (ubah HANYA angka ini, bukan logika): jangkauan slider Vocal Focus = `FOCUS_DEPTH_DB` (bass 16,
+ * treble 12; naikkan = efek slider lebih kuat); batas vokal/noise = `CUTOFFS_HZ` (250 / 5000).
+ * NOT VERIFIED di device.
  */
 internal object CompressorCurve {
     const val BAND_COUNT = 3
@@ -1676,19 +1696,27 @@ internal object CompressorCurve {
     private val RELEASE_MAX_MS = floatArrayOf(250f, 100f, 80f)
     private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
     private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -36f, -36f)
-    private val POST_GAIN_MAX_DB = floatArrayOf(16f, 24f, 18f)
+    private val POST_GAIN_MAX_DB = floatArrayOf(24f, 24f, 24f)
 
-    /** Parameter band [index] (0 until [BAND_COUNT]) pada posisi slider [fraction] (0..1, di luar rentang dipotong). */
-    fun band(index: Int, fraction: Float): CompressorBandSpec {
+    // Batch 209 (slider "Vocal Focus"): makeup band bass/treble di 100% = POST_GAIN_MAX_DB - focus * FOCUS_DEPTH_DB.
+    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). focus 0.5 (default) = 24-8 = 16 dB bass,
+    // 24-6 = 18 dB treble = angka Batch 208 persis; focus 0 = semua band +24; focus 1 = bass +8 / treble +12.
+    private val FOCUS_DEPTH_DB = floatArrayOf(16f, 0f, 12f)
+    const val DEFAULT_FOCUS = 0.5f
+
+    /** Parameter band [index] (0 until [BAND_COUNT]) pada posisi slider Compressor [fraction] dan Vocal Focus
+     *  [focus] (keduanya 0..1, di luar rentang dipotong). */
+    fun band(index: Int, fraction: Float, focus: Float = DEFAULT_FOCUS): CompressorBandSpec {
         require(index in 0 until BAND_COUNT) { "band $index di luar 0..${BAND_COUNT - 1}" }
         val f = fraction.coerceIn(0f, 1f)
+        val g = focus.coerceIn(0f, 1f)
         return CompressorBandSpec(
             cutoffHz = CUTOFFS_HZ[index],
             attackMs = NEUTRAL_ATTACK_MS + f * (ATTACK_MAX_MS[index] - NEUTRAL_ATTACK_MS),
             releaseMs = NEUTRAL_RELEASE_MS + f * (RELEASE_MAX_MS[index] - NEUTRAL_RELEASE_MS),
             ratio = NEUTRAL_RATIO + f * (RATIO_MAX[index] - NEUTRAL_RATIO),
             thresholdDb = NEUTRAL_THRESHOLD_DB + f * (THRESHOLD_MAX_DB[index] - NEUTRAL_THRESHOLD_DB),
-            postGainDb = f * POST_GAIN_MAX_DB[index]
+            postGainDb = f * (POST_GAIN_MAX_DB[index] - g * FOCUS_DEPTH_DB[index])
         )
     }
 }

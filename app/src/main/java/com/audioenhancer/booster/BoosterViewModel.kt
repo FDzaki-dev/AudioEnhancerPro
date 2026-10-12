@@ -133,6 +133,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingVirtualizer: Short? = null
     private var pendingLoudness: Float? = null
     private var pendingCompressor: Int? = null // Batch 121
+    private var pendingVocalFocus: Int? = null // Batch 209
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
     // Batch 189 (request user "gejala masih kambuh, perluas optimalisasi" — tab Equalizer Manual):
@@ -213,6 +214,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingVirtualizer?.let { service?.setVirtualizerStrength(it) }; pendingVirtualizer = null
             pendingLoudness?.let { service?.setLoudnessGain(it) }; pendingLoudness = null
             pendingCompressor?.let { service?.setCompressorAmount(it) }; pendingCompressor = null
+            pendingVocalFocus?.let { service?.setVocalFocus(it) }; pendingVocalFocus = null
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
             // Batch 189: nilai yang sempat tertahan di `eqLatestMb` saat service putus.
@@ -338,6 +340,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun setCompressor(value: Int) {
         if (bound) service?.setCompressorAmount(value) else pendingCompressor = value
+    }
+
+    fun setVocalFocus(value: Int) {
+        if (bound) service?.setVocalFocus(value) else pendingVocalFocus = value
     }
 
     fun setEqualizerBand(band: Int, level: Short) {

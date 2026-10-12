@@ -10,6 +10,8 @@ object PrefsHelper {
     private const val KEY_VIRTUALIZER = "virtualizer_strength"
     private const val KEY_LOUDNESS = "loudness_gain"
     private const val KEY_COMPRESSOR_AMOUNT = "compressor_amount" // Batch 121, Fase 8 ROI #4
+    private const val KEY_VOCAL_FOCUS = "vocal_focus" // Batch 209
+    const val VOCAL_FOCUS_DEFAULT = 50 // Batch 209
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
     // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
@@ -106,6 +108,16 @@ object PrefsHelper {
 
     fun setCompressorAmount(context: Context, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_COMPRESSOR_AMOUNT, value).apply()
+    }
+
+    // Batch 209 (request user: slider "Vocal Focus"): 0..100, default 50 = keseimbangan Batch 208
+    // (makeup band bass +16 dB / treble +18 dB / vokal +24 dB di Compressor 100%). Hanya berefek saat
+    // Compressor > 0 (lihat AudioEnhancerService.setVocalFocus() & CompressorCurve).
+    fun getVocalFocus(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_VOCAL_FOCUS, VOCAL_FOCUS_DEFAULT)
+
+    fun setVocalFocus(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_VOCAL_FOCUS, value).apply()
     }
 
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): opt-in, default MATI —

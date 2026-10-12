@@ -5,7 +5,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 208 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
+ * Batch 208/209 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
  * Yang dijaga: slider 0 = netral/bypass, band VOKAL (indeks 1) = kurva B198 persis (kekuatan tidak
  * berkurang), band bass/treble selalu makeup LEBIH KECIL dari band vokal (vokal menonjol dari backsound),
  * cutoff menaik, dan nilai interpolasi monoton.
@@ -82,6 +82,56 @@ class CompressorCurveTest {
                 prev = cur
             }
         }
+    }
+
+    @Test
+    fun `default focus gives the Batch 208 makeup values`() {
+        assertEquals(16f, CompressorCurve.band(0, 1f).postGainDb, delta)
+        assertEquals(24f, CompressorCurve.band(vocal, 1f).postGainDb, delta)
+        assertEquals(18f, CompressorCurve.band(2, 1f).postGainDb, delta)
+    }
+
+    @Test
+    fun `focus zero gives every band the same makeup`() {
+        for (i in 0 until CompressorCurve.BAND_COUNT) {
+            assertEquals(24f, CompressorCurve.band(i, 1f, 0f).postGainDb, delta)
+        }
+    }
+
+    @Test
+    fun `focus one pulls bass and treble back furthest`() {
+        assertEquals(8f, CompressorCurve.band(0, 1f, 1f).postGainDb, delta)
+        assertEquals(24f, CompressorCurve.band(vocal, 1f, 1f).postGainDb, delta)
+        assertEquals(12f, CompressorCurve.band(2, 1f, 1f).postGainDb, delta)
+    }
+
+    @Test
+    fun `vocal band ignores focus and outer makeup falls as focus rises`() {
+        var prevBass = Float.MAX_VALUE
+        var prevTreble = Float.MAX_VALUE
+        for (step in 0..10) {
+            val g = step / 10f
+            assertEquals(24f, CompressorCurve.band(vocal, 1f, g).postGainDb, delta)
+            val bass = CompressorCurve.band(0, 1f, g).postGainDb
+            val treble = CompressorCurve.band(2, 1f, g).postGainDb
+            assertTrue(bass <= prevBass)
+            assertTrue(treble <= prevTreble)
+            prevBass = bass
+            prevTreble = treble
+        }
+    }
+
+    @Test
+    fun `focus has no effect while the slider is at zero`() {
+        for (i in 0 until CompressorCurve.BAND_COUNT) {
+            assertEquals(0f, CompressorCurve.band(i, 0f, 1f).postGainDb, delta)
+        }
+    }
+
+    @Test
+    fun `focus outside 0 to 1 is clamped`() {
+        assertEquals(CompressorCurve.band(0, 1f, 0f).postGainDb, CompressorCurve.band(0, 1f, -2f).postGainDb, delta)
+        assertEquals(CompressorCurve.band(0, 1f, 1f).postGainDb, CompressorCurve.band(0, 1f, 9f).postGainDb, delta)
     }
 
     @Test
