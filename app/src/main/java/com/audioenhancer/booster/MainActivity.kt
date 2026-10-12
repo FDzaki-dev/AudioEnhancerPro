@@ -27,6 +27,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -336,7 +337,10 @@ class MainActivity : ComponentActivity() {
                     data = Uri.parse("package:$packageName")
                 }
                 startActivity(intent)
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                // Batch 205: dicatat (SpotBugs DE_MIGHT_IGNORE); perilaku tetap diam-diam bagi user.
+                Log.w("MainActivity", "Gagal membuka dialog pengecualian optimasi baterai", e)
+            }
         }
     }
 
@@ -347,7 +351,9 @@ class MainActivity : ComponentActivity() {
                     data = Uri.parse("package:$packageName")
                 }
             )
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Gagal membuka App Info", e)
+        }
     }
 
     private fun refreshBatteryStatus() {

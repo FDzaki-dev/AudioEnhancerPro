@@ -11,6 +11,7 @@ import okio.sink
 import okio.source
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -205,9 +206,12 @@ object UpdateManager {
         info: UpdateInfo,
         onProgress: (Float) -> Unit
     ): File = withContext(Dispatchers.IO) {
-        val updatesDir = File(context.cacheDir, "updates").apply {
-            deleteRecursively()
-            mkdirs()
+        val updatesDir = File(context.cacheDir, "updates").also { dir ->
+            dir.deleteRecursively()
+            // Batch 205: hasil mkdirs() dipakai (SpotBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE). Folder tak
+            // bisa dibuat = unduhan pasti gagal; dilempar di sini supaya penyebabnya jelas. Pemanggil
+            // (BoosterViewModel) sudah menangkap Exception -> updateDownloadFailed, jalur gagal TETAP sama.
+            if (!dir.mkdirs() && !dir.isDirectory) throw IOException("Gagal membuat folder update: ${dir.absolutePath}")
         }
         val destFile = File(updatesDir, info.fileName)
         val connection = (URL(info.downloadUrl).openConnection() as HttpURLConnection).apply {

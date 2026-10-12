@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 205: Temuan nyata SpotBugs diperbaiki, noise bytecode disaring
+
+Dari 12 temuan SpotBugs di laporan CI terakhir, tujuh diperbaiki di kode, empat disaring karena bukan bug, dan satu tersisa untuk batch berikutnya. Hasil pembuatan dan penghapusan folder (log crash dan folder unduhan update) sekarang diperiksa, dan tiga tempat yang menelan galat tanpa jejak kini mencatatnya ke Logcat. Laporan yang sama juga memastikan perbaikan Batch 204: tes unit lulus 37 dari 37. Tidak ada perubahan tampilan atau fitur; perilaku di sisi pengguna sama seperti sebelumnya.
+
+Untuk pengembang: `CrashLogger.kt` (3 titik `mkdirs`/`delete`) dan `UpdateManager.kt` (`mkdirs`) memakai hasil panggilan; bila folder update tak bisa dibuat, `downloadApk` melempar `IOException` dengan pesan jelas, dan `BoosterViewModel` sudah menangkapnya seperti kegagalan unduhan lain. `MainActivity.kt` (2 titik) dan `OemAutostartHelper.kt` (1 titik) mengganti `catch (_: Exception) { }` dengan `Log.w`. `config/spotbugs/exclude.xml` ditambah dua blok sempit: `SA_FIELD_SELF_ASSIGNMENT` hanya untuk kelas `SkeuomorphicComponents*` (state-machine coroutine di lambda `pointerInput`; sumbernya tidak punya penugasan field ke dirinya sendiri) dan `ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD` hanya untuk `AudioEnhancerService` (penulisan `isRunning` memang disengaja).
+
+**Perubahan** (5 file target + 2 dokumen): `config/spotbugs/exclude.xml`, `app/src/main/java/com/audioenhancer/booster/CrashLogger.kt`, `UpdateManager.kt`, `MainActivity.kt`, `OemAutostartHelper.kt`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: NOT VERIFIED. Sandbox tidak punya akses Maven, Gradle, atau Actions, jadi perubahan belum dikompilasi dan SpotBugs belum dijalankan; berkas XML lolos parse. Target laporan CI berikutnya: SpotBugs turun dari 12 ke 1 (sisa `DE_MIGHT_IGNORE` di `AudioEnhancerService.kt`), tes unit tetap 37 dari 37, ArchUnit tetap lulus.
+
 ## Batch 204: Tes state efek audio diselaraskan dengan perilaku Robolectric 4.13
 
 Lima tes unit `AudioEnhancerServiceStateTest` yang tersisa gagal sekarang diperbaiki. Tes-tes itu berasumsi pembuatan efek audio (bass, virtualizer, equalizer, loudness, dynamics) selalu gagal di lingkungan tes sehingga statusnya harus `UNAVAILABLE`. Di Robolectric 4.13 pembuatan efek justru berhasil dan service menandainya `ENABLED`, perilaku yang memang benar. Tes kini menerima `UNAVAILABLE` atau `ENABLED`, dan tetap gagal bila status berakhir `FAILED`, `CONTROL_LOST`, atau `AVAILABLE`. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode produksi yang disentuh.

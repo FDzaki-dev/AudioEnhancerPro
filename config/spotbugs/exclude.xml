@@ -2,7 +2,7 @@
 <!-- Batch 201 — filter SpotBugs REPORT-ONLY untuk Boomly (adaptasi `config/spotbugs/exclude.xml` template SONIX, Batch 574).
      Hanya membuang NOISE khas bytecode Kotlin/Compose (bukan bug nyata) supaya `laporan-untuk-claude.txt` tetap ringkas.
      Pola yang DIBUANG bisa dipulihkan satu per satu bila ingin dicek ulang (hapus blok `<Match>`-nya). Pattern yang tidak
-     disaring (mis. DE_*, RV_*, SA_*, ST_*, DM_*, IS2_*, MS_*) TETAP dilaporkan. Dipakai hanya lewat
+     disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*; SA_*/ST_* hanya disaring pada 2 kelas di blok Batch 205) TETAP dilaporkan. Dipakai hanya lewat
      `./gradlew spotbugsDebug -Pboomly.spotbugs=true` (workflow `android-artifact.yml`); build/rilis biasa tidak menyentuh
      file ini. Pertama jalan di laporan CI run2 (Batch 201): 285 temuan; blok Batch 203 di bawah = hasil triase run2. -->
 <FindBugsFilter>
@@ -97,5 +97,22 @@
     <Match>
         <Bug pattern="UUF_UNUSED_PUBLIC_OR_PROTECTED_FIELD"/>
         <Field name="$stable"/>
+    </Match>
+
+    <!-- Batch 205 (triase laporan CI run5: SpotBugs 12 temuan; DE_*/RV_* diperbaiki di kode, 4 sisanya di bawah = bukan bug).
+         SA_FIELD_SELF_ASSIGNMENT (2 temuan, SkeuomorphicComponents.kt baris 1502 & 2040): keduanya jatuh tepat di baris
+         pembuka lambda `pointerInput { awaitEachGesture { ... } }` = state-machine coroutine hasil kompilator; sumbernya
+         tak punya penugasan field ke dirinya sendiri (grep nihil). Hanya pattern ini di kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="SA_FIELD_SELF_ASSIGNMENT"/>
+        <Class name="~.*SkeuomorphicComponents.*"/>
+    </Match>
+
+    <!-- ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD (2 temuan, AudioEnhancerService.kt baris 519 `onStartCommand` & 614
+         `onDestroy`): penulisan `isRunning` (companion, @Volatile, private set) dari Service itu SENGAJA — bendera proses
+         tunggal yang dibaca watchdog/widget/QS Tile (alasan di komentar Batch 45); Service Android = satu instance. -->
+    <Match>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+        <Class name="com.audioenhancer.booster.AudioEnhancerService"/>
     </Match>
 </FindBugsFilter>

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 
 /**
  * Beberapa OEM (Xiaomi/MIUI, Oppo/ColorOS, Vivo, Huawei/EMUI, Samsung, OnePlus, dst)
@@ -113,9 +114,10 @@ object OemAutostartHelper {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(intent)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             // Kalau ini pun gagal, device-nya sudah sangat tidak biasa — tidak ada lagi yang
-            // bisa dilakukan secara aman dari sisi app.
+            // bisa dilakukan secara aman dari sisi app. Batch 205: dicatat (SpotBugs DE_MIGHT_IGNORE).
+            Log.w("OemAutostartHelper", "Gagal membuka App Info (fallback)", e)
         }
     }
 }

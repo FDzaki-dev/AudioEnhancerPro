@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -29,6 +30,7 @@ import java.util.UUID
  *  cuma gak nongol di File Manager — keterbatasan versi Android, bukan bug).
  */
 object CrashLogger {
+    private const val TAG = "CrashLogger"
     private const val LEGACY_DIR = "crash_logs"
     private const val APP_FOLDER = "AudioEnhancerPro"
     // MediaStore selalu normalisasi RELATIVE_PATH pakai trailing slash — WAJIB disertakan
@@ -124,12 +126,14 @@ object CrashLogger {
 
     private fun writeCrashLogLegacy(context: Context, fileName: String, content: String) {
         val dir = File(context.filesDir, LEGACY_DIR)
-        if (!dir.exists()) dir.mkdirs()
+        // Batch 205: hasil mkdirs()/delete() kini dipakai (SpotBugs RV_RETURN_VALUE_IGNORED_BAD_PRACTICE).
+        // Alur TIDAK berubah: gagal mkdirs -> writeText di bawah tetap melempar seperti sebelumnya.
+        if (!dir.exists() && !dir.mkdirs()) Log.w(TAG, "mkdirs gagal: ${dir.absolutePath}")
         File(dir, fileName).writeText(content)
         dir.listFiles()
             ?.sortedByDescending { it.lastModified() }
             ?.drop(MAX_LOGS)
-            ?.forEach { it.delete() }
+            ?.forEach { if (!it.delete()) Log.w(TAG, "Gagal menghapus log lama: ${it.name}") }
     }
 
     /** FIFO retention: simpan cuma MAX_LOGS file terbaru di koleksi MediaStore kita,
@@ -231,7 +235,9 @@ object CrashLogger {
                 val args = arrayOf(RELATIVE_PATH)
                 resolver.delete(collection, selection, args)
             } else {
-                File(context.filesDir, LEGACY_DIR).listFiles()?.forEach { it.delete() }
+                File(context.filesDir, LEGACY_DIR).listFiles()?.forEach {
+                    if (!it.delete()) Log.w(TAG, "Gagal menghapus log: ${it.name}")
+                }
             }
         }
     }
