@@ -7,6 +7,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,13 +24,14 @@ import org.robolectric.annotation.Config
  *  1. [ENUM]  EffectState completeness — guard refactoring accidental agar
  *     tidak ada state yang terhapus/berganti nama tanpa disengaja.
  *
- *  2. [FAIL]  Effect creation failure → graceful degradation ke UNAVAILABLE.
- *     Di Robolectric, constructor AudioEffect (BassBoost / Virtualizer /
- *     Equalizer / LoudnessEnhancer / DynamicsProcessing) melempar
- *     RuntimeException ("AudioFlinger not running"). Setiap `attachXxx()`
- *     HARUS menangkap exception ini dan mendaratkan state di UNAVAILABLE —
- *     BUKAN FAILED, BUKAN state tak terdefinisi, dan service TIDAK boleh
- *     crash. Path ini menutup gap roadmap "effect creation failure".
+ *  2. [FAIL]  Effect creation → graceful degradation. Premis lama (konstruktor AudioEffect
+ *     SELALU melempar di Robolectric → UNAVAILABLE) TIDAK berlaku di Robolectric 4.13:
+ *     laporan CI run4 (Batch 204) menunjukkan kelima efek (BassBoost / Virtualizer /
+ *     Equalizer / LoudnessEnhancer / DynamicsProcessing) berakhir ENABLED = konstruktor
+ *     BERHASIL dan `enabled = true` tak melempar. Yang dijaga sekarang: setelah onCreate()
+ *     tiap state HANYA UNAVAILABLE (konstruktor gagal → catch-block `attachXxx()` menulis
+ *     ini) atau ENABLED (konstruktor berhasil) — BUKAN FAILED/CONTROL_LOST, BUKAN state tak
+ *     terdefinisi — dan service TIDAK boleh crash. Menutup gap roadmap "effect creation failure".
  *
  *  3. [RECON] State reconciliation — `retryControlAcquisition()` hanya
  *     mentrigger retry untuk CONTROL_LOST / FAILED. Ketika semua state
@@ -59,9 +61,9 @@ class AudioEnhancerServiceStateTest {
     fun setUp() {
         controller = Robolectric.buildService(AudioEnhancerService::class.java)
         // create() → onCreate() → createNotificationChannel() + attachEffects()
-        // + registerAudioDeviceCallback(). AudioEffect constructor gagal di
-        // Robolectric (AudioFlinger tidak ada) → setiap catchXxx() mendaratkan
-        // state ke UNAVAILABLE tanpa crash Service.
+        // + registerAudioDeviceCallback(). AudioEffect constructor di Robolectric 4.13
+        // BERHASIL → state ENABLED (run4); kalau suatu saat gagal → catchXxx() mendaratkan
+        // UNAVAILABLE. Keduanya tanpa crash Service.
         service = controller.create().get()
     }
 
@@ -87,7 +89,20 @@ class AudioEnhancerServiceStateTest {
         )
     }
 
-    // ─── [FAIL] Effect creation failure → graceful UNAVAILABLE ──────────────────
+    // ─── [FAIL] Effect creation → graceful degradation (UNAVAILABLE atau ENABLED) ──
+
+    /**
+     * Batch 204: state efek setelah onCreate() HARUS UNAVAILABLE (konstruktor gagal) atau ENABLED
+     * (konstruktor berhasil, mis. Robolectric 4.13). Selain itu (FAILED/CONTROL_LOST/AVAILABLE)
+     * berarti catch-block / jalur enable salah menulis state.
+     */
+    private fun assertUnavailableOrEnabled(name: String, actual: AudioEnhancerService.EffectState) {
+        val valid = setOf(
+            AudioEnhancerService.EffectState.UNAVAILABLE,
+            AudioEnhancerService.EffectState.ENABLED
+        )
+        assertTrue("$name harus UNAVAILABLE atau ENABLED setelah onCreate, tapi $actual", actual in valid)
+    }
 
     /** Smoke: onCreate() tidak lempar exception yang tidak tertangkap. */
     @Test
@@ -96,32 +111,32 @@ class AudioEnhancerServiceStateTest {
     }
 
     @Test
-    fun `bassState is UNAVAILABLE after failed BassBoost construction in Robolectric`() {
-        assertEquals(AudioEnhancerService.EffectState.UNAVAILABLE, service.bassState)
+    fun `bassState is UNAVAILABLE or ENABLED after onCreate in Robolectric`() {
+        assertUnavailableOrEnabled("bassState", service.bassState)
     }
 
     @Test
-    fun `virtualizerState is UNAVAILABLE after failed Virtualizer construction in Robolectric`() {
-        assertEquals(AudioEnhancerService.EffectState.UNAVAILABLE, service.virtualizerState)
+    fun `virtualizerState is UNAVAILABLE or ENABLED after onCreate in Robolectric`() {
+        assertUnavailableOrEnabled("virtualizerState", service.virtualizerState)
     }
 
     @Test
-    fun `equalizerState is UNAVAILABLE after failed Equalizer construction in Robolectric`() {
-        assertEquals(AudioEnhancerService.EffectState.UNAVAILABLE, service.equalizerState)
+    fun `equalizerState is UNAVAILABLE or ENABLED after onCreate in Robolectric`() {
+        assertUnavailableOrEnabled("equalizerState", service.equalizerState)
     }
 
     @Test
-    fun `loudnessState is UNAVAILABLE after failed LoudnessEnhancer construction in Robolectric`() {
-        assertEquals(AudioEnhancerService.EffectState.UNAVAILABLE, service.loudnessState)
+    fun `loudnessState is UNAVAILABLE or ENABLED after onCreate in Robolectric`() {
+        assertUnavailableOrEnabled("loudnessState", service.loudnessState)
     }
 
     @Test
-    fun `dynamicsState is UNAVAILABLE after failed DynamicsProcessing construction in Robolectric`() {
+    fun `dynamicsState is UNAVAILABLE or ENABLED after onCreate in Robolectric`() {
         // Guard tambahan: DynamicsProcessing di-guard Build.VERSION.SDK_INT >= P di
-        // attachDynamicsProcessing(). Apapun SDK Robolectric aktif, hasilnya UNAVAILABLE
-        // (dari else-branch kalau API < 28, atau dari catch-block kalau API >= 28 tapi
-        // AudioFlinger tidak ada). Tidak boleh ada UnsatisfiedLinkError/crash.
-        assertEquals(AudioEnhancerService.EffectState.UNAVAILABLE, service.dynamicsState)
+        // attachDynamicsProcessing(). API < 28 → UNAVAILABLE (else-branch); API >= 28 →
+        // ENABLED bila konstruktor berhasil (Robolectric 4.13, run4) atau UNAVAILABLE dari
+        // catch-block. Tidak boleh ada UnsatisfiedLinkError/crash.
+        assertUnavailableOrEnabled("dynamicsState", service.dynamicsState)
     }
 
     /**

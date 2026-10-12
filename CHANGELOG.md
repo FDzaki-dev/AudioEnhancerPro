@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 204: Tes state efek audio diselaraskan dengan perilaku Robolectric 4.13
+
+Lima tes unit `AudioEnhancerServiceStateTest` yang tersisa gagal sekarang diperbaiki. Tes-tes itu berasumsi pembuatan efek audio (bass, virtualizer, equalizer, loudness, dynamics) selalu gagal di lingkungan tes sehingga statusnya harus `UNAVAILABLE`. Di Robolectric 4.13 pembuatan efek justru berhasil dan service menandainya `ENABLED`, perilaku yang memang benar. Tes kini menerima `UNAVAILABLE` atau `ENABLED`, dan tetap gagal bila status berakhir `FAILED`, `CONTROL_LOST`, atau `AVAILABLE`. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode produksi yang disentuh.
+Untuk pengembang: helper `assertUnavailableOrEnabled` menggantikan `assertEquals(UNAVAILABLE, ...)` di lima tes; nama tes dan komentar yang memuat premis lama disesuaikan. Dasarnya laporan CI run4: tes gagal turun dari 34 ke 5 setelah Batch 202, dan SpotBugs turun dari 285 ke 12 setelah Batch 203.
+
+**Perubahan** (1 file target + 2 dokumen): `app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: NOT VERIFIED. Sandbox tidak punya akses Maven, Gradle, atau Actions, jadi perubahan belum dikompilasi dan tes belum dijalankan. Penyebab ditetapkan dari laporan run4 (`expected:<UNAVAILABLE> but was:<ENABLED>`) dan logika `attachXxx()` di service.
+
 ## Batch 203: Laporan SpotBugs dibersihkan dari noise Kotlin dan Compose
 
 Laporan SpotBugs di laporan CI sebelumnya memuat 285 temuan, hampir semuanya bukan bug: artefak yang dihasilkan kompilator Kotlin dan Compose. Filter SpotBugs sekarang menyingkirkan noise itu, supaya yang tersisa di laporan hanya temuan yang bisa dijadikan landasan perbaikan. Tidak ada tampilan atau perilaku app yang berubah, dan tidak ada kode app yang disentuh.
