@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 
 /**
  * Widget home screen: status (Aktif/Nonaktif) + toggle sekali tap, TANPA buka app sama
@@ -25,6 +26,14 @@ import android.widget.RemoteViews
  * state. Tap toggle (`onReceive` di bawah) TIDAK PERNAH baca teks widget ini untuk
  * memutuskan start/stop — selalu baca `AudioEnhancerService.isRunning` langsung, jadi
  * 0 salah aksi walau tampilan sempat basi di antara dua refresh.
+ *
+ * Batch 212 (rombak total tampilan, Neumorphism burgundy): knob daya = `widget_knob` (FrameLayout
+ * ber-background; `setBackgroundResource` via `setInt`, BUKAN `setImageViewResource` — background tak
+ * diskalakan intrinsic size drawable, geometri dp layer-list tetap persis). Nonaktif = knob timbul + ikon
+ * redup; Aktif = knob cekung + ikon menyala, warna teks status ikut. INSET: padding root + ruang bayangan
+ * 8dp di `widget_background.xml`, radius pelat = radius sistem peluncur di Android 12+ (`values-v31`).
+ * Logika toggle/refresh TIDAK berubah. Content description knob statis lama dihapus (dulu selalu "Nonaktif",
+ * salah saat aktif); TalkBack kini membaca teks judul + status yang selalu mutakhir.
  */
 class BoosterWidgetProvider : AppWidgetProvider() {
 
@@ -48,9 +57,17 @@ class BoosterWidgetProvider : AppWidgetProvider() {
                     R.id.widget_status_text,
                     context.getString(if (running) R.string.qs_tile_subtitle_on else R.string.qs_tile_subtitle_off)
                 )
-                views.setImageViewResource(
-                    R.id.widget_status_dot,
+                views.setInt(
+                    R.id.widget_knob,
+                    "setBackgroundResource",
                     if (running) R.drawable.widget_status_dot_on else R.drawable.widget_status_dot_off
+                )
+                views.setTextColor(
+                    R.id.widget_status_text,
+                    ContextCompat.getColor(
+                        context,
+                        if (running) R.color.widget_text_active else R.color.widget_text_secondary
+                    )
                 )
                 val togglePending = PendingIntent.getBroadcast(
                     context, id, toggleIntent,

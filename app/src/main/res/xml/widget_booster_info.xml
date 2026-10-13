@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 131 (Opsi B, instruksi eksplisit user): updatePeriodMillis="1800000" (lantai
+<!-- Batch 212: tampilan baru Neumorphism burgundy. `previewLayout` (API 31+) = pemilih widget menampilkan layout
+     ASLI (bukan ikon launcher); `previewImage` tetap sebagai fallback di bawah API 31. Rentang resize: lebar min 140dp
+     (knob + teks masih muat), tinggi maks 120dp (kartu satu baris; lebih tinggi sumur tampilan jadi terlalu jangkung).
+     Atribut API 31 tercakup `tools:ignore="UnusedAttribute"` di bawah (sengaja, bukan bug).
+     Batch 131 (Opsi B, instruksi eksplisit user): updatePeriodMillis="1800000" (lantai
      30 menit Android, tak bisa lebih cepat — API OS, native, 0 wakelock/izin tambahan).
      Ini HANYA jaring pengaman TERAKHIR buat tampilan pasif kalau widget tak pernah
      disentuh & shade/app tak pernah dibuka sama sekali; jalur utama TETAP push instan
@@ -18,10 +22,14 @@
     tools:ignore="UnusedAttribute"
     android:minWidth="180dp"
     android:minHeight="60dp"
+    android:minResizeWidth="140dp"
+    android:minResizeHeight="60dp"
+    android:maxResizeHeight="120dp"
     android:targetCellWidth="3"
     android:targetCellHeight="1"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/widget_booster"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
-    android:previewImage="@mipmap/ic_launcher" />
+    android:previewImage="@mipmap/ic_launcher"
+    android:previewLayout="@layout/widget_booster" />

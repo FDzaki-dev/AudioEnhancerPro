@@ -1,4 +1,69 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
-    <solid android:color="#FF453A" />
-</shape>
+<!-- Batch 212: knob daya, keadaan NONAKTIF = cembung/timbul (raised) + ikon daya redup.
+     Nama file "status_dot" dipertahankan dari versi lama (referensi R.drawable di BoosterWidgetProvider tetap) —
+     isinya sekarang knob neumorphism 46dp (muka 38dp + ruang bayangan 4dp). Dihasilkan skrip. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Bayangan sorot (terang, kiri-atas) -->
+    <item android:left="0dp" android:top="0dp" android:right="3dp" android:bottom="3dp">
+        <shape android:shape="oval"><solid android:color="#00C0506C" /></shape>
+    </item>
+    <item android:left="0.5dp" android:top="0.5dp" android:right="3.5dp" android:bottom="3.5dp">
+        <shape android:shape="oval"><solid android:color="#01C0506C" /></shape>
+    </item>
+    <item android:left="1dp" android:top="1dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="oval"><solid android:color="#03C0506C" /></shape>
+    </item>
+    <item android:left="1.5dp" android:top="1.5dp" android:right="4.5dp" android:bottom="4.5dp">
+        <shape android:shape="oval"><solid android:color="#06C0506C" /></shape>
+    </item>
+    <item android:left="2dp" android:top="2dp" android:right="5dp" android:bottom="5dp">
+        <shape android:shape="oval"><solid android:color="#0AC0506C" /></shape>
+    </item>
+    <item android:left="2.5dp" android:top="2.5dp" android:right="5.5dp" android:bottom="5.5dp">
+        <shape android:shape="oval"><solid android:color="#0EC0506C" /></shape>
+    </item>
+    <item android:left="3dp" android:top="3dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="oval"><solid android:color="#0FC0506C" /></shape>
+    </item>
+    <item android:left="3.5dp" android:top="3.5dp" android:right="6.5dp" android:bottom="6.5dp">
+        <shape android:shape="oval"><solid android:color="#0CC0506C" /></shape>
+    </item>
+    <!-- Bayangan gelap (kanan-bawah) -->
+    <item android:left="3dp" android:top="3dp" android:right="0dp" android:bottom="0dp">
+        <shape android:shape="oval"><solid android:color="#021C040A" /></shape>
+    </item>
+    <item android:left="3.5dp" android:top="3.5dp" android:right="0.5dp" android:bottom="0.5dp">
+        <shape android:shape="oval"><solid android:color="#041C040A" /></shape>
+    </item>
+    <item android:left="4dp" android:top="4dp" android:right="1dp" android:bottom="1dp">
+        <shape android:shape="oval"><solid android:color="#081C040A" /></shape>
+    </item>
+    <item android:left="4.5dp" android:top="4.5dp" android:right="1.5dp" android:bottom="1.5dp">
+        <shape android:shape="oval"><solid android:color="#101C040A" /></shape>
+    </item>
+    <item android:left="5dp" android:top="5dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="oval"><solid android:color="#191C040A" /></shape>
+    </item>
+    <item android:left="5.5dp" android:top="5.5dp" android:right="2.5dp" android:bottom="2.5dp">
+        <shape android:shape="oval"><solid android:color="#231C040A" /></shape>
+    </item>
+    <item android:left="6dp" android:top="6dp" android:right="3dp" android:bottom="3dp">
+        <shape android:shape="oval"><solid android:color="#281C040A" /></shape>
+    </item>
+    <item android:left="6.5dp" android:top="6.5dp" android:right="3.5dp" android:bottom="3.5dp">
+        <shape android:shape="oval"><solid android:color="#271C040A" /></shape>
+    </item>
+    <!-- Muka knob cembung (timbul) -->
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="oval">
+            <gradient android:angle="315" android:startColor="@color/widget_surface_light" android:endColor="@color/widget_surface_dark" />
+            <stroke android:width="0.75dp" android:color="@color/widget_rim" />
+        </shape>
+    </item>
+    <item android:width="20dp" android:height="20dp" android:gravity="center">
+        <vector xmlns:android="http://schemas.android.com/apk/res/android"
+            android:width="20dp" android:height="20dp" android:viewportWidth="24" android:viewportHeight="24">
+            <path android:fillColor="@color/widget_glyph_off" android:pathData="M13,3h-2v10h2V3zm4.83,2.17l-1.42,1.42C17.99,7.86 19,9.81 19,12c0,3.87 -3.13,7 -7,7s-7,-3.13 -7,-7c0,-2.19 1.01,-4.14 2.58,-5.42L6.17,5.17C4.23,6.82 3,9.26 3,12c0,4.97 4.03,9 9,9s9,-4.03 9,-9c0,-2.74 -1.23,-5.18 -3.17,-6.83z" />
+        </vector>
+    </item>
+</layer-list>

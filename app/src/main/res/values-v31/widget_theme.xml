@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Batch 212: Android 12+ (API 31) — pelat widget memakai radius sudut BAKU sistem (peluncur ikut memotong widget
+     dgn radius ini; 16dp default, sampai 28dp tergantung OEM), jadi sudut pelat selalu selaras dgn sudut peluncur. -->
+<resources>
+    <dimen name="widget_corner_radius">@android:dimen/system_app_widget_background_radius</dimen>
+</resources>
