@@ -151,6 +151,8 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
         private const val CHANNEL_ID = "boomly_schedule_channel"
         private const val NOTIF_ID_SCHEDULE = 1003
         private const val NOTIF_REQUEST_CODE = 2
+        // Batch 211: dipindah ke atas (sebelumnya di bawah `nextOccurrence`) -> detekt typed PropertyUsedBeforeDeclaration.
+        private const val CANDIDATE_DAYS = 8
         /** Pasang/ganti work event terdekat sesuai prefs, atau batalkan kalau jadwal mati.
          *  Aman dipanggil berulang (REPLACE) — dipakai UI tiap toggle/jam berubah DAN
          *  `doWork()` untuk melanjutkan rantai. */
@@ -208,8 +210,6 @@ class ScheduleWorker(context: Context, params: WorkerParameters) : CoroutineWork
             }
             return cal.timeInMillis // tak tercapai: mask != 0 menjamin ada hari cocok dalam 8 kandidat
         }
-
-        private const val CANDIDATE_DAYS = 8
 
         private fun isDayEnabled(eventTime: Calendar, mask: Int, dayShift: Int): Boolean {
             val shifted = (eventTime.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, dayShift) }

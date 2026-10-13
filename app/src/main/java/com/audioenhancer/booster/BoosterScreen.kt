@@ -1171,6 +1171,8 @@ fun BoosterScreen(
                             stringResource(R.string.feature_help_control_lost)
                         compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
                             stringResource(R.string.feature_help_failed)
+                        // Batch 211: Vocal Focus hanya berefek saat Compressor > 0 (nilai tetap tersimpan) -> beri petunjuk eksplisit.
+                        compressorAmount <= 0f -> stringResource(R.string.feature_vocal_focus_help_inactive)
                         else -> stringResource(R.string.feature_vocal_focus_help_normal)
                     },
                     value = vocalFocus,

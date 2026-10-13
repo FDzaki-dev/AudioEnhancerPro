@@ -64,6 +64,7 @@
     <string name="feature_compressor_help_normal">Merapatkan jarak suara pelan dan kencang biar volume terasa lebih rata. 0 = mati.</string>
     <string name="feature_vocal_focus_title">Vocal Focus</string>
     <string name="feature_vocal_focus_help_normal">Menonjolkan suara vokal dari backsound/noise. Makin tinggi, bass dan treble makin ditekan dan noise pelannya diredam, sementara kejernihan vokal naik. Hanya berefek saat Compressor menyala.</string>
+    <string name="feature_vocal_focus_help_inactive">Compressor masih 0% (mati), jadi Vocal Focus belum terdengar. Naikkan Compressor dulu; nilai Vocal Focus ini tetap tersimpan.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —
