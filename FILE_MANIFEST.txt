@@ -36,6 +36,7 @@ app/src/main/res/drawable/ic_launcher_monochrome.xml
 app/src/main/res/drawable/ic_qs_tile.xml
 app/src/main/res/drawable/ic_shortcut_preset.xml
 app/src/main/res/drawable/ic_shortcut_toggle.xml
+app/src/main/res/drawable/ic_widget_eq.xml
 app/src/main/res/drawable/widget_background.xml
 app/src/main/res/drawable/widget_panel_off.xml
 app/src/main/res/drawable/widget_panel_on.xml

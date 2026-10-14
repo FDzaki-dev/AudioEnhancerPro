@@ -27,6 +27,9 @@ import androidx.core.content.ContextCompat
  * memutuskan start/stop — selalu baca `AudioEnhancerService.isRunning` langsung, jadi
  * 0 salah aksi walau tampilan sempat basi di antara dua refresh.
  *
+ * Batch 214: panel diisi bar equalizer DEKORATIF (`widget_eq`, vektor ditint `setColorFilter`: redup saat Nonaktif,
+ * menyala saat Aktif) + halo cincin di knob Aktif; bukan level audio nyata (tak ada data yang dibaca).
+ *
  * Batch 213 (revisi B212, Neumorphism burgundy): KNOB (`widget_knob`, ImageView) DAN PANEL teks (`widget_panel`,
  * background) sama-sama ganti drawable tiap state — Nonaktif = timbul, Aktif = cekung + ikon menyala + warna teks
  * status ikut. B212 salah: panel ikut background pelat sehingga cekung terus. Knob = ImageView ber-drawable
@@ -64,6 +67,11 @@ class BoosterWidgetProvider : AppWidgetProvider() {
                     R.id.widget_panel,
                     "setBackgroundResource",
                     if (running) R.drawable.widget_panel_on else R.drawable.widget_panel_off
+                )
+                views.setInt(
+                    R.id.widget_eq,
+                    "setColorFilter",
+                    ContextCompat.getColor(context, if (running) R.color.widget_eq_on else R.color.widget_eq_off)
                 )
                 views.setTextColor(
                     R.id.widget_status_text,

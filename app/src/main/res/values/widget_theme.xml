@@ -19,6 +19,9 @@
     <!-- Ikon daya: redup (nonaktif, >= 3:1 thd pelat) / menyala (aktif). -->
     <color name="widget_glyph_off">#B98090</color>
     <color name="widget_glyph_on">#FF7D95</color>
+    <!-- Bar equalizer dekoratif: redup (Nonaktif) / menyala (Aktif); ditint lewat setColorFilter di provider. -->
+    <color name="widget_eq_off">#A8627A</color>
+    <color name="widget_eq_on">#FF7D95</color>
 
     <!-- INSET. Ruang bayangan pelat 6dp (di widget_background.xml) + padding root 8dp + ruang bayangan knob/panel 4dp (di dalam
          drawable masing-masing) => muka knob/panel berjarak 8+4=12dp dari tepi widget = 6dp dari tepi pelat. Knob & panel menyusut

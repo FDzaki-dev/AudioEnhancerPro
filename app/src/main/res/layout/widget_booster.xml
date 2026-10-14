@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 213 (revisi B212): Neumorphism burgundy — pelat timbul (statis) + knob daya + panel teks. KNOB dan PANEL keduanya
+<!-- Batch 214: panel kini berisi judul + bar equalizer dekoratif (ic_widget_eq, ditint per state) + status — kesan "hampa" B213
+     hilang tanpa fitur/data baru.
+     Batch 213 (revisi B212): Neumorphism burgundy — pelat timbul (statis) + knob daya + panel teks. KNOB dan PANEL keduanya
      berganti drawable per state oleh BoosterWidgetProvider: Nonaktif = timbul, Aktif = cekung (B212 salah: panel ikut
      background pelat sehingga cekung terus). RemoteViews cuma dukung subset View (LinearLayout/FrameLayout/TextView/
      ImageView...; <View> polos DILARANG).
@@ -9,6 +11,7 @@
      INSET: padding root 8dp + ruang bayangan di drawable (lihat values/widget_theme.xml). Dekorasi importantForAccessibility=no;
      TalkBack membaca "Boomly" + "Aktif/Nonaktif" dari teks. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -40,17 +43,44 @@
         android:paddingStart="@dimen/widget_panel_padding"
         android:paddingEnd="@dimen/widget_panel_padding">
 
+        <!-- Judul auto-mengecil 15sp -> 11sp sebelum dipotong (widget 3 sel sempit ~200dp); autoSize* baru dibaca API 26+,
+             di bawahnya ukuran tetap 15sp + ellipsize (tools:ignore, bukan bug). -->
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
             android:layout_weight="1"
+            android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMinTextSize="11sp"
+            android:autoSizeStepGranularity="1sp"
+            android:autoSizeTextType="uniform"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.04"
             android:maxLines="1"
+            android:shadowColor="#66000000"
+            android:shadowDx="0"
+            android:shadowDy="1.5"
+            android:shadowRadius="2"
             android:text="@string/qs_tile_label"
             android:textColor="@color/widget_text_primary"
-            android:textSize="15sp" />
+            android:textSize="15sp"
+            tools:ignore="UnusedAttribute" />
+
+        <ImageView
+            android:id="@+id/widget_eq"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginBottom="6dp"
+            android:adjustViewBounds="true"
+            android:contentDescription="@null"
+            android:importantForAccessibility="no"
+            android:maxHeight="20dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_eq"
+            android:tint="@color/widget_eq_off" />
 
         <TextView
             android:id="@+id/widget_status_text"
