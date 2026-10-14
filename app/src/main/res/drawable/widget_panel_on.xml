@@ -1,20 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 213: panel teks, AKTIF = CEKUNG (debossed/tertekan), sepasang dgn knob cekung. Bounds sama dgn widget_panel_off.
-     Dihasilkan skrip. -->
+<!-- Batch 215: panel teks, AKTIF = CEKUNG (debossed/tertekan), sepasang dgn knob cekung. Bounds sama dgn widget_panel_off.
+     Sumur gradasi plum gelap -> burgundy + bayangan dalam atas + sorot dalam bawah + pendar rose sisi kanan (di balik status). Dihasilkan skrip. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Sumur: dasar lebih gelap + bayangan dalam atas + sorot dalam bawah + garis tepi tipis -->
-    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:radius="24dp" /><solid android:color="@color/widget_well" /></shape>
-    </item>
+    <!-- Sumur: dasar gradasi (315 = kiri-atas gelap -> kanan-bawah lebih terang) -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="rectangle"><corners android:radius="24dp" />
-            <gradient android:angle="270" android:startColor="#9E1C040A" android:centerColor="#001C040A" android:endColor="#001C040A" /></shape>
+            <gradient android:angle="315" android:startColor="@color/widget_well_start" android:endColor="@color/widget_well_end" /></shape>
     </item>
+    <!-- Pendar rose sisi kanan: LED status menyala -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="rectangle"><corners android:radius="24dp" />
-            <gradient android:angle="90" android:startColor="#42C0506C" android:centerColor="#00C0506C" android:endColor="#00C0506C" /></shape>
+            <gradient android:type="radial" android:centerX="1" android:centerY="0.5" android:gradientRadius="140%"
+                android:startColor="#42FF6F8A" android:centerColor="#14FF6F8A" android:endColor="#00FF6F8A" /></shape>
+    </item>
+    <!-- Bayangan dalam atas -->
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" />
+            <gradient android:angle="270" android:startColor="#9E1A0412" android:centerColor="#001A0412" android:endColor="#001A0412" /></shape>
+    </item>
+    <!-- Sorot dalam bawah -->
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" />
+            <gradient android:angle="90" android:startColor="#42D8607F" android:centerColor="#00D8607F" android:endColor="#00D8607F" /></shape>
     </item>
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#1AC0506C" /></shape>
+        <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#1AD8607F" /></shape>
     </item>
 </layer-list>

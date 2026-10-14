@@ -1,43 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 213: knob daya, AKTIF = cekung/tertekan + ikon daya menyala bercahaya. Kotak desain 56dp identik dgn _off. Dihasilkan skrip. -->
+<!-- Batch 215: knob daya, AKTIF = cekung/tertekan + ikon daya menyala bercahaya. Kotak desain 56dp identik dgn _off. Dihasilkan skrip. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Jangkar ukuran: memberi drawable intrinsic size 56dp x 56dp. ImageView (fitCenter) lalu menskala SELURUH knob
          (muka + bayangan + ikon) secara seragam saat widget pendek; tanpa jangkar geometri dp akan rusak. -->
     <item android:width="56dp" android:height="56dp" android:gravity="center">
         <shape android:shape="oval"><solid android:color="#00000000" /></shape>
     </item>
-    <!-- Rongga cekung: dasar gelap -->
+    <!-- Rongga cekung: dasar gradasi plum gelap (kiri-atas) -> burgundy (kanan-bawah) -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="oval"><solid android:color="@color/widget_well" /></shape>
+        <shape android:shape="oval">
+            <gradient android:angle="315" android:startColor="@color/widget_well_start" android:endColor="@color/widget_well_end" />
+        </shape>
     </item>
     <!-- Bayangan dalam kiri-atas: radial berpusat ke kanan-bawah -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="oval">
             <gradient android:type="radial" android:centerX="0.62" android:centerY="0.62" android:gradientRadius="80%"
-                android:startColor="#001C040A" android:centerColor="#001C040A" android:endColor="#CC1C040A" />
+                android:startColor="#001A0412" android:centerColor="#001A0412" android:endColor="#CC1A0412" />
         </shape>
     </item>
     <!-- Sorot dalam kanan-bawah: radial berpusat ke kiri-atas -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="oval">
             <gradient android:type="radial" android:centerX="0.38" android:centerY="0.38" android:gradientRadius="80%"
-                android:startColor="#00C0506C" android:centerColor="#00C0506C" android:endColor="#4CC0506C" />
+                android:startColor="#00D8607F" android:centerColor="#00D8607F" android:endColor="#4CD8607F" />
         </shape>
     </item>
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="oval"><stroke android:width="0.5dp" android:color="#1FC0506C" /></shape>
+        <shape android:shape="oval"><stroke android:width="0.5dp" android:color="#1FD8607F" /></shape>
     </item>
-    <!-- Halo cincin (B214): lingkaran cahaya lembut di luar muka (ruang bayangan 4dp) — kesan LED menyala -->
+    <!-- Halo cincin: lingkaran cahaya lembut di luar muka (ruang bayangan 4dp) — kesan LED menyala -->
     <item android:left="1.5dp" android:top="1.5dp" android:right="1.5dp" android:bottom="1.5dp">
         <shape android:shape="oval"><stroke android:width="1dp" android:color="#1FFF6F8A" /></shape>
     </item>
     <item android:left="2.5dp" android:top="2.5dp" android:right="2.5dp" android:bottom="2.5dp">
         <shape android:shape="oval"><stroke android:width="1.5dp" android:color="#59FF6F8A" /></shape>
     </item>
-    <!-- Cahaya ikon (LED menyala) -->
+    <!-- Cahaya ikon (LED menyala): inti rose-terang -> rose -> memudar -->
     <item android:width="34dp" android:height="34dp" android:gravity="center">
         <shape android:shape="oval">
-            <gradient android:type="radial" android:gradientRadius="50%" android:startColor="#80FF6F8A" android:endColor="#00FF6F8A" />
+            <gradient android:type="radial" android:gradientRadius="50%" android:startColor="#8CFF6F8A" android:centerColor="#33FF6F8A" android:endColor="#00FF6F8A" />
         </shape>
     </item>
     <item android:width="22dp" android:height="22dp" android:gravity="center">

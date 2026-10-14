@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 213 (revisi B212): token widget beranda — Neumorphism burgundy. Satu sumber untuk layout + drawable widget.
-     Bayangan di drawable (widget_background / widget_status_dot_* / widget_panel_*) memakai RGB 1C040A (gelap) dan C0506C
-     (sorot) dgn alpha bertingkat hasil skrip, jadi tidak bisa merujuk @color tunggal; nilai itu = turunan palet ini. -->
+<!-- Batch 215 (revisi B213/B212): token widget beranda — Neumorphism burgundy, GRADASI 3 NADA (ruby-rose -> burgundy -> plum).
+     Satu sumber untuk layout + drawable widget. Bayangan & overlay alpha di drawable (widget_background / widget_status_dot_* /
+     widget_panel_*) memakai RGB 1A0412 (gelap), D8607F (sorot), FFC2D0 (specular), FF6F8A (pendar) dgn alpha bertingkat hasil skrip,
+     jadi tidak bisa merujuk @color tunggal; nilai itu = turunan palet ini. Tanpa emas (aturan tema Old Money). -->
 <resources>
-    <!-- Permukaan pelat & knob: cahaya kiri-atas -> bayangan kanan-bawah (arah sama dgn tema Neumorphism app). -->
-    <color name="widget_surface_light">#6E1C31</color>
-    <color name="widget_surface_dark">#4F101F</color>
-    <!-- Panel teks keadaan TIMBUL (Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat. -->
-    <color name="widget_panel_light">#7A2339</color>
-    <color name="widget_panel_dark">#591527</color>
-    <!-- Dasar rongga CEKUNG (knob & panel saat Aktif) + garis tepi tipis 15% rose. -->
-    <color name="widget_well">#430E1B</color>
+    <!-- Pelat (statis): ruby-rose kiri-atas -> burgundy tengah -> plum gelap kanan-bawah (arah cahaya sama dgn tema Neumorphism app). -->
+    <color name="widget_plate_start">#A82D4B</color>
+    <color name="widget_plate_mid">#6E1733</color>
+    <color name="widget_plate_end">#3A0C26</color>
+    <!-- Muka TIMBUL (knob & panel saat Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat.
+         Judul #F8E8EB di atas raised_start >= 5:1; status #D9B0BA di atas raised_end >= 7:1. -->
+    <color name="widget_raised_start">#AE3553</color>
+    <color name="widget_raised_mid">#82223F</color>
+    <color name="widget_raised_end">#4C1230</color>
+    <!-- Dasar rongga CEKUNG (knob & panel saat Aktif): plum gelap kiri-atas -> burgundy kanan-bawah + garis tepi tipis 15% rose. -->
+    <color name="widget_well_start">#2A0818</color>
+    <color name="widget_well_end">#4A1030</color>
     <color name="widget_rim">#26FFB3C4</color>
     <!-- Teks: gading-rose di atas burgundy (kontras >= 8:1 utk judul, >= 5:1 utk status). -->
     <color name="widget_text_primary">#F8E8EB</color>
