@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 212: rombak total — Neumorphism burgundy (pelat timbul + knob daya + sumur tampilan).
-     RemoteViews cuma dukung subset View (LinearLayout/FrameLayout/TextView/ImageView...; <View> polos DILARANG),
-     jadi knob = FrameLayout ber-background (BUKAN ImageView/src: background tak diskalakan intrinsic size drawable,
-     geometri layer-list dalam dp tetap persis). Seluruh kartu = 1 target tap (widget_root) -> toggle, perilaku lama.
-     INSET: padding root + drawable background menyisakan 8dp ruang bayangan di tepi widget (hormati sudut peluncur,
-     radius = sistem di API 31+). Angka dp di sini HARUS sinkron dgn widget_background.xml (lihat values/widget_theme.xml).
-     Aksesibilitas: dekorasi (knob) importantForAccessibility=no; TalkBack membaca "Boomly" + "Aktif/Nonaktif" dari teks. -->
+<!-- Batch 213 (revisi B212): Neumorphism burgundy — pelat timbul (statis) + knob daya + panel teks. KNOB dan PANEL keduanya
+     berganti drawable per state oleh BoosterWidgetProvider: Nonaktif = timbul, Aktif = cekung (B212 salah: panel ikut
+     background pelat sehingga cekung terus). RemoteViews cuma dukung subset View (LinearLayout/FrameLayout/TextView/
+     ImageView...; <View> polos DILARANG).
+     TINGGI KECIL: knob = ImageView adjustViewBounds + maxHeight; drawable-nya ber-intrinsic 56dp jadi diskalakan seragam
+     (muka+bayangan+ikon) mengikuti tinggi tersedia; panel match_parent; judul + status SATU baris (B212 dua baris -> status
+     hilang & knob terpotong di widget ~45-50dp). Seluruh kartu = 1 target tap (widget_root) -> toggle, perilaku lama.
+     INSET: padding root 8dp + ruang bayangan di drawable (lihat values/widget_theme.xml). Dekorasi importantForAccessibility=no;
+     TalkBack membaca "Boomly" + "Aktif/Nonaktif" dari teks. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
@@ -13,29 +15,35 @@
     android:background="@drawable/widget_background"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:paddingStart="@dimen/widget_padding_start"
-    android:paddingTop="@dimen/widget_padding_vertical"
-    android:paddingEnd="@dimen/widget_padding_end"
-    android:paddingBottom="@dimen/widget_padding_vertical">
+    android:padding="@dimen/widget_padding">
 
-    <FrameLayout
+    <ImageView
         android:id="@+id/widget_knob"
-        android:layout_width="@dimen/widget_knob_size"
-        android:layout_height="@dimen/widget_knob_size"
-        android:background="@drawable/widget_status_dot_off"
-        android:importantForAccessibility="no" />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no"
+        android:maxWidth="@dimen/widget_knob_max_size"
+        android:maxHeight="@dimen/widget_knob_max_size"
+        android:scaleType="fitCenter"
+        android:src="@drawable/widget_status_dot_off" />
 
     <LinearLayout
+        android:id="@+id/widget_panel"
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/widget_text_margin_start"
-        android:layout_marginEnd="@dimen/widget_text_margin_end"
+        android:layout_height="match_parent"
         android:layout_weight="1"
-        android:orientation="vertical">
+        android:background="@drawable/widget_panel_off"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/widget_panel_padding"
+        android:paddingEnd="@dimen/widget_panel_padding">
 
         <TextView
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:ellipsize="end"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.04"
@@ -46,9 +54,9 @@
 
         <TextView
             android:id="@+id/widget_status_text"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="1dp"
+            android:layout_marginStart="8dp"
             android:ellipsize="end"
             android:fontFamily="sans-serif"
             android:letterSpacing="0.02"

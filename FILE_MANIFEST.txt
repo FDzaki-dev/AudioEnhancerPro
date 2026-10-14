@@ -37,6 +37,8 @@ app/src/main/res/drawable/ic_qs_tile.xml
 app/src/main/res/drawable/ic_shortcut_preset.xml
 app/src/main/res/drawable/ic_shortcut_toggle.xml
 app/src/main/res/drawable/widget_background.xml
+app/src/main/res/drawable/widget_panel_off.xml
+app/src/main/res/drawable/widget_panel_on.xml
 app/src/main/res/drawable/widget_status_dot_off.xml
 app/src/main/res/drawable/widget_status_dot_on.xml
 app/src/main/res/layout/widget_booster.xml

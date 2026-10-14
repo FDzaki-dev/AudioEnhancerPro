@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Batch 213: panel teks, AKTIF = CEKUNG (debossed/tertekan), sepasang dgn knob cekung. Bounds sama dgn widget_panel_off.
+     Dihasilkan skrip. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sumur: dasar lebih gelap + bayangan dalam atas + sorot dalam bawah + garis tepi tipis -->
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" /><solid android:color="@color/widget_well" /></shape>
+    </item>
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" />
+            <gradient android:angle="270" android:startColor="#9E1C040A" android:centerColor="#001C040A" android:endColor="#001C040A" /></shape>
+    </item>
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" />
+            <gradient android:angle="90" android:startColor="#42C0506C" android:centerColor="#00C0506C" android:endColor="#00C0506C" /></shape>
+    </item>
+    <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#1AC0506C" /></shape>
+    </item>
+</layer-list>

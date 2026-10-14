@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 212: knob daya, keadaan AKTIF = cekung/tertekan (pressed) + ikon daya menyala bercahaya.
-     Ukuran & ruang bayangan identik dgn widget_status_dot_off (tak ada lompatan tata letak). Dihasilkan skrip. -->
+<!-- Batch 213: knob daya, AKTIF = cekung/tertekan + ikon daya menyala bercahaya. Kotak desain 56dp identik dgn _off. Dihasilkan skrip. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Rongga cekung (tertekan / debossed): dasar gelap -->
+    <!-- Jangkar ukuran: memberi drawable intrinsic size 56dp x 56dp. ImageView (fitCenter) lalu menskala SELURUH knob
+         (muka + bayangan + ikon) secara seragam saat widget pendek; tanpa jangkar geometri dp akan rusak. -->
+    <item android:width="56dp" android:height="56dp" android:gravity="center">
+        <shape android:shape="oval"><solid android:color="#00000000" /></shape>
+    </item>
+    <!-- Rongga cekung: dasar gelap -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="oval"><solid android:color="@color/widget_well" /></shape>
     </item>
@@ -24,14 +28,14 @@
         <shape android:shape="oval"><stroke android:width="0.5dp" android:color="#1FC0506C" /></shape>
     </item>
     <!-- Cahaya ikon (LED menyala) -->
-    <item android:width="30dp" android:height="30dp" android:gravity="center">
+    <item android:width="34dp" android:height="34dp" android:gravity="center">
         <shape android:shape="oval">
             <gradient android:type="radial" android:gradientRadius="50%" android:startColor="#80FF6F8A" android:endColor="#00FF6F8A" />
         </shape>
     </item>
-    <item android:width="20dp" android:height="20dp" android:gravity="center">
+    <item android:width="22dp" android:height="22dp" android:gravity="center">
         <vector xmlns:android="http://schemas.android.com/apk/res/android"
-            android:width="20dp" android:height="20dp" android:viewportWidth="24" android:viewportHeight="24">
+            android:width="22dp" android:height="22dp" android:viewportWidth="24" android:viewportHeight="24">
             <path android:fillColor="@color/widget_glyph_on" android:pathData="M13,3h-2v10h2V3zm4.83,2.17l-1.42,1.42C17.99,7.86 19,9.81 19,12c0,3.87 -3.13,7 -7,7s-7,-3.13 -7,-7c0,-2.19 1.01,-4.14 2.58,-5.42L6.17,5.17C4.23,6.82 3,9.26 3,12c0,4.97 4.03,9 9,9s9,-4.03 9,-9c0,-2.74 -1.23,-5.18 -3.17,-6.83z" />
         </vector>
     </item>

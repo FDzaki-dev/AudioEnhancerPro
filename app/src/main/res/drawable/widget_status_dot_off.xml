@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 212: knob daya, keadaan NONAKTIF = cembung/timbul (raised) + ikon daya redup.
-     Nama file "status_dot" dipertahankan dari versi lama (referensi R.drawable di BoosterWidgetProvider tetap) —
-     isinya sekarang knob neumorphism 46dp (muka 38dp + ruang bayangan 4dp). Dihasilkan skrip. -->
+<!-- Batch 213: knob daya, NONAKTIF = cembung/timbul + ikon daya redup. Kotak desain 56dp (muka 48dp + ruang bayangan 4dp).
+     Nama "status_dot" dipertahankan dari versi lama (referensi R.drawable tetap). Dihasilkan skrip. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Jangkar ukuran: memberi drawable intrinsic size 56dp x 56dp. ImageView (fitCenter) lalu menskala SELURUH knob
+         (muka + bayangan + ikon) secara seragam saat widget pendek; tanpa jangkar geometri dp akan rusak. -->
+    <item android:width="56dp" android:height="56dp" android:gravity="center">
+        <shape android:shape="oval"><solid android:color="#00000000" /></shape>
+    </item>
     <!-- Bayangan sorot (terang, kiri-atas) -->
     <item android:left="0dp" android:top="0dp" android:right="3dp" android:bottom="3dp">
-        <shape android:shape="oval"><solid android:color="#00C0506C" /></shape>
+        <shape android:shape="oval"><solid android:color="#01C0506C" /></shape>
     </item>
     <item android:left="0.5dp" android:top="0.5dp" android:right="3.5dp" android:bottom="3.5dp">
-        <shape android:shape="oval"><solid android:color="#01C0506C" /></shape>
+        <shape android:shape="oval"><solid android:color="#02C0506C" /></shape>
     </item>
     <item android:left="1dp" android:top="1dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="oval"><solid android:color="#03C0506C" /></shape>
@@ -20,10 +24,10 @@
         <shape android:shape="oval"><solid android:color="#0AC0506C" /></shape>
     </item>
     <item android:left="2.5dp" android:top="2.5dp" android:right="5.5dp" android:bottom="5.5dp">
-        <shape android:shape="oval"><solid android:color="#0EC0506C" /></shape>
+        <shape android:shape="oval"><solid android:color="#0DC0506C" /></shape>
     </item>
     <item android:left="3dp" android:top="3dp" android:right="6dp" android:bottom="6dp">
-        <shape android:shape="oval"><solid android:color="#0FC0506C" /></shape>
+        <shape android:shape="oval"><solid android:color="#0DC0506C" /></shape>
     </item>
     <item android:left="3.5dp" android:top="3.5dp" android:right="6.5dp" android:bottom="6.5dp">
         <shape android:shape="oval"><solid android:color="#0CC0506C" /></shape>
@@ -60,9 +64,9 @@
             <stroke android:width="0.75dp" android:color="@color/widget_rim" />
         </shape>
     </item>
-    <item android:width="20dp" android:height="20dp" android:gravity="center">
+    <item android:width="22dp" android:height="22dp" android:gravity="center">
         <vector xmlns:android="http://schemas.android.com/apk/res/android"
-            android:width="20dp" android:height="20dp" android:viewportWidth="24" android:viewportHeight="24">
+            android:width="22dp" android:height="22dp" android:viewportWidth="24" android:viewportHeight="24">
             <path android:fillColor="@color/widget_glyph_off" android:pathData="M13,3h-2v10h2V3zm4.83,2.17l-1.42,1.42C17.99,7.86 19,9.81 19,12c0,3.87 -3.13,7 -7,7s-7,-3.13 -7,-7c0,-2.19 1.01,-4.14 2.58,-5.42L6.17,5.17C4.23,6.82 3,9.26 3,12c0,4.97 4.03,9 9,9s9,-4.03 9,-9c0,-2.74 -1.23,-5.18 -3.17,-6.83z" />
         </vector>
     </item>

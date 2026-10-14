@@ -1,31 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 212: token widget beranda — Neumorphism burgundy. Satu sumber untuk layout + drawable widget.
-     Bayangan di drawable (widget_background / widget_status_dot_*) memakai RGB 1C040A (gelap) dan C0506C
+<!-- Batch 213 (revisi B212): token widget beranda — Neumorphism burgundy. Satu sumber untuk layout + drawable widget.
+     Bayangan di drawable (widget_background / widget_status_dot_* / widget_panel_*) memakai RGB 1C040A (gelap) dan C0506C
      (sorot) dgn alpha bertingkat hasil skrip, jadi tidak bisa merujuk @color tunggal; nilai itu = turunan palet ini. -->
 <resources>
-    <!-- Permukaan: cahaya kiri-atas -> bayangan kanan-bawah (arah sama dgn tema Neumorphism app). -->
+    <!-- Permukaan pelat & knob: cahaya kiri-atas -> bayangan kanan-bawah (arah sama dgn tema Neumorphism app). -->
     <color name="widget_surface_light">#6E1C31</color>
     <color name="widget_surface_dark">#4F101F</color>
-    <!-- Dasar sumur/rongga (lebih gelap dari pelat) + garis tepi tipis 15% rose. -->
+    <!-- Panel teks keadaan TIMBUL (Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat. -->
+    <color name="widget_panel_light">#7A2339</color>
+    <color name="widget_panel_dark">#591527</color>
+    <!-- Dasar rongga CEKUNG (knob & panel saat Aktif) + garis tepi tipis 15% rose. -->
     <color name="widget_well">#430E1B</color>
     <color name="widget_rim">#26FFB3C4</color>
-    <!-- Teks: gading-rose di atas burgundy (kontras >= 9:1 utk judul, >= 5:1 utk status). -->
+    <!-- Teks: gading-rose di atas burgundy (kontras >= 8:1 utk judul, >= 5:1 utk status). -->
     <color name="widget_text_primary">#F8E8EB</color>
-    <color name="widget_text_secondary">#CFA3AE</color>
+    <color name="widget_text_secondary">#D9B0BA</color>
     <color name="widget_text_active">#FFB6C4</color>
     <!-- Ikon daya: redup (nonaktif, >= 3:1 thd pelat) / menyala (aktif). -->
     <color name="widget_glyph_off">#B98090</color>
     <color name="widget_glyph_on">#FF7D95</color>
 
-    <!-- INSET / padding (dp). Ruang bayangan pelat 8dp (hard-coded di widget_background.xml) + jarak 8dp:
-         muka knob 38dp berada 8dp dari tepi pelat -> start 12 = inset 8 + 4 (ruang bayangan knob 4dp di dalam 46dp). -->
-    <dimen name="widget_padding_start">12dp</dimen>
-    <dimen name="widget_padding_end">16dp</dimen>
-    <dimen name="widget_padding_vertical">8dp</dimen>
-    <dimen name="widget_knob_size">46dp</dimen>
-    <!-- Awal teks = awal sumur (62dp) - akhir knob (12+46=58dp) + padding dalam sumur 14dp. -->
-    <dimen name="widget_text_margin_start">18dp</dimen>
-    <dimen name="widget_text_margin_end">14dp</dimen>
+    <!-- INSET. Ruang bayangan pelat 6dp (di widget_background.xml) + padding root 8dp + ruang bayangan knob/panel 4dp (di dalam
+         drawable masing-masing) => muka knob/panel berjarak 8+4=12dp dari tepi widget = 6dp dari tepi pelat. Knob & panel menyusut
+         mengikuti tinggi widget (knob: ImageView adjustViewBounds, maks 56dp; panel: match_parent). -->
+    <dimen name="widget_padding">8dp</dimen>
+    <dimen name="widget_knob_max_size">56dp</dimen>
+    <!-- Padding dalam panel = ruang bayangan 4dp + napas teks 12dp. -->
+    <dimen name="widget_panel_padding">16dp</dimen>
     <!-- Radius pelat. Android 12+ mengganti dgn radius sistem peluncur (values-v31). -->
     <dimen name="widget_corner_radius">22dp</dimen>
 </resources>

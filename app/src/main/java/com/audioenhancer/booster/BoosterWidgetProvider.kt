@@ -27,13 +27,12 @@ import androidx.core.content.ContextCompat
  * memutuskan start/stop — selalu baca `AudioEnhancerService.isRunning` langsung, jadi
  * 0 salah aksi walau tampilan sempat basi di antara dua refresh.
  *
- * Batch 212 (rombak total tampilan, Neumorphism burgundy): knob daya = `widget_knob` (FrameLayout
- * ber-background; `setBackgroundResource` via `setInt`, BUKAN `setImageViewResource` — background tak
- * diskalakan intrinsic size drawable, geometri dp layer-list tetap persis). Nonaktif = knob timbul + ikon
- * redup; Aktif = knob cekung + ikon menyala, warna teks status ikut. INSET: padding root + ruang bayangan
- * 8dp di `widget_background.xml`, radius pelat = radius sistem peluncur di Android 12+ (`values-v31`).
- * Logika toggle/refresh TIDAK berubah. Content description knob statis lama dihapus (dulu selalu "Nonaktif",
- * salah saat aktif); TalkBack kini membaca teks judul + status yang selalu mutakhir.
+ * Batch 213 (revisi B212, Neumorphism burgundy): KNOB (`widget_knob`, ImageView) DAN PANEL teks (`widget_panel`,
+ * background) sama-sama ganti drawable tiap state — Nonaktif = timbul, Aktif = cekung + ikon menyala + warna teks
+ * status ikut. B212 salah: panel ikut background pelat sehingga cekung terus. Knob = ImageView ber-drawable
+ * intrinsic 56dp (`adjustViewBounds`) supaya diskalakan seragam di widget pendek. INSET: padding root 8dp + ruang
+ * bayangan di drawable, radius pelat = radius sistem peluncur di Android 12+ (`values-v31`). Logika toggle/refresh
+ * TIDAK berubah. Content description knob statis lama dihapus (dulu selalu "Nonaktif"); TalkBack membaca teks.
  */
 class BoosterWidgetProvider : AppWidgetProvider() {
 
@@ -57,10 +56,14 @@ class BoosterWidgetProvider : AppWidgetProvider() {
                     R.id.widget_status_text,
                     context.getString(if (running) R.string.qs_tile_subtitle_on else R.string.qs_tile_subtitle_off)
                 )
-                views.setInt(
+                views.setImageViewResource(
                     R.id.widget_knob,
-                    "setBackgroundResource",
                     if (running) R.drawable.widget_status_dot_on else R.drawable.widget_status_dot_off
+                )
+                views.setInt(
+                    R.id.widget_panel,
+                    "setBackgroundResource",
+                    if (running) R.drawable.widget_panel_on else R.drawable.widget_panel_off
                 )
                 views.setTextColor(
                     R.id.widget_status_text,
