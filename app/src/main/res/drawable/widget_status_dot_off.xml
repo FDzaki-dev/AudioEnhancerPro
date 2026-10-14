@@ -72,6 +72,14 @@
                 android:startColor="#4CFFC2D0" android:centerColor="#14FFC2D0" android:endColor="#00FFC2D0" />
         </shape>
     </item>
+    <!-- Batch 216 dekorasi: cincin tanda ukur dial. 24 tik = stroke putus-putus di lingkaran O39dp (keliling 122,5dp / 24 = pitch 5,1dp = tik 1,2dp + celah 3,9dp);
+         alur ukir tipis di dalam tepi muka. Murni layer drawable, 0 bitmap. -->
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="oval"><stroke android:width="0.5dp" android:color="#1FFFC2D0" /></shape>
+    </item>
+    <item android:left="8.5dp" android:top="8.5dp" android:right="8.5dp" android:bottom="8.5dp">
+        <shape android:shape="oval"><stroke android:width="2dp" android:color="#47FFC2D0" android:dashWidth="1.2dp" android:dashGap="3.9dp" /></shape>
+    </item>
     <item android:width="22dp" android:height="22dp" android:gravity="center">
         <vector xmlns:android="http://schemas.android.com/apk/res/android"
             android:width="22dp" android:height="22dp" android:viewportWidth="24" android:viewportHeight="24">

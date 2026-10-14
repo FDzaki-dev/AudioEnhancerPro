@@ -36,6 +36,14 @@
     <item android:left="2.5dp" android:top="2.5dp" android:right="2.5dp" android:bottom="2.5dp">
         <shape android:shape="oval"><stroke android:width="1.5dp" android:color="#59FF6F8A" /></shape>
     </item>
+    <!-- Batch 216 dekorasi: cincin tanda ukur dial NYALA (24 tik rose, stroke putus-putus di lingkaran O39dp: keliling 122,5dp / 24 = pitch 5,1dp = tik 1,2dp + celah 3,9dp)
+         + alur ukir tipis di dalam tepi rongga. Murni layer drawable, 0 bitmap. -->
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="oval"><stroke android:width="0.5dp" android:color="#1AFFB3C4" /></shape>
+    </item>
+    <item android:left="8.5dp" android:top="8.5dp" android:right="8.5dp" android:bottom="8.5dp">
+        <shape android:shape="oval"><stroke android:width="2dp" android:color="#8CFF6F8A" android:dashWidth="1.2dp" android:dashGap="3.9dp" /></shape>
+    </item>
     <!-- Cahaya ikon (LED menyala): inti rose-terang -> rose -> memudar -->
     <item android:width="34dp" android:height="34dp" android:gravity="center">
         <shape android:shape="oval">

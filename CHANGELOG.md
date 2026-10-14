@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 216: Widget beranda lebih berdekorasi, strip LED, cincin tik, dan trek equalizer
+
+Tanggapan atas "more decoration for widget beranda nya, tolong". Tanpa fitur atau data baru, widget diberi detail dekoratif tambahan: panel teks dan knob mendapat alur ukir tipis di dalam tepi muka; panel mendapat strip LED di tepi bawah (redup saat Nonaktif, terang berpendar saat Aktif); knob mendapat cincin 24 tik seperti skala dial (redup saat Nonaktif, rose menyala saat Aktif); dan kelima batang equalizer kini berada di dalam jalur meter redup setinggi penuh seperti panel hardware. Semuanya murni dekorasi, tidak ada level audio nyata yang dibaca.
+
+Untuk pengembang: murni perubahan resource drawable, tanpa Kotlin, tanpa token warna baru (hex inline memakai turunan palet B215), dan tanpa berkas baru. Tik knob dibuat dengan stroke putus-putus (`dashWidth` 1,2dp, `dashGap` 3,9dp) pada oval berdiameter 39dp. Strip LED memakai item layer-list `android:height` dengan `android:gravity="bottom"`. Jalur meter equalizer menambah 5 path `fillAlpha` 0,22 di `ic_widget_eq.xml` tanpa mengubah viewport.
+
+**Perubahan** (5 file + 3 dokumen): `res/drawable/widget_panel_off.xml`, `widget_panel_on.xml`, `widget_status_dot_off.xml`, `widget_status_dot_on.xml`, `ic_widget_eq.xml`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B216 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/Android SDK); XML lolos parse. Belum diuji di HP.
+
 ## Batch 215: Widget beranda bergradasi warna 3 nada (ruby-rose, burgundy, plum)
 
 Tanggapan atas "warna nya juga cuman 1 tone, tidak ada gradasi yang memanjakan mata". Warna widget sebelumnya hampir satu nada burgundy dengan sedikit gradasi terang-gelap. Kini setiap permukaan memakai gradasi tiga nada dengan pergeseran hue: pelat berubah dari ruby-rose di kiri-atas, ke burgundy di tengah, ke plum gelap di kanan-bawah, dengan kolam cahaya rose di kiri-atas dan pendalaman plum di bawah. Knob dan panel saat Nonaktif (timbul) memakai gradasi tiga nada yang sama dengan kilau specular di kiri-atas; saat Aktif (cekung) dasarnya berubah dari plum gelap ke burgundy, panel mendapat pendar rose di sisi kanan (di balik teks status), dan LED knob bercahaya tiga lapis. Kontras teks tetap terjaga: judul di atas ujung terang panel sekitar 5:1, status di ujung gelap sekitar 7:1. Tidak ada emas (aturan tema Old Money). Tata letak, ukuran, dan logika toggle/refresh tidak berubah.

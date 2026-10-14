@@ -76,4 +76,12 @@
         <shape android:shape="rectangle"><corners android:radius="24dp" />
             <gradient android:angle="90" android:startColor="#381A0412" android:centerColor="#001A0412" android:endColor="#001A0412" /></shape>
     </item>
+    <!-- Batch 216 dekorasi: alur ukir tipis 2,5dp di dalam tepi muka + strip LED redup di tepi bawah (padam = mati, gradasi memudar ke kedua ujung). -->
+    <item android:left="6.5dp" android:top="6.5dp" android:right="6.5dp" android:bottom="6.5dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#1AFFC2D0" /></shape>
+    </item>
+    <item android:left="22dp" android:right="22dp" android:bottom="7dp" android:height="1.5dp" android:gravity="bottom">
+        <shape android:shape="rectangle"><corners android:radius="1dp" />
+            <gradient android:angle="0" android:startColor="#00FF9AB0" android:centerColor="#4DFF9AB0" android:endColor="#00FF9AB0" /></shape>
+    </item>
 </layer-list>

@@ -26,4 +26,16 @@
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
         <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#1AD8607F" /></shape>
     </item>
+    <!-- Batch 216 dekorasi: alur ukir tipis 2,5dp di dalam tepi rongga + strip LED MENYALA di tepi bawah (inti terang 1,5dp + pendar lembut 5dp di atasnya). -->
+    <item android:left="6.5dp" android:top="6.5dp" android:right="6.5dp" android:bottom="6.5dp">
+        <shape android:shape="rectangle"><corners android:radius="24dp" /><stroke android:width="0.5dp" android:color="#14FFB3C4" /></shape>
+    </item>
+    <item android:left="20dp" android:right="20dp" android:bottom="6dp" android:height="5dp" android:gravity="bottom">
+        <shape android:shape="rectangle"><corners android:radius="2.5dp" />
+            <gradient android:angle="0" android:startColor="#00FF6F8A" android:centerColor="#38FF6F8A" android:endColor="#00FF6F8A" /></shape>
+    </item>
+    <item android:left="22dp" android:right="22dp" android:bottom="7dp" android:height="1.5dp" android:gravity="bottom">
+        <shape android:shape="rectangle"><corners android:radius="1dp" />
+            <gradient android:angle="0" android:startColor="#00FF7D95" android:centerColor="#D9FF7D95" android:endColor="#00FF7D95" /></shape>
+    </item>
 </layer-list>
