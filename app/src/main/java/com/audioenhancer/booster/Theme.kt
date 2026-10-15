@@ -6,6 +6,7 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -398,7 +399,11 @@ val NeumoPrimaryGlow = NeumoMistyPine.copy(alpha = 0.36f)
  *  `accentColor`/`primary`, bukan warna isi bead). */
 val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, Color.White, 0.14f)
 
-/** Radius kartu/icon-box — Batch 108: DIROMBAK TOTAL dari soft-UI rounded (22dp/
+/** Radius kartu/icon-box — Batch 217 (request user "shape yang refreshing, bukan monoton"): near-flat 4dp/3dp
+ *  B108 diganti bahasa bentuk "leaf" — sudut besar 26dp di kiri-atas/kanan-bawah + sudut kecil 6dp di sisi
+ *  lain (lihat `NeumoLeafCorners` di bawah); `NeumoCardRadius` = radius BESAR (dipakai pembanding
+ *  `radius == cardRadius` di `SkeuCard`), `NeumoIconBoxRadius` = kotak ikon membulat lembut.
+ *  Riwayat: Batch 108: DIROMBAK TOTAL dari soft-UI rounded (22dp/
  *  15dp, Batch 46) ke near-flat/angular ala panel HUD Blade Runner (Deckard's
  *  Voight-Kampff console, Tyrell Corp terminal — sudut nyaris tegas, BUKAN sudut
  *  100% lancip: tetap 2-3dp residual biar anti-aliasing tepi gak keras/pecah di
@@ -412,8 +417,8 @@ val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, Color.White, 0.14f)
  *  yang mendekati nol sudah cukup baca sebagai "sharp" tanpa perlu shape-type baru
  *  di `SkeuTokens` (lebih rendah risiko regresi ke 3 varian lain yang share
  *  komponen sama). */
-val NeumoCardRadius = 4.dp
-val NeumoIconBoxRadius = 3.dp
+val NeumoCardRadius = 26.dp
+val NeumoIconBoxRadius = 14.dp
 
 /** Background layar — FLAT solid `appBg` (bukan gradient vertical era Batch
  *  46). Alasan sama dengan `NeumoBevelBrush`: backdrop bergradasi bikin tint
@@ -704,7 +709,13 @@ data class DepthStyle(
     val keyCorner: Dp = 6.dp,
     val panelCorner: Dp = 8.dp,
     // B187: kekuatan butiran latar layar (`skeuBackdropGrain`); default 0.05 = nilai Old Money B182.
-    val backdropGrain: Float = 0.05f
+    val backdropGrain: Float = 0.05f,
+    // Batch 217: sudut per-pojok pelat kartu ("leaf" asimetris). null = kartu memakai radius seragam
+    // (`SkeuTokens.cardShape`/`cardRadius`) seperti sebelumnya -> 4 tema lain & Old Money TIDAK berubah.
+    // [cardCorners] = `SkeuCard`; [tintedCardCorners] = `SkeuTintedCard` (dibuat KEBALIKAN supaya kartu
+    // biasa & kartu status bergantian ritme bentuknya, bukan satu rupa).
+    val cardCorners: DepthCorners? = null,
+    val tintedCardCorners: DepthCorners? = null
 )
 
 /** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
@@ -712,6 +723,19 @@ data class DepthStyle(
  *  bevel mengikuti busur). Dipakai `depthPlateSurface`/kunci/tab/dialog di SkeuomorphicComponents.kt
  *  supaya tiap tema TETAP berbentuk aslinya (bukan dipaksa chamfer Old Money). */
 enum class DepthCorner { CHAMFER, ROUND }
+
+/** Batch 217: radius sudut per-pojok ABSOLUT (kiri-atas, kanan-atas, kanan-bawah, kiri-bawah) untuk pelat
+ *  kartu yang tidak seragam. [shape] = bentuk klip/bayangan/border (`AbsoluteRoundedCornerShape`, tidak
+ *  terbalik di RTL karena cahaya tetap dari kiri-atas); mesin facet `depthPlateSurface` membaca angka yang
+ *  sama lewat parameter `corners`, jadi bevel & alur ukir SELALU mengikuti siluet klip. */
+data class DepthCorners(
+    val topLeft: Dp,
+    val topRight: Dp,
+    val bottomRight: Dp,
+    val bottomLeft: Dp
+) {
+    val shape: CornerBasedShape = AbsoluteRoundedCornerShape(topLeft, topRight, bottomRight, bottomLeft)
+}
 
 // Batch 187 (request user "terapkan konfigurasi ini ke semua theme yang masih flat"): profil
 // kedalaman fisik untuk 5 tema lain. Mesin & aturan SAMA dgn Old Money (permukaan pelat LEBIH
@@ -765,7 +789,12 @@ val AuroraDepth = DepthStyle(
     backdropGrain = 0.03f
 )
 
-/** Neumorphism (Blade Runner): slate gelap, sudut nyaris tegas 4dp, bevel tipis. */
+/** Batch 217: pojok "leaf" Neumorphism — kartu biasa besar di kiri-atas & kanan-bawah, kecil di dua pojok lain;
+ *  kartu status (tinted) KEBALIKANNYA. DI ATAS `NeumoDepth`/`NeumorphismSkeuTokens` (inisialisasi top-level berurutan). */
+val NeumoLeafCorners = DepthCorners(26.dp, 6.dp, 26.dp, 6.dp)
+val NeumoLeafMirrorCorners = DepthCorners(6.dp, 26.dp, 6.dp, 26.dp)
+
+/** Neumorphism (Blade Runner): slate gelap, bentuk "leaf" asimetris (B217), tombol/tab pil, bevel tipis. */
 val NeumoDepth = DepthStyle(
     lightX = -0.5522f,
     lightY = -0.8337f,
@@ -782,9 +811,11 @@ val NeumoDepth = DepthStyle(
     grainAlpha = 0.04f,
     frameInset = 0.dp,
     corner = DepthCorner.ROUND,
-    keyCorner = 4.dp,
-    panelCorner = 4.dp,
-    backdropGrain = 0.03f
+    keyCorner = 18.dp,
+    panelCorner = 22.dp,
+    backdropGrain = 0.03f,
+    cardCorners = NeumoLeafCorners,
+    tintedCardCorners = NeumoLeafMirrorCorners
 )
 
 /** Studio Equalizer: abu-abu studio, sudut membulat 20dp, sorot netral. */
@@ -956,7 +987,7 @@ val NeumorphismSkeuTokens = SkeuTokens(
     iconBoxRadius = NeumoIconBoxRadius,
     shadowLightTint = NeumoEdgeHighlight,
     shadowDarkTint = NeumoEdgeShadow,
-    cardShape = RoundedCornerShape(NeumoCardRadius),
+    cardShape = NeumoLeafCorners.shape,
     // B187: mesin kedalaman fisik menggantikan dual-shadow B47-B56 (tint di atas = fallback saja).
     depth = NeumoDepth
 )
@@ -1454,13 +1485,15 @@ private val AppShapes = Shapes(
  *  otonom, gak ikut radius varian lain.
  *  Batch 108: DIROMBAK TOTAL lagi — ganti dari rounded generous ke near-flat/
  *  angular (konsisten `NeumoCardRadius`/`NeumoIconBoxRadius` yang sekarang 4dp/
- *  3dp, lihat komentar lengkap di sana), bagian dari rombak "Blade Runner". */
+ *  3dp, lihat komentar lengkap di sana), bagian dari rombak "Blade Runner".
+ *  Batch 217: near-flat DIGANTI bahasa bentuk "leaf" (pojok besar/kecil bergantian, `NeumoLeafCorners`) —
+ *  `extraSmall`/`small` tetap simetris supaya komponen mungil tak ribut. */
 private val NeumorphismShapes = Shapes(
-    extraSmall = RoundedCornerShape(2.dp),
-    small = RoundedCornerShape(3.dp),
-    medium = RoundedCornerShape(4.dp),
-    large = RoundedCornerShape(4.dp),
-    extraLarge = RoundedCornerShape(6.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = AbsoluteRoundedCornerShape(18.dp, 5.dp, 18.dp, 5.dp),
+    large = NeumoLeafCorners.shape,
+    extraLarge = AbsoluteRoundedCornerShape(32.dp, 8.dp, 32.dp, 8.dp)
 )
 
 /** Batch 43: shape khusus Studio Equalizer — rounded generous konsisten sama

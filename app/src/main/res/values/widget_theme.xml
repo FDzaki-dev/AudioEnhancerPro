@@ -37,4 +37,7 @@
     <dimen name="widget_panel_padding">16dp</dimen>
     <!-- Radius pelat. Android 12+ mengganti dgn radius sistem peluncur (values-v31). -->
     <dimen name="widget_corner_radius">22dp</dimen>
+    <!-- Batch 217: radius pojok KECIL bentuk "leaf" Neumorphism (selaras kartu app, NeumoLeafCorners): pelat = pojok BESAR (widget_corner_radius)
+         di kiri-atas & kanan-bawah + pojok kecil ini di kanan-atas & kiri-bawah; panel teks KEBALIKANNYA (24dp/8dp literal di widget_panel_*.xml). -->
+    <dimen name="widget_corner_radius_small">8dp</dimen>
 </resources>

@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 217: Bentuk "leaf" asimetris untuk tema Neumorphism, di aplikasi dan widget beranda
+
+Tanggapan atas "saya mau tema Neumorphism dalam aplikasi maupun widget beranda itu menggunakan shape yang refreshing, bukan monoton". Sebelumnya semua kartu, tombol, dan dialog Neumorphism berupa persegi panjang dengan sudut hampir tegas 4dp, sehingga terasa seragam. Kini tema Neumorphism memakai bahasa bentuk "leaf": kartu biasa membulat besar di kiri-atas dan kanan-bawah tetapi hampir tegas di dua pojok lain, kartu status (banner info atau peringatan) memakai kebalikannya sehingga ritme bentuk bergantian, tombol dan tab berbentuk pil, dialog dan palung tab membulat 22dp, kotak ikon membulat lembut. Di widget beranda, pelat memakai pola leaf yang sama, panel teks memakai kebalikannya, dan knob daya tetap bulat sebagai kontras.
+
+Untuk pengembang: tema lain (Midnight Glass, Aurora Glass, Studio Equalizer, Serene M3, Old Money) tidak berubah. `DepthStyle` mendapat dua field opsional `cardCorners` dan `tintedCardCorners` (default null) bertipe `DepthCorners` baru; mesin bevel `depthPlateSurface` mendapat parameter `corners` dengan facet dan alur ukir per-pojok (`depthCornerFacets`, `depthCornerFrame`, radius diskalakan agar muat seperti Compose), sedangkan nilai null memakai jalur radius seragam lama tanpa perubahan. Di widget, 27 layer pelat dan seluruh layer panel memakai `<corners>` per-sudut; dimen baru `widget_corner_radius_small` (8dp).
+
+**Perubahan** (6 file + 3 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`, `res/drawable/widget_background.xml`, `widget_panel_off.xml`, `widget_panel_on.xml`, `res/values/widget_theme.xml`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`. Melampaui 5 file karena penambahan field kontrak `DepthStyle` menyentuh profil tema dan mesin render sekaligus, ditambah jalur widget yang berbagi bahasa bentuk.
+**Status**: B217 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/kotlinc); XML lolos parse dan kurung Kotlin seimbang. Belum diuji di HP.
+
 ## Batch 216: Widget beranda lebih berdekorasi, strip LED, cincin tik, dan trek equalizer
 
 Tanggapan atas "more decoration for widget beranda nya, tolong". Tanpa fitur atau data baru, widget diberi detail dekoratif tambahan: panel teks dan knob mendapat alur ukir tipis di dalam tepi muka; panel mendapat strip LED di tepi bawah (redup saat Nonaktif, terang berpendar saat Aktif); knob mendapat cincin 24 tik seperti skala dial (redup saat Nonaktif, rose menyala saat Aktif); dan kelima batang equalizer kini berada di dalam jalur meter redup setinggi penuh seperti panel hardware. Semuanya murni dekorasi, tidak ada level audio nyata yang dibaca.

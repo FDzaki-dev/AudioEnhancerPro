@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 213 (revisi B212): pelat timbul Neumorphism burgundy — STATIS (tak ikut state). Sumur teks yang dulu ikut digambar
+<!-- Batch 217: bentuk "leaf" asimetris, pojok BESAR (radius sistem) di kiri-atas & kanan-bawah, pojok KECIL (widget_corner_radius_small) di kanan-atas & kiri-bawah;
+     semua layer bayangan/sorot memakai pojok yang sama. Panel teks memakai bentuk kebalikan (lihat widget_panel_*.xml).
+     Batch 213 (revisi B212): pelat timbul Neumorphism burgundy — STATIS (tak ikut state). Sumur teks yang dulu ikut digambar
      di sini DIPINDAH ke widget_panel_off/on.xml (view tersendiri) supaya berganti timbul/cekung bareng knob.
      Layer-list murni (tanpa bitmap/Canvas). Bayangan blur = tumpukan layer alpha-bertingkat (profil Gaussian, sigma 1.6dp);
      6dp di tepi = RUANG INSET bayangan, radius pelat = radius sistem peluncur di values-v31 (API 31+).
@@ -7,82 +9,82 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Bayangan sorot (terang, kiri-atas) -->
     <item android:left="0dp" android:top="0dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#00D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#00D8607F" /></shape>
     </item>
     <item android:left="0.5dp" android:top="0.5dp" android:right="4.5dp" android:bottom="4.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#00D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#00D8607F" /></shape>
     </item>
     <item android:left="1dp" android:top="1dp" android:right="5dp" android:bottom="5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#01D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#01D8607F" /></shape>
     </item>
     <item android:left="1.5dp" android:top="1.5dp" android:right="5.5dp" android:bottom="5.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#01D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#01D8607F" /></shape>
     </item>
     <item android:left="2dp" android:top="2dp" android:right="6dp" android:bottom="6dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#02D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#02D8607F" /></shape>
     </item>
     <item android:left="2.5dp" android:top="2.5dp" android:right="6.5dp" android:bottom="6.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#04D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#04D8607F" /></shape>
     </item>
     <item android:left="3dp" android:top="3dp" android:right="7dp" android:bottom="7dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#05D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#05D8607F" /></shape>
     </item>
     <item android:left="3.5dp" android:top="3.5dp" android:right="7.5dp" android:bottom="7.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#06D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#06D8607F" /></shape>
     </item>
     <item android:left="4dp" android:top="4dp" android:right="8dp" android:bottom="8dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#07D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#07D8607F" /></shape>
     </item>
     <item android:left="4.5dp" android:top="4.5dp" android:right="8.5dp" android:bottom="8.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#07D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#07D8607F" /></shape>
     </item>
     <item android:left="5dp" android:top="5dp" android:right="9dp" android:bottom="9dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#06D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#06D8607F" /></shape>
     </item>
     <item android:left="5.5dp" android:top="5.5dp" android:right="9.5dp" android:bottom="9.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#05D8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#05D8607F" /></shape>
     </item>
     <!-- Bayangan gelap (kanan-bawah) -->
     <item android:left="4dp" android:top="4dp" android:right="0dp" android:bottom="0dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#011A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#011A0412" /></shape>
     </item>
     <item android:left="4.5dp" android:top="4.5dp" android:right="0.5dp" android:bottom="0.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#011A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#011A0412" /></shape>
     </item>
     <item android:left="5dp" android:top="5dp" android:right="1dp" android:bottom="1dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#021A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#021A0412" /></shape>
     </item>
     <item android:left="5.5dp" android:top="5.5dp" android:right="1.5dp" android:bottom="1.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#041A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#041A0412" /></shape>
     </item>
     <item android:left="6dp" android:top="6dp" android:right="2dp" android:bottom="2dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#071A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#071A0412" /></shape>
     </item>
     <item android:left="6.5dp" android:top="6.5dp" android:right="2.5dp" android:bottom="2.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#0B1A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#0B1A0412" /></shape>
     </item>
     <item android:left="7dp" android:top="7dp" android:right="3dp" android:bottom="3dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#101A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#101A0412" /></shape>
     </item>
     <item android:left="7.5dp" android:top="7.5dp" android:right="3.5dp" android:bottom="3.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#141A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#141A0412" /></shape>
     </item>
     <item android:left="8dp" android:top="8dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#181A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#181A0412" /></shape>
     </item>
     <item android:left="8.5dp" android:top="8.5dp" android:right="4.5dp" android:bottom="4.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#1B1A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#1B1A0412" /></shape>
     </item>
     <item android:left="9dp" android:top="9dp" android:right="5dp" android:bottom="5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#1B1A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#1B1A0412" /></shape>
     </item>
     <item android:left="9.5dp" android:top="9.5dp" android:right="5.5dp" android:bottom="5.5dp">
-        <shape android:shape="rectangle"><corners android:radius="@dimen/widget_corner_radius" /><solid android:color="#191A0412" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#191A0412" /></shape>
     </item>
     <!-- Pelat timbul (B215: 3 nada): ruby-rose kiri-atas -> burgundy -> plum gelap kanan-bawah (315 = TL->BR), pergeseran hue = gradasi hidup. -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/widget_corner_radius" />
+            <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
             <gradient android:angle="315" android:startColor="@color/widget_plate_start" android:centerColor="@color/widget_plate_mid" android:endColor="@color/widget_plate_end" />
             <stroke android:width="0.75dp" android:color="@color/widget_rim" />
         </shape>
@@ -90,7 +92,7 @@
     <!-- Kolam cahaya kiri-atas: radial rose lembut memudar (sumber cahaya neumorphism) -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/widget_corner_radius" />
+            <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
             <gradient android:type="radial" android:centerX="0.1" android:centerY="0" android:gradientRadius="150%"
                 android:startColor="#3DFF9AB0" android:centerColor="#12FF9AB0" android:endColor="#00FF9AB0" />
         </shape>
@@ -98,7 +100,7 @@
     <!-- Pendalaman bawah: plum gelap memudar ke atas -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
-            <corners android:radius="@dimen/widget_corner_radius" />
+            <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
             <gradient android:angle="90" android:startColor="#572A0618" android:centerColor="#002A0618" android:endColor="#002A0618" />
         </shape>
     </item>

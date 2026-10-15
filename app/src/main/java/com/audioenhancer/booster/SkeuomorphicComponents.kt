@@ -800,6 +800,89 @@ private fun depthRoundFacets(
     }
 }
 
+/** Batch 217: alur ukir bingkai untuk pelat berpojok per-sudut. [radii] = px urut kiri-atas, kanan-atas,
+ *  kanan-bawah, kiri-bawah (sudah diskalakan muat). Tiap radius dikurangi [inset] seperti `depthRoundFrame`. */
+private fun depthCornerFrame(w: Float, h: Float, inset: Float, radii: FloatArray): Path = Path().apply {
+    val tl = (radii[0] - inset).coerceAtLeast(0f)
+    val tr = (radii[1] - inset).coerceAtLeast(0f)
+    val br = (radii[2] - inset).coerceAtLeast(0f)
+    val bl = (radii[3] - inset).coerceAtLeast(0f)
+    addRoundRect(
+        RoundRect(
+            inset, inset, w - inset, h - inset,
+            CornerRadius(tl, tl), CornerRadius(tr, tr), CornerRadius(br, br), CornerRadius(bl, bl)
+        )
+    )
+}
+
+/** Batch 217: bevel FACET untuk pelat berpojok per-sudut ([radii] px: kiri-atas, kanan-atas, kanan-bawah,
+ *  kiri-bawah), lebar [b]. Aturan warna & pemecahan busur SAMA dgn `depthRoundFacets`; yang beda hanya
+ *  pusat/radius tiap busur dan ujung sisi lurus (trapesium bila dua pojok sisi itu tak sama). */
+private fun depthCornerFacets(
+    out: MutableList<Pair<Path, Color>>,
+    w: Float,
+    h: Float,
+    radii: FloatArray,
+    b: Float,
+    lit: Color,
+    style: DepthStyle
+) {
+    fun colorFor(nx: Float, ny: Float): Color {
+        val l = nx * style.lightX + ny * style.lightY
+        val scaled = min(1f, abs(l) / 0.83f)
+        return if (l > 0f) {
+            lit.copy(alpha = style.rimLightAlpha * scaled)
+        } else {
+            style.rimShade.copy(alpha = style.rimShadeAlpha * scaled)
+        }
+    }
+    val rTl = radii[0]
+    val rTr = radii[1]
+    val rBr = radii[2]
+    val rBl = radii[3]
+    if (w - rTl - rTr > 0.5f) {
+        out.add(Pair(depthQuad(rTl, 0f, w - rTr, 0f, w - rTr, b, rTl, b), colorFor(0f, -1f)))
+    }
+    if (w - rBl - rBr > 0.5f) {
+        out.add(Pair(depthQuad(rBl, h, w - rBr, h, w - rBr, h - b, rBl, h - b), colorFor(0f, 1f)))
+    }
+    if (h - rTr - rBr > 0.5f) {
+        out.add(Pair(depthQuad(w, rTr, w, h - rBr, w - b, h - rBr, w - b, rTr), colorFor(1f, 0f)))
+    }
+    if (h - rTl - rBl > 0.5f) {
+        out.add(Pair(depthQuad(0f, rTl, 0f, h - rBl, b, h - rBl, b, rTl), colorFor(-1f, 0f)))
+    }
+    // Urutan pojok & sudut awal (derajat, y ke bawah) sama dgn depthRoundFacets: kiri-atas 180, kanan-atas 270,
+    // kanan-bawah 0, kiri-bawah 90.
+    val cxs = floatArrayOf(rTl, w - rTr, w - rBr, rBl)
+    val cys = floatArrayOf(rTl, rTr, h - rBr, h - rBl)
+    val starts = floatArrayOf(180f, 270f, 0f, 90f)
+    val step = 90f / DepthCornerSteps
+    for (i in 0 until 4) {
+        val r = radii[i]
+        if (r <= 0.05f) continue
+        val bi = (r - b).coerceAtLeast(0f)
+        val cx = cxs[i]
+        val cy = cys[i]
+        val outerRect = Rect(cx - r, cy - r, cx + r, cy + r)
+        val innerRect = Rect(cx - bi, cy - bi, cx + bi, cy + bi)
+        for (s in 0 until DepthCornerSteps) {
+            val a0 = starts[i] + s * step
+            val mid = Math.toRadians((a0 + step / 2f).toDouble())
+            val path = Path().apply {
+                arcTo(outerRect, a0, step, true)
+                if (bi > 0.05f) {
+                    arcTo(innerRect, a0 + step, -step, false)
+                } else {
+                    lineTo(cx, cy)
+                }
+                close()
+            }
+            out.add(Pair(path, colorFor(kotlin.math.cos(mid).toFloat(), kotlin.math.sin(mid).toFloat())))
+        }
+    }
+}
+
 /** Segi-8 chamfer pada jarak [inset] dari tepi (titik sudut = rumus segi-8 dalam bevel; [k] = c + inset*(√2-1)). */
 private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Path().apply {
     moveTo(k, inset)
@@ -819,14 +902,17 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
  *  cos), < 0 = hitam hangat — seperti pelat logam/kulit di-emboss dgn sumber cahaya tunggal.
  *  [tint] (kartu bertint) menggeser permukaan & sorot ke warna status. [bevel] = lebar facet.
  *  B187: bila `style.corner == ROUND`, [chamfer] dibaca sebagai RADIUS sudut & facet/alur ukir
- *  mengikuti busur (`depthRoundFacets`/`depthRoundFrame`); `CHAMFER` = segi-8 persis seperti B186. */
+ *  mengikuti busur (`depthRoundFacets`/`depthRoundFrame`); `CHAMFER` = segi-8 persis seperti B186.
+ *  B217: [corners] non-null (hanya berlaku di gaya ROUND) = radius per-pojok (`depthCornerFacets`/
+ *  `depthCornerFrame`, diskalakan muat seperti Compose); null = jalur seragam B187 TANPA perubahan. */
 private fun Modifier.depthPlateSurface(
     style: DepthStyle,
     chamfer: Dp,
     parts: DepthParts = DepthPartsPlate,
     tint: Color? = null,
-    bevel: Dp = style.bevelWidth
-): Modifier = depthDraw("plateSurface", style, chamfer, parts, tint, bevel) {
+    bevel: Dp = style.bevelWidth,
+    corners: DepthCorners? = null
+): Modifier = depthDraw("plateSurface", style, chamfer, parts, tint, bevel, corners) {
     val w = size.width
     val h = size.height
     val lit = if (tint != null) lerp(style.rimLight, tint, 0.28f) else style.rimLight
@@ -834,13 +920,31 @@ private fun Modifier.depthPlateSurface(
     val c = min(chamfer.toPx(), min(w, h) / 2f)
     val k = c + b * (DepthSqrt2 - 1f)
     val round = style.corner == DepthCorner.ROUND
+    val cornerPx: FloatArray? =
+        if (corners != null && round) {
+            val raw = floatArrayOf(
+                corners.topLeft.toPx(), corners.topRight.toPx(), corners.bottomRight.toPx(), corners.bottomLeft.toPx()
+            )
+            val fit = min(
+                1f,
+                min(
+                    min(w / (raw[0] + raw[1]).coerceAtLeast(1f), w / (raw[3] + raw[2]).coerceAtLeast(1f)),
+                    min(h / (raw[0] + raw[3]).coerceAtLeast(1f), h / (raw[1] + raw[2]).coerceAtLeast(1f))
+                )
+            )
+            FloatArray(4) { raw[it] * fit }
+        } else {
+            null
+        }
     val frameInset = style.frameInset.toPx()
     val frameShiftX = 0.8.dp.toPx()
     val frameShiftY = 0.9.dp.toPx()
     val frameStroke = 1.dp.toPx()
     val framePath: Path? =
         if (parts.frame && frameInset > 0f && w > frameInset * 4f && h > frameInset * 4f) {
-            if (round) {
+            if (round && cornerPx != null) {
+                depthCornerFrame(w, h, frameInset, cornerPx)
+            } else if (round) {
                 depthRoundFrame(w, h, frameInset, c)
             } else {
                 depthOctagon(w, h, frameInset, c + frameInset * (DepthSqrt2 - 1f))
@@ -855,7 +959,9 @@ private fun Modifier.depthPlateSurface(
             null
         }
     val facets = ArrayList<Pair<Path, Color>>(if (round) 4 + 4 * DepthCornerSteps else 8)
-    if (w >= 4f && h >= 4f && round) {
+    if (w >= 4f && h >= 4f && round && cornerPx != null) {
+        depthCornerFacets(facets, w, h, cornerPx, b, lit, style)
+    } else if (w >= 4f && h >= 4f && round) {
         depthRoundFacets(facets, w, h, c, b, lit, style)
     } else if (w >= 4f && h >= 4f) {
         // Segi-8 luar (O) & dalam (I, inset b). Facet i = O[i] -> O[i+1] -> I[i+1] -> I[i].
@@ -1692,7 +1798,14 @@ internal fun SkeuCard(
     // (`cardShape` = `RoundedCornerShape(cardRadius-nya)`) 0 perubahan visual — CUMA
     // kalau caller override `radius` custom (bukan default), shape tetap fallback ke
     // `RoundedCornerShape(radius)` biar override itu tidak diam-diam diabaikan.
-    val shape = if (radius == tokens.cardRadius) tokens.cardShape else RoundedCornerShape(radius)
+    // Batch 217: tema berprofil kedalaman dgn `cardCorners` (Neumorphism "leaf") memakai bentuk per-pojok
+    // untuk kartu normal; kotak ikon (radius override) & tema lain TIDAK terpengaruh.
+    val leaf = if (radius == tokens.cardRadius) tokens.depth?.cardCorners else null
+    val shape = when {
+        leaf != null -> leaf.shape
+        radius == tokens.cardRadius -> tokens.cardShape
+        else -> RoundedCornerShape(radius)
+    }
     // Batch 180: mesin kedalaman fisik (Old Money). Kartu normal = pelat TIMBUL (bayangan jatuh
     // Gaussian + permukaan lebih terang dari latar + bevel facet + grain); kotak ikon (radius !=
     // cardRadius) = soket CEKUNG. 5 varian lain `depth == null` → lanjut ke kode lama di bawah.
@@ -1705,7 +1818,7 @@ internal fun SkeuCard(
                 Column(
                     modifier = modifier
                         .clip(shape)
-                        .depthPlateSurface(depth, tokens.cardRadius),
+                        .depthPlateSurface(depth, tokens.cardRadius, corners = leaf),
                     content = content
                 )
             }
@@ -1750,7 +1863,9 @@ internal fun SkeuTintedCard(
     // Batch 112: shape sekarang `tokens.cardShape` (bukan `RoundedCornerShape`
     // bikin sendiri) — sama fix root-cause seperti `SkeuCard` di atas, 0 param
     // override radius di fungsi ini jadi langsung pakai token, tanpa fallback.
-    val shape = tokens.cardShape
+    // Batch 217: kartu status memakai pojok KEBALIKAN kartu biasa bila tema menyediakannya (Neumorphism).
+    val leaf = tokens.depth?.tintedCardCorners
+    val shape = leaf?.shape ?: tokens.cardShape
     val blended = lerp(tokens.baseSurface, tint, 0.22f)
     // Batch 180: pelat timbul bertint (banner status) — permukaan = warna pelat Old Money yang
     // digeser ke tint, sorot facet digeser ke warna status; bukan lagi gradien lebih gelap dari
@@ -1761,7 +1876,7 @@ internal fun SkeuTintedCard(
             Column(
                 modifier = modifier
                     .clip(shape)
-                    .depthPlateSurface(depth, tokens.cardRadius, DepthPartsPlate, tint),
+                    .depthPlateSurface(depth, tokens.cardRadius, DepthPartsPlate, tint, corners = leaf),
                 content = content
             )
         }
