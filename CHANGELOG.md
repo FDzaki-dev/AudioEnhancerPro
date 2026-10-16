@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 218: Knob aplikasi (tombol daya, thumb slider, thumb switch) berbentuk leaf di tema Neumorphism
+
+Tanggapan atas "knob dalam aplikasi kok gak berubah?!!". Batch 217 hanya mengubah kartu, tombol, tab, dan dialog, sedangkan knob tetap lingkaran. Kini tombol daya, thumb slider, dan thumb switch di tema Neumorphism berbentuk kerikil leaf: pojok besar di kiri-atas dan kanan-bawah, pojok kecil di dua sisi lain. Kubah sorot, cincin tepi, bayangan, tampilan cekung saat Aktif, dan cincin aksen mengikuti bentuk baru, tidak ada lagi lingkaran yang bocor di dalam siluet leaf.
+
+Untuk pengembang: `DepthStyle` mendapat field opsional `knobCorners` (default null = lingkaran, jadi tema lain dan Old Money tidak berubah). `depthDome`, `depthRingRim`, dan `depthKnobFace` menerima parameter `corners` (null memakai jalur lingkaran lama). Perhitungan skala radius dipindah ke helper `depthFitCorners` yang juga dipakai pelat kartu B217 tanpa perubahan perilaku. Knob widget belum diubah (masih bulat).
+
+**Perubahan** (2 file + 3 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B218 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/kotlinc); kurung Kotlin seimbang. Belum diuji di HP.
+
 ## Batch 217: Bentuk "leaf" asimetris untuk tema Neumorphism, di aplikasi dan widget beranda
 
 Tanggapan atas "saya mau tema Neumorphism dalam aplikasi maupun widget beranda itu menggunakan shape yang refreshing, bukan monoton". Sebelumnya semua kartu, tombol, dan dialog Neumorphism berupa persegi panjang dengan sudut hampir tegas 4dp, sehingga terasa seragam. Kini tema Neumorphism memakai bahasa bentuk "leaf": kartu biasa membulat besar di kiri-atas dan kanan-bawah tetapi hampir tegas di dua pojok lain, kartu status (banner info atau peringatan) memakai kebalikannya sehingga ritme bentuk bergantian, tombol dan tab berbentuk pil, dialog dan palung tab membulat 22dp, kotak ikon membulat lembut. Di widget beranda, pelat memakai pola leaf yang sama, panel teks memakai kebalikannya, dan knob daya tetap bulat sebagai kontras.

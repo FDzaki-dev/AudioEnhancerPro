@@ -715,7 +715,10 @@ data class DepthStyle(
     // [cardCorners] = `SkeuCard`; [tintedCardCorners] = `SkeuTintedCard` (dibuat KEBALIKAN supaya kartu
     // biasa & kartu status bergantian ritme bentuknya, bukan satu rupa).
     val cardCorners: DepthCorners? = null,
-    val tintedCardCorners: DepthCorners? = null
+    val tintedCardCorners: DepthCorners? = null,
+    // Batch 218: bentuk KNOB (tombol daya, thumb slider, thumb switch). null = lingkaran seperti sebelumnya.
+    // Dihitung proporsional: 30/12/30/12dp di tombol 64dp, otomatis menyusut di thumb 20-22dp.
+    val knobCorners: DepthCorners? = null
 )
 
 /** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
@@ -793,6 +796,8 @@ val AuroraDepth = DepthStyle(
  *  kartu status (tinted) KEBALIKANNYA. DI ATAS `NeumoDepth`/`NeumorphismSkeuTokens` (inisialisasi top-level berurutan). */
 val NeumoLeafCorners = DepthCorners(26.dp, 6.dp, 26.dp, 6.dp)
 val NeumoLeafMirrorCorners = DepthCorners(6.dp, 26.dp, 6.dp, 26.dp)
+/** Batch 218: knob Neumorphism = "kerikil" leaf (pojok besar kiri-atas/kanan-bawah) — bukan lingkaran lagi. */
+val NeumoKnobCorners = DepthCorners(30.dp, 12.dp, 30.dp, 12.dp)
 
 /** Neumorphism (Blade Runner): slate gelap, bentuk "leaf" asimetris (B217), tombol/tab pil, bevel tipis. */
 val NeumoDepth = DepthStyle(
@@ -815,7 +820,8 @@ val NeumoDepth = DepthStyle(
     panelCorner = 22.dp,
     backdropGrain = 0.03f,
     cardCorners = NeumoLeafCorners,
-    tintedCardCorners = NeumoLeafMirrorCorners
+    tintedCardCorners = NeumoLeafMirrorCorners,
+    knobCorners = NeumoKnobCorners
 )
 
 /** Studio Equalizer: abu-abu studio, sudut membulat 20dp, sorot netral. */
