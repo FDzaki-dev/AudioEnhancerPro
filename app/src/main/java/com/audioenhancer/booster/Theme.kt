@@ -400,7 +400,7 @@ val NeumoPrimaryGlow = NeumoMistyPine.copy(alpha = 0.36f)
 val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, Color.White, 0.14f)
 
 /** Radius kartu/icon-box — Batch 217 (request user "shape yang refreshing, bukan monoton"): near-flat 4dp/3dp
- *  B108 diganti bahasa bentuk "leaf" — sudut besar 26dp di kiri-atas/kanan-bawah + sudut kecil 6dp di sisi
+ *  B108 diganti bahasa bentuk "leaf" — sudut besar 28dp di kiri-atas/kanan-bawah + sudut kecil 4dp (B224, dipertajam dari 26/6) di sisi
  *  lain (lihat `NeumoLeafCorners` di bawah); `NeumoCardRadius` = radius BESAR (dipakai pembanding
  *  `radius == cardRadius` di `SkeuCard`), `NeumoIconBoxRadius` = kotak ikon membulat lembut.
  *  Riwayat: Batch 108: DIROMBAK TOTAL dari soft-UI rounded (22dp/
@@ -417,7 +417,7 @@ val NeumoKnobHighlight: Color = lerp(NeumoPanelRaised, Color.White, 0.14f)
  *  yang mendekati nol sudah cukup baca sebagai "sharp" tanpa perlu shape-type baru
  *  di `SkeuTokens` (lebih rendah risiko regresi ke 3 varian lain yang share
  *  komponen sama). */
-val NeumoCardRadius = 26.dp
+val NeumoCardRadius = 28.dp
 val NeumoIconBoxRadius = 14.dp
 
 /** Background layar — FLAT solid `appBg` (bukan gradient vertical era Batch
@@ -643,18 +643,18 @@ private fun oldMoneyChamfer(size: Dp): CornerBasedShape = CutCornerShape(
 // ===== Batch 219: bahasa bentuk UNIK per tema (tanpa kecuali). Dibaca profil `*Depth` + token + `*Shapes` di bawah;
 // WAJIB DI ATAS semua `val *Depth`/`*SkeuTokens` (inisialisasi top-level berurutan, kalau di bawah = null saat startup).
 //   Midnight Glass  = "gelembung": semua bulat penuh (kartu 32dp, tombol/tab pil, knob LINGKARAN)
-//   Aurora Glass    = "lengkung / arch": pojok ATAS besar 34dp, bawah kecil 10dp (kartu status kebalikannya), knob = kubah arch
-//   Neumorphism     = "leaf": diagonal besar-kecil bergantian (B217/218), knob = kerikil leaf
-//   Studio Equalizer= "modul rak": kiri nyaris tegas 6dp, kanan bulat 28dp (bullet/D), knob = kotak membulat
+//   Aurora Glass    = "lengkung / arch": pojok ATAS besar 36dp, bawah nyaris tegas 6dp (kartu status kebalikannya), knob = kubah arch (B224 dipertajam)
+//   Neumorphism     = "leaf": diagonal 28dp/4dp (rasio 7:1, B224 dipertajam dari 26/6), knob = kerikil leaf 32/6
+//   Studio Equalizer= "modul rak": kiri nyaris tegas 3dp, kanan bulat 32dp (bullet/D, B224 dipertajam), knob = kotak membulat
 //   Serene M3       = "potong / octagon": pojok terpotong (cut-corner, kartu B111 + facet CHAMFER), knob = oktagon
 //   Old Money       = "plakat": chamfer simetris kecil bersiku, knob = plakat persegi berpojok terpotong tipis
 val GlassCardRadius = 32.dp
 val GlassIconBoxRadius = 20.dp
-val AuroraArchCorners = DepthCorners(34.dp, 34.dp, 10.dp, 10.dp)
-val AuroraArchMirrorCorners = DepthCorners(10.dp, 10.dp, 34.dp, 34.dp)
-val AuroraKnobShape: Shape = AbsoluteRoundedCornerShape(32.dp, 32.dp, 14.dp, 14.dp)
-val StudioBulletCorners = DepthCorners(6.dp, 28.dp, 28.dp, 6.dp)
-val StudioBulletMirrorCorners = DepthCorners(28.dp, 6.dp, 6.dp, 28.dp)
+val AuroraArchCorners = DepthCorners(36.dp, 36.dp, 6.dp, 6.dp)
+val AuroraArchMirrorCorners = DepthCorners(6.dp, 6.dp, 36.dp, 36.dp)
+val AuroraKnobShape: Shape = AbsoluteRoundedCornerShape(32.dp, 32.dp, 8.dp, 8.dp)
+val StudioBulletCorners = DepthCorners(3.dp, 32.dp, 32.dp, 3.dp)
+val StudioBulletMirrorCorners = DepthCorners(32.dp, 3.dp, 3.dp, 32.dp)
 val StudioKnobShape: Shape = RoundedCornerShape(percent = 28)
 val SereneKnobShape: Shape = CutCornerShape(percent = 30)
 val OldMoneyKnobShape: Shape = CutCornerShape(percent = 12)
@@ -769,7 +769,7 @@ data class DepthCorners(
 // Alpha/warna = hasil simulasi statis, BELUM di-tuning di device. `frameInset` 0.dp = tanpa alur
 // ukir bingkai (ciri khas Old Money, tidak dibawa ke tema lain).
 
-/** Midnight Glass: pelat navy tegas di atas latar biru-hitam, sudut membulat 26dp. */
+/** Midnight Glass: pelat navy tegas di atas latar biru-hitam, sudut membulat 32dp (B219). */
 val GlassDepth = DepthStyle(
     lightX = -0.5522f,
     lightY = -0.8337f,
@@ -819,10 +819,10 @@ val AuroraDepth = DepthStyle(
 
 /** Batch 217: pojok "leaf" Neumorphism — kartu biasa besar di kiri-atas & kanan-bawah, kecil di dua pojok lain;
  *  kartu status (tinted) KEBALIKANNYA. DI ATAS `NeumoDepth`/`NeumorphismSkeuTokens` (inisialisasi top-level berurutan). */
-val NeumoLeafCorners = DepthCorners(26.dp, 6.dp, 26.dp, 6.dp)
-val NeumoLeafMirrorCorners = DepthCorners(6.dp, 26.dp, 6.dp, 26.dp)
+val NeumoLeafCorners = DepthCorners(28.dp, 4.dp, 28.dp, 4.dp)
+val NeumoLeafMirrorCorners = DepthCorners(4.dp, 28.dp, 4.dp, 28.dp)
 /** Batch 218: knob Neumorphism = "kerikil" leaf (pojok besar kiri-atas/kanan-bawah) — bukan lingkaran lagi. */
-val NeumoKnobCorners = DepthCorners(30.dp, 12.dp, 30.dp, 12.dp)
+val NeumoKnobCorners = DepthCorners(32.dp, 6.dp, 32.dp, 6.dp)
 
 /** Neumorphism (Blade Runner): slate gelap, bentuk "leaf" asimetris (B217), tombol/tab pil, bevel tipis. */
 val NeumoDepth = DepthStyle(
@@ -1518,9 +1518,9 @@ private val AppShapes = Shapes(
 private val AuroraShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(14.dp),
-    medium = AbsoluteRoundedCornerShape(24.dp, 24.dp, 8.dp, 8.dp),
+    medium = AbsoluteRoundedCornerShape(24.dp, 24.dp, 6.dp, 6.dp),
     large = AuroraArchCorners.shape,
-    extraLarge = AbsoluteRoundedCornerShape(40.dp, 40.dp, 12.dp, 12.dp)
+    extraLarge = AbsoluteRoundedCornerShape(42.dp, 42.dp, 6.dp, 6.dp)
 )
 
 /** Batch 46: shape khusus varian Neumorphism (ganti dari Skeuomorphism sudut
@@ -1536,9 +1536,9 @@ private val AuroraShapes = Shapes(
 private val NeumorphismShapes = Shapes(
     extraSmall = RoundedCornerShape(8.dp),
     small = RoundedCornerShape(14.dp),
-    medium = AbsoluteRoundedCornerShape(18.dp, 5.dp, 18.dp, 5.dp),
+    medium = AbsoluteRoundedCornerShape(18.dp, 4.dp, 18.dp, 4.dp),
     large = NeumoLeafCorners.shape,
-    extraLarge = AbsoluteRoundedCornerShape(32.dp, 8.dp, 32.dp, 8.dp)
+    extraLarge = AbsoluteRoundedCornerShape(32.dp, 4.dp, 32.dp, 4.dp)
 )
 
 /** Batch 43: shape khusus Studio Equalizer — rounded generous konsisten sama
@@ -1548,9 +1548,9 @@ private val NeumorphismShapes = Shapes(
 private val StudioEqShapes = Shapes(
     extraSmall = RoundedCornerShape(6.dp),
     small = RoundedCornerShape(10.dp),
-    medium = AbsoluteRoundedCornerShape(4.dp, 18.dp, 18.dp, 4.dp),
+    medium = AbsoluteRoundedCornerShape(3.dp, 20.dp, 20.dp, 3.dp),
     large = StudioBulletCorners.shape,
-    extraLarge = AbsoluteRoundedCornerShape(6.dp, 36.dp, 36.dp, 6.dp)
+    extraLarge = AbsoluteRoundedCornerShape(4.dp, 40.dp, 40.dp, 4.dp)
 )
 
 /** Batch 111: shape khusus Serene M3 (varian ke-5) — "unique underrated" sesuai

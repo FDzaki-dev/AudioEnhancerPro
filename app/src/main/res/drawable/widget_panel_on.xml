@@ -1,35 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 217: bentuk "leaf" KEBALIKAN pelat, pojok besar 24dp di kanan-atas & kiri-bawah + pojok kecil 8dp di kiri-atas & kanan-bawah (bezel 2,5dp ke dalam: 21,5dp/5,5dp).
+<!-- Batch 217: bentuk "leaf" KEBALIKAN pelat, pojok besar 24dp di kanan-atas & kiri-bawah + pojok kecil 4dp di kiri-atas & kanan-bawah (bezel 2,5dp ke dalam: 21,5dp/1,5dp). Batch 224: pojok kecil dipertajam 8dp -> 4dp.
      Batch 215: panel teks, AKTIF = CEKUNG (debossed/tertekan), sepasang dgn knob cekung. Bounds sama dgn widget_panel_off.
      Sumur gradasi plum gelap -> burgundy + bayangan dalam atas + sorot dalam bawah + pendar rose sisi kanan (di balik status). Dihasilkan skrip. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Sumur: dasar gradasi (315 = kiri-atas gelap -> kanan-bawah lebih terang) -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="8dp" android:topRightRadius="24dp" android:bottomRightRadius="8dp" android:bottomLeftRadius="24dp" />
+        <shape android:shape="rectangle"><corners android:topLeftRadius="4dp" android:topRightRadius="24dp" android:bottomRightRadius="4dp" android:bottomLeftRadius="24dp" />
             <gradient android:angle="315" android:startColor="@color/widget_well_start" android:endColor="@color/widget_well_end" /></shape>
     </item>
     <!-- Pendar rose sisi kanan: LED status menyala -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="8dp" android:topRightRadius="24dp" android:bottomRightRadius="8dp" android:bottomLeftRadius="24dp" />
+        <shape android:shape="rectangle"><corners android:topLeftRadius="4dp" android:topRightRadius="24dp" android:bottomRightRadius="4dp" android:bottomLeftRadius="24dp" />
             <gradient android:type="radial" android:centerX="1" android:centerY="0.5" android:gradientRadius="140%"
                 android:startColor="#42FF6F8A" android:centerColor="#14FF6F8A" android:endColor="#00FF6F8A" /></shape>
     </item>
     <!-- Bayangan dalam atas -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="8dp" android:topRightRadius="24dp" android:bottomRightRadius="8dp" android:bottomLeftRadius="24dp" />
+        <shape android:shape="rectangle"><corners android:topLeftRadius="4dp" android:topRightRadius="24dp" android:bottomRightRadius="4dp" android:bottomLeftRadius="24dp" />
             <gradient android:angle="270" android:startColor="#9E1A0412" android:centerColor="#001A0412" android:endColor="#001A0412" /></shape>
     </item>
     <!-- Sorot dalam bawah -->
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="8dp" android:topRightRadius="24dp" android:bottomRightRadius="8dp" android:bottomLeftRadius="24dp" />
+        <shape android:shape="rectangle"><corners android:topLeftRadius="4dp" android:topRightRadius="24dp" android:bottomRightRadius="4dp" android:bottomLeftRadius="24dp" />
             <gradient android:angle="90" android:startColor="#42D8607F" android:centerColor="#00D8607F" android:endColor="#00D8607F" /></shape>
     </item>
     <item android:left="4dp" android:top="4dp" android:right="4dp" android:bottom="4dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="8dp" android:topRightRadius="24dp" android:bottomRightRadius="8dp" android:bottomLeftRadius="24dp" /><stroke android:width="0.5dp" android:color="#1AD8607F" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="4dp" android:topRightRadius="24dp" android:bottomRightRadius="4dp" android:bottomLeftRadius="24dp" /><stroke android:width="0.5dp" android:color="#1AD8607F" /></shape>
     </item>
     <!-- Batch 216 dekorasi: alur ukir tipis 2,5dp di dalam tepi rongga + strip LED MENYALA di tepi bawah (inti terang 1,5dp + pendar lembut 5dp di atasnya). -->
     <item android:left="6.5dp" android:top="6.5dp" android:right="6.5dp" android:bottom="6.5dp">
-        <shape android:shape="rectangle"><corners android:topLeftRadius="5.5dp" android:topRightRadius="21.5dp" android:bottomRightRadius="5.5dp" android:bottomLeftRadius="21.5dp" /><stroke android:width="0.5dp" android:color="#14FFB3C4" /></shape>
+        <shape android:shape="rectangle"><corners android:topLeftRadius="1.5dp" android:topRightRadius="21.5dp" android:bottomRightRadius="1.5dp" android:bottomLeftRadius="21.5dp" /><stroke android:width="0.5dp" android:color="#14FFB3C4" /></shape>
     </item>
     <item android:left="20dp" android:right="20dp" android:bottom="6dp" android:height="5dp" android:gravity="bottom">
         <shape android:shape="rectangle"><corners android:radius="2.5dp" />

@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 224: Knob widget berbentuk leaf dan siluet tiap tema dipertajam
+
+Atas permintaan "lanjut ke knob widget, pertajam siluet leaf-shape dan bentuk unik per tema". Knob daya di widget beranda kini berbentuk kerikil leaf (pojok kiri-atas dan kanan-bawah membulat besar, dua pojok lain nyaris tegas), sejalan dengan knob di aplikasi; cincin tik dial menyesuaikan jalur barunya. Kontras antara pojok besar dan kecil dipertajam: kartu Neumorphism 28dp berbanding 4dp, knob 32dp berbanding 6dp; kartu Aurora melengkung 36dp di atas dan hampir tegas 6dp di bawah; kartu Studio Equalizer hampir tegas 3dp di kiri dan membulat 32dp di kanan; bentuk default komponen Material 3 ikut. Panel teks widget juga dipertajam (pojok kecil 4dp). Midnight Glass, Serene M3, dan Old Money tidak berubah.
+
+Untuk pengembang: hanya nilai konstanta di `Theme.kt` dan resource drawable widget (oval diganti rectangle berpojok per-sudut dengan radius dihitung per layer); tanpa perubahan kontrak. Pelat widget tidak dipertajam karena pojok kecilnya dibatasi radius clip peluncur. Chip preset dan trek slider belum memiliki bentuk khusus tema.
+
+**Perubahan** (5 file + 2 dokumen): `Theme.kt`, `res/drawable/widget_status_dot_off.xml`, `widget_status_dot_on.xml`, `widget_panel_off.xml`, `widget_panel_on.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B223 terverifikasi CI (run23). B224 NOT VERIFIED: XML lolos parse dan kurung Kotlin seimbang, belum dijalankan di CI dan belum diuji di HP.
+
 ## Batch 223: Peringatan OldTargetApi disembunyikan dari laporan lint
 
 Atas persetujuan pengguna, peringatan lint `OldTargetApi` ("Not targeting the latest versions of Android") disetel `ignore` di `app/lint.xml`. Peringatan ini hanya informasi: `targetSdk` sengaja tetap 34 karena target 35 ke atas melarang receiver `BOOT_COMPLETED` menyalakan foreground service `mediaPlayback` (auto-start setelah reboot akan rusak), versi AGP dan Gradle yang dipatok workflow belum mendukung target yang lebih baru, dan aplikasi tidak dipublikasikan ke Play sehingga kewajiban target API tahunannya tidak berlaku. Alasan lengkap dan jalur upgrade bertahap dicatat di `PROJECT_STATE.md`. Laporan CI run22 (Batch 222) bersih: 65 tes lulus, ArchUnit, SpotBugs, detekt, dan detekt typed 0 temuan, lint hanya menyisakan peringatan ini.
