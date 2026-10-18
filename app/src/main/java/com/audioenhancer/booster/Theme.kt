@@ -640,6 +640,25 @@ private fun oldMoneyChamfer(size: Dp): CornerBasedShape = CutCornerShape(
     bottomStart = size
 )
 
+// ===== Batch 219: bahasa bentuk UNIK per tema (tanpa kecuali). Dibaca profil `*Depth` + token + `*Shapes` di bawah;
+// WAJIB DI ATAS semua `val *Depth`/`*SkeuTokens` (inisialisasi top-level berurutan, kalau di bawah = null saat startup).
+//   Midnight Glass  = "gelembung": semua bulat penuh (kartu 32dp, tombol/tab pil, knob LINGKARAN)
+//   Aurora Glass    = "lengkung / arch": pojok ATAS besar 34dp, bawah kecil 10dp (kartu status kebalikannya), knob = kubah arch
+//   Neumorphism     = "leaf": diagonal besar-kecil bergantian (B217/218), knob = kerikil leaf
+//   Studio Equalizer= "modul rak": kiri nyaris tegas 6dp, kanan bulat 28dp (bullet/D), knob = kotak membulat
+//   Serene M3       = "potong / octagon": pojok terpotong (cut-corner, kartu B111 + facet CHAMFER), knob = oktagon
+//   Old Money       = "plakat": chamfer simetris kecil bersiku, knob = plakat persegi berpojok terpotong tipis
+val GlassCardRadius = 32.dp
+val GlassIconBoxRadius = 20.dp
+val AuroraArchCorners = DepthCorners(34.dp, 34.dp, 10.dp, 10.dp)
+val AuroraArchMirrorCorners = DepthCorners(10.dp, 10.dp, 34.dp, 34.dp)
+val AuroraKnobShape: Shape = AbsoluteRoundedCornerShape(32.dp, 32.dp, 14.dp, 14.dp)
+val StudioBulletCorners = DepthCorners(6.dp, 28.dp, 28.dp, 6.dp)
+val StudioBulletMirrorCorners = DepthCorners(28.dp, 6.dp, 6.dp, 28.dp)
+val StudioKnobShape: Shape = RoundedCornerShape(percent = 28)
+val SereneKnobShape: Shape = CutCornerShape(percent = 30)
+val OldMoneyKnobShape: Shape = CutCornerShape(percent = 12)
+
 val OldMoneyCardRadius = 8.dp
 val OldMoneyIconBoxRadius = 5.dp
 
@@ -673,7 +692,8 @@ val OldMoneyDepth = DepthStyle(
     wellFloor = OldMoneyWellFloor,
     knobShade = OldMoneyKnobShade,
     grainAlpha = 0.07f,
-    frameInset = 5.dp
+    frameInset = 5.dp,
+    knobShape = OldMoneyKnobShape
 )
 
 /** Batch 180: profil kedalaman FISIK (timbul + cekung) — dibaca mesin di SkeuomorphicComponents.kt
@@ -716,9 +736,10 @@ data class DepthStyle(
     // biasa & kartu status bergantian ritme bentuknya, bukan satu rupa).
     val cardCorners: DepthCorners? = null,
     val tintedCardCorners: DepthCorners? = null,
-    // Batch 218: bentuk KNOB (tombol daya, thumb slider, thumb switch). null = lingkaran seperti sebelumnya.
-    // Dihitung proporsional: 30/12/30/12dp di tombol 64dp, otomatis menyusut di thumb 20-22dp.
-    val knobCorners: DepthCorners? = null
+    // Batch 218/219: bentuk KNOB (tombol daya, thumb slider, thumb switch). null = lingkaran seperti sebelumnya.
+    // Bentuk apa pun (bulat per-pojok, potong/chamfer, persegi membulat) — mesin kubah/cincin membaca outline-nya.
+    // Pakai radius persen atau pojok Dp yang menyusut proporsional supaya tetap rapi di thumb kecil 20-22dp.
+    val knobShape: Shape? = null
 )
 
 /** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
@@ -765,9 +786,10 @@ val GlassDepth = DepthStyle(
     grainAlpha = 0.045f,
     frameInset = 0.dp,
     corner = DepthCorner.ROUND,
-    keyCorner = 20.dp,
-    panelCorner = 24.dp,
-    backdropGrain = 0.03f
+    keyCorner = 28.dp,
+    panelCorner = 30.dp,
+    backdropGrain = 0.03f,
+
 )
 
 /** Aurora Glass: sama dgn Midnight tapi lebih vivid & sorot sedikit lebih kuat. */
@@ -787,9 +809,12 @@ val AuroraDepth = DepthStyle(
     grainAlpha = 0.045f,
     frameInset = 0.dp,
     corner = DepthCorner.ROUND,
-    keyCorner = 20.dp,
-    panelCorner = 24.dp,
-    backdropGrain = 0.03f
+    keyCorner = 14.dp,
+    panelCorner = 26.dp,
+    backdropGrain = 0.03f,
+    cardCorners = AuroraArchCorners,
+    tintedCardCorners = AuroraArchMirrorCorners,
+    knobShape = AuroraKnobShape
 )
 
 /** Batch 217: pojok "leaf" Neumorphism — kartu biasa besar di kiri-atas & kanan-bawah, kecil di dua pojok lain;
@@ -821,7 +846,7 @@ val NeumoDepth = DepthStyle(
     backdropGrain = 0.03f,
     cardCorners = NeumoLeafCorners,
     tintedCardCorners = NeumoLeafMirrorCorners,
-    knobCorners = NeumoKnobCorners
+    knobShape = NeumoKnobCorners.shape
 )
 
 /** Studio Equalizer: abu-abu studio, sudut membulat 20dp, sorot netral. */
@@ -841,9 +866,12 @@ val StudioEqDepth = DepthStyle(
     grainAlpha = 0.04f,
     frameInset = 0.dp,
     corner = DepthCorner.ROUND,
-    keyCorner = 16.dp,
-    panelCorner = 20.dp,
-    backdropGrain = 0.03f
+    keyCorner = 8.dp,
+    panelCorner = 14.dp,
+    backdropGrain = 0.03f,
+    cardCorners = StudioBulletCorners,
+    tintedCardCorners = StudioBulletMirrorCorners,
+    knobShape = StudioKnobShape
 )
 
 /** Serene M3: hijau-abu sage, sudut cut-corner (chamfer) seperti bentuk aslinya, efek paling halus. */
@@ -865,7 +893,8 @@ val SereneDepth = DepthStyle(
     corner = DepthCorner.CHAMFER,
     keyCorner = 8.dp,
     panelCorner = 12.dp,
-    backdropGrain = 0.025f
+    backdropGrain = 0.025f,
+    knobShape = SereneKnobShape
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
@@ -932,15 +961,15 @@ val AmoledGlassSkeuTokens = SkeuTokens(
     cardElevation = 3.dp,
     sliderKnobHighlight = Color.White.copy(alpha = 0.92f),
     specularBrush = GlassSpecularBrush,
-    cardRadius = SkeuCardRadius,
-    iconBoxRadius = SkeuIconBoxRadius,
+    cardRadius = GlassCardRadius,
+    iconBoxRadius = GlassIconBoxRadius,
     // Batch 47: TETAP Transparent — kartu glass sengaja "visually quiet" (guide
     // §8 lama, Batch 32), dual-shadow terarah CUMA buat Neumorphism.
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
     // Batch 112: `RoundedCornerShape(SkeuCardRadius)` — SAMA PERSIS shape yang
     // sebelumnya dibikin inline di `SkeuCard`, 0 perubahan visual.
-    cardShape = RoundedCornerShape(SkeuCardRadius),
+    cardShape = RoundedCornerShape(GlassCardRadius),
     // B187: mesin kedalaman fisik (timbul/cekung) sama dgn Old Money, sudut membulat.
     depth = GlassDepth
 )
@@ -964,7 +993,7 @@ val RadicalSkeuoSkeuTokens = SkeuTokens(
     iconBoxRadius = SkeuIconBoxRadius,
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
-    cardShape = RoundedCornerShape(SkeuCardRadius),
+    cardShape = AuroraArchCorners.shape,
     // B187: mesin kedalaman fisik (timbul/cekung) sama dgn Old Money, sudut membulat.
     depth = AuroraDepth
 )
@@ -1019,7 +1048,7 @@ val StudioEqSkeuTokens = SkeuTokens(
     // (lihat komentar Batch 43), bukan target "ultra realistic" kayak varian 3.
     shadowLightTint = Color.Transparent,
     shadowDarkTint = Color.Transparent,
-    cardShape = RoundedCornerShape(StudioEqCardRadius),
+    cardShape = StudioBulletCorners.shape,
     // B187: mesin kedalaman fisik (timbul/cekung), sudut membulat.
     depth = StudioEqDepth
 )
@@ -1477,11 +1506,21 @@ private val OldMoneyTypography = Typography(
 // yang belum di-override shape manual di BoosterScreen.kt/OnboardingScreen.kt).
 // Dipakai 2 varian glass (Midnight Glass, Aurora Glass).
 private val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(14.dp),
+    small = RoundedCornerShape(20.dp),
+    medium = RoundedCornerShape(26.dp),
+    large = RoundedCornerShape(GlassCardRadius),
+    extraLarge = RoundedCornerShape(40.dp)
+)
+
+/** Batch 219: Aurora Glass = bentuk "lengkung / arch" (pojok atas besar, bawah kecil), konsisten `AuroraArchCorners`.
+ *  `extraSmall`/`small` simetris supaya komponen mungil tak ribut. Midnight Glass tetap `AppShapes` (bulat penuh). */
+private val AuroraShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
-    small = RoundedCornerShape(16.dp),
-    medium = RoundedCornerShape(22.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(34.dp)
+    small = RoundedCornerShape(14.dp),
+    medium = AbsoluteRoundedCornerShape(24.dp, 24.dp, 8.dp, 8.dp),
+    large = AuroraArchCorners.shape,
+    extraLarge = AbsoluteRoundedCornerShape(40.dp, 40.dp, 12.dp, 12.dp)
 )
 
 /** Batch 46: shape khusus varian Neumorphism (ganti dari Skeuomorphism sudut
@@ -1507,11 +1546,11 @@ private val NeumorphismShapes = Shapes(
  *  Material3 default yang belum pakai shape manual JUGA otonom (gak numpang
  *  radius varian lain — sama alasan `SkeuomorphismShapes` Batch 39). */
 private val StudioEqShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(20.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(6.dp),
+    small = RoundedCornerShape(10.dp),
+    medium = AbsoluteRoundedCornerShape(4.dp, 18.dp, 18.dp, 4.dp),
+    large = StudioBulletCorners.shape,
+    extraLarge = AbsoluteRoundedCornerShape(6.dp, 36.dp, 36.dp, 6.dp)
 )
 
 /** Batch 111: shape khusus Serene M3 (varian ke-5) — "unique underrated" sesuai
@@ -1586,6 +1625,7 @@ fun AudioEnhancerTheme(
     // +Serene M3 pakai `SereneShapes` (organic-asymmetric, cut-corner di elemen besar).
     val shapes = when (themeStyle) {
         AppThemeStyle.SKEUOMORPHISM -> NeumorphismShapes
+        AppThemeStyle.RADICAL_SKEUO -> AuroraShapes
         AppThemeStyle.STUDIO_EQ -> StudioEqShapes
         AppThemeStyle.SERENE_M3 -> SereneShapes
         AppThemeStyle.OLD_MONEY -> OldMoneyShapes

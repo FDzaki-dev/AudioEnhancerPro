@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 219: Setiap tema punya bahasa bentuk uniknya sendiri
+
+Tanggapan atas "setiap theme punya shape unique nya masing-masing tanpa terkecuali". Sebelumnya Midnight Glass dan Aurora Glass memakai bentuk yang persis sama, dan Studio Equalizer hanya versi bulat yang lebih kecil. Kini keenam tema punya siluet khas: Midnight Glass "gelembung" (semua bulat penuh, kartu 32dp, tombol pil, knob lingkaran); Aurora Glass "lengkung" (pojok atas besar 34dp, bawah kecil, kartu status terbalik, knob kubah arch); Neumorphism "leaf" diagonal (tetap); Studio Equalizer "modul rak" (sisi kiri nyaris tegas, sisi kanan bulat, knob kotak membulat, tombol lebih tegas); Serene M3 "potong" (kartu cut-corner tetap, knob oktagon); Old Money "plakat" (chamfer kecil bersiku tetap, knob plakat persegi). Bentuk default komponen Material 3 (dialog, tombol, dan lain-lain) ikut per tema, termasuk set bentuk baru untuk Aurora.
+
+Untuk pengembang: `DepthStyle.knobCorners` (B218) digeneralisasi menjadi `knobShape: Shape?` sehingga knob bisa berbentuk apa pun (bulat per-pojok, potong, persegi membulat); kubah dan cincin tepi knob kini dibuat dari outline bentuk tersebut. Kartu memakai `cardCorners`/`tintedCardCorners` yang sudah ada dari B217. Kartu Serene dan Old Money (facet CHAMFER) tidak diubah. Widget beranda tidak diubah.
+
+**Perubahan** (2 file + 3 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B219 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/kotlinc); kurung Kotlin seimbang. Belum diuji di HP.
+
 ## Batch 218: Knob aplikasi (tombol daya, thumb slider, thumb switch) berbentuk leaf di tema Neumorphism
 
 Tanggapan atas "knob dalam aplikasi kok gak berubah?!!". Batch 217 hanya mengubah kartu, tombol, tab, dan dialog, sedangkan knob tetap lingkaran. Kini tombol daya, thumb slider, dan thumb switch di tema Neumorphism berbentuk kerikil leaf: pojok besar di kiri-atas dan kanan-bawah, pojok kecil di dua sisi lain. Kubah sorot, cincin tepi, bayangan, tampilan cekung saat Aktif, dan cincin aksen mengikuti bentuk baru, tidak ada lagi lingkaran yang bocor di dalam siluet leaf.

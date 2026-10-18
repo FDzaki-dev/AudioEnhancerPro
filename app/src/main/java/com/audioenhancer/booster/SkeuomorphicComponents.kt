@@ -116,6 +116,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.lerp
@@ -1017,8 +1018,8 @@ private fun Modifier.depthPlateSurface(
 
 /** Kubah knob: sorot radial miring ke arah cahaya (kiri-atas), makin gelap ke kanan-bawah, plus
  *  titik kilau (specular) kecil di sisi cahaya — terbaca sebagai mutiara/kubah licin. */
-private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle, corners: DepthCorners? = null): Modifier =
-    depthDraw("dome", hi, lo, style, corners) {
+private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle, knob: Shape? = null): Modifier =
+    depthDraw("dome", hi, lo, style, knob) {
         val w = size.width
         val h = size.height
         val dome = Brush.radialGradient(
@@ -1031,8 +1032,8 @@ private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle, corners:
             center = Offset(w / 2f + style.lightX * w * 0.24f, h / 2f + style.lightY * h * 0.24f),
             radius = (max(w, h) * 0.26f).coerceAtLeast(1f)
         )
-        // Batch 218: knob berpojok per-sudut = kubah mengikuti siluet leaf (bukan lingkaran).
-        val leaf = corners?.let { depthCornerFrame(w, h, 0f, depthFitCorners(it, w, h)) }
+        // Batch 218/219: knob berbentuk khusus tema (leaf/arch/oktagon/dll) = kubah mengikuti outline-nya, bukan lingkaran.
+        val leaf = knob?.createOutline(Size(w, h), layoutDirection, this)?.toDepthPath()
         onDrawBehind {
             if (leaf != null) {
                 drawPath(leaf, brush = dome)
@@ -1046,8 +1047,8 @@ private fun Modifier.depthDome(hi: Color, lo: Color, style: DepthStyle, corners:
 
 /** Cincin tepi bundar: terang di sisi cahaya, gelap di sisi sebaliknya (gradien linear searah
  *  cahaya = kecerahan ∝ cos sudut, persis fisika tepi silinder). */
-private fun Modifier.depthRingRim(style: DepthStyle, width: Dp, corners: DepthCorners? = null): Modifier =
-    depthDraw("ringRim", style, width, corners) {
+private fun Modifier.depthRingRim(style: DepthStyle, width: Dp, knob: Shape? = null): Modifier =
+    depthDraw("ringRim", style, width, knob) {
     val w = size.width
     val h = size.height
     val rimW = width.toPx()
@@ -1062,19 +1063,19 @@ private fun Modifier.depthRingRim(style: DepthStyle, width: Dp, corners: DepthCo
         start = Offset(cx + style.lightX * r, cy + style.lightY * r),
         end = Offset(cx - style.lightX * r, cy - style.lightY * r)
     )
-    // Batch 218: cincin tepi mengikuti siluet leaf bila knob berpojok per-sudut.
-    val leaf = corners?.let { depthCornerFrame(w, h, rimW / 2f, depthFitCorners(it, w, h)) }
+    // Batch 218/219: cincin tepi mengikuti outline knob khusus tema; goresan 2x lebar dipotong ke dalam siluet = tepat selebar rimW di dalam.
+    val leaf = knob?.createOutline(Size(w, h), layoutDirection, this)?.toDepthPath()
     onDrawBehind {
         if (leaf != null) {
-            drawPath(leaf, brush = rim, style = Stroke(width = rimW))
+            clipPath(leaf) { drawPath(leaf, brush = rim, style = Stroke(width = rimW * 2f)) }
         } else {
             drawCircle(brush = rim, radius = (r - rimW / 2f).coerceAtLeast(0.5f), style = Stroke(width = rimW))
         }
     }
 }
 
-private fun Modifier.depthKnobFace(style: DepthStyle, hi: Color, lo: Color, corners: DepthCorners? = null): Modifier =
-    this.depthDome(hi, lo, style, corners).depthRingRim(style, 1.4.dp, corners)
+private fun Modifier.depthKnobFace(style: DepthStyle, hi: Color, lo: Color, knob: Shape? = null): Modifier =
+    this.depthDome(hi, lo, style, knob).depthRingRim(style, 1.4.dp, knob)
 
 /** Rim pil stadium: sisi atas/bawah = garis lurus (facet datar → warna seragam: terang di atas,
  *  gelap di bawah), ujung kiri/kanan = busur dgn gradien searah cahaya (kecerahan ∝ cos, sama
@@ -1939,8 +1940,8 @@ internal fun SkeuPowerButton(
 ) {
     val desc = contentDescription
     val tokens = LocalSkeuTokens.current
-    // Batch 218: knob daya Neumorphism = bentuk leaf (DepthStyle.knobCorners); tema lain tetap lingkaran.
-    val shape: Shape = tokens.depth?.knobCorners?.shape ?: CircleShape
+    // Batch 218: knob daya Neumorphism = bentuk leaf (DepthStyle.knobShape, B219: generik per tema); tema tanpa knobShape tetap lingkaran.
+    val shape: Shape = tokens.depth?.knobShape ?: CircleShape
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressedNow by interactionSource.collectIsPressedAsState()
@@ -1985,7 +1986,7 @@ internal fun SkeuPowerButton(
                     if (depth == null) {
                         Modifier.border(1.5.dp, tokens.bevelBorderBrush, shape)
                     } else if (!isDown) {
-                        Modifier.depthRingRim(depth, 1.6.dp, depth.knobCorners)
+                        Modifier.depthRingRim(depth, 1.6.dp, depth.knobShape)
                     } else {
                         Modifier
                     }
@@ -2104,7 +2105,7 @@ private fun SkeuSliderTrack(
 @Composable
 private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
     val tokens = LocalSkeuTokens.current
-    val shape: Shape = tokens.depth?.knobCorners?.shape ?: CircleShape
+    val shape: Shape = tokens.depth?.knobShape ?: CircleShape
     val ringAlpha = if (enabled) 1f else 0.4f
     // Batch 180: knob fisik Old Money — bayangan jatuh + kubah sorot champagne (tanpa emas) +
     // cincin tepi terang/gelap menurut arah cahaya; cincin aksen tipis tetap (a11y aktif/nonaktif).
@@ -2115,7 +2116,7 @@ private fun SkeuSliderThumb(accentColor: Color, enabled: Boolean) {
             modifier = Modifier
                 .size(SkeuSliderThumbSize)
                 .depthCastShadow(shape, depth, DepthKnobShadow)
-                .depthKnobFace(depth, tokens.sliderKnobHighlight, lo, depth.knobCorners)
+                .depthKnobFace(depth, tokens.sliderKnobHighlight, lo, depth.knobShape)
                 // Cincin aksen DI DALAM cincin tepi bevel (padding = lebar rim) supaya sorot/bayangan
                 // tepi tidak tertutup cincin aksen.
                 .padding(1.4.dp)
@@ -2441,7 +2442,7 @@ internal fun SkeuSwitch(
             SkeuDualDirectionalShadow(tokens, trackShape, depth = 3.5.dp, invert = true, steps = 4)
         }
         // Batch 218: thumb switch ikut bentuk knob leaf Neumorphism (null = lingkaran).
-        val thumbShape: Shape = depth?.knobCorners?.shape ?: CircleShape
+        val thumbShape: Shape = depth?.knobShape ?: CircleShape
         Box(
             modifier = Modifier
                 .offset(x = thumbOffset)
@@ -2459,7 +2460,7 @@ internal fun SkeuSwitch(
                     if (depth != null) {
                         val hi = if (checked) lerp(accentColor, depth.rimLight, 0.45f) else depth.rimLight
                         val lo = if (checked) lerp(accentColor, Color.Black, 0.30f) else depth.knobShade
-                        Modifier.depthKnobFace(depth, hi, lo, depth.knobCorners)
+                        Modifier.depthKnobFace(depth, hi, lo, depth.knobShape)
                     } else {
                         Modifier.background(if (checked) accentColor else lerp(tokens.elevatedSurface, Color.White, 0.45f))
                     }
