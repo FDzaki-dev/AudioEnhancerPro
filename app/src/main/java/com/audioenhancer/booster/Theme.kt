@@ -658,6 +658,17 @@ val StudioBulletMirrorCorners = DepthCorners(32.dp, 3.dp, 3.dp, 32.dp)
 val StudioKnobShape: Shape = RoundedCornerShape(percent = 28)
 val SereneKnobShape: Shape = CutCornerShape(percent = 30)
 val OldMoneyKnobShape: Shape = CutCornerShape(percent = 12)
+// Batch 225: chip preset (tinggi 32dp) & trek slider (tinggi 10dp) ikut bahasa bentuk tiap tema. Midnight Glass = pil/trek bulat (null).
+val AuroraChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 16.dp, 4.dp, 4.dp)
+val AuroraTrackShape: Shape = AbsoluteRoundedCornerShape(5.dp, 5.dp, 1.5.dp, 1.5.dp)
+val NeumoChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 3.dp, 16.dp, 3.dp)
+val NeumoTrackShape: Shape = AbsoluteRoundedCornerShape(5.dp, 1.dp, 5.dp, 1.dp)
+val StudioChipShape: Shape = AbsoluteRoundedCornerShape(3.dp, 16.dp, 16.dp, 3.dp)
+val StudioTrackShape: Shape = AbsoluteRoundedCornerShape(1.dp, 5.dp, 5.dp, 1.dp)
+val SereneChipShape: Shape = CutCornerShape(percent = 30)
+val SereneTrackShape: Shape = CutCornerShape(3.dp)
+val OldMoneyChipShape: Shape = CutCornerShape(5.dp)
+val OldMoneyTrackShape: Shape = CutCornerShape(2.dp)
 
 val OldMoneyCardRadius = 8.dp
 val OldMoneyIconBoxRadius = 5.dp
@@ -693,7 +704,9 @@ val OldMoneyDepth = DepthStyle(
     knobShade = OldMoneyKnobShade,
     grainAlpha = 0.07f,
     frameInset = 5.dp,
-    knobShape = OldMoneyKnobShape
+    knobShape = OldMoneyKnobShape,
+    chipShape = OldMoneyChipShape,
+    trackShape = OldMoneyTrackShape
 )
 
 /** Batch 180: profil kedalaman FISIK (timbul + cekung) — dibaca mesin di SkeuomorphicComponents.kt
@@ -739,7 +752,10 @@ data class DepthStyle(
     // Batch 218/219: bentuk KNOB (tombol daya, thumb slider, thumb switch). null = lingkaran seperti sebelumnya.
     // Bentuk apa pun (bulat per-pojok, potong/chamfer, persegi membulat) — mesin kubah/cincin membaca outline-nya.
     // Pakai radius persen atau pojok Dp yang menyusut proporsional supaya tetap rapi di thumb kecil 20-22dp.
-    val knobShape: Shape? = null
+    val knobShape: Shape? = null,
+    // Batch 225: bentuk CHIP preset (DepthKeyBox kind Pill) & TREK slider per tema. null = pil penuh / trek bulat 5dp (Midnight Glass).
+    val chipShape: Shape? = null,
+    val trackShape: Shape? = null
 )
 
 /** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
@@ -814,7 +830,9 @@ val AuroraDepth = DepthStyle(
     backdropGrain = 0.03f,
     cardCorners = AuroraArchCorners,
     tintedCardCorners = AuroraArchMirrorCorners,
-    knobShape = AuroraKnobShape
+    knobShape = AuroraKnobShape,
+    chipShape = AuroraChipShape,
+    trackShape = AuroraTrackShape
 )
 
 /** Batch 217: pojok "leaf" Neumorphism — kartu biasa besar di kiri-atas & kanan-bawah, kecil di dua pojok lain;
@@ -846,7 +864,9 @@ val NeumoDepth = DepthStyle(
     backdropGrain = 0.03f,
     cardCorners = NeumoLeafCorners,
     tintedCardCorners = NeumoLeafMirrorCorners,
-    knobShape = NeumoKnobCorners.shape
+    knobShape = NeumoKnobCorners.shape,
+    chipShape = NeumoChipShape,
+    trackShape = NeumoTrackShape
 )
 
 /** Studio Equalizer: abu-abu studio, sudut membulat 20dp, sorot netral. */
@@ -871,7 +891,9 @@ val StudioEqDepth = DepthStyle(
     backdropGrain = 0.03f,
     cardCorners = StudioBulletCorners,
     tintedCardCorners = StudioBulletMirrorCorners,
-    knobShape = StudioKnobShape
+    knobShape = StudioKnobShape,
+    chipShape = StudioChipShape,
+    trackShape = StudioTrackShape
 )
 
 /** Serene M3: hijau-abu sage, sudut cut-corner (chamfer) seperti bentuk aslinya, efek paling halus. */
@@ -894,7 +916,9 @@ val SereneDepth = DepthStyle(
     keyCorner = 8.dp,
     panelCorner = 12.dp,
     backdropGrain = 0.025f,
-    knobShape = SereneKnobShape
+    knobShape = SereneKnobShape,
+    chipShape = SereneChipShape,
+    trackShape = SereneTrackShape
 )
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca

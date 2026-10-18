@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 225: Chip preset dan trek slider mengikuti bentuk tiap tema, widget mendapat gradasi sekunder midnight purple
+
+Atas permintaan "lanjutkan chip preset dan trek slider, sekalian tambahkan sekunder gradient midnight purple pada widget". Chip preset kini berbentuk khas tiap tema: Aurora melengkung (atas membulat, bawah hampir tegas), Neumorphism leaf diagonal, Studio Equalizer bullet (kiri hampir tegas, kanan membulat), Serene M3 bersudut potong, Old Money plakat berpojok chamfer kecil; Midnight Glass tetap pil penuh. Trek slider mengikuti bahasa bentuk yang sama pada skala 10dp, dan isian trek ikut membentuk siluet trek. Di widget, gradasi sekunder midnight purple mengalir bersama gradasi rose dan burgundy: pekat di sudut kanan-bawah pelat, di sisi kanan panel saat Nonaktif, dan di kiri-atas rongga panel saat Aktif sebagai pasangan komplementer pendar rose. Knob widget tidak diubah.
+
+Untuk pengembang: `DepthStyle` mendapat dua field opsional `chipShape` dan `trackShape` (default null = perilaku lama); tiga token warna baru `widget_midnight_*` dipakai tiga drawable widget. Teks widget tetap terbaca karena veil ungu justru menggelapkan latar di bawahnya.
+
+**Perubahan** (6 file + 2 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`, `res/values/widget_theme.xml`, `res/drawable/widget_background.xml`, `widget_panel_off.xml`, `widget_panel_on.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`. Melampaui 5 file karena penambahan field kontrak `DepthStyle` dan token warna bersama widget.
+**Status**: B225 NOT VERIFIED: XML lolos parse dan kurung Kotlin seimbang, belum dijalankan di CI dan belum diuji di HP.
+
 ## Batch 224: Knob widget berbentuk leaf dan siluet tiap tema dipertajam
 
 Atas permintaan "lanjut ke knob widget, pertajam siluet leaf-shape dan bentuk unik per tema". Knob daya di widget beranda kini berbentuk kerikil leaf (pojok kiri-atas dan kanan-bawah membulat besar, dua pojok lain nyaris tegas), sejalan dengan knob di aplikasi; cincin tik dial menyesuaikan jalur barunya. Kontras antara pojok besar dan kecil dipertajam: kartu Neumorphism 28dp berbanding 4dp, knob 32dp berbanding 6dp; kartu Aurora melengkung 36dp di atas dan hampir tegas 6dp di bawah; kartu Studio Equalizer hampir tegas 3dp di kiri dan membulat 32dp di kanan; bentuk default komponen Material 3 ikut. Panel teks widget juga dipertajam (pojok kecil 4dp). Midnight Glass, Serene M3, dan Old Money tidak berubah.

@@ -1160,7 +1160,8 @@ private fun DepthKeyBox(
     val depth = LocalSkeuTokens.current.depth ?: return
     val shape: Shape = when (kind) {
         DepthKeyShape.Chamfer -> depthCornerShape(depth, depth.keyCorner)
-        DepthKeyShape.Pill -> RoundedCornerShape(50)
+        // Batch 225: chip preset mengikuti `DepthStyle.chipShape` tiap tema (null = pil penuh, Midnight Glass).
+        DepthKeyShape.Pill -> depth.chipShape ?: RoundedCornerShape(50)
         DepthKeyShape.Circle -> CircleShape
     }
     val interactionSource = remember { MutableInteractionSource() }
@@ -1224,6 +1225,7 @@ private fun DepthKeyBox(
                         flat -> Modifier
                         recessed -> Modifier.depthWellInner(shape, depth)
                         kind == DepthKeyShape.Chamfer -> Modifier.depthPlateSurface(depth, depth.keyCorner, DepthPartsKey, null, 1.2.dp)
+                        kind == DepthKeyShape.Pill && depth.chipShape != null -> Modifier.depthRingRim(depth, 1.2.dp, shape)
                         kind == DepthKeyShape.Pill -> Modifier.depthPillRim(depth, 1.2.dp)
                         else -> Modifier.depthRingRim(depth, 1.4.dp)
                     }
@@ -2035,7 +2037,8 @@ private fun SkeuSliderTrack(
     val tokens = LocalSkeuTokens.current
     val trackColor = if (enabled) activeColor else activeColor.copy(alpha = 0.35f)
     val bgColor = if (enabled) inactiveColor else inactiveColor.copy(alpha = 0.5f)
-    val shape = RoundedCornerShape(5.dp)
+    // Batch 225: trek mengikuti `DepthStyle.trackShape` tiap tema (null = bulat 5dp, Midnight Glass & tema non-depth).
+    val shape: Shape = tokens.depth?.trackShape ?: RoundedCornerShape(5.dp)
     // Batch 180: depth != null = alur CEKUNG fisik (lantai gelap + bibir luar + bayangan dalam di
     // ATAS bagian terisi, jadi isian pun terlihat tenggelam di alur).
     val depth = tokens.depth
@@ -2066,11 +2069,17 @@ private fun SkeuSliderTrack(
                 .drawBehind {
                     val fillW = size.width * sliderFraction(sliderState)
                     if (fillW > 0f) {
-                        drawRoundRect(
-                            brush = fillBrush,
-                            size = Size(fillW, size.height),
-                            cornerRadius = CornerRadius(5.dp.toPx())
-                        )
+                        if (depth.trackShape != null) {
+                            // B225: isian mengikuti bentuk trek (pojok kiri sama, ujung kanan = pojok kanan trek).
+                            val fillPath = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
+                            drawPath(fillPath, brush = fillBrush)
+                        } else {
+                            drawRoundRect(
+                                brush = fillBrush,
+                                size = Size(fillW, size.height),
+                                cornerRadius = CornerRadius(5.dp.toPx())
+                            )
+                        }
                     }
                 }
         ) {

@@ -89,6 +89,13 @@
             <stroke android:width="0.75dp" android:color="@color/widget_rim" />
         </shape>
     </item>
+    <!-- Batch 225: gradasi SEKUNDER midnight purple, bening dari kiri-atas sampai ~40% lalu pekat ke sudut kanan-bawah (315 = TL->BR). -->
+    <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
+            <gradient android:angle="315" android:centerX="0.4" android:startColor="@color/widget_midnight_clear" android:centerColor="@color/widget_midnight_clear" android:endColor="@color/widget_midnight_veil" />
+        </shape>
+    </item>
     <!-- Kolam cahaya kiri-atas: radial rose lembut memudar (sumber cahaya neumorphism) -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">

@@ -8,6 +8,11 @@
     <color name="widget_plate_start">#A82D4B</color>
     <color name="widget_plate_mid">#6E1733</color>
     <color name="widget_plate_end">#3A0C26</color>
+    <!-- Batch 225: gradasi SEKUNDER midnight purple (#2D1B69) mengalir bersama gradasi rose/burgundy utama: veil alpha di atas pelat (kanan-bawah),
+         panel Nonaktif (sisi kanan), dan sumur panel Aktif (kiri-atas) sebagai pasangan komplementer pendar rose. Ketiganya sama RGB, beda alpha. -->
+    <color name="widget_midnight_clear">#002D1B69</color>
+    <color name="widget_midnight_veil">#B32D1B69</color>
+    <color name="widget_midnight_veil_soft">#7A2D1B69</color>
     <!-- Muka TIMBUL (knob & panel saat Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat.
          Judul #F8E8EB di atas raised_start >= 5:1; status #D9B0BA di atas raised_end >= 7:1. -->
     <color name="widget_raised_start">#AE3553</color>
