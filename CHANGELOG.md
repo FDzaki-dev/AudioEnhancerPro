@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 221: Adaptasi selektif panduan arsitektur Audio Booster (Android 14+)
+
+Menindaklanjuti `AUDIO_BOOSTER_ARCHITECTURE_GUIDE.md`. Panduan itu diadaptasi sesuai kondisi project, bukan disalin mentah. Dari empat bagian: tipe foreground service Android 14+ sudah dideklarasikan di manifest sejak lama (tipe `mediaPlayback` dan izin per-tipe), jadi yang ditambahkan adalah deklarasi tipe eksplisit saat runtime pada `startForeground`, ditambah tes JVM yang menjaga kecocokan manifest dan kode agar regresi tertangkap di CI. Sinkronisasi status lewat DataStore tidak diadopsi karena status service sudah disinkronkan ke widget dan tile secara langsung (perbaikan Batch 44) dan penyimpanan lama dipakai sinkron oleh receiver, tile, widget, dan watchdog; DataStore berarti dependensi baru dengan API asinkron serta flag ganda. Manajemen Audio Focus tidak diadopsi karena Boomly adalah efek global di mixer sistem, bukan pemutar: meminta fokus audio akan menjeda atau menurunkan volume aplikasi musik pengguna.
+
+Untuk pengembang: `AudioEnhancerService.onStartCommand` memanggil `startForeground(id, notification, FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)` di API 29+ dan bentuk lama di bawahnya. Tes baru `ForegroundServiceManifestTest` (tiga kasus) membaca manifest dan sumber sebagai teks tanpa Robolectric atau emulator.
+
+**Perubahan** (2 file + 2 dokumen): `AudioEnhancerService.kt`, `test/.../ForegroundServiceManifestTest.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B221 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/kotlinc) dan tes belum dijalankan; kurung Kotlin seimbang.
+
 ## Batch 220: Ikon header (Pengaturan, Bantuan) tidak lagi terpotong atau terjepit
 
 Perbaikan atas laporan "icon setting dan informasi di samping judul header mengalami distorsi atau terpotong di setiap tema". Ada dua penyebab, dan keduanya bukan soal inset sistem (root aplikasi sudah memakai `safeDrawingPadding()` yang menutup status bar, navigasi, cutout, dan keyboard). Pertama, margin 22dp layar berada di luar area scroll sehingga bayangan dan tepi timbul tombol ikon di pojok kanan-atas terpotong tepat di batas konten; margin kini berada di dalam area scroll, tata letak isi tetap sama. Kedua, kolom judul mengambil lebar penuh dulu sehingga subjudul yang panjang menjepit kedua tombol; kolom judul kini mengalah (judul satu baris, subjudul maksimal dua baris dengan elipsis) dan tombol ikon selalu mendapat lebar utuh. Pola margin yang sama diperbaiki di layar Pengaturan untuk tombol kembali.

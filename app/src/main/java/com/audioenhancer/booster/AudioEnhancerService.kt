@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.*
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -524,7 +525,16 @@ class AudioEnhancerService : Service() {
             return START_NOT_STICKY
         }
         val wasRunning = isRunning // Batch 154: onStartCommand dipanggil ulang tiap klien start — sesi baru HANYA dari mati→hidup
-        startForeground(NOTIF_ID, buildNotification())
+        // Batch 221 (adaptasi AUDIO_BOOSTER_ARCHITECTURE_GUIDE §1, Android 14+): tipe foreground service dideklarasikan
+        // EKSPLISIT saat runtime (API 29+), SAMA dgn `android:foregroundServiceType="mediaPlayback"` di manifest +
+        // izin `FOREGROUND_SERVICE_MEDIA_PLAYBACK` (sudah ada sebelumnya). Pasangan manifest<->runtime dijaga
+        // `ForegroundServiceManifestTest`. <29 jatuh ke bentuk lama (tanpa tipe) — di luar prioritas API 31+.
+        val notification = buildNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(NOTIF_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+        } else {
+            startForeground(NOTIF_ID, notification)
+        }
         // Re-enable jaga-jaga kalau sebelumnya sempat di-"Matikan" lewat notifikasi sementara
         // Service-nya sendiri tetap hidup karena masih bound — tanpa ini, buka app lagi setelah
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
