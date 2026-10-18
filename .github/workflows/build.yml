@@ -308,12 +308,14 @@ jobs:
         if: steps.secret_check.outputs.has_secret == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: AudioEnhancerPro-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
+          # Batch 222 (aturan PROJECT_STATE baris 1): prefiks artifact = singkatan project `AEP`. Nama BERKAS APK di dalamnya & aset
+          # Release TIDAK diubah (dibaca in-app updater).
+          name: AEP-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
           path: ${{ steps.rename.outputs.path }}
 
       # Batch 199 — analisis statis (detekt + detektDebug + lintDebug), tes unit, dan peringatan kompilator Kotlin
       # DIPINDAH keluar dari workflow ini ke `.github/workflows/android-artifact.yml` (adaptasi template user):
-      # hasilnya kini 1 berkas `laporan-untuk-claude.txt` (artifact `<Repo>_laporan-untuk-claude_run<N>`), bukan
+      # hasilnya kini 1 berkas `laporan-untuk-claude.txt` (artifact `AEP_laporan-untuk-claude_run<N>`), bukan
       # artifact zip `<Repo>_static_analysis_v*` + `STATIC_ANALYSIS_MARKER.txt` (Batch 142/162/164) lagi. Workflow ini
       # sekarang HANYA: build debug (cek kompilasi) -> build + publish Release signed -> artifact APK -> ringkasan run.
       # Step ringkasan (adaptasi `build_yml.txt` template user, Batch 276 SONIX): 100% aditif, `continue-on-error`,

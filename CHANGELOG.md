@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 222: Nama artifact GitHub memakai singkatan project, dan perbaikan lint dari laporan CI run21
+
+Dua hal. Pertama, aturan baru di baris paling atas `PROJECT_STATE.md`: nama artifact GitHub wajib memakai singkatan project `AEP` (AudioEnhancerPro) agar nama panjang tidak terpotong dan menutupi informasi setelahnya. Artifact laporan kini bernama `AEP_laporan-untuk-claude_run<N>` dan artifact APK tambahan `AEP-v<versi>-run<run_id>-release`; nama berkas APK di dalamnya dan aset Release tidak berubah. Kedua, laporan CI run21 (Batch 221) bersih: 65 tes lulus termasuk 3 tes baru, ArchUnit, SpotBugs, detekt, dan detekt typed 0 temuan, tanpa peringatan kompilator. Lint menyisakan 4 peringatan: dua `RedundantNamespace` pada drawable knob widget diperbaiki, `NestedWeights` pada judul widget ditandai disengaja (judul fleksibel di dalam panel fleksibel), dan `OldTargetApi` (targetSdk 34) tidak disentuh karena keputusan versi target ada di luar permintaan ini.
+
+Untuk pengembang: tidak ada perubahan perilaku aplikasi; hanya workflow `android-artifact.yml` dan `build.yml` (nama artifact), tiga resource widget, dan README.
+
+**Perubahan** (5 file + 3 dokumen): `.github/workflows/android-artifact.yml`, `.github/workflows/build.yml`, `res/drawable/widget_status_dot_off.xml`, `res/drawable/widget_status_dot_on.xml`, `res/layout/widget_booster.xml`; `README.md`, `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B221 terverifikasi CI (run21). B222 NOT VERIFIED: XML dan YAML lolos parse, belum dijalankan di CI.
+
 ## Batch 221: Adaptasi selektif panduan arsitektur Audio Booster (Android 14+)
 
 Menindaklanjuti `AUDIO_BOOSTER_ARCHITECTURE_GUIDE.md`. Panduan itu diadaptasi sesuai kondisi project, bukan disalin mentah. Dari empat bagian: tipe foreground service Android 14+ sudah dideklarasikan di manifest sejak lama (tipe `mediaPlayback` dan izin per-tipe), jadi yang ditambahkan adalah deklarasi tipe eksplisit saat runtime pada `startForeground`, ditambah tes JVM yang menjaga kecocokan manifest dan kode agar regresi tertangkap di CI. Sinkronisasi status lewat DataStore tidak diadopsi karena status service sudah disinkronkan ke widget dan tile secara langsung (perbaikan Batch 44) dan penyimpanan lama dipakai sinkron oleh receiver, tile, widget, dan watchdog; DataStore berarti dependensi baru dengan API asinkron serta flag ganda. Manajemen Audio Focus tidak diadopsi karena Boomly adalah efek global di mixer sistem, bukan pemutar: meminta fokus audio akan menjeda atau menurunkan volume aplikasi musik pengguna.

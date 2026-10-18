@@ -65,8 +65,10 @@
             android:text="@string/qs_tile_label"
             android:textColor="@color/widget_text_primary"
             android:textSize="15sp"
-            tools:ignore="UnusedAttribute" />
+            tools:ignore="UnusedAttribute,NestedWeights" />
 
+        <!-- Batch 222: NestedWeights pada judul di atas DISENGAJA (judul mengisi sisa panel, panel mengisi sisa lebar widget
+             di samping knob). Alternatif tanpa bobot bersarang = ukuran tetap/menyusun ulang tata letak widget: ditolak (0 regresi). -->
         <ImageView
             android:id="@+id/widget_eq"
             android:layout_width="wrap_content"

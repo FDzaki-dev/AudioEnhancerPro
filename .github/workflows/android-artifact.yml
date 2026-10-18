@@ -384,7 +384,7 @@ jobs:
             echo "- $LINT_SUMMARY"
             echo "- $TEST_SUMMARY"
             echo "- $KWARN_SUMMARY"
-            echo "- Artifact: \`${REPO_NAME}_laporan-untuk-claude_run${RUN_NUMBER}\`"
+            echo "- Artifact: \`AEP_laporan-untuk-claude_run${RUN_NUMBER}\`"
           } >> "$GITHUB_STEP_SUMMARY"
           cat laporan-untuk-claude.txt
 
@@ -393,7 +393,9 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.repository.name }}_laporan-untuk-claude_run${{ github.run_number }}
+          # Batch 222 (aturan PROJECT_STATE baris 1): nama artifact pakai SINGKATAN project `AEP` (= AudioEnhancerPro), bukan nama repo
+          # penuh, supaya UI GitHub tidak memotong nama dan menutupi info setelahnya (jenis berkas + nomor run).
+          name: AEP_laporan-untuk-claude_run${{ github.run_number }}
           path: laporan-untuk-claude.txt
           retention-days: 7
           if-no-files-found: warn
