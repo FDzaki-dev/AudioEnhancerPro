@@ -22,6 +22,14 @@
          Dinaikkan ke warning supaya muncul di laporan. -->
     <issue id="AutoboxingStateCreation" severity="warning" />
 
+    <!-- Batch 223 (disetujui user): `OldTargetApi` (targetSdk 34, "compatibility modes apply") disembunyikan dari laporan.
+         Peringatan ini hanya informasi, bukan bug; targetSdk SENGAJA tetap 34 karena (1) target >= 35 melarang receiver
+         BOOT_COMPLETED menyalakan foreground service `mediaPlayback` (`ForegroundServiceStartNotAllowedException`) sehingga auto-start
+         setelah reboot via `BootReceiver` akan rusak, (2) target 35/36 menuntut AGP/Gradle lebih baru dari yang dipatok workflow
+         (AGP 8.5.2, Gradle 8.7), (3) app tidak dipublish ke Play sehingga kewajiban target API tahunannya tidak berlaku.
+         Naikkan target HANYA atas instruksi eksplisit user, setelah `BootReceiver` dirombak dan diuji di Android 15 nyata. -->
+    <issue id="OldTargetApi" severity="ignore" />
+
     <!-- Batch 164: penanda STOPSHIP di source/resource. Check ini mati secara default dan berseverity
          fatal; diset "warning" supaya muncul di laporan TANPA ikut menggagalkan lintVitalRelease. -->
     <issue id="StopShip" severity="warning" />

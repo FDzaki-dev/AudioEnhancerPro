@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 223: Peringatan OldTargetApi disembunyikan dari laporan lint
+
+Atas persetujuan pengguna, peringatan lint `OldTargetApi` ("Not targeting the latest versions of Android") disetel `ignore` di `app/lint.xml`. Peringatan ini hanya informasi: `targetSdk` sengaja tetap 34 karena target 35 ke atas melarang receiver `BOOT_COMPLETED` menyalakan foreground service `mediaPlayback` (auto-start setelah reboot akan rusak), versi AGP dan Gradle yang dipatok workflow belum mendukung target yang lebih baru, dan aplikasi tidak dipublikasikan ke Play sehingga kewajiban target API tahunannya tidak berlaku. Alasan lengkap dan jalur upgrade bertahap dicatat di `PROJECT_STATE.md`. Laporan CI run22 (Batch 222) bersih: 65 tes lulus, ArchUnit, SpotBugs, detekt, dan detekt typed 0 temuan, lint hanya menyisakan peringatan ini.
+
+Untuk pengembang: tidak ada perubahan perilaku aplikasi, hanya konfigurasi lint.
+
+**Perubahan** (1 file + 3 dokumen): `app/lint.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B222 terverifikasi CI (run22). B223 NOT VERIFIED: XML lolos parse, belum dijalankan di CI; lint diharapkan 0 isu.
+
 ## Batch 222: Nama artifact GitHub memakai singkatan project, dan perbaikan lint dari laporan CI run21
 
 Dua hal. Pertama, aturan baru di baris paling atas `PROJECT_STATE.md`: nama artifact GitHub wajib memakai singkatan project `AEP` (AudioEnhancerPro) agar nama panjang tidak terpotong dan menutupi informasi setelahnya. Artifact laporan kini bernama `AEP_laporan-untuk-claude_run<N>` dan artifact APK tambahan `AEP-v<versi>-run<run_id>-release`; nama berkas APK di dalamnya dan aset Release tidak berubah. Kedua, laporan CI run21 (Batch 221) bersih: 65 tes lulus termasuk 3 tes baru, ArchUnit, SpotBugs, detekt, dan detekt typed 0 temuan, tanpa peringatan kompilator. Lint menyisakan 4 peringatan: dua `RedundantNamespace` pada drawable knob widget diperbaiki, `NestedWeights` pada judul widget ditandai disengaja (judul fleksibel di dalam panel fleksibel), dan `OldTargetApi` (targetSdk 34) tidak disentuh karena keputusan versi target ada di luar permintaan ini.
