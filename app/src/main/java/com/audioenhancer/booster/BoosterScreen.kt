@@ -71,6 +71,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -1552,7 +1553,11 @@ fun BoosterScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = 600.dp)
-                .padding(22.dp)
+                // Batch 220: `.padding(22.dp)` DIPINDAH ke bawah (setelah verticalScroll + navigationBarsPadding).
+                // Sebelumnya padding berada DI LUAR verticalScroll sehingga viewport scroll (yang meng-clip isi)
+                // mengecil persis di tepi konten: bayangan/bevel tombol ikon header (Pengaturan, Bantuan) di
+                // sudut kanan-atas terpotong = tampak terdistorsi di SEMUA tema. Tata letak isi identik (22dp
+                // di semua sisi), hanya batas clip yang sekarang mencakup margin itu.
                 // Batch 100 (laporan user: "keterbatasan scrolling/tampilan ruang tab
                 // masih jelas terasa" — SETELAH fix tab-bar & shadow Batch 99, jadi bug
                 // BEDA, bukan regresi Batch 99). Root cause: Column ini SEBELUMNYA
@@ -1579,23 +1584,35 @@ fun BoosterScreen(
                 // 0 perubahan perilaku — sudah pakai verticalScroll+navigationBarsPadding
                 // sama persis sejak Batch 97.
                 .verticalScroll(rememberScrollState())
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+        // Batch 220: Column judul diberi weight(1f) + jarak 8dp ke ikon. Sebelumnya Column tanpa weight diukur
+        // lebih dulu dgn lebar penuh, jadi subjudul panjang (ID: "Efek berlaku ke seluruh audio sistem", apalagi
+        // font besar) menyisakan ruang sempit untuk 2 tombol ikon -> terjepit/terpotong. Dgn weight, tombol ikon
+        // (anak non-weight) diukur DULU selebar aslinya; judul 1 baris, subjudul maks 2 baris lalu elipsis.
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
                 // kontras maksimum, konsisten di dark & light theme.
                 Text(
                     stringResource(R.string.app_title),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Text(stringResource(R.string.app_subtitle), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    stringResource(R.string.app_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SkeuIconButton(onClick = onOpenSettings) {

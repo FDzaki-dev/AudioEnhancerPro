@@ -94,8 +94,9 @@ fun SettingsScreen(
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 600.dp)
-            .padding(22.dp)
             .verticalScroll(rememberScrollState())
+            // Batch 220: padding SETELAH verticalScroll supaya bayangan tombol back di pojok kiri-atas tak terclip (lihat BoosterScreen).
+            .padding(22.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),

@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 220: Ikon header (Pengaturan, Bantuan) tidak lagi terpotong atau terjepit
+
+Perbaikan atas laporan "icon setting dan informasi di samping judul header mengalami distorsi atau terpotong di setiap tema". Ada dua penyebab, dan keduanya bukan soal inset sistem (root aplikasi sudah memakai `safeDrawingPadding()` yang menutup status bar, navigasi, cutout, dan keyboard). Pertama, margin 22dp layar berada di luar area scroll sehingga bayangan dan tepi timbul tombol ikon di pojok kanan-atas terpotong tepat di batas konten; margin kini berada di dalam area scroll, tata letak isi tetap sama. Kedua, kolom judul mengambil lebar penuh dulu sehingga subjudul yang panjang menjepit kedua tombol; kolom judul kini mengalah (judul satu baris, subjudul maksimal dua baris dengan elipsis) dan tombol ikon selalu mendapat lebar utuh. Pola margin yang sama diperbaiki di layar Pengaturan untuk tombol kembali.
+
+Untuk pengembang: hanya urutan modifier dan bobot tata letak; tanpa komponen baru. Bayangan kartu lain yang sebelumnya terpotong di tepi margin kini terlihat utuh.
+
+**Perubahan** (2 file + 2 dokumen): `BoosterScreen.kt`, `SettingsScreen.kt`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B220 NOT VERIFIED: belum dikompilasi (sandbox tanpa Gradle/kotlinc); kurung Kotlin seimbang. Belum diuji di HP.
+
 ## Batch 219: Setiap tema punya bahasa bentuk uniknya sendiri
 
 Tanggapan atas "setiap theme punya shape unique nya masing-masing tanpa terkecuali". Sebelumnya Midnight Glass dan Aurora Glass memakai bentuk yang persis sama, dan Studio Equalizer hanya versi bulat yang lebih kecil. Kini keenam tema punya siluet khas: Midnight Glass "gelembung" (semua bulat penuh, kartu 32dp, tombol pil, knob lingkaran); Aurora Glass "lengkung" (pojok atas besar 34dp, bawah kecil, kartu status terbalik, knob kubah arch); Neumorphism "leaf" diagonal (tetap); Studio Equalizer "modul rak" (sisi kiri nyaris tegas, sisi kanan bulat, knob kotak membulat, tombol lebih tegas); Serene M3 "potong" (kartu cut-corner tetap, knob oktagon); Old Money "plakat" (chamfer kecil bersiku tetap, knob plakat persegi). Bentuk default komponen Material 3 (dialog, tombol, dan lain-lain) ikut per tema, termasuk set bentuk baru untuk Aurora.
