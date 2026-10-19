@@ -104,11 +104,11 @@
                 android:startColor="#3DFF9AB0" android:centerColor="#12FF9AB0" android:endColor="#00FF9AB0" />
         </shape>
     </item>
-    <!-- Pendalaman bawah: indigo gelap (B226, dulu plum-burgundy) memudar ke atas -->
+    <!-- Pendalaman bawah: aubergine gelap (B227) memudar ke atas -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
             <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
-            <gradient android:angle="90" android:startColor="#571A0F3D" android:centerColor="#001A0F3D" android:endColor="#001A0F3D" />
+            <gradient android:angle="90" android:startColor="#571A0C2E" android:centerColor="#001A0C2E" android:endColor="#001A0C2E" />
         </shape>
     </item>
 </layer-list>

@@ -3,29 +3,29 @@
      Satu sumber untuk layout + drawable widget. Bayangan & overlay alpha di drawable (widget_background / widget_status_dot_* /
      widget_panel_*) memakai RGB 1A0412 (gelap), D8607F (sorot), FFC2D0 (specular), FF6F8A (pendar) dgn alpha bertingkat hasil skrip,
      jadi tidak bisa merujuk @color tunggal; nilai itu = turunan palet ini. Tanpa emas (aturan tema Old Money). -->
-<!-- Batch 226 (keluhan user: burgundy terlalu dominan menutupi gradasi indah): tengah gradasi pelat/muka DIGANTI dari burgundy
-     (#6E1733 / #82223F) ke orchid-magenta (#7B2C7A / #7A2C6E) dan ujung gelap dari plum-burgundy ke midnight purple (#2E1C6B / #34216E),
-     sumur Aktif plum -> indigo (#1F1250) -> violet (#4B1D5E); veil midnight purple diturunkan alpha-nya (70%->40%, 48%->30%) karena ujung
-     gradasi kini sudah ungu. Titik awal (ruby-rose #B3315B / #AE3553) dipertahankan: kontras teks judul >= 5:1, status di atas
-     raised_end >= 6,9:1. Burgundy murni tidak lagi dipakai sebagai nada utama. -->
+<!-- Batch 227 (keluhan user: palet B226 terasa uncanny, minta komposisi terbaik): palet disusun ulang di ruang warna OKLCH, jalur hue DIPERSEMPIT dan
+     jenuh dikecilkan supaya peralihan terasa satu keluarga, bukan tiga warna berbeda: ruby-rose (hue ~10) -> plum-rose (~340) -> midnight purple (~295),
+     terang turun mulus 0,50 -> 0,36 -> 0,23, chroma menyempit 0,15 -> 0,115 -> 0,085. B226 terlalu jenuh (magenta #7B2C7A + ungu kebiruan #2E1C6B) = uncanny;
+     burgundy pekat B215 juga tak dikembalikan (menutupi gradasi). Kontras (hitung manual): judul #F8E8EB di atas raised_start 5,5:1 dan raised_mid 8,3:1;
+     status #D9B0BA di atas raised_mid 5,1:1 dan raised_end 7,5:1; teks aktif #FFB6C4 di atas sumur >= 8,6:1. Veil midnight purple (#27164D) tipis (35%/24%) hanya penghalus. -->
 <resources>
     <!-- Pelat (statis): ruby-rose kiri-atas -> burgundy tengah -> plum gelap kanan-bawah (arah cahaya sama dgn tema Neumorphism app). -->
-    <color name="widget_plate_start">#B3315B</color>
-    <color name="widget_plate_mid">#7B2C7A</color>
-    <color name="widget_plate_end">#2E1C6B</color>
-    <!-- Batch 225: gradasi SEKUNDER midnight purple (#2D1B69) mengalir bersama gradasi rose/burgundy utama: veil alpha di atas pelat (kanan-bawah),
+    <color name="widget_plate_start">#A6344C</color>
+    <color name="widget_plate_mid">#631E4E</color>
+    <color name="widget_plate_end">#23103F</color>
+    <!-- Batch 225: gradasi SEKUNDER midnight purple (#27164D sejak B227) mengalir bersama gradasi rose/burgundy utama: veil alpha di atas pelat (kanan-bawah),
          panel Nonaktif (sisi kanan), dan sumur panel Aktif (kiri-atas) sebagai pasangan komplementer pendar rose. Ketiganya sama RGB, beda alpha. -->
-    <color name="widget_midnight_clear">#002D1B69</color>
-    <color name="widget_midnight_veil">#662D1B69</color>
-    <color name="widget_midnight_veil_soft">#4D2D1B69</color>
+    <color name="widget_midnight_clear">#0027164D</color>
+    <color name="widget_midnight_veil">#5927164D</color>
+    <color name="widget_midnight_veil_soft">#3D27164D</color>
     <!-- Muka TIMBUL (knob & panel saat Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat.
          Judul #F8E8EB di atas raised_start >= 5:1; status #D9B0BA di atas raised_end >= 7:1. -->
-    <color name="widget_raised_start">#AE3553</color>
-    <color name="widget_raised_mid">#7A2C6E</color>
-    <color name="widget_raised_end">#34216E</color>
+    <color name="widget_raised_start">#A43650</color>
+    <color name="widget_raised_mid">#6E2A5B</color>
+    <color name="widget_raised_end">#351E4D</color>
     <!-- Dasar rongga CEKUNG (knob & panel saat Aktif): plum gelap kiri-atas -> burgundy kanan-bawah + garis tepi tipis 15% rose. -->
-    <color name="widget_well_start">#1F1250</color>
-    <color name="widget_well_end">#4B1D5E</color>
+    <color name="widget_well_start">#1E0C2A</color>
+    <color name="widget_well_end">#491740</color>
     <color name="widget_rim">#26FFB3C4</color>
     <!-- Teks: gading-rose di atas burgundy (kontras >= 8:1 utk judul, >= 5:1 utk status). -->
     <color name="widget_text_primary">#F8E8EB</color>

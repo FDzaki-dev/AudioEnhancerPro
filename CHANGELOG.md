@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 227: Palet widget disusun ulang agar harmonis (ruby-rose, plum-rose, midnight purple)
+
+Tanggapan atas "warna widget jadi uncanny, komposisi sesuai referensi terbaik saja". Palet Batch 226 terlalu jenuh: magenta tengah dan ungu kebiruan di ujung tidak sekeluarga dengan rose di titik awal. Palet kini disusun di ruang warna OKLCH dengan jalur hue yang sempit dan jenuh yang menyempit bertahap: ruby-rose di kiri-atas, plum-rose di tengah, dan midnight purple di kanan-bawah, dengan kecerahan turun mulus. Burgundy pekat lama tidak dikembalikan agar gradasi tetap terlihat. Rongga panel Aktif memakai aubergine gelap yang berpasangan dengan pendar rose, dan veil midnight purple dibuat tipis hanya sebagai penghalus. Kontras teks dihitung ulang dan tetap terjaga.
+
+Untuk pengembang: hanya token warna widget dan satu warna overlay di pelat; tanpa perubahan kode maupun tata letak.
+
+**Perubahan** (2 file + 2 dokumen): `res/values/widget_theme.xml`, `res/drawable/widget_background.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B227 NOT VERIFIED: XML lolos parse, belum dijalankan di CI dan belum dilihat di HP.
+
 ## Batch 226: Siluet trek dan chip lebih tajam, widget tidak lagi didominasi burgundy
 
 Menindaklanjuti dua keluhan. Pertama, isian trek slider dan elemen sejenis kurang tajam siluetnya: trek dinaikkan dari 10dp ke 14dp agar bentuk khas tiap tema terbaca, kontras pojok besar dan kecil pada trek dan chip preset dipertegas, dan isian trek kini punya garis tepi tipis di atas bayangan dalam alur sehingga tepinya tajam, tidak lagi kabur tertelan alur. Kedua, burgundy terlalu dominan di widget dan menutupi gradasi warnanya: nada tengah diganti dari burgundy ke orchid-magenta, ujung gelap dari plum-burgundy ke midnight purple, rongga panel Aktif dari plum ke indigo-violet, dan veil ungu diturunkan karena ujung gradasi kini sudah ungu. Ruby-rose di titik awal dipertahankan sehingga kontras teks tetap terjaga.
