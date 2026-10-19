@@ -2051,6 +2051,8 @@ private fun SkeuSliderTrack(
             lerp(depth.wellFloor, inactiveColor.copy(alpha = 1f), if (enabled) 0.14f else 0.05f)
         }
         // B182: isian = enamel bulat (atas lebih terang, bawah lebih gelap), bukan warna datar.
+        // B226: garis tepi isian (digambar DI ATAS bayangan dalam) = siluet isian tajam, tak lagi kabur tertelan alur.
+        val fillEdge = remember(depth, trackColor) { lerp(trackColor, depth.rimLight, 0.6f).copy(alpha = 0.9f) }
         val fillBrush = remember(depth, trackColor) {
             Brush.verticalGradient(
                 listOf(
@@ -2063,7 +2065,8 @@ private fun SkeuSliderTrack(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(10.dp)
+                // B226: trek 10 -> 14dp supaya siluet khas tema (pojok besar-kecil) terbaca; thumb 22dp tetap lebih tinggi.
+                .height(14.dp)
                 .depthWellLip(shape, depth)
                 .background(floor, shape)
                 .drawBehind {
@@ -2084,6 +2087,15 @@ private fun SkeuSliderTrack(
                 }
         ) {
             Box(Modifier.matchParentSize().depthWellInner(shape, depth))
+            Box(
+                Modifier.matchParentSize().drawBehind {
+                    val fillW = size.width * sliderFraction(sliderState)
+                    if (fillW > 0f) {
+                        val edge = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
+                        drawPath(edge, color = fillEdge, style = Stroke(width = 1.dp.toPx()))
+                    }
+                }
+            )
         }
         return
     }

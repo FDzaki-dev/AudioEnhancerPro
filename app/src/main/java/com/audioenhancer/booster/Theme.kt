@@ -658,17 +658,18 @@ val StudioBulletMirrorCorners = DepthCorners(32.dp, 3.dp, 3.dp, 32.dp)
 val StudioKnobShape: Shape = RoundedCornerShape(percent = 28)
 val SereneKnobShape: Shape = CutCornerShape(percent = 30)
 val OldMoneyKnobShape: Shape = CutCornerShape(percent = 12)
-// Batch 225: chip preset (tinggi 32dp) & trek slider (tinggi 10dp) ikut bahasa bentuk tiap tema. Midnight Glass = pil/trek bulat (null).
-val AuroraChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 16.dp, 4.dp, 4.dp)
-val AuroraTrackShape: Shape = AbsoluteRoundedCornerShape(5.dp, 5.dp, 1.5.dp, 1.5.dp)
-val NeumoChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 3.dp, 16.dp, 3.dp)
-val NeumoTrackShape: Shape = AbsoluteRoundedCornerShape(5.dp, 1.dp, 5.dp, 1.dp)
-val StudioChipShape: Shape = AbsoluteRoundedCornerShape(3.dp, 16.dp, 16.dp, 3.dp)
-val StudioTrackShape: Shape = AbsoluteRoundedCornerShape(1.dp, 5.dp, 5.dp, 1.dp)
-val SereneChipShape: Shape = CutCornerShape(percent = 30)
-val SereneTrackShape: Shape = CutCornerShape(3.dp)
-val OldMoneyChipShape: Shape = CutCornerShape(5.dp)
-val OldMoneyTrackShape: Shape = CutCornerShape(2.dp)
+// Batch 225/226: chip preset (tinggi 32dp) & trek slider (tinggi 14dp, naik dari 10dp di B226) ikut bahasa bentuk tiap tema; B226 mempertajam kontras
+// pojok besar-kecil (pojok kecil 1-2dp, trek 7dp) agar siluet terbaca. Midnight Glass = pil/trek bulat (null).
+val AuroraChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 16.dp, 2.dp, 2.dp)
+val AuroraTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 7.dp, 2.dp, 2.dp)
+val NeumoChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 2.dp, 16.dp, 2.dp)
+val NeumoTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 1.dp, 7.dp, 1.dp)
+val StudioChipShape: Shape = AbsoluteRoundedCornerShape(2.dp, 16.dp, 16.dp, 2.dp)
+val StudioTrackShape: Shape = AbsoluteRoundedCornerShape(1.dp, 7.dp, 7.dp, 1.dp)
+val SereneChipShape: Shape = CutCornerShape(percent = 38)
+val SereneTrackShape: Shape = CutCornerShape(4.dp)
+val OldMoneyChipShape: Shape = CutCornerShape(6.dp)
+val OldMoneyTrackShape: Shape = CutCornerShape(3.dp)
 
 val OldMoneyCardRadius = 8.dp
 val OldMoneyIconBoxRadius = 5.dp

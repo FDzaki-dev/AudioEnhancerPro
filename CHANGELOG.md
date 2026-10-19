@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 226: Siluet trek dan chip lebih tajam, widget tidak lagi didominasi burgundy
+
+Menindaklanjuti dua keluhan. Pertama, isian trek slider dan elemen sejenis kurang tajam siluetnya: trek dinaikkan dari 10dp ke 14dp agar bentuk khas tiap tema terbaca, kontras pojok besar dan kecil pada trek dan chip preset dipertegas, dan isian trek kini punya garis tepi tipis di atas bayangan dalam alur sehingga tepinya tajam, tidak lagi kabur tertelan alur. Kedua, burgundy terlalu dominan di widget dan menutupi gradasi warnanya: nada tengah diganti dari burgundy ke orchid-magenta, ujung gelap dari plum-burgundy ke midnight purple, rongga panel Aktif dari plum ke indigo-violet, dan veil ungu diturunkan karena ujung gradasi kini sudah ungu. Ruby-rose di titik awal dipertahankan sehingga kontras teks tetap terjaga.
+
+Untuk pengembang: hanya konstanta bentuk, trek slider (tinggi dan lapisan tepi isian), dan token warna widget; tanpa perubahan kontrak. Bar spektrum belum diberi bentuk khusus tema.
+
+**Perubahan** (4 file + 2 dokumen): `Theme.kt`, `SkeuomorphicComponents.kt`, `res/values/widget_theme.xml`, `res/drawable/widget_background.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B226 NOT VERIFIED: XML lolos parse dan kurung Kotlin seimbang, belum dijalankan di CI dan belum diuji di HP.
+
 ## Batch 225: Chip preset dan trek slider mengikuti bentuk tiap tema, widget mendapat gradasi sekunder midnight purple
 
 Atas permintaan "lanjutkan chip preset dan trek slider, sekalian tambahkan sekunder gradient midnight purple pada widget". Chip preset kini berbentuk khas tiap tema: Aurora melengkung (atas membulat, bawah hampir tegas), Neumorphism leaf diagonal, Studio Equalizer bullet (kiri hampir tegas, kanan membulat), Serene M3 bersudut potong, Old Money plakat berpojok chamfer kecil; Midnight Glass tetap pil penuh. Trek slider mengikuti bahasa bentuk yang sama pada skala 10dp, dan isian trek ikut membentuk siluet trek. Di widget, gradasi sekunder midnight purple mengalir bersama gradasi rose dan burgundy: pekat di sudut kanan-bawah pelat, di sisi kanan panel saat Nonaktif, dan di kiri-atas rongga panel saat Aktif sebagai pasangan komplementer pendar rose. Knob widget tidak diubah.
