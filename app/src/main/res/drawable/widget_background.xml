@@ -81,11 +81,12 @@
     <item android:left="9.5dp" android:top="9.5dp" android:right="5.5dp" android:bottom="5.5dp">
         <shape android:shape="rectangle"><corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" /><solid android:color="#191A0412" /></shape>
     </item>
-    <!-- Pelat timbul (B215: 3 nada): ruby-rose kiri-atas -> burgundy -> plum gelap kanan-bawah (315 = TL->BR), pergeseran hue = gradasi hidup. -->
+    <!-- Pelat timbul (B215: 3 nada). Batch 228: gradasi utama VERTIKAL (270 = atas->bawah): ruby-rose di atas -> plum-rose -> midnight purple di bawah, sehingga ketiga nada
+         terlihat di strip kiri/atas/bawah pelat pada widget tipis maupun tinggi (diagonal 315 membuat strip kiri hanya satu nada rose pucat). -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
             <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
-            <gradient android:angle="315" android:startColor="@color/widget_plate_start" android:centerColor="@color/widget_plate_mid" android:endColor="@color/widget_plate_end" />
+            <gradient android:angle="270" android:startColor="@color/widget_plate_start" android:centerColor="@color/widget_plate_mid" android:endColor="@color/widget_plate_end" />
             <stroke android:width="0.75dp" android:color="@color/widget_rim" />
         </shape>
     </item>
@@ -96,12 +97,12 @@
             <gradient android:angle="315" android:centerX="0.4" android:startColor="@color/widget_midnight_clear" android:centerColor="@color/widget_midnight_clear" android:endColor="@color/widget_midnight_veil" />
         </shape>
     </item>
-    <!-- Kolam cahaya kiri-atas: radial rose lembut memudar (sumber cahaya neumorphism) -->
+    <!-- Kolam cahaya kiri-atas: radial rose memudar (sumber cahaya neumorphism). Batch 228: dari #3DFF9AB0 (pink pucat, mencuci strip kiri jadi dusty pink) ke #33FF7D95 jenuh + radius 150% -> 120% -->
     <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
         <shape android:shape="rectangle">
             <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
-            <gradient android:type="radial" android:centerX="0.1" android:centerY="0" android:gradientRadius="150%"
-                android:startColor="#3DFF9AB0" android:centerColor="#12FF9AB0" android:endColor="#00FF9AB0" />
+            <gradient android:type="radial" android:centerX="0.1" android:centerY="0" android:gradientRadius="120%"
+                android:startColor="#33FF7D95" android:centerColor="#0FFF7D95" android:endColor="#00FF7D95" />
         </shape>
     </item>
     <!-- Pendalaman bawah: aubergine gelap (B227) memudar ke atas -->
@@ -109,6 +110,13 @@
         <shape android:shape="rectangle">
             <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
             <gradient android:angle="90" android:startColor="#571A0C2E" android:centerColor="#001A0C2E" android:endColor="#001A0C2E" />
+        </shape>
+    </item>
+    <!-- Batch 228: garis bevel halus 0,75dp di dalam tepi pelat (kilau tepi, kesan kaca/logam tipis) -->
+    <item android:left="6.75dp" android:top="6.75dp" android:right="6.75dp" android:bottom="6.75dp">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="@dimen/widget_corner_radius" android:topRightRadius="@dimen/widget_corner_radius_small" android:bottomRightRadius="@dimen/widget_corner_radius" android:bottomLeftRadius="@dimen/widget_corner_radius_small" />
+            <stroke android:width="0.5dp" android:color="#2EFFC2D0" />
         </shape>
     </item>
 </layer-list>

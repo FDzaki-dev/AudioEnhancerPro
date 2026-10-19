@@ -43,14 +43,14 @@
         android:paddingStart="@dimen/widget_panel_padding"
         android:paddingEnd="@dimen/widget_panel_padding">
 
-        <!-- Judul auto-mengecil 15sp -> 11sp sebelum dipotong (widget 3 sel sempit ~200dp); autoSize* baru dibaca API 26+,
+        <!-- Judul auto-mengecil 18sp (B228, dulu 15sp: terlalu kecil di widget tinggi) -> 11sp sebelum dipotong (widget 3 sel sempit ~200dp); autoSize* baru dibaca API 26+,
              di bawahnya ukuran tetap 15sp + ellipsize (tools:ignore, bukan bug). -->
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="8dp"
             android:layout_weight="1"
-            android:autoSizeMaxTextSize="15sp"
+            android:autoSizeMaxTextSize="18sp"
             android:autoSizeMinTextSize="11sp"
             android:autoSizeStepGranularity="1sp"
             android:autoSizeTextType="uniform"
@@ -64,7 +64,7 @@
             android:shadowRadius="2"
             android:text="@string/qs_tile_label"
             android:textColor="@color/widget_text_primary"
-            android:textSize="15sp"
+            android:textSize="18sp"
             tools:ignore="UnusedAttribute,NestedWeights" />
 
         <!-- Batch 222: NestedWeights pada judul di atas DISENGAJA (judul mengisi sisa panel, panel mengisi sisa lebar widget
@@ -79,7 +79,7 @@
             android:adjustViewBounds="true"
             android:contentDescription="@null"
             android:importantForAccessibility="no"
-            android:maxHeight="20dp"
+            android:maxHeight="24dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_widget_eq"
             android:tint="@color/widget_eq_off" />
@@ -95,6 +95,6 @@
             android:maxLines="1"
             android:text="@string/qs_tile_subtitle_off"
             android:textColor="@color/widget_text_secondary"
-            android:textSize="12sp" />
+            android:textSize="13sp" />
     </LinearLayout>
 </LinearLayout>

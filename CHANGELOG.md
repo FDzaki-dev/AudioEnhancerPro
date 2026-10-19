@@ -1,5 +1,14 @@
 # Changelog
 
+## Batch 228: Penyempurnaan visual widget berdasarkan screenshot
+
+Menanggapi "masih kelihatan kureng banget, tolong disempurnakan" dengan dua screenshot widget Aktif (satu baris dan dua baris). Temuan dari screenshot: strip kiri pelat tampak dusty-pink pucat karena glow rose terlalu lebar dan terang, gradasi ungu hanya muncul di sudut kanan-atas karena gradasi diagonal pada bentuk lebar hanya menyisakan satu nada di strip kiri, serta teks terlalu kecil dan panel tampak kosong di widget yang tinggi. Perbaikan: gradasi utama pelat kini vertikal (ruby-rose di atas, plum-rose di tengah, midnight purple di bawah) sehingga ketiga nada terlihat di widget tipis maupun tinggi, glow diganti rose yang lebih jenuh dan sempit, ditambah garis bevel halus di dalam tepi pelat; panel mendapat kilau kaca di bagian atas; judul diperbesar hingga 18sp (tetap mengecil otomatis di widget sempit), status 13sp, dan bar equalizer 24dp. Logika toggle, strip LED, knob, dan token warna tidak diubah.
+
+Untuk pengembang: hanya resource XML widget; penilaian visual berdasarkan screenshot, belum diverifikasi di perangkat.
+
+**Perubahan** (4 file + 2 dokumen): `res/drawable/widget_background.xml`, `widget_panel_off.xml`, `widget_panel_on.xml`, `res/layout/widget_booster.xml`; `PROJECT_STATE.md`, `CHANGELOG.md`.
+**Status**: B228 NOT VERIFIED: XML lolos parse, belum dijalankan di CI dan belum dilihat di HP.
+
 ## Batch 227: Palet widget disusun ulang agar harmonis (ruby-rose, plum-rose, midnight purple)
 
 Tanggapan atas "warna widget jadi uncanny, komposisi sesuai referensi terbaik saja". Palet Batch 226 terlalu jenuh: magenta tengah dan ungu kebiruan di ujung tidak sekeluarga dengan rose di titik awal. Palet kini disusun di ruang warna OKLCH dengan jalur hue yang sempit dan jenuh yang menyempit bertahap: ruby-rose di kiri-atas, plum-rose di tengah, dan midnight purple di kanan-bawah, dengan kecerahan turun mulus. Burgundy pekat lama tidak dikembalikan agar gradasi tetap terlihat. Rongga panel Aktif memakai aubergine gelap yang berpasangan dengan pendar rose, dan veil midnight purple dibuat tipis hanya sebagai penghalus. Kontras teks dihitung ulang dan tetap terjaga.
