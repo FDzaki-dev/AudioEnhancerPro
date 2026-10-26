@@ -204,4 +204,37 @@ class EffectGuardPolicyTest {
         assertTrue(EffectGuardPolicy.REBIND_DELAY_MS > EffectGuardPolicy.DEBOUNCE_MS)
         assertTrue(EffectGuardPolicy.REBIND_DELAY_MS < EffectGuardPolicy.SETTLE_RECHECK_MS)
     }
+
+    // ---- Batch 231: priority efek + pemeriksaan berkala ----
+
+    @Test
+    fun `media player is detected from the playback signature`() {
+        assertTrue(EffectGuardPolicy.hasMediaPlayer("1/3"))
+        assertTrue(EffectGuardPolicy.hasMediaPlayer("5/4,1/2"))
+        assertTrue(EffectGuardPolicy.hasMediaPlayer("0/0"))
+    }
+
+    @Test
+    fun `no media player for silence or non media usages`() {
+        assertFalse(EffectGuardPolicy.hasMediaPlayer(""))
+        assertFalse(EffectGuardPolicy.hasMediaPlayer("5/4"))
+        assertFalse(EffectGuardPolicy.hasMediaPlayer("14/2,6/4"))
+        assertFalse(EffectGuardPolicy.hasMediaPlayer("n=2"))
+    }
+
+    @Test
+    fun `effect priority is above the normal priority of zero`() {
+        assertTrue(EffectGuardPolicy.EFFECT_PRIORITY > 0)
+    }
+
+    @Test
+    fun `periodic guard tick is slower than the event driven checks`() {
+        assertTrue(EffectGuardPolicy.GUARD_TICK_MS > EffectGuardPolicy.SETTLE_RECHECK_MS)
+        assertTrue(EffectGuardPolicy.GUARD_TICK_MS > EffectGuardPolicy.USER_ADJUST_QUIET_MS)
+    }
+
+    @Test
+    fun `tick reason is stable so healthy ticks can stay silent`() {
+        assertEquals("tick", EffectGuardPolicy.TICK_REASON)
+    }
 }

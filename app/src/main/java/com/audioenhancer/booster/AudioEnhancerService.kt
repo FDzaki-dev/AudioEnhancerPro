@@ -429,6 +429,17 @@ class AudioEnhancerService : Service() {
     private var lastBindAtMs: Long = EffectGuardPolicy.NEVER
     private val rebindRunnable = Runnable { runEffectRebind("playback-start") }
 
+    // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
+    // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
+    // GUARD_TICK_MS `runEffectGuard("tick")` membaca status nyata efek dan HANYA memulihkan yang rusak (efek sehat = diam).
+    private val guardTickRunnable = object : Runnable {
+        override fun run() {
+            if (!isRunning || !EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) return
+            runEffectGuard(EffectGuardPolicy.TICK_REASON)
+            guardHandler.postDelayed(this, EffectGuardPolicy.GUARD_TICK_MS)
+        }
+    }
+
     // Batch 82: listener perubahan device audio SISTEM (bukan cuma sesi app ini) — cara
     // resmi Android modern (API 23+, project ini minSdk 31 jadi selalu tersedia) untuk tahu
     // kapan sink output BERPINDAH (speaker->Bluetooth, headset dicabut, USB DAC nyambung,
@@ -577,6 +588,7 @@ class AudioEnhancerService : Service() {
         if (!wasRunning) {
             beginUsageSession()
             resetEffectGuardState() // Batch 229: sesi baru = hitung ulang backoff/jendela Effect Guard
+            updateGuardTick() // Batch 231: nyala lagi saat media sudah diputar -> pemeriksaan berkala ikut hidup
         }
         // Batch 9: tandai "user mau service ini hidup" tiap kali start beneran terjadi
         // (dari MainActivity, BootReceiver, QS Tile, Widget, atau Shortcut — semuanya
@@ -694,7 +706,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachBass() {
         try {
-            bassBoost = BassBoost(0, 0).apply {
+            bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
                 enabled = true
                 setControlStatusListener { _, granted ->
                     bassState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
@@ -716,7 +728,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachVirtualizer() {
         try {
-            virtualizer = Virtualizer(0, 0).apply {
+            virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
                 enabled = true
                 setControlStatusListener { _, granted ->
                     virtualizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
@@ -738,7 +750,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachEqualizer() {
         try {
-            equalizer = Equalizer(0, 0).apply {
+            equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
                 enabled = true
                 setControlStatusListener { _, granted ->
                     equalizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
@@ -870,7 +882,7 @@ class AudioEnhancerService : Service() {
                 true, CompressorCurve.PRESENCE_BAND_COUNT, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); SEBELUMNYA "false, 0" (tidak dipakai)
                 true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
-            dynamicsProcessing = DynamicsProcessing(0, 0, config).apply {
+            dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config).apply { // Batch 231
                 // Batch 87: band count HARUS sama dengan preEqBandCount di Config di atas
                 // (kontrak `Eq`/constructor Config — dicek dokumentasi resmi sebelum ditulis).
                 // Gain awal 0 dB (netral) — nilai tersimpan (kalau ada) diterapkan belakangan
@@ -983,10 +995,11 @@ class AudioEnhancerService : Service() {
      *
      *  PENTING — TIDAK DIJAMIN BERHASIL: `CONTROL_LOST` artinya sistem Android sudah
      *  memutuskan app/effect LAIN menang priority-arbitration di session yang sama;
-     *  recreate object di sini TIDAK mengubah priority (`BassBoost(0, 0)` dkk masih
-     *  priority normal, sama seperti sebelumnya, SENGAJA tidak dinaikkan — menaikkan
-     *  priority effect global session-0 punya efek samping ke app lain yang di luar
-     *  scope batch ini). Kalau app lain masih pegang kontrol, effect ini kemungkinan
+     *  recreate object di sini tidak menjamin menang. Batch 231 (atas perintah user
+     *  "teruskan kandidat"): priority efek DINAIKKAN lewat `EffectGuardPolicy.EFFECT_PRIORITY`
+     *  (Bass, Virtualizer, Equalizer, DynamicsProcessing; LoudnessEnhancer tetap normal karena
+     *  API publiknya tanpa parameter priority), jadi recreate kini bisa merebut kontrol dari
+     *  app/vendor berprioritas normal. Kalau app lain masih pegang kontrol, effect ini kemungkinan
      *  besar akan langsung balik `CONTROL_LOST` lagi begitu listener baru terpasang —
      *  itu BUKAN bug fungsi ini, itu cara kerja arbitration Android yang memang di
      *  luar kendali 1 aplikasi manapun. Fungsi ini PALING BERGUNA buat kasus effect
@@ -1128,8 +1141,19 @@ class AudioEnhancerService : Service() {
             guardHandler.removeCallbacks(rebindRunnable)
             guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
         }
+        updateGuardTick() // Batch 231
         guardHandler.removeCallbacks(guardSettleRunnable)
         guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
+    }
+
+    /** Batch 231: (re)jadwalkan pemeriksaan berkala. Hidup hanya bila Service aktif DAN ada pemutar media; mati otomatis
+     *  begitu pemutaran berhenti / "Matikan" (`removeCallbacksAndMessages(null)`). Dipanggil juga saat Service dinyalakan
+     *  lagi, karena callback pemutaran tidak berbunyi ulang bila tanda tangan pemutaran tidak berubah. */
+    private fun updateGuardTick() {
+        guardHandler.removeCallbacks(guardTickRunnable)
+        if (isRunning && EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
+            guardHandler.postDelayed(guardTickRunnable, EffectGuardPolicy.GUARD_TICK_MS)
+        }
     }
 
     /** Batch 230: lepas lalu pasang ulang 5 efek session-0 (Bass, Virtualizer, Equalizer, Loudness, Dynamics) +
@@ -1201,7 +1225,9 @@ class AudioEnhancerService : Service() {
             return
         }
         if (!lost && disabled.isEmpty() && drifted.isEmpty()) {
-            android.util.Log.i(TAG, "EffectGuard[$reason]: efek sehat (${describeEffectStates()})")
+            if (reason != EffectGuardPolicy.TICK_REASON) { // Batch 231: tick berkala sehat = diam (hindari banjir log)
+                android.util.Log.i(TAG, "EffectGuard[$reason]: efek sehat (${describeEffectStates()})")
+            }
             return
         }
         val decision = EffectGuardPolicy.reassertDecision(now, reassertWindowStartMs, reassertCount)
@@ -2097,6 +2123,14 @@ internal object EffectGuardPolicy {
     const val EQ_TOLERANCE_MB = 100
     const val LOUDNESS_TOLERANCE_MB = 1f
     const val USER_ADJUST_QUIET_MS = 1_500L
+    /** Batch 231: priority kontrol efek session-0 (Bass, Virtualizer, Equalizer, DynamicsProcessing). Normal = 0 dan
+     *  umumnya dipakai sistem/app lain, jadi nilai positif besar memenangkan arbitrase saat efek dibuat atau direbut ulang.
+     *  Naikkan lagi bila log masih `control-lost`. Tidak berlaku untuk LoudnessEnhancer (API publik tanpa parameter priority). */
+    const val EFFECT_PRIORITY = 10_000
+    /** Batch 231: jarak pemeriksaan berkala selama ada pemutar media aktif. */
+    const val GUARD_TICK_MS = 15_000L
+    /** Batch 231: alasan pemeriksaan berkala; hasil "sehat" tidak di-log (hindari banjir log). */
+    const val TICK_REASON = "tick"
     /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output). */
     const val REBIND_DELAY_MS = 700L
     /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Naikkan bila terdengar kedip tiap pindah video. */
@@ -2161,6 +2195,9 @@ internal object EffectGuardPolicy {
         val before = mediaEntryCounts(previousSignature)
         return mediaEntryCounts(newSignature).any { (entry, count) -> count > (before[entry] ?: 0) }
     }
+
+    /** Batch 231: true bila tanda tangan pemutaran memuat minimal satu pemutar media (usage UNKNOWN/MEDIA). */
+    fun hasMediaPlayer(signature: String): Boolean = mediaEntryCounts(signature).isNotEmpty()
 
     /** Batch 230: boleh pasang ulang bila belum pernah memasang, atau sudah >= [REBIND_MIN_INTERVAL_MS] sejak terakhir. */
     fun mayRebind(nowMs: Long, lastBindMs: Long): Boolean =

@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 231: Priority efek dinaikkan dan pemeriksaan berkala selama media diputar
+
+Menanggapi "belum perfect, teruskan kandidat". Dua kandidat dari catatan B230 dikerjakan karena aman tanpa setup tambahan dari user. Pertama, priority kontrol efek session-0 dinaikkan dari 0 (normal) ke `EffectGuardPolicy.EFFECT_PRIORITY` (10000) untuk Bass, Virtualizer, Equalizer, dan DynamicsProcessing. Dengan begitu `retryControlAcquisition` dan pemasangan ulang efek dari B230 bisa merebut kontrol dari aplikasi atau vendor berprioritas normal, yang sebelumnya selalu kalah dan berhenti mencoba. LoudnessEnhancer tetap normal karena API publiknya tidak punya parameter priority. Keputusan lama "jangan naikkan priority tanpa perintah user" dicabut atas perintah user.
+
+Kedua, pemeriksaan berkala tiap 15 detik selama ada pemutar media aktif (`guardTickRunnable`, `updateGuardTick`). Efek bisa dimatikan atau direset vendor tanpa event apa pun, sehingga guard berbasis event dari B229 tidak pernah terpicu. Pemeriksaan ini memakai `runEffectGuard("tick")` yang hanya memulihkan efek yang rusak; efek sehat tidak disentuh dan tidak menulis log. Pemeriksaan mati otomatis saat pemutaran berhenti atau saat user menekan Matikan, dan hidup lagi saat Boomly dinyalakan ketika media sudah diputar.
+
+Temuan riset yang menentukan arah berikutnya: jalur per-session lewat broadcast `OPEN_AUDIO_EFFECT_CONTROL_SESSION` tidak menolong YouTube atau Amazon Music karena mereka tidak mengirim broadcast itu. Aplikasi sejenis (Wavelet, Equalizer314) mendapatkan session pemutar yang tidak mengumumkan diri dengan membaca keluaran `dumpsys`, yang butuh izin `DUMP` (diberikan user lewat adb atau Shizuku). API publik `AudioPlaybackConfiguration.getSessionId()` tidak terkonfirmasi, dan format teks session di keluaran dump belum terverifikasi di perangkat ini, jadi parser tidak ditulis dari tebakan. Jalur itu dicatat sebagai kandidat B232 dengan langkah pertama berupa probe yang hanya mencatat baris mentah.
+
+Tes: 5 tes baru di `EffectGuardPolicyTest` (total 31). Belum dikompilasi, belum diuji di HP; akar masalah tetap belum terbukti.
+
 ## Batch 230: Efek dipasang ulang saat pemutar media baru mulai (lanjutan Effect Guard)
 
 Menanggapi "perbaikan terakhir kurang berasa, teruskan". Effect Guard B229 hanya memulihkan efek yang terbaca rusak (kontrol hilang, `enabled=false`, parameter menyimpang). Efek session-0 yang terbaca sehat tetapi tertinggal di output thread lama tidak terdeteksi oleh API publik manapun, sehingga tetap tidak terdengar di YouTube atau aplikasi sosmed. Penyebabnya dugaan, belum terbukti dari sandbox: sistem memilih output thread untuk efek global saat efek dibuat, jadi efek yang dibuat sebelum pemutar baru mulai bisa menempel ke output lain.
