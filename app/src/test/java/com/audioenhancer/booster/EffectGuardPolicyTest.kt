@@ -132,4 +132,76 @@ class EffectGuardPolicyTest {
         val video = EffectGuardPolicy.playbackSignature(listOf(1 to 3))
         assertFalse(music == video)
     }
+
+    // ---- Batch 230: pasang ulang efek saat pemutar media baru mulai ----
+
+    @Test
+    fun `rebind when a media player starts after silence`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("", "1/3"))
+    }
+
+    @Test
+    fun `rebind when a new media player joins one that is still listed`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("1/2", "1/2,1/3"))
+    }
+
+    @Test
+    fun `rebind when a media player swaps for a different one in one step`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("1/2", "1/3"))
+    }
+
+    @Test
+    fun `rebind when a second player with identical attributes appears`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("1/3", "1/3,1/3"))
+    }
+
+    @Test
+    fun `no rebind when a player stops or playback ends`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/2,1/3", "1/2"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", ""))
+    }
+
+    @Test
+    fun `no rebind for notification alarm ringtone or game sounds`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("", "5/4"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("", "4/4"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("", "6/4"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("", "14/2"))
+    }
+
+    @Test
+    fun `unknown usage counts as media for rebind`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("", "0/0"))
+    }
+
+    @Test
+    fun `malformed signature entries are ignored without crashing`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("", "abc,/3,n=2"))
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("abc", "abc,1/3"))
+    }
+
+    @Test
+    fun `no rebind when media players are unchanged`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", "1/3"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", "1/3,5/4"))
+    }
+
+    @Test
+    fun `rebind is allowed when effects were never bound`() {
+        assertTrue(EffectGuardPolicy.mayRebind(nowMs = 0L, lastBindMs = EffectGuardPolicy.NEVER))
+    }
+
+    @Test
+    fun `rebind waits for the minimum interval since the last bind`() {
+        val last = 10_000L
+        assertFalse(EffectGuardPolicy.mayRebind(last, last))
+        assertFalse(EffectGuardPolicy.mayRebind(last + EffectGuardPolicy.REBIND_MIN_INTERVAL_MS - 1, last))
+        assertTrue(EffectGuardPolicy.mayRebind(last + EffectGuardPolicy.REBIND_MIN_INTERVAL_MS, last))
+    }
+
+    @Test
+    fun `rebind delay is shorter than the settle recheck so the recheck verifies the new effects`() {
+        assertTrue(EffectGuardPolicy.REBIND_DELAY_MS > EffectGuardPolicy.DEBOUNCE_MS)
+        assertTrue(EffectGuardPolicy.REBIND_DELAY_MS < EffectGuardPolicy.SETTLE_RECHECK_MS)
+    }
 }

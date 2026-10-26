@@ -421,6 +421,14 @@ class AudioEnhancerService : Service() {
     private val guardRunnable = Runnable { runEffectGuard(pendingGuardReason) }
     private val guardSettleRunnable = Runnable { runEffectGuard("playback-settle") }
 
+    // Batch 230 (request user: "Perbaikan terakhir kurang berasa, teruskan!!"): B229 hanya memulihkan efek yang
+    // TERBACA rusak (lost/disabled/drift). Efek session-0 yang terbaca SEHAT tapi tertinggal di output thread lama
+    // (sistem memilih output untuk efek global saat efek DIBUAT) tidak terdeteksi API publik manapun -> tetap tak
+    // terdengar di YouTube/sosmed. Perbaikan: saat pemutar media BARU mulai, efek dipasang ulang (release + attach)
+    // sehingga sistem memilih ulang output yang sedang aktif. Aturan murni ada di `EffectGuardPolicy`. NOT VERIFIED.
+    private var lastBindAtMs: Long = EffectGuardPolicy.NEVER
+    private val rebindRunnable = Runnable { runEffectRebind("playback-start") }
+
     // Batch 82: listener perubahan device audio SISTEM (bukan cuma sesi app ini) — cara
     // resmi Android modern (API 23+, project ini minSdk 31 jadi selalu tersedia) untuk tahu
     // kapan sink output BERPINDAH (speaker->Bluetooth, headset dicabut, USB DAC nyambung,
@@ -681,6 +689,7 @@ class AudioEnhancerService : Service() {
         // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
         // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
         restoreSavedSettings()
+        lastBindAtMs = SystemClock.elapsedRealtime() // Batch 230: efek baru dipasang -> pasang-ulang otomatis ditahan sementara
     }
 
     private fun attachBass() {
@@ -1108,12 +1117,68 @@ class AudioEnhancerService : Service() {
             "n=${configs?.size ?: 0}"
         }
         if (signature == lastPlaybackSignature) return
+        val previousSignature = lastPlaybackSignature
         lastPlaybackSignature = signature
-        android.util.Log.i(TAG, "Pemutaran sistem berubah: [$signature] running=$isRunning")
+        val rebind = isRunning && EffectGuardPolicy.shouldRebindOnPlayback(previousSignature, signature)
+        android.util.Log.i(TAG, "Pemutaran sistem berubah: [$signature] running=$isRunning pasangUlang=$rebind")
         if (!isRunning) return
         requestEffectGuard("playback")
+        if (rebind) {
+            // Batch 230: pemutar media BARU mulai -> pasang ulang efek sesudah jeda singkat (biar sistem selesai memilih output).
+            guardHandler.removeCallbacks(rebindRunnable)
+            guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
+        }
         guardHandler.removeCallbacks(guardSettleRunnable)
         guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
+    }
+
+    /** Batch 230: lepas lalu pasang ulang 5 efek session-0 (Bass, Virtualizer, Equalizer, Loudness, Dynamics) +
+     *  terapkan ulang nilai tersimpan. Alasan: sistem memilih output thread untuk efek global saat efek DIBUAT;
+     *  efek yang dibuat sebelum pemutar baru (mis. YouTube) mulai bisa tertinggal di output lama sambil tetap
+     *  terbaca `enabled` dan "sehat" — tak ada API publik untuk mendeteksinya, jadi satu-satunya jalan non-root
+     *  adalah membuatnya ulang saat output baru sudah aktif. Visualizer TIDAK disentuh (observer pasif).
+     *  Pengaman: diam bila Service mati; ditunda selama user menggeser slider; dibatasi
+     *  [EffectGuardPolicy.REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir (anti-churn & anti-kedip). */
+    private fun runEffectRebind(reason: String) {
+        if (!isRunning) return
+        val now = SystemClock.elapsedRealtime()
+        if (EffectGuardPolicy.isQuietPeriod(now, lastAdjustAtMs)) {
+            guardHandler.removeCallbacks(rebindRunnable)
+            guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
+            return
+        }
+        if (!EffectGuardPolicy.mayRebind(now, lastBindAtMs)) {
+            android.util.Log.i(TAG, "EffectRebind[$reason]: dilewati (efek baru dipasang < ${EffectGuardPolicy.REBIND_MIN_INTERVAL_MS / 1000} dtk lalu)")
+            return
+        }
+        val before = describeEffectStates()
+        releaseMixEffects()
+        attachBass()
+        attachVirtualizer()
+        attachEqualizer() // urutan SAMA dgn attachEffects(): `attachDynamicsProcessing()` membaca `equalizerState` (fallback EQ)
+        attachLoudness()
+        attachDynamicsProcessing()
+        restoreSavedSettings()
+        lastBindAtMs = SystemClock.elapsedRealtime()
+        android.util.Log.w(TAG, "EffectRebind[$reason]: efek dipasang ulang; sebelum ($before) sesudah (${describeEffectStates()})")
+    }
+
+    private fun releaseMixEffects() {
+        try { bassBoost?.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release BassBoost sebelum pasang ulang", e)
+        }
+        try { virtualizer?.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release Virtualizer sebelum pasang ulang", e)
+        }
+        try { equalizer?.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release Equalizer sebelum pasang ulang", e)
+        }
+        try { loudnessEnhancer?.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release LoudnessEnhancer sebelum pasang ulang", e)
+        }
+        try { dynamicsProcessing?.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release DynamicsProcessing sebelum pasang ulang", e)
+        }
     }
 
     /** Pemeriksaan + pemulihan. Hanya menyentuh yang RUSAK: (1) kontrol hilang -> rebut ulang lewat
@@ -2032,6 +2097,10 @@ internal object EffectGuardPolicy {
     const val EQ_TOLERANCE_MB = 100
     const val LOUDNESS_TOLERANCE_MB = 1f
     const val USER_ADJUST_QUIET_MS = 1_500L
+    /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output). */
+    const val REBIND_DELAY_MS = 700L
+    /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Naikkan bila terdengar kedip tiap pindah video. */
+    const val REBIND_MIN_INTERVAL_MS = 30_000L
 
     private const val MAX_BACKOFF_SHIFT = 6
 
@@ -2069,6 +2138,33 @@ internal object EffectGuardPolicy {
 
     fun loudnessDiffers(savedMb: Float, actualMb: Float): Boolean =
         kotlin.math.abs(savedMb - actualMb) > LOUDNESS_TOLERANCE_MB
+
+    /** Batch 230: usage yang memicu pasang-ulang = UNKNOWN (0) dan MEDIA (1). GAME/notifikasi/dering/alarm TIDAK
+     *  (suara pendek sering datang-pergi; memasang ulang tiap kali = kedip tanpa guna). */
+    private val REBIND_USAGES = setOf(0, 1)
+
+    private fun mediaEntryCounts(signature: String): Map<String, Int> {
+        if (signature.isEmpty()) return emptyMap()
+        return signature.split(',')
+            .filter { entry ->
+                val usage = entry.substringBefore('/').toIntOrNull()
+                usage != null && usage in REBIND_USAGES
+            }
+            .groupingBy { it }
+            .eachCount()
+    }
+
+    /** Batch 230: true bila ADA pemutar media baru (jumlah entri usage/contentType media bertambah dibanding
+     *  tanda tangan sebelumnya) — mis. YouTube mulai, baik saat musik sudah berhenti maupun masih tercatat. Pemutar
+     *  yang berhenti atau perubahan non-media = false. */
+    fun shouldRebindOnPlayback(previousSignature: String, newSignature: String): Boolean {
+        val before = mediaEntryCounts(previousSignature)
+        return mediaEntryCounts(newSignature).any { (entry, count) -> count > (before[entry] ?: 0) }
+    }
+
+    /** Batch 230: boleh pasang ulang bila belum pernah memasang, atau sudah >= [REBIND_MIN_INTERVAL_MS] sejak terakhir. */
+    fun mayRebind(nowMs: Long, lastBindMs: Long): Boolean =
+        lastBindMs == NEVER || nowMs - lastBindMs >= REBIND_MIN_INTERVAL_MS
 
     /** Urutan pemutar tidak berarti: diurutkan supaya tanda tangan stabil. Kosong = tidak ada pemutaran aktif. */
     fun playbackSignature(usageAndContentType: List<Pair<Int, Int>>): String =
