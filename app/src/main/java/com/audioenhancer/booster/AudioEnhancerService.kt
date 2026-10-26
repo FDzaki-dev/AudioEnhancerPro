@@ -8,6 +8,7 @@ import android.content.pm.ServiceInfo
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.media.audiofx.BassBoost
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
@@ -397,6 +398,29 @@ class AudioEnhancerService : Service() {
 
     private var audioManager: AudioManager? = null
 
+    // Batch 229 (request user: "enhancer kehilangan pengaruh saat beralih ke aplikasi sosmed macam YouTube"):
+    // Effect Guard. Efek session-0 BISA lepas diam-diam tepat saat aplikasi lain mulai memutar audio: sistem
+    // memindahkan chain efek ke output thread lain, vendor HAL mereset parameter, listener melaporkan efek
+    // `enabled=false`, atau kontrol diambil (CONTROL_LOST). SEBELUM B229 semua itu hanya dicatat ke state; tidak
+    // ada yang memulihkan sampai user buka app (banner) atau route audio berpindah. Sekarang tiga pemicu
+    // (AudioPlaybackCallback sistem, listener enable/control tiap efek, perubahan route) mengantre SATU
+    // pemeriksaan ber-debounce (`runEffectGuard`) yang memulihkan hanya yang rusak. Angka & aturan murni ada di
+    // `EffectGuardPolicy` (bawah file, ada tesnya). NOT VERIFIED di device.
+    private val guardHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    @android.annotation.SuppressLint("NewApi")
+    private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
+    private var lastPlaybackSignature: String = ""
+    private var lastReacquireAtMs: Long = EffectGuardPolicy.NEVER
+    private var reacquireFailures: Int = 0
+    private var reassertWindowStartMs: Long = EffectGuardPolicy.NEVER
+    private var reassertCount: Int = 0
+    @Volatile private var pendingGuardReason: String = ""
+    // Stempel setter publik terakhir (UI/preset/auto-profil/restore). Dipakai guard supaya TIDAK "memulihkan" nilai
+    // lama di tengah user menggeser slider (efek sudah baru, pref belum tertulis) — lihat `runEffectGuard`.
+    @Volatile private var lastAdjustAtMs: Long = EffectGuardPolicy.NEVER
+    private val guardRunnable = Runnable { runEffectGuard(pendingGuardReason) }
+    private val guardSettleRunnable = Runnable { runEffectGuard("playback-settle") }
+
     // Batch 82: listener perubahan device audio SISTEM (bukan cuma sesi app ini) — cara
     // resmi Android modern (API 23+, project ini minSdk 31 jadi selalu tersedia) untuk tahu
     // kapan sink output BERPINDAH (speaker->Bluetooth, headset dicabut, USB DAC nyambung,
@@ -480,6 +504,7 @@ class AudioEnhancerService : Service() {
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
         }
+        registerPlaybackGuard() // Batch 229
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -514,6 +539,7 @@ class AudioEnhancerService : Service() {
             // Batch 119: Sleep timer ikut dibersihkan di jalur berhenti ini (dipakai tombol
             // Matikan, QS Tile, DAN habisnya timer itu sendiri).
             sleepHandler.removeCallbacks(sleepTick)
+            guardHandler.removeCallbacksAndMessages(null) // Batch 229: user sengaja mati -> batalkan pemeriksaan Effect Guard yang antre
             PrefsHelper.setSleepTimerEndAt(this, 0L)
             BoosterWidgetProvider.refreshAll(this)
             // Batch 44 (bugfix): QS Tile SEBELUMNYA gak ikut diberi tahu di sini —
@@ -540,7 +566,10 @@ class AudioEnhancerService : Service() {
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
         enableEffects()
         isRunning = true
-        if (!wasRunning) beginUsageSession()
+        if (!wasRunning) {
+            beginUsageSession()
+            resetEffectGuardState() // Batch 229: sesi baru = hitung ulang backoff/jendela Effect Guard
+        }
         // Batch 9: tandai "user mau service ini hidup" tiap kali start beneran terjadi
         // (dari MainActivity, BootReceiver, QS Tile, Widget, atau Shortcut — semuanya
         // lewat requestStart() -> sini). ServiceWatchdogWorker baca flag ini buat
@@ -604,6 +633,8 @@ class AudioEnhancerService : Service() {
             android.util.Log.e(TAG, "Gagal unregister AudioDeviceCallback", e)
         }
         sleepHandler.removeCallbacks(sleepTick) // Batch 119 (prefs sengaja TIDAK dibersihkan)
+        unregisterPlaybackGuard() // Batch 229
+        guardHandler.removeCallbacksAndMessages(null)
         releaseEffects()
         isRunning = false
         endUsageSession() // no-op kalau sesi sudah ditutup di jalur ACTION_STOP
@@ -658,11 +689,13 @@ class AudioEnhancerService : Service() {
                 enabled = true
                 setControlStatusListener { _, granted ->
                     bassState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                    requestEffectGuard(if (granted) "control-regained:bass" else "control-lost:bass") // Batch 229
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (bassState != EffectState.CONTROL_LOST) {
                         bassState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
+                    if (!isEnabled) requestEffectGuard("disabled:bass") // Batch 229: dimatikan sistem/HAL -> pulihkan (diam kalau user yang mematikan)
                 }
             }
             bassState = EffectState.ENABLED
@@ -678,11 +711,13 @@ class AudioEnhancerService : Service() {
                 enabled = true
                 setControlStatusListener { _, granted ->
                     virtualizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                    requestEffectGuard(if (granted) "control-regained:virtualizer" else "control-lost:virtualizer") // Batch 229
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (virtualizerState != EffectState.CONTROL_LOST) {
                         virtualizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
+                    if (!isEnabled) requestEffectGuard("disabled:virtualizer") // Batch 229: dimatikan sistem/HAL -> pulihkan (diam kalau user yang mematikan)
                 }
             }
             virtualizerState = EffectState.ENABLED
@@ -698,11 +733,13 @@ class AudioEnhancerService : Service() {
                 enabled = true
                 setControlStatusListener { _, granted ->
                     equalizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                    requestEffectGuard(if (granted) "control-regained:equalizer" else "control-lost:equalizer") // Batch 229
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (equalizerState != EffectState.CONTROL_LOST) {
                         equalizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
+                    if (!isEnabled) requestEffectGuard("disabled:equalizer") // Batch 229: dimatikan sistem/HAL -> pulihkan (diam kalau user yang mematikan)
                 }
             }
             equalizerState = EffectState.ENABLED
@@ -718,11 +755,13 @@ class AudioEnhancerService : Service() {
                 enabled = true
                 setControlStatusListener { _, granted ->
                     loudnessState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
+                    requestEffectGuard(if (granted) "control-regained:loudness" else "control-lost:loudness") // Batch 229
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (loudnessState != EffectState.CONTROL_LOST) {
                         loudnessState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
+                    if (!isEnabled) requestEffectGuard("disabled:loudness") // Batch 229: dimatikan sistem/HAL -> pulihkan (diam kalau user yang mematikan)
                 }
             }
             loudnessState = EffectState.ENABLED
@@ -888,12 +927,14 @@ class AudioEnhancerService : Service() {
                 setControlStatusListener { _, granted ->
                     dynamicsState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     if (needsEqFallback) equalizerState = dynamicsState
+                    requestEffectGuard(if (granted) "control-regained:dynamics" else "control-lost:dynamics") // Batch 229
                 }
                 setEnableStatusListener { _, isEnabled ->
                     if (dynamicsState != EffectState.CONTROL_LOST) {
                         dynamicsState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                         if (needsEqFallback && equalizerState != EffectState.CONTROL_LOST) equalizerState = dynamicsState
                     }
+                    if (!isEnabled) requestEffectGuard("disabled:dynamics") // Batch 229
                 }
             }
             dynamicsState = EffectState.ENABLED
@@ -1000,6 +1041,186 @@ class AudioEnhancerService : Service() {
         return retried
     }
 
+    // ---- Batch 229: Effect Guard (pemulihan efek saat pindah ke aplikasi lain, mis. YouTube) ----
+
+    /** Antre SATU pemeriksaan [runEffectGuard] (debounce [EffectGuardPolicy.DEBOUNCE_MS]: banyak event beruntun
+     *  = 1 pemeriksaan). Diam kalau Service tidak sedang aktif, jadi "Matikan" dari user tidak pernah dilawan. */
+    private fun requestEffectGuard(reason: String, delayMs: Long = EffectGuardPolicy.DEBOUNCE_MS) {
+        if (!isRunning) return
+        pendingGuardReason = reason
+        guardHandler.removeCallbacks(guardRunnable)
+        guardHandler.postDelayed(guardRunnable, delayMs)
+    }
+
+    private fun markSettingAdjusted() {
+        lastAdjustAtMs = SystemClock.elapsedRealtime()
+    }
+
+    private fun resetEffectGuardState() {
+        lastReacquireAtMs = EffectGuardPolicy.NEVER
+        reacquireFailures = 0
+        reassertWindowStartMs = EffectGuardPolicy.NEVER
+        reassertCount = 0
+    }
+
+    /** `AudioPlaybackCallback` (API 26+, publik, tanpa izin) = tahu kapan aplikasi LAIN mulai/berhenti memutar audio
+     *  (YouTube, TikTok, dst). Dipasang di `guardHandler` (main thread). Gagal-aman: kalau sistem menolak, hanya Log. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun registerPlaybackGuard() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = audioManager ?: return
+        try {
+            val callback = object : AudioManager.AudioPlaybackCallback() {
+                override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+                    onPlaybackConfigsChanged(configs)
+                }
+            }
+            manager.registerAudioPlaybackCallback(callback, guardHandler)
+            playbackCallback = callback
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal register AudioPlaybackCallback (pemulihan efek saat pindah aplikasi nonaktif)", e)
+        }
+    }
+
+    @android.annotation.SuppressLint("NewApi")
+    private fun unregisterPlaybackGuard() {
+        val callback = playbackCallback ?: return
+        playbackCallback = null
+        try {
+            audioManager?.unregisterAudioPlaybackCallback(callback)
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal unregister AudioPlaybackCallback", e)
+        }
+    }
+
+    /** Hanya bereaksi bila "tanda tangan" pemutaran (usage/contentType tiap pemutar aktif) BERUBAH — mis. musik
+     *  berhenti lalu video YouTube mulai. Dua pemeriksaan: cepat ([EffectGuardPolicy.DEBOUNCE_MS]) dan satu lagi
+     *  setelah sistem selesai memindahkan output ([EffectGuardPolicy.SETTLE_RECHECK_MS]). Tanda tangan juga di-Log
+     *  (diagnostik: ketahuan jenis pemutaran apa yang memicu efek lepas). */
+    @android.annotation.SuppressLint("NewApi")
+    private fun onPlaybackConfigsChanged(configs: List<AudioPlaybackConfiguration>?) {
+        val signature = try {
+            EffectGuardPolicy.playbackSignature(
+                configs.orEmpty().map { it.audioAttributes.usage to it.audioAttributes.contentType }
+            )
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal membaca AudioAttributes pemutar aktif", e)
+            "n=${configs?.size ?: 0}"
+        }
+        if (signature == lastPlaybackSignature) return
+        lastPlaybackSignature = signature
+        android.util.Log.i(TAG, "Pemutaran sistem berubah: [$signature] running=$isRunning")
+        if (!isRunning) return
+        requestEffectGuard("playback")
+        guardHandler.removeCallbacks(guardSettleRunnable)
+        guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
+    }
+
+    /** Pemeriksaan + pemulihan. Hanya menyentuh yang RUSAK: (1) kontrol hilang -> rebut ulang lewat
+     *  [retryControlAcquisition] dengan backoff (bukan loop rapat); (2) efek terbaca `enabled=false` -> nyalakan
+     *  lagi; (3) parameter terbaca menyimpang dari yang tersimpan (HAL reset) -> [restoreSavedSettings]. Efek sehat
+     *  TIDAK disentuh sama sekali (perilaku & suara sama persis dgn sebelum B229). `FAILED` SENGAJA tidak memicu
+     *  rebut-ulang otomatis (biasanya kegagalan permanen lokal mis. strength tak didukung; recreate sia-sia).
+     *  Dibatasi [EffectGuardPolicy.REASSERT_MAX_PER_WINDOW] intervensi per jendela supaya tidak adu tarik dgn
+     *  sistem/aplikasi lain. */
+    private fun runEffectGuard(reason: String) {
+        if (!isRunning) return
+        val now = SystemClock.elapsedRealtime()
+        val lost = hasControlLostEffect()
+        val disabled = findDisabledEffects()
+        val adjusting = EffectGuardPolicy.isQuietPeriod(now, lastAdjustAtMs)
+        val drifted = if (lost || adjusting) emptyList() else findDriftedSettings()
+        if (adjusting && !lost && disabled.isEmpty()) {
+            // User sedang menggeser slider: nilai tersimpan bisa tertinggal sesaat dari efek. Periksa drift SETELAH tenang.
+            requestEffectGuard(reason, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
+            return
+        }
+        if (!lost && disabled.isEmpty() && drifted.isEmpty()) {
+            android.util.Log.i(TAG, "EffectGuard[$reason]: efek sehat (${describeEffectStates()})")
+            return
+        }
+        val decision = EffectGuardPolicy.reassertDecision(now, reassertWindowStartMs, reassertCount)
+        reassertWindowStartMs = decision.windowStartMs
+        reassertCount = decision.count
+        if (!decision.allowed) {
+            android.util.Log.w(
+                TAG,
+                "EffectGuard[$reason]: DITAHAN (batas intervensi tercapai) lost=$lost disabled=$disabled drifted=$drifted (${describeEffectStates()})"
+            )
+            return
+        }
+        var reacquired = false
+        if (lost && EffectGuardPolicy.mayReacquire(now, lastReacquireAtMs, reacquireFailures)) {
+            lastReacquireAtMs = now
+            reacquired = retryControlAcquisition() // sudah memanggil restoreSavedSettings()
+            reacquireFailures = if (hasControlLostEffect()) reacquireFailures + 1 else 0
+        }
+        if (disabled.isNotEmpty()) enableEffects()
+        if (!reacquired && (disabled.isNotEmpty() || drifted.isNotEmpty())) restoreSavedSettings()
+        android.util.Log.w(
+            TAG,
+            "EffectGuard[$reason]: lost=$lost reacquired=$reacquired disabled=$disabled drifted=$drifted " +
+                "gagalBeruntun=$reacquireFailures (${describeEffectStates()})"
+        )
+    }
+
+    private fun hasControlLostEffect(): Boolean =
+        listOf(bassState, virtualizerState, equalizerState, loudnessState, dynamicsState)
+            .any { it == EffectState.CONTROL_LOST }
+
+    private fun describeEffectStates(): String =
+        "bass=$bassState virt=$virtualizerState eq=$equalizerState loud=$loudnessState dyn=$dynamicsState"
+
+    /** Baca `enabled` langsung dari objek efek. `null` = tak terbaca/efek tak ada (BUKAN dianggap mati). */
+    private fun readEnabled(name: String, read: () -> Boolean?): Boolean? = try {
+        read()
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "Gagal membaca status enabled $name", e)
+        null
+    }
+
+    private fun findDisabledEffects(): List<String> {
+        val disabled = mutableListOf<String>()
+        if (readEnabled("bass") { bassBoost?.enabled } == false) disabled += "bass"
+        if (readEnabled("virtualizer") { virtualizer?.enabled } == false) disabled += "virtualizer"
+        if (readEnabled("equalizer") { equalizer?.enabled } == false) disabled += "equalizer"
+        if (readEnabled("loudness") { loudnessEnhancer?.enabled } == false) disabled += "loudness"
+        if (readEnabled("dynamics") { dynamicsProcessing?.enabled } == false) disabled += "dynamics"
+        return disabled
+    }
+
+    /** Bandingkan parameter yang SEDANG aktif di efek dengan nilai tersimpan ([PrefsHelper]). Toleransi pembulatan
+     *  device ada di [EffectGuardPolicy]; DynamicsProcessing tidak dibandingkan (tak ada getter praktis) — ia
+     *  ikut dipulihkan lewat [restoreSavedSettings] bila efek lain terdeteksi menyimpang/mati. */
+    private fun findDriftedSettings(): List<String> {
+        val drifted = mutableListOf<String>()
+        try {
+            bassBoost?.takeIf { it.strengthSupported }?.let {
+                if (EffectGuardPolicy.strengthDiffers(PrefsHelper.getBass(this), it.roundedStrength.toInt())) drifted += "bass"
+            }
+            virtualizer?.takeIf { it.strengthSupported }?.let {
+                if (EffectGuardPolicy.strengthDiffers(PrefsHelper.getVirtualizer(this), it.roundedStrength.toInt())) drifted += "virtualizer"
+            }
+            loudnessEnhancer?.let {
+                if (EffectGuardPolicy.loudnessDiffers(PrefsHelper.getLoudness(this), it.targetGain)) drifted += "loudness"
+            }
+            if (!equalizerFallbackActive) {
+                equalizer?.let { eq ->
+                    for (band in 0 until eq.numberOfBands.toInt()) {
+                        val actual = eq.getBandLevel(band.toShort()).toInt()
+                        if (EffectGuardPolicy.eqLevelDiffers(PrefsHelper.getEqualizerBandLevel(this, band, 0), actual)) {
+                            drifted += "equalizer"
+                            break
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal membandingkan parameter efek dengan nilai tersimpan", e)
+        }
+        return drifted
+    }
+
     /** Batch 82 (roadmap.md Fase 0 #3, audit Gap "Output routing awareness" — audio
      *  session 0 tidak dijamin "menempel" seragam di semua HAL vendor saat sink output
      *  berpindah, lihat komentar panjang `EffectState` di atas soal kenapa gap ini beda
@@ -1051,6 +1272,7 @@ class AudioEnhancerService : Service() {
         android.util.Log.i(TAG, "Output route berubah: $label $suffix")
         if (isRunning) {
             enableEffects()
+            requestEffectGuard("route") // Batch 229: parameter bisa ter-reset HAL saat sink berpindah -> verifikasi + terapkan ulang bila perlu
             // Batch 122/123 (Fase 8 ROI #5 "Auto-profile per output device"): hanya kalau
             // toggle "Auto-Profil per Output" aktif (opt-in, default MATI — lihat
             // PrefsHelper.getAutoProfileEnabled()). Digerbang `isRunning` SAMA PERSIS
@@ -1375,6 +1597,7 @@ class AudioEnhancerService : Service() {
     // perubahan baru. Master limiter/gain-staging yang lebih menyeluruh tetap item
     // terpisah (roadmap.md Fase 0 #5), bukan scope "capability detection" ini.
     fun setBassStrength(strength: Short) { // 0..1000, per mille — lihat komentar di atas
+        markSettingAdjusted()
         try {
             bassBoost?.setStrength(strength)
             if (bassBoost?.strengthSupported == true) {
@@ -1390,6 +1613,7 @@ class AudioEnhancerService : Service() {
     }
 
     fun setVirtualizerStrength(strength: Short) { // 0..1000, per mille — lihat komentar di atas
+        markSettingAdjusted()
         try {
             virtualizer?.setStrength(strength)
             if (virtualizer?.strengthSupported == true) {
@@ -1405,6 +1629,7 @@ class AudioEnhancerService : Service() {
     }
 
     fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000 — tidak ada API range query (lihat komentar di atas)
+        markSettingAdjusted()
         try { loudnessEnhancer?.setTargetGain(gainMb.toInt()) } catch (e: Exception) {
             loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set LoudnessEnhancer gain", e)
         }
@@ -1490,6 +1715,7 @@ class AudioEnhancerService : Service() {
     // (hanya true saat dynamicsProcessing berhasil dibuat = API>=28).
     @android.annotation.SuppressLint("NewApi")
     fun setEqualizerBand(band: Short, levelMb: Short) {
+        markSettingAdjusted()
         // Batch 87: dua rute — Equalizer legacy asli (mayoritas device, kode TIDAK berubah)
         // ATAU fallback PreEq `DynamicsProcessing` (lihat `equalizerFallbackActive`,
         // `attachDynamicsProcessing()`). `levelMb` (satuan lama, milliBel, konsisten
@@ -1782,4 +2008,69 @@ internal object CompressorCurve {
             expanderRatio = 1f + f * g * EXPANDER_EXTRA[index]
         )
     }
+}
+
+/**
+ * Batch 229 — aturan murni (tanpa dependency Android, ada tesnya) untuk Effect Guard di [AudioEnhancerService]:
+ * debounce/jadwal pemeriksaan, backoff rebut-ulang kontrol efek, pembatas intervensi per jendela waktu, toleransi
+ * pembulatan device saat membandingkan parameter aktif vs tersimpan, dan "tanda tangan" pemutaran sistem.
+ * Tuning (ubah HANYA angka di sini): `REASSERT_MAX_PER_WINDOW`/`REASSERT_WINDOW_MS` = seberapa sering guard boleh
+ * memulihkan (turunkan bila terdengar adu tarik dgn aplikasi lain); `STRENGTH_TOLERANCE`/`EQ_TOLERANCE_MB` = seberapa
+ * besar selisih dianggap "menyimpang" (naikkan bila guard memulihkan terus-menerus karena pembulatan device).
+ * NOT VERIFIED di device.
+ */
+internal object EffectGuardPolicy {
+    /** Penanda "belum pernah" untuk stempel waktu `elapsedRealtime` (nilai sah selalu >= 0). */
+    const val NEVER = -1L
+    const val DEBOUNCE_MS = 400L
+    const val SETTLE_RECHECK_MS = 2_500L
+    const val MIN_REACQUIRE_INTERVAL_MS = 5_000L
+    const val MAX_REACQUIRE_INTERVAL_MS = 120_000L
+    const val REASSERT_WINDOW_MS = 30_000L
+    const val REASSERT_MAX_PER_WINDOW = 6
+    const val STRENGTH_TOLERANCE = 60
+    const val EQ_TOLERANCE_MB = 100
+    const val LOUDNESS_TOLERANCE_MB = 1f
+    const val USER_ADJUST_QUIET_MS = 1_500L
+
+    private const val MAX_BACKOFF_SHIFT = 6
+
+    data class ReassertDecision(val allowed: Boolean, val windowStartMs: Long, val count: Int)
+
+    /** Jeda minimum sebelum rebut-ulang kontrol boleh diulang: 5 dtk, lalu berlipat tiap kegagalan beruntun, maks 120 dtk. */
+    fun reacquireIntervalMs(consecutiveFailures: Int): Long =
+        (MIN_REACQUIRE_INTERVAL_MS shl consecutiveFailures.coerceIn(0, MAX_BACKOFF_SHIFT))
+            .coerceAtMost(MAX_REACQUIRE_INTERVAL_MS)
+
+    fun mayReacquire(nowMs: Long, lastAttemptMs: Long, consecutiveFailures: Int): Boolean =
+        lastAttemptMs == NEVER || nowMs - lastAttemptMs >= reacquireIntervalMs(consecutiveFailures)
+
+    /** Jendela geser sederhana: maks [REASSERT_MAX_PER_WINDOW] intervensi per [REASSERT_WINDOW_MS]. */
+    fun reassertDecision(nowMs: Long, windowStartMs: Long, count: Int): ReassertDecision {
+        val expired = windowStartMs == NEVER || nowMs - windowStartMs >= REASSERT_WINDOW_MS
+        val start = if (expired) nowMs else windowStartMs
+        val used = if (expired) 0 else count
+        return if (used >= REASSERT_MAX_PER_WINDOW) {
+            ReassertDecision(allowed = false, windowStartMs = start, count = used)
+        } else {
+            ReassertDecision(allowed = true, windowStartMs = start, count = used + 1)
+        }
+    }
+
+    /** true selama [USER_ADJUST_QUIET_MS] sesudah setter publik terakhir (user/preset/restore sedang mengubah nilai). */
+    fun isQuietPeriod(nowMs: Long, lastAdjustMs: Long): Boolean =
+        lastAdjustMs != NEVER && nowMs - lastAdjustMs < USER_ADJUST_QUIET_MS
+
+    fun strengthDiffers(savedPerMille: Int, actualPerMille: Int): Boolean =
+        kotlin.math.abs(savedPerMille - actualPerMille) > STRENGTH_TOLERANCE
+
+    fun eqLevelDiffers(savedMb: Int, actualMb: Int): Boolean =
+        kotlin.math.abs(savedMb - actualMb) > EQ_TOLERANCE_MB
+
+    fun loudnessDiffers(savedMb: Float, actualMb: Float): Boolean =
+        kotlin.math.abs(savedMb - actualMb) > LOUDNESS_TOLERANCE_MB
+
+    /** Urutan pemutar tidak berarti: diurutkan supaya tanda tangan stabil. Kosong = tidak ada pemutaran aktif. */
+    fun playbackSignature(usageAndContentType: List<Pair<Int, Int>>): String =
+        usageAndContentType.map { "${it.first}/${it.second}" }.sorted().joinToString(",")
 }
