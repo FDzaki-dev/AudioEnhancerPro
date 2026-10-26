@@ -156,9 +156,9 @@ class EffectGuardPolicyTest {
     }
 
     @Test
-    fun `no rebind when a player stops or playback ends`() {
-        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/2,1/3", "1/2"))
+    fun `no rebind when playback ends completely`() {
         assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", ""))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/2,1/3", ""))
     }
 
     @Test
@@ -236,5 +236,62 @@ class EffectGuardPolicyTest {
     @Test
     fun `tick reason is stable so healthy ticks can stay silent`() {
         assertEquals("tick", EffectGuardPolicy.TICK_REASON)
+    }
+
+    // ---- Batch 232: pasang ulang ikut perubahan pemutar & ditunda (bukan dibuang) ----
+
+    @Test
+    fun `rebind when one media player stops but another is still playing`() {
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("1/2,1/3", "1/2"))
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayback("1/3,1/3", "1/3"))
+    }
+
+    @Test
+    fun `no rebind when only a non media sound leaves or joins`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3,5/4", "1/3"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", "1/3,5/4"))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3,5/4", "1/3,6/4"))
+    }
+
+    @Test
+    fun `no rebind wait when effects were never bound`() {
+        assertEquals(0L, EffectGuardPolicy.rebindWaitMs(nowMs = 0L, lastBindMs = EffectGuardPolicy.NEVER))
+    }
+
+    @Test
+    fun `rebind wait is the remainder of the minimum interval`() {
+        val last = 10_000L
+        assertEquals(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS, EffectGuardPolicy.rebindWaitMs(last, last))
+        assertEquals(
+            EffectGuardPolicy.REBIND_MIN_INTERVAL_MS - 1_000L,
+            EffectGuardPolicy.rebindWaitMs(last + 1_000L, last)
+        )
+        assertEquals(1L, EffectGuardPolicy.rebindWaitMs(last + EffectGuardPolicy.REBIND_MIN_INTERVAL_MS - 1L, last))
+    }
+
+    @Test
+    fun `rebind wait is zero once the interval has passed and never negative`() {
+        val last = 10_000L
+        assertEquals(0L, EffectGuardPolicy.rebindWaitMs(last + EffectGuardPolicy.REBIND_MIN_INTERVAL_MS, last))
+        assertEquals(0L, EffectGuardPolicy.rebindWaitMs(last + EffectGuardPolicy.REBIND_MIN_INTERVAL_MS * 10, last))
+    }
+
+    @Test
+    fun `rebind wait agrees with mayRebind`() {
+        val last = 10_000L
+        for (offset in listOf(0L, 1L, 999L, 4_999L, 5_000L, 5_001L, 30_000L)) {
+            val now = last + offset
+            assertEquals(
+                "offset=$offset",
+                EffectGuardPolicy.mayRebind(now, last),
+                EffectGuardPolicy.rebindWaitMs(now, last) == 0L
+            )
+        }
+    }
+
+    @Test
+    fun `minimum rebind interval is short enough to follow social media churn but longer than the settle delay`() {
+        assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS > EffectGuardPolicy.REBIND_DELAY_MS)
+        assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS < EffectGuardPolicy.GUARD_TICK_MS)
     }
 }

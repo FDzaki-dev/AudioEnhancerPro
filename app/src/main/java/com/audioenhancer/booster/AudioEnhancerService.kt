@@ -1138,6 +1138,8 @@ class AudioEnhancerService : Service() {
         requestEffectGuard("playback")
         if (rebind) {
             // Batch 230: pemutar media BARU mulai -> pasang ulang efek sesudah jeda singkat (biar sistem selesai memilih output).
+            // Batch 232: juga saat himpunan pemutar media BERUBAH (mis. video lama berhenti sesudah yang baru mulai); tiap
+            // perubahan baru mengundurkan jadwal ini (debounce), jadi pasang-ulang jatuh SETELAH perpindahan output reda.
             guardHandler.removeCallbacks(rebindRunnable)
             guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
         }
@@ -1162,7 +1164,8 @@ class AudioEnhancerService : Service() {
      *  terbaca `enabled` dan "sehat" — tak ada API publik untuk mendeteksinya, jadi satu-satunya jalan non-root
      *  adalah membuatnya ulang saat output baru sudah aktif. Visualizer TIDAK disentuh (observer pasif).
      *  Pengaman: diam bila Service mati; ditunda selama user menggeser slider; dibatasi
-     *  [EffectGuardPolicy.REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir (anti-churn & anti-kedip). */
+     *  [EffectGuardPolicy.REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir (anti-churn & anti-kedip) — Batch 232:
+     *  yang tertahan jeda itu DITUNDA sampai jeda habis (bukan dibuang), dan dibatalkan bila pemutaran sudah berhenti. */
     private fun runEffectRebind(reason: String) {
         if (!isRunning) return
         val now = SystemClock.elapsedRealtime()
@@ -1171,8 +1174,19 @@ class AudioEnhancerService : Service() {
             guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
             return
         }
-        if (!EffectGuardPolicy.mayRebind(now, lastBindAtMs)) {
-            android.util.Log.i(TAG, "EffectRebind[$reason]: dilewati (efek baru dipasang < ${EffectGuardPolicy.REBIND_MIN_INTERVAL_MS / 1000} dtk lalu)")
+        if (!EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
+            // Batch 232: pemutaran sudah berhenti selagi pasang-ulang menunggu -> tak ada output aktif yang perlu diikuti.
+            android.util.Log.i(TAG, "EffectRebind[$reason]: dibatalkan (tak ada pemutar media aktif)")
+            return
+        }
+        val waitMs = EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs)
+        if (waitMs > 0L) {
+            // Batch 232: DITUNDA, bukan dibuang. Sebelumnya (B230) pasang-ulang yang tiba < 30 dtk sejak pemasangan
+            // terakhir langsung dibuang, sehingga perpindahan output berikutnya (pemutar datang-pergi di sosmed) tak
+            // pernah diikuti dan efek tertinggal di output lama ("mendem").
+            android.util.Log.i(TAG, "EffectRebind[$reason]: ditunda $waitMs ms (efek baru dipasang < ${EffectGuardPolicy.REBIND_MIN_INTERVAL_MS / 1000} dtk lalu)")
+            guardHandler.removeCallbacks(rebindRunnable)
+            guardHandler.postDelayed(rebindRunnable, waitMs)
             return
         }
         val before = describeEffectStates()
@@ -2133,8 +2147,12 @@ internal object EffectGuardPolicy {
     const val TICK_REASON = "tick"
     /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output). */
     const val REBIND_DELAY_MS = 700L
-    /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Naikkan bila terdengar kedip tiap pindah video. */
-    const val REBIND_MIN_INTERVAL_MS = 30_000L
+    /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Batch 232: 30 dtk -> 5 dtk DAN pasang-ulang yang
+     *  tertahan jeda ini sekarang DITUNDA sampai jeda habis (bukan dibuang). Alasan: di aplikasi sosmed pemutar
+     *  datang-pergi dalam hitungan detik; dengan jeda 30 dtk yang membuang, pasang-ulang hanya terjadi untuk pemutar
+     *  PERTAMA lalu efek berpindah output lagi dan tak pernah dipasang ulang (gejala: efek terdengar sepersekian
+     *  detik lalu "mendem"). Naikkan bila terdengar kedip tiap geser video. */
+    const val REBIND_MIN_INTERVAL_MS = 5_000L
 
     private const val MAX_BACKOFF_SHIFT = 6
 
@@ -2188,13 +2206,22 @@ internal object EffectGuardPolicy {
             .eachCount()
     }
 
-    /** Batch 230: true bila ADA pemutar media baru (jumlah entri usage/contentType media bertambah dibanding
-     *  tanda tangan sebelumnya) — mis. YouTube mulai, baik saat musik sudah berhenti maupun masih tercatat. Pemutar
-     *  yang berhenti atau perubahan non-media = false. */
+    /** Batch 230: true bila ADA pemutar media baru — mis. YouTube mulai, baik saat musik sudah berhenti maupun masih
+     *  tercatat. Batch 232: diperluas ke SETIAP perubahan himpunan pemutar media (bertambah ATAU berkurang) selama
+     *  masih ada pemutar media sesudahnya. Alasan: sistem memilih ulang output efek global juga saat pemutar LAMA
+     *  berhenti (mis. video berikutnya sudah mulai, video sebelumnya baru berhenti sedetik kemudian), dan versi
+     *  "hanya bertambah" tak pernah memasang ulang pada langkah itu. Berhenti total (tak ada media tersisa) dan
+     *  perubahan non-media (notifikasi/dering/alarm/game) tetap false. */
     fun shouldRebindOnPlayback(previousSignature: String, newSignature: String): Boolean {
-        val before = mediaEntryCounts(previousSignature)
-        return mediaEntryCounts(newSignature).any { (entry, count) -> count > (before[entry] ?: 0) }
+        val after = mediaEntryCounts(newSignature)
+        if (after.isEmpty()) return false
+        return after != mediaEntryCounts(previousSignature)
     }
+
+    /** Batch 232: sisa jeda (ms) sebelum pasang-ulang boleh jalan lagi; 0 = boleh sekarang. Dipakai untuk MENUNDA
+     *  (bukan membuang) pasang-ulang yang tiba di dalam [REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir. */
+    fun rebindWaitMs(nowMs: Long, lastBindMs: Long): Long =
+        if (lastBindMs == NEVER) 0L else (REBIND_MIN_INTERVAL_MS - (nowMs - lastBindMs)).coerceAtLeast(0L)
 
     /** Batch 231: true bila tanda tangan pemutaran memuat minimal satu pemutar media (usage UNKNOWN/MEDIA). */
     fun hasMediaPlayer(signature: String): Boolean = mediaEntryCounts(signature).isNotEmpty()
