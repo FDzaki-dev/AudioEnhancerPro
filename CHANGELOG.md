@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 236: Publish Release tahan galat API GitHub (APK diamankan lebih dulu, cadangan gh CLI dengan jeda bertahap)
+
+Permintaan user: "Atasi segera!!" dengan log `logs_109688952933.zip` (workflow `build.yml`, run #273, commit 987cb00; log tidak menyebut batch yang dibangun). Hanya `.github/workflows/build.yml` yang berubah; kode aplikasi sama dengan B235.
+
+1. Temuan log. Build debug dan build release signed SUKSES (`BUILD SUCCESSFUL` keduanya, Stale Run Guard lolos). Yang gagal hanya step "Publish GitHub Release": `softprops/action-gh-release@v2` menerima `GitHub release failed with status: 500` (body respons kosong) tiga kali dalam sekitar 8 detik, lalu `Too many retries`. Galat 500 berasal dari sisi GitHub dan sebabnya tidak bisa dipastikan dari log (pencarian status GitHub tidak menemukan insiden terkonfirmasi untuk tanggal itu). Tidak ada galat kompilasi, tes, atau lint di log ini.
+2. Kerugian nyata. Step "Upload signed release APK (artifact tambahan)" berada SESUDAH publish Release dan tanpa `if: always()`, jadi ikut ke-skip: APK yang sudah jadi hilang total, tak ada berkas untuk diambil. Kini artifact diunggah SEBELUM Release dipublish.
+3. Publish lebih tahan galat. Step action diberi `continue-on-error` dan `id: publish_release`. Bila gagal, step baru "Publish GitHub Release (cadangan gh CLI)" mencoba `gh release create` sampai 5 kali dengan jeda 20/40/60/80 detik; percobaan 4-5 memakai catatan singkat (jaring bila catatan penuh yang ditolak); Release yang terlanjur separuh jadi dilengkapi lewat `gh release upload --clobber`. Bila semuanya habis, run GAGAL (merah) dengan pesan yang menunjuk artifact APK: kegagalan tidak disembunyikan. Ringkasan run kini menampilkan tautan Release hanya bila publish benar-benar berhasil.
+
+Yang TIDAK diubah: kode aplikasi, nama tag, judul Release, nama berkas APK dan artifact (dibaca in-app updater), signing, R8/shrink, `android-artifact.yml`.
+
+Verifikasi dan batas: disimulasikan, BELUM dijalankan di GitHub sungguhan. YAML valid (PyYAML), urutan step benar, `bash -n` lolos, dan skrip cadangan diuji dengan `gh` palsu pada 4 skenario (sukses langsung; Release separuh jadi; gagal 3x lalu catatan singkat; gagal semua = exit 1 dengan jeda 20/40/60/80). Perilaku `gh release create` di runner (repo dari `GH_REPO`, token `github.token` dengan `contents: write`) berasal dari dokumentasi. Run #273 tidak menghasilkan Release maupun artifact APK; push v236 membangun ulang dan menerbitkannya. Laporan tes/lint (`android-artifact.yml`) tidak ada di log ini, jadi B229-B235 tetap NOT VERIFIED untuk tes/lint.
+
 ## Batch 235: Jendela konstruktor DynamicsProcessing ditutup (Config sudah terisi nilai tersimpan sebelum objek dibuat)
 
 Permintaan user: "Teruskan perbaikan terakhir!!" (lanjutan B234, serah-terima efek masih dikejar sampai gapless). Dipilih kandidat pertama yang B234 catat di "Temuan terbuka" dan RESUME POINT. Tidak ada laporan CI atau log device baru, jadi tidak ada gejala baru yang diperbaiki: hanya satu jendela yang sudah diketahui. Seluruh perubahan di `AudioEnhancerService.kt` (+ tes).

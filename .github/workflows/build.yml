@@ -292,15 +292,16 @@ jobs:
       # value `name:` (`"..."`) — expression `${{ }}` GitHub Actions TETAP
       # jalan normal di dalam string YAML yang di-quote, cuma `#` di dalamnya
       # jadi literal, bukan comment starter lagi.
-      - name: Publish GitHub Release
-        if: steps.secret_check.outputs.has_secret == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
-          name: "AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})"
-          files: ${{ steps.rename.outputs.path }}
-          body_path: release_notes.md
-
+      # Batch 236 (laporan user: run #273 gagal). Log: build debug + release SUKSES; `softprops/action-gh-release` gagal
+      # `GitHub release failed with status: 500` 3x dalam ~8 dtk (body respons KOSONG = galat sisi GitHub, bukan isi APK/workflow).
+      # Dua kerugian nyata yang ditutup di sini:
+      # (1) Step artifact APK dulu berada SESUDAH publish Release tanpa `if: always()`: satu galat API membuat step itu ke-skip dan
+      #     APK hilang total (build sukses, tak ada berkas yang bisa diambil). Kini artifact diunggah SEBELUM Release dipublish.
+      # (2) Satu-satunya jalur publish = action (3 percobaan tanpa jeda berarti). Kini action berstatus `continue-on-error` dan,
+      #     bila gagal, step cadangan `gh release create` mencoba sampai 5x dengan jeda bertahap (20/40/60/80 dtk). Percobaan 4-5
+      #     memakai catatan singkat (jaring bila catatan penuh yang ditolak). Release yang terlanjur separuh jadi (ada, tanpa APK)
+      #     dilengkapi lewat `gh release upload --clobber`. Bila cadangan pun habis, run GAGAL (merah): kegagalan TIDAK disembunyikan.
+      # Nama tag, judul Release, dan nama berkas APK TIDAK berubah (dibaca in-app updater).
       # Tetap disimpan juga sebagai Actions Artifact (retensi lebih pendek) buat
       # akses cepat dari histori run tanpa harus buka tab Releases. Nama artifact
       # ikut disertai run_id (Batch 42) — konsisten sama key unik di atas.
@@ -312,6 +313,50 @@ jobs:
           # Release TIDAK diubah (dibaca in-app updater).
           name: AEP-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release
           path: ${{ steps.rename.outputs.path }}
+
+      - name: Publish GitHub Release
+        id: publish_release
+        if: steps.secret_check.outputs.has_secret == 'true'
+        continue-on-error: true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
+          name: "AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})"
+          files: ${{ steps.rename.outputs.path }}
+          body_path: release_notes.md
+
+      - name: Publish GitHub Release (cadangan gh CLI)
+        id: publish_release_fallback
+        if: steps.secret_check.outputs.has_secret == 'true' && steps.publish_release.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
+          TITLE: "AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})"
+          APK_PATH: ${{ steps.rename.outputs.path }}
+        run: |
+          ok=0
+          for attempt in 1 2 3 4 5; do
+            echo "Cadangan publish Release: percobaan $attempt/5 (tag $TAG)"
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              # Release sudah terbentuk separuh (mis. action membuatnya tetapi unggah APK gagal): lengkapi asetnya saja.
+              if gh release upload "$TAG" "$APK_PATH" --clobber; then ok=1; fi
+            elif [ "$attempt" -le 3 ]; then
+              if gh release create "$TAG" "$APK_PATH" --title "$TITLE" --target "$GITHUB_SHA" --notes-file release_notes.md; then ok=1; fi
+            else
+              if gh release create "$TAG" "$APK_PATH" --title "$TITLE" --target "$GITHUB_SHA" --notes "Catatan lengkap tidak dilampirkan (pembuatan Release dengan catatan penuh gagal berulang). Rasional teknis: CHANGELOG.md di repo."; then ok=1; fi
+            fi
+            if [ "$ok" = "1" ]; then break; fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "Gagal; tunggu $((attempt * 20)) dtk sebelum mencoba lagi"
+              sleep $((attempt * 20))
+            fi
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::error::Release TIDAK berhasil dipublish (action + 5 percobaan cadangan). APK tetap tersedia di artifact AEP-v${{ steps.version.outputs.name }}-run${{ github.run_id }}-release pada run ini."
+            exit 1
+          fi
+          echo "Release dipublish lewat jalur cadangan (tag $TAG)."
 
       # Batch 199 — analisis statis (detekt + detektDebug + lintDebug), tes unit, dan peringatan kompilator Kotlin
       # DIPINDAH keluar dari workflow ini ke `.github/workflows/android-artifact.yml` (adaptasi template user):
@@ -327,6 +372,8 @@ jobs:
           VERSION_NAME: ${{ steps.version.outputs.name }}
           APK_PATH: ${{ steps.rename.outputs.path }}
           HAS_SECRET: ${{ steps.secret_check.outputs.has_secret }}
+          RELEASE_OUTCOME: ${{ steps.publish_release.outcome }}
+          FALLBACK_OUTCOME: ${{ steps.publish_release_fallback.outcome }}
         run: |
           TAG="v${VERSION_NAME}-run${{ github.run_id }}"
           {
@@ -339,7 +386,11 @@ jobs:
             echo "| **Trigger** | ${{ github.event_name }} oleh @${{ github.actor }} |"
             echo "| **Pesan commit** | $(git log -1 --pretty=%s | cut -c1-120) |"
             if [ -n "$APK_PATH" ] && [ -f "$APK_PATH" ]; then
-              echo "| **Release** | [Lihat di GitHub Releases](${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}) |"
+              if [ "$RELEASE_OUTCOME" = "success" ] || [ "$FALLBACK_OUTCOME" = "success" ]; then
+                echo "| **Release** | [Lihat di GitHub Releases](${{ github.server_url }}/${{ github.repository }}/releases/tag/${TAG}) |"
+              else
+                echo "| **Release** | ⚠️ Release GAGAL dipublish (galat API GitHub) — APK tersedia di artifact \`AEP-v${VERSION_NAME}-run${{ github.run_id }}-release\` pada run ini |"
+              fi
             elif [ "$HAS_SECRET" = "false" ]; then
               echo "| **Release** | ⚠️ Secret keystore belum lengkap — release di-skip (build debug tetap dicek) |"
             else
