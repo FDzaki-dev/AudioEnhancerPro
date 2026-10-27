@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -389,10 +390,11 @@ fun SettingsScreen(
         var scheduleEnabled by remember { mutableStateOf(PrefsHelper.getScheduleEnabled(context)) }
         var scheduleStartMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStartMinutes(context)) }
         var scheduleStopMin by remember { mutableIntStateOf(PrefsHelper.getScheduleStopMinutes(context)) }
-        var scheduleTimeConflict by remember { mutableStateOf(false) }
+        // Batch 239: rememberSaveable — state sementara ini hilang saat rotasi (Activity di-recreate) bila hanya `remember`.
+        var scheduleTimeConflict by rememberSaveable { mutableStateOf(false) }
         // Batch 207: hari aktif jadwal (bitmask, default semua hari); minimal 1 hari tetap aktif.
         var scheduleDays by remember { mutableIntStateOf(PrefsHelper.getScheduleDays(context)) }
-        var scheduleDaysMinOne by remember { mutableStateOf(false) }
+        var scheduleDaysMinOne by rememberSaveable { mutableStateOf(false) }
         // Batch 151: preset per jadwal — snapshot nama preset sekali (pola SAMA `autoProfilePresetNames` di bawah).
         val schedulePresetNames = remember { PrefsHelper.getCustomPresets(context).map { it.name } }
         var schedulePreset by remember { mutableStateOf(PrefsHelper.getSchedulePreset(context)) }
@@ -626,8 +628,8 @@ fun SettingsScreen(
         val exportFailedMsg = stringResource(R.string.settings_export_preset_failed)
         val importFailedMsg = stringResource(R.string.settings_import_preset_failed)
         val scope = rememberCoroutineScope()
-        var backupStatus by remember { mutableStateOf<String?>(null) }
-        var backupStatusIsError by remember { mutableStateOf(false) }
+        var backupStatus by rememberSaveable { mutableStateOf<String?>(null) }
+        var backupStatusIsError by rememberSaveable { mutableStateOf(false) }
 
         val exportLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.CreateDocument("application/json")
@@ -718,6 +720,51 @@ fun SettingsScreen(
                         backupStatus ?: "",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (backupStatusIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        // Batch 240: ekspor log debug (logcat milik app sendiri) — tanpa adb/PC/izin. File ditulis di Dispatchers.IO.
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_debuglog_section_title))
+        val debugLogFailedMsg = stringResource(R.string.settings_debuglog_failed)
+        var debugLogStatus by rememberSaveable { mutableStateOf<String?>(null) }
+        var debugLogStatusIsError by rememberSaveable { mutableStateOf(false) }
+        var debugLogBusy by remember { mutableStateOf(false) }
+        SkeuCard {
+            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.settings_debuglog_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalSkeuTokens.current.mutedText
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                SkeuOutlinedButton(
+                    onClick = {
+                        debugLogBusy = true
+                        scope.launch {
+                            val savedPath = withContext(Dispatchers.IO) { DebugLogExporter.export(context) }
+                            debugLogStatusIsError = savedPath == null
+                            debugLogStatus = if (savedPath != null) {
+                                context.getString(R.string.settings_debuglog_saved, savedPath)
+                            } else {
+                                debugLogFailedMsg
+                            }
+                            debugLogBusy = false
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !debugLogBusy
+                ) {
+                    Text(stringResource(R.string.settings_debuglog_button))
+                }
+                if (debugLogStatus != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        debugLogStatus ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (debugLogStatusIsError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                 }
             }

@@ -16,6 +16,7 @@ app/src/main/java/com/audioenhancer/booster/BoosterViewModel.kt
 app/src/main/java/com/audioenhancer/booster/BoosterWidgetProvider.kt
 app/src/main/java/com/audioenhancer/booster/BootReceiver.kt
 app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
+app/src/main/java/com/audioenhancer/booster/DebugLogExporter.kt
 app/src/main/java/com/audioenhancer/booster/EqCurveEditor.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
@@ -68,10 +69,12 @@ app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/ArchitectureTest.kt
 app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
 app/src/test/java/com/audioenhancer/booster/CompressorCurveTest.kt
+app/src/test/java/com/audioenhancer/booster/DebugLogFormatTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectGuardPolicyTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt
+app/src/test/java/com/audioenhancer/booster/SettingsRotationStateTest.kt
 build.gradle.kts
 config/detekt/detekt-typed.yml
 config/detekt/detekt.yml

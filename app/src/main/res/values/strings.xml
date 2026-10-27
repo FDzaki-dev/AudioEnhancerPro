@@ -238,6 +238,11 @@
         <item quantity="other">%1$d preset berhasil diimpor</item>
     </plurals>
     <string name="settings_import_preset_failed">File tidak valid atau rusak, impor dibatalkan</string>
+    <string name="settings_debuglog_section_title">Log Debug</string>
+    <string name="settings_debuglog_desc">Simpan log Boomly ke file supaya bisa dikirim untuk analisis. Putar media, ulangi skenario yang bermasalah, lalu tekan tombol ini segera sesudahnya.</string>
+    <string name="settings_debuglog_button">Ekspor Log Debug</string>
+    <string name="settings_debuglog_saved">Tersimpan di %1$s</string>
+    <string name="settings_debuglog_failed">Gagal menyimpan log debug</string>
 
     <!-- Batch 119: Sleep timer (Fase 8 item B, bagian 1 = auto-stop) -->
     <string name="settings_sleep_timer_section_title">Timer Tidur</string>

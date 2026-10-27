@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 240: Tombol Ekspor Log Debug di Pengaturan
+
+Permintaan user: "Ya, saya orangnya gak suka yang ribet-ribet!!", menjawab tawaran tombol ekspor log agar tidak perlu adb atau PC. Bagian baru Pengaturan, Log Debug, punya satu tombol Ekspor Log Debug. Aplikasi membaca logcat miliknya sendiri (Android mengizinkan ini tanpa izin khusus; yang terbaca hanya baris dari aplikasi ini), mengambil 3000 baris terakhir, lalu menyimpannya sebagai `aep_debug_<tanggal>_<jam>.txt` di `Documents/AudioEnhancerPro/debug/` lewat MediaStore, dengan pola penyimpanan yang sama seperti `CrashLogger` sehingga tidak butuh izin storage. Berkas memuat header (waktu, perangkat, versi Android, status layanan efek) lalu log. Maksimal 10 berkas terbaru disimpan.
+
+Folder `debug/` sengaja terpisah dari `logs/` milik `CrashLogger`, karena banner crash membaca folder `logs/` dan akan mengira log debug sebagai crash. Semua kegagalan ditangani diam-diam dengan pesan "Gagal menyimpan log debug"; tombol ini tidak bisa membuat aplikasi crash. Status pesan memakai `rememberSaveable` sehingga tahan rotasi layar, dan tombol dinonaktifkan selama proses berjalan. Tes: 8 tes baru di `DebugLogFormatTest` (nama berkas, susunan laporan, baris terbaru dipertahankan saat melebihi batas, logcat kosong dijelaskan, state tahan rotasi). String Indonesia dan Inggris ditambahkan. Belum dikompilasi dan belum diuji di HP.
+
+Cara pakai untuk menganalisis audio: putar media, geser video TikTok atau YouTube sekitar 20 detik, lalu segera buka Pengaturan, Log Debug, Ekspor Log Debug, dan kirim berkasnya. Ekspor harus cepat karena buffer logcat kecil dan cepat tertimpa.
+
+## Batch 239: State sementara Pengaturan tahan rotasi layar
+
+Permintaan user: "More, more, and more improvements!!". Jalur audio sengaja tidak disentuh: kandidat berikutnya untuk gapless baru boleh dikerjakan bila logcat `serah-terima N ms` tersedia, dan B229 sampai B238 belum terbukti di HP. Yang dikerjakan adalah sisa terakhir audit "state wajib tahan rotasi" di `SettingsScreen.kt`: `scheduleTimeConflict`, `scheduleDaysMinOne`, `backupStatus`, dan `backupStatusIsError` berubah dari `remember` menjadi `rememberSaveable`. Sebelumnya, memutar layar saat pesan konflik jadwal, peringatan minimal satu hari, atau status ekspor/impor preset sedang tampil membuat semuanya hilang karena Activity dibuat ulang.
+
+Tiga tes baru di `SettingsRotationStateTest` membaca sumber sebagai teks (Compose tidak bisa dijalankan di JVM murni) dan menjaga bahwa keempat state tetap `rememberSaveable`, tidak kembali ke `remember` biasa, dan impornya ada. `FILE_MANIFEST.txt` ikut mendaftarkan berkas tes baru. Belum dikompilasi dan belum diuji di HP.
+
 ## Batch 238: Tahap cepat serah-terima tak lagi tertahan, guard tak lagi menunda penegasan
 
 Permintaan user: "Not enough 'gapless'. Teruskan!!" dengan `Boomly_v237.zip` dan `AEP_laporan-untuk-claude_run37.zip`. Berkas yang berubah: `AudioEnhancerService.kt` dan `EffectGuardPolicyTest.kt`; sisanya dokumen.

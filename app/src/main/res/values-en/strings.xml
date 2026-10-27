@@ -237,6 +237,11 @@
         <item quantity="other">%1$d presets imported successfully</item>
     </plurals>
     <string name="settings_import_preset_failed">File is invalid or corrupted, import cancelled</string>
+    <string name="settings_debuglog_section_title">Debug Log</string>
+    <string name="settings_debuglog_desc">Save the Boomly log to a file so it can be sent for analysis. Play media, repeat the problematic scenario, then tap this button right afterwards.</string>
+    <string name="settings_debuglog_button">Export Debug Log</string>
+    <string name="settings_debuglog_saved">Saved to %1$s</string>
+    <string name="settings_debuglog_failed">Failed to save debug log</string>
 
     <!-- Batch 119: Sleep timer (Fase 8 item B, part 1 = auto-stop) -->
     <string name="settings_sleep_timer_section_title">Sleep Timer</string>
