@@ -1,5 +1,6 @@
 package com.audioenhancer.booster
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -293,5 +294,69 @@ class EffectGuardPolicyTest {
     fun `minimum rebind interval is short enough to follow social media churn but longer than the settle delay`() {
         assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS > EffectGuardPolicy.REBIND_DELAY_MS)
         assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS < EffectGuardPolicy.GUARD_TICK_MS)
+    }
+
+    // ---- Batch 233: serah-terima efek tanpa celah ----
+
+    @Test
+    fun `handoff adopts the new effect whenever it was created`() {
+        assertEquals(EffectGuardPolicy.HandoffOutcome.ADOPT_NEW, EffectGuardPolicy.handoffOutcome(hadOld = true, createdNew = true))
+        assertEquals(EffectGuardPolicy.HandoffOutcome.ADOPT_NEW, EffectGuardPolicy.handoffOutcome(hadOld = false, createdNew = true))
+    }
+
+    @Test
+    fun `handoff keeps the old effect when the new one failed to build`() {
+        assertEquals(EffectGuardPolicy.HandoffOutcome.KEEP_OLD, EffectGuardPolicy.handoffOutcome(hadOld = true, createdNew = false))
+    }
+
+    @Test
+    fun `handoff has nothing to do when the device has no such effect`() {
+        assertEquals(EffectGuardPolicy.HandoffOutcome.NONE, EffectGuardPolicy.handoffOutcome(hadOld = false, createdNew = false))
+    }
+
+    private fun readServiceSource(): String {
+        val relative = "src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt"
+        val candidates = listOf(File(relative), File("app/$relative"))
+        val file = checkNotNull(candidates.firstOrNull { it.isFile }) {
+            "Berkas tidak ditemukan: $relative (dicari di ${candidates.map { it.absolutePath }})"
+        }
+        return file.readText()
+    }
+
+    /** Penjaga urutan (tes teks sumber, karena AudioEffect tak bisa dijalankan di JVM murni): efek BARU dibuat tanpa
+     *  menyala, nilai tersimpan diterapkan, baru dinyalakan, dan efek LAMA dilepas paling akhir. Urutan terbalik =
+     *  kembali ke celah "mendem" + lonjakan B230-B232. */
+    @Test
+    fun `rebind builds and enables new effects before releasing old ones`() {
+        val source = readServiceSource()
+        val start = source.indexOf("private fun runEffectRebind(")
+        assertTrue("runEffectRebind tidak ditemukan", start >= 0)
+        val end = source.indexOf("private fun releaseReplaced(", start)
+        assertTrue("releaseReplaced tidak ditemukan sesudah runEffectRebind", end > start)
+        val body = source.substring(start, end)
+
+        val attach = listOf(
+            "attachBass(enableNow = false)",
+            "attachVirtualizer(enableNow = false)",
+            "attachEqualizer(enableNow = false)",
+            "attachLoudness(enableNow = false)",
+            "attachDynamicsProcessing(enableNow = false)"
+        ).map { body.indexOf(it) }
+        assertTrue("kelima efek baru harus dibuat tanpa menyala: $attach", attach.all { it >= 0 })
+        assertEquals("urutan attach harus tetap (Equalizer sebelum DynamicsProcessing)", attach.sorted(), attach)
+
+        val restore = body.indexOf("restoreSavedSettings()")
+        val enable = body.indexOf("enableMixEffects()")
+        val release = body.indexOf("releaseReplaced(")
+        assertTrue("urutan: attach < restore < enable < release (attach=$attach restore=$restore enable=$enable release=$release)",
+            attach.last() < restore && restore < enable && enable < release)
+        assertFalse("efek lama tidak boleh dilepas langsung sebelum pembuatan efek baru", body.contains(".release()"))
+    }
+
+    @Test
+    fun `every effect listener ignores callbacks from stale instances`() {
+        val source = readServiceSource()
+        assertEquals(5, Regex("return@setControlStatusListener").findAll(source).count())
+        assertEquals(5, Regex("return@setEnableStatusListener").findAll(source).count())
     }
 }

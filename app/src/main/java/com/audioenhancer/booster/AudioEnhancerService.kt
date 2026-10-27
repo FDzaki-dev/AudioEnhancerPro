@@ -704,15 +704,17 @@ class AudioEnhancerService : Service() {
         lastBindAtMs = SystemClock.elapsedRealtime() // Batch 230: efek baru dipasang -> pasang-ulang otomatis ditahan sementara
     }
 
-    private fun attachBass() {
+    private fun attachBass(enableNow: Boolean = true) {
         try {
             bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
-                enabled = true
-                setControlStatusListener { _, granted ->
+                if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
+                setControlStatusListener { fx, granted ->
+                    if (fx !== bassBoost) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
                     bassState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     requestEffectGuard(if (granted) "control-regained:bass" else "control-lost:bass") // Batch 229
                 }
-                setEnableStatusListener { _, isEnabled ->
+                setEnableStatusListener { fx, isEnabled ->
+                    if (fx !== bassBoost) return@setEnableStatusListener // Batch 233
                     if (bassState != EffectState.CONTROL_LOST) {
                         bassState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
@@ -726,15 +728,17 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    private fun attachVirtualizer() {
+    private fun attachVirtualizer(enableNow: Boolean = true) {
         try {
             virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
-                enabled = true
-                setControlStatusListener { _, granted ->
+                if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
+                setControlStatusListener { fx, granted ->
+                    if (fx !== virtualizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
                     virtualizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     requestEffectGuard(if (granted) "control-regained:virtualizer" else "control-lost:virtualizer") // Batch 229
                 }
-                setEnableStatusListener { _, isEnabled ->
+                setEnableStatusListener { fx, isEnabled ->
+                    if (fx !== virtualizer) return@setEnableStatusListener // Batch 233
                     if (virtualizerState != EffectState.CONTROL_LOST) {
                         virtualizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
@@ -748,15 +752,17 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    private fun attachEqualizer() {
+    private fun attachEqualizer(enableNow: Boolean = true) {
         try {
             equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
-                enabled = true
-                setControlStatusListener { _, granted ->
+                if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
+                setControlStatusListener { fx, granted ->
+                    if (fx !== equalizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
                     equalizerState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     requestEffectGuard(if (granted) "control-regained:equalizer" else "control-lost:equalizer") // Batch 229
                 }
-                setEnableStatusListener { _, isEnabled ->
+                setEnableStatusListener { fx, isEnabled ->
+                    if (fx !== equalizer) return@setEnableStatusListener // Batch 233
                     if (equalizerState != EffectState.CONTROL_LOST) {
                         equalizerState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
@@ -770,15 +776,17 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    private fun attachLoudness() {
+    private fun attachLoudness(enableNow: Boolean = true) {
         try {
             loudnessEnhancer = LoudnessEnhancer(0).apply {
-                enabled = true
-                setControlStatusListener { _, granted ->
+                if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
+                setControlStatusListener { fx, granted ->
+                    if (fx !== loudnessEnhancer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
                     loudnessState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     requestEffectGuard(if (granted) "control-regained:loudness" else "control-lost:loudness") // Batch 229
                 }
-                setEnableStatusListener { _, isEnabled ->
+                setEnableStatusListener { fx, isEnabled ->
+                    if (fx !== loudnessEnhancer) return@setEnableStatusListener // Batch 233
                     if (loudnessState != EffectState.CONTROL_LOST) {
                         loudnessState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                     }
@@ -859,7 +867,7 @@ class AudioEnhancerService : Service() {
      *  Android 5.0, bukan era Dalvik lama yang kadang verify eager). Di bawah API 28,
      *  `dynamicsState` langsung `UNAVAILABLE` (diperlakukan SAMA seperti "chipset tidak
      *  dukung" — dari sudut pandang user/UI, hasilnya sama: limiter tidak ada). */
-    private fun attachDynamicsProcessing() {
+    private fun attachDynamicsProcessing(enableNow: Boolean = true) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
             dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
             equalizerFallbackActive = false // Batch 87: API<28 = tidak ada limiter MAUPUN fallback EQ, sama-sama UNAVAILABLE
@@ -938,19 +946,21 @@ class AudioEnhancerService : Service() {
                         )
                     )
                 }
-                enabled = true
+                if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
                 // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
                 // objek "EQ" adalah literal 1 instance yang sama di jalur fallback, jadi
                 // status kontrol/enable-nya memang SATU. Kalau fallback TIDAK aktif
                 // (mayoritas device), baris `if (needsEqFallback)` di bawah tidak pernah
                 // jalan — `equalizerState` 100% tidak disentuh dari sini, persis kode lama.
-                setControlStatusListener { _, granted ->
+                setControlStatusListener { fx, granted ->
+                    if (fx !== dynamicsProcessing) return@setControlStatusListener // Batch 233
                     dynamicsState = if (granted) EffectState.ENABLED else EffectState.CONTROL_LOST
                     if (needsEqFallback) equalizerState = dynamicsState
                     requestEffectGuard(if (granted) "control-regained:dynamics" else "control-lost:dynamics") // Batch 229
                 }
-                setEnableStatusListener { _, isEnabled ->
+                setEnableStatusListener { fx, isEnabled ->
+                    if (fx !== dynamicsProcessing) return@setEnableStatusListener // Batch 233
                     if (dynamicsState != EffectState.CONTROL_LOST) {
                         dynamicsState = if (isEnabled) EffectState.ENABLED else EffectState.AVAILABLE
                         if (needsEqFallback && equalizerState != EffectState.CONTROL_LOST) equalizerState = dynamicsState
@@ -1025,40 +1035,41 @@ class AudioEnhancerService : Service() {
             try { bassBoost?.release() } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal release BassBoost lama sebelum retry", e)
             }
-            attachBass()
+            attachBass(enableNow = false) // Batch 233: dinyalakan SETELAH nilai tersimpan diterapkan
             retried = true
         }
         if (virtualizerState == EffectState.CONTROL_LOST || virtualizerState == EffectState.FAILED) {
             try { virtualizer?.release() } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal release Virtualizer lama sebelum retry", e)
             }
-            attachVirtualizer()
+            attachVirtualizer(enableNow = false) // Batch 233: dinyalakan SETELAH nilai tersimpan diterapkan
             retried = true
         }
         if (equalizerState == EffectState.CONTROL_LOST || equalizerState == EffectState.FAILED) {
             try { equalizer?.release() } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal release Equalizer lama sebelum retry", e)
             }
-            attachEqualizer()
+            attachEqualizer(enableNow = false) // Batch 233: dinyalakan SETELAH nilai tersimpan diterapkan
             retried = true
         }
         if (loudnessState == EffectState.CONTROL_LOST || loudnessState == EffectState.FAILED) {
             try { loudnessEnhancer?.release() } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal release LoudnessEnhancer lama sebelum retry", e)
             }
-            attachLoudness()
+            attachLoudness(enableNow = false) // Batch 233: dinyalakan SETELAH nilai tersimpan diterapkan
             retried = true
         }
         if (dynamicsState == EffectState.CONTROL_LOST || dynamicsState == EffectState.FAILED) {
             try { dynamicsProcessing?.release() } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal release DynamicsProcessing lama sebelum retry", e)
             }
-            attachDynamicsProcessing()
+            attachDynamicsProcessing(enableNow = false) // Batch 233: dinyalakan SETELAH nilai tersimpan diterapkan
             retried = true
         }
         if (retried) {
             android.util.Log.w(TAG, "retryControlAcquisition(): recreate effect yang CONTROL_LOST/FAILED")
             restoreSavedSettings()
+            enableMixEffects() // Batch 233: nyalakan efek yang baru dibuat (tanpa jendela nilai bawaan)
         }
         return retried
     }
@@ -1158,7 +1169,17 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    /** Batch 230: lepas lalu pasang ulang 5 efek session-0 (Bass, Virtualizer, Equalizer, Loudness, Dynamics) +
+    /** Batch 233: SERAH-TERIMA TANPA CELAH (make-before-break). B230-B232 melepas kelima efek LAMA lebih dulu, lalu membuat
+     *  yang baru dengan `enabled = true` dan nilai bawaan; nilai tersimpan baru diterapkan setelah kelimanya terpasang.
+     *  Selama jendela itu keluaran tanpa efek / bernilai bawaan (kompresor +24 dB hilang) = suara "mendem" dan lonjakan
+     *  sepersekian detik, berulang tiap perpindahan pemutar (sosmed) — gejala yang dilaporkan user. Kini: efek lama TETAP
+     *  hidup dan menyala; efek baru dibuat TANPA menyala, diberi nilai tersimpan, baru dinyalakan; efek lama dilepas
+     *  PALING AKHIR. Efek baru yang gagal dibuat tidak menggantikan efek lama yang masih sehat. Callback instance lama
+     *  diabaikan lewat pemeriksaan identitas di listener (tanpa ini kontrol yang berpindah memicu pemulihan berantai).
+     *  Penjelasan perilaku sistem (instance baru berprioritas sama mengambil kontrol, modul efek yang sama terus berjalan)
+     *  berasal dari pembacaan kode AudioFlinger, BELUM diuji di device.
+     *
+     *  Batch 230: lepas lalu pasang ulang 5 efek session-0 (Bass, Virtualizer, Equalizer, Loudness, Dynamics) +
      *  terapkan ulang nilai tersimpan. Alasan: sistem memilih output thread untuk efek global saat efek DIBUAT;
      *  efek yang dibuat sebelum pemutar baru (mis. YouTube) mulai bisa tertinggal di output lama sambil tetap
      *  terbaca `enabled` dan "sehat" — tak ada API publik untuk mendeteksinya, jadi satu-satunya jalan non-root
@@ -1190,33 +1211,55 @@ class AudioEnhancerService : Service() {
             return
         }
         val before = describeEffectStates()
-        releaseMixEffects()
-        attachBass()
-        attachVirtualizer()
-        attachEqualizer() // urutan SAMA dgn attachEffects(): `attachDynamicsProcessing()` membaca `equalizerState` (fallback EQ)
-        attachLoudness()
-        attachDynamicsProcessing()
+        val oldBass = bassBoost; val oldBassState = bassState
+        val oldVirtualizer = virtualizer; val oldVirtualizerState = virtualizerState
+        val oldEqualizer = equalizer; val oldEqualizerState = equalizerState
+        val oldLoudness = loudnessEnhancer; val oldLoudnessState = loudnessState
+        val oldDynamics = dynamicsProcessing; val oldDynamicsState = dynamicsState
+        val oldFallbackActive = equalizerFallbackActive
+        // Efek lama TETAP hidup dan menyala selama efek baru dibuat; efek baru dibuat tanpa menyala.
+        attachBass(enableNow = false)
+        if (shouldKeepOld("BassBoost", oldBass != null, bassBoost != null)) { bassBoost = oldBass; bassState = oldBassState }
+        attachVirtualizer(enableNow = false)
+        if (shouldKeepOld("Virtualizer", oldVirtualizer != null, virtualizer != null)) { virtualizer = oldVirtualizer; virtualizerState = oldVirtualizerState }
+        attachEqualizer(enableNow = false) // urutan SAMA dgn attachEffects(): `attachDynamicsProcessing()` membaca `equalizerState` (fallback EQ)
+        if (shouldKeepOld("Equalizer", oldEqualizer != null, equalizer != null)) { equalizer = oldEqualizer; equalizerState = oldEqualizerState }
+        attachLoudness(enableNow = false)
+        if (shouldKeepOld("LoudnessEnhancer", oldLoudness != null, loudnessEnhancer != null)) { loudnessEnhancer = oldLoudness; loudnessState = oldLoudnessState }
+        attachDynamicsProcessing(enableNow = false)
+        if (shouldKeepOld("DynamicsProcessing", oldDynamics != null, dynamicsProcessing != null)) {
+            dynamicsProcessing = oldDynamics; dynamicsState = oldDynamicsState
+            equalizerFallbackActive = oldFallbackActive
+            if (oldFallbackActive) equalizerState = oldEqualizerState
+        }
+        // Nilai tersimpan diterapkan ke efek baru SEBELUM dinyalakan, supaya tak ada jendela nilai bawaan.
         restoreSavedSettings()
+        enableMixEffects()
+        // Efek lama dilepas PALING AKHIR (hanya yang benar-benar digantikan).
+        releaseReplaced("BassBoost", oldBass, bassBoost)
+        releaseReplaced("Virtualizer", oldVirtualizer, virtualizer)
+        releaseReplaced("Equalizer", oldEqualizer, equalizer)
+        releaseReplaced("LoudnessEnhancer", oldLoudness, loudnessEnhancer)
+        releaseReplaced("DynamicsProcessing", oldDynamics, dynamicsProcessing)
         lastBindAtMs = SystemClock.elapsedRealtime()
-        android.util.Log.w(TAG, "EffectRebind[$reason]: efek dipasang ulang; sebelum ($before) sesudah (${describeEffectStates()})")
+        android.util.Log.w(TAG, "EffectRebind[$reason]: efek diserahterimakan tanpa celah; sebelum ($before) sesudah (${describeEffectStates()})")
     }
 
-    private fun releaseMixEffects() {
-        try { bassBoost?.release() } catch (e: Exception) {
-            android.util.Log.e(TAG, "Gagal release BassBoost sebelum pasang ulang", e)
+    /** Batch 233: lepas efek LAMA hanya bila benar-benar sudah digantikan instance baru (`old !== current`). Efek lama
+     *  yang dipertahankan karena efek baru gagal dibuat ([shouldKeepOld]) TIDAK dilepas. */
+    private fun releaseReplaced(name: String, old: android.media.audiofx.AudioEffect?, current: android.media.audiofx.AudioEffect?) {
+        if (old == null || old === current) return
+        try { old.release() } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal release $name lama setelah serah-terima efek", e)
         }
-        try { virtualizer?.release() } catch (e: Exception) {
-            android.util.Log.e(TAG, "Gagal release Virtualizer sebelum pasang ulang", e)
-        }
-        try { equalizer?.release() } catch (e: Exception) {
-            android.util.Log.e(TAG, "Gagal release Equalizer sebelum pasang ulang", e)
-        }
-        try { loudnessEnhancer?.release() } catch (e: Exception) {
-            android.util.Log.e(TAG, "Gagal release LoudnessEnhancer sebelum pasang ulang", e)
-        }
-        try { dynamicsProcessing?.release() } catch (e: Exception) {
-            android.util.Log.e(TAG, "Gagal release DynamicsProcessing sebelum pasang ulang", e)
-        }
+    }
+
+    /** Batch 233: true bila efek baru GAGAL dibuat padahal efek lama masih ada -> pertahankan yang lama (jangan kehilangan
+     *  efek hanya karena satu pembuatan ulang gagal). Keputusan ada di [EffectGuardPolicy.handoffOutcome] (ada tesnya). */
+    private fun shouldKeepOld(name: String, hadOld: Boolean, hasNew: Boolean): Boolean {
+        val keep = EffectGuardPolicy.handoffOutcome(hadOld, hasNew) == EffectGuardPolicy.HandoffOutcome.KEEP_OLD
+        if (keep) android.util.Log.w(TAG, "EffectRebind: $name baru gagal dibuat, efek lama dipertahankan")
+        return keep
     }
 
     /** Pemeriksaan + pemulihan. Hanya menyentuh yang RUSAK: (1) kontrol hilang -> rebut ulang lewat
@@ -1610,6 +1653,15 @@ class AudioEnhancerService : Service() {
      *  dari `CONTROL_LOST`, yang datang dari listener sistem, bukan dari exception lokal
      *  saat pemanggilan `.enabled = true`). */
     private fun enableEffects() {
+        enableMixEffects()
+        try { visualizer?.enabled = true } catch (e: Exception) {
+            visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
+        }
+    }
+
+    /** Batch 233: bagian [enableEffects] untuk 5 efek mixer session-0 SAJA (tanpa Visualizer). Dipakai serah-terima
+     *  efek ([runEffectRebind]) dan [retryControlAcquisition]; perilaku per efek SAMA dengan sebelumnya. */
+    private fun enableMixEffects() {
         try { bassBoost?.enabled = true } catch (e: Exception) {
             bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable BassBoost", e)
         }
@@ -1627,9 +1679,6 @@ class AudioEnhancerService : Service() {
         // ini apa adanya, tanpa perubahan apa pun di fungsi itu.
         try { dynamicsProcessing?.enabled = true } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable DynamicsProcessing", e)
-        }
-        try { visualizer?.enabled = true } catch (e: Exception) {
-            visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
         }
     }
 
@@ -2229,6 +2278,16 @@ internal object EffectGuardPolicy {
     /** Batch 230: boleh pasang ulang bila belum pernah memasang, atau sudah >= [REBIND_MIN_INTERVAL_MS] sejak terakhir. */
     fun mayRebind(nowMs: Long, lastBindMs: Long): Boolean =
         lastBindMs == NEVER || nowMs - lastBindMs >= REBIND_MIN_INTERVAL_MS
+
+    /** Batch 233: hasil serah-terima satu efek. ADOPT_NEW = pakai instance baru; KEEP_OLD = pembuatan baru gagal tetapi
+     *  efek lama masih ada, jadi lama dipertahankan; NONE = tak ada efek sama sekali (tak didukung device). */
+    enum class HandoffOutcome { ADOPT_NEW, KEEP_OLD, NONE }
+
+    fun handoffOutcome(hadOld: Boolean, createdNew: Boolean): HandoffOutcome = when {
+        createdNew -> HandoffOutcome.ADOPT_NEW
+        hadOld -> HandoffOutcome.KEEP_OLD
+        else -> HandoffOutcome.NONE
+    }
 
     /** Urutan pemutar tidak berarti: diurutkan supaya tanda tangan stabil. Kosong = tidak ada pemutaran aktif. */
     fun playbackSignature(usageAndContentType: List<Pair<Int, Int>>): String =
