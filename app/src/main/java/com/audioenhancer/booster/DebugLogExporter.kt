@@ -69,16 +69,28 @@ object DebugLogExporter {
         "Boomly debug log",
         "waktu: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))}",
         "perangkat: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})",
-        "layanan efek: ${if (AudioEnhancerService.isRunning) "aktif" else "mati"}"
+        "layanan efek: ${if (AudioEnhancerService.isRunning) "aktif" else "mati"}",
+        "catatan: baris banjir AudioEffect command()/commandExecuted() dan derau UI (VRI, DecorView, dst.) disaring"
     )
 
-    /** `logcat -d` berhenti sendiri setelah mencetak buffer (tak menggantung); `-t` membatasi ke N baris terakhir. */
+    /** `logcat -d` berhenti sendiri setelah mencetak buffer (tak menggantung). Batch 241: TANPA `-t` — penyaringan derau
+     *  dilakukan sambil membaca dan hanya [MAX_LINES] baris BERMAKNA terakhir yang disimpan (sebelumnya `-t 3000` dihabiskan
+     *  ~92% oleh banjir `AudioEffect command()` capture spektrum, jadi hanya ±3 menit log yang tersisa). */
     private fun readOwnLogcat(): List<String> {
-        val process = ProcessBuilder("logcat", "-d", "-v", "time", "-t", MAX_LINES.toString())
+        val process = ProcessBuilder("logcat", "-d", "-v", "time")
             .redirectErrorStream(true)
             .start()
         return try {
-            process.inputStream.bufferedReader().use { it.readLines() }
+            val kept = ArrayDeque<String>()
+            process.inputStream.bufferedReader().use { reader ->
+                reader.forEachLine { line ->
+                    if (!DebugLogFormat.isNoise(line)) {
+                        if (kept.size >= MAX_LINES) kept.removeFirst()
+                        kept.addLast(line)
+                    }
+                }
+            }
+            kept.toList()
         } finally {
             process.destroy()
         }
@@ -112,6 +124,20 @@ object DebugLogExporter {
 
 /** Bagian murni (tanpa Android) supaya bisa dites di JVM. */
 internal object DebugLogFormat {
+
+    private const val TS = """^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} """
+
+    /** Banjir capture Visualizer (`command() ... cmdCode = 65536` ~10x/dtk) dan balasannya `commandExecuted()`. */
+    private val AUDIO_EFFECT_FLOOD = Regex(TS + """[VDIWEF]/AudioEffect\(\s*\d+\): (command\(\)|commandExecuted\(\))""")
+
+    /** Derau jendela/UI sistem yang tak berguna untuk analisis audio (dan memuat koordinat sentuhan). */
+    private val UI_NOISE = Regex(
+        TS + """[VDIWEF]/(VRI\[[^\]]*\]|DecorView|InsetsController|ImeTracker|BLASTBufferQueue|""" +
+            """os\.SingleLiceFactory|os\.LiceInfo|TranClassInfo|GraphicsEnvironment|WindowOnBackDispatcher)\("""
+    )
+
+    /** True untuk baris derau yang dibuang dari laporan; baris lain (efek, serah-terima, crash) selalu dipertahankan. */
+    fun isNoise(line: String): Boolean = AUDIO_EFFECT_FLOOD.containsMatchIn(line) || UI_NOISE.containsMatchIn(line)
 
     /** `aep_debug_yyyyMMdd_HHmmss.txt` — mudah diurutkan dan dikenali di File Manager. */
     fun fileName(timestampMillis: Long): String =

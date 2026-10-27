@@ -363,7 +363,20 @@ class AudioEnhancerService : Service() {
     // Part 2 (UI) HARUS cek `hasRecordAudioPermission()` terpisah kalau mau bedakan
     // 2 kasus itu buat teks yang tepat ke user (minta izin vs "tidak didukung device").
     @Volatile var visualizerState: EffectState = EffectState.UNAVAILABLE; private set
-    @Volatile var spectrumLevels: FloatArray = FloatArray(SPECTRUM_BAND_COUNT); private set
+    // Batch 241 (bukti log device Infinix/Android 16: capture Visualizer jalan ~10x/dtk TERUS selama layanan hidup,
+    // juga saat layar app tidak dibuka -> boros baterai + membanjiri logcat): spektrum hanya hidup selama UI MEMBACANYA.
+    // `spectrumLevels` kini getter yang mencatat waktu baca terakhir; tak dibaca > SPECTRUM_IDLE_MS -> Visualizer
+    // dijeda (`enabled = false`), dibaca lagi -> dinyalakan ulang. `visualizerState` TIDAK berubah (tetap ENABLED)
+    // supaya UI terus membaca dan bisa membangunkan capture.
+    @Volatile private var spectrumLevelsStore: FloatArray = FloatArray(SPECTRUM_BAND_COUNT)
+    val spectrumLevels: FloatArray
+        get() {
+            noteSpectrumRead()
+            return spectrumLevelsStore
+        }
+    @Volatile private var lastSpectrumReadAtMs: Long = 0L
+    @Volatile private var visualizerIdlePaused = false
+    private val visualizerIdleRunnable = Runnable { checkVisualizerIdle() }
 
     // Batch 82 (roadmap.md Fase 0 #3, "Output routing awareness"): deskripsi ringkas
     // sink output TERAKHIR yang terdeteksi (mis. "Bluetooth A2DP (terhubung)") — diisi
@@ -1158,6 +1171,50 @@ class AudioEnhancerService : Service() {
         guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
     }
 
+    /** Batch 241: dipanggil tiap UI membaca [spectrumLevels]. Mencatat waktu baca; bila capture sedang dijeda karena
+     *  idle, bangunkan lewat handler utama (idempoten, banyak baca beruntun aman). */
+    private fun noteSpectrumRead() {
+        lastSpectrumReadAtMs = SystemClock.elapsedRealtime()
+        if (visualizerIdlePaused) guardHandler.post { resumeVisualizerFromIdle() }
+    }
+
+    private fun markSpectrumActive() {
+        lastSpectrumReadAtMs = SystemClock.elapsedRealtime() // jendela tenggang sebelum pemeriksaan idle pertama
+        visualizerIdlePaused = false
+        scheduleVisualizerIdleCheck()
+    }
+
+    private fun scheduleVisualizerIdleCheck() {
+        guardHandler.removeCallbacks(visualizerIdleRunnable)
+        guardHandler.postDelayed(visualizerIdleRunnable, EffectGuardPolicy.SPECTRUM_IDLE_CHECK_MS)
+    }
+
+    private fun checkVisualizerIdle() {
+        if (!isRunning || visualizer == null || visualizerState != EffectState.ENABLED) return
+        if (EffectGuardPolicy.isSpectrumIdle(SystemClock.elapsedRealtime(), lastSpectrumReadAtMs)) {
+            try { visualizer?.enabled = false } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal menjeda Visualizer (idle)", e)
+            }
+            visualizerIdlePaused = true
+            spectrumLevelsStore = FloatArray(SPECTRUM_BAND_COUNT)
+            android.util.Log.i(TAG, "Spektrum dijeda: UI tidak membaca > ${EffectGuardPolicy.SPECTRUM_IDLE_MS / 1000} dtk (hemat baterai)")
+        } else {
+            scheduleVisualizerIdleCheck()
+        }
+    }
+
+    private fun resumeVisualizerFromIdle() {
+        if (!visualizerIdlePaused) return
+        visualizerIdlePaused = false
+        if (isRunning && visualizer != null) {
+            try { visualizer?.enabled = true } catch (e: Exception) {
+                android.util.Log.e(TAG, "Gagal melanjutkan Visualizer", e)
+            }
+            android.util.Log.i(TAG, "Spektrum dilanjutkan: UI membaca lagi")
+        }
+        scheduleVisualizerIdleCheck()
+    }
+
     /** Batch 231: (re)jadwalkan pemeriksaan berkala. Hidup hanya bila Service aktif DAN ada pemutar media; mati otomatis
      *  begitu pemutaran berhenti / "Matikan" (`removeCallbacksAndMessages(null)`). Dipanggil juga saat Service dinyalakan
      *  lagi, karena callback pemutaran tidak berbunyi ulang bila tanda tangan pemutaran tidak berubah. */
@@ -1565,12 +1622,13 @@ class AudioEnhancerService : Service() {
                     }
                     override fun onFftDataCapture(v: Visualizer?, fft: ByteArray?, samplingRate: Int) {
                         fft ?: return
-                        spectrumLevels = computeSpectrumBands(fft)
+                        spectrumLevelsStore = computeSpectrumBands(fft)
                     }
                 }, Visualizer.getMaxCaptureRate() / 2, false, true)
                 enabled = true
             }
             visualizerState = EffectState.ENABLED
+            markSpectrumActive() // Batch 241
         } catch (e: Exception) {
             try { visualizer?.release() } catch (_: Exception) { }
             visualizer = null
@@ -1696,7 +1754,7 @@ class AudioEnhancerService : Service() {
         equalizerState = EffectState.UNAVAILABLE
         dynamicsState = EffectState.UNAVAILABLE // Batch 84
         visualizerState = EffectState.UNAVAILABLE // Batch 120
-        spectrumLevels = FloatArray(SPECTRUM_BAND_COUNT) // Batch 120
+        spectrumLevelsStore = FloatArray(SPECTRUM_BAND_COUNT) // Batch 120 (Batch 241: lewat penyimpanan, bukan getter)
         equalizerFallbackActive = false // Batch 87
     }
 
@@ -1717,6 +1775,8 @@ class AudioEnhancerService : Service() {
         // Batch 120: spectrum ikut berhenti saat "Matikan" — tidak ada gunanya capture
         // audio kalau booster sendiri lagi off, murni hemat CPU/baterai.
         try { visualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Visualizer", e) }
+        guardHandler.removeCallbacks(visualizerIdleRunnable) // Batch 241
+        visualizerIdlePaused = false
     }
 
     /** Nyalakan ulang efek yang sempat di-nonaktifkan lewat notifikasi "Matikan".
@@ -1729,6 +1789,7 @@ class AudioEnhancerService : Service() {
         try { visualizer?.enabled = true } catch (e: Exception) {
             visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
         }
+        if (visualizer != null) markSpectrumActive() // Batch 241
     }
 
     /** Batch 233: bagian [enableEffects] untuk 5 efek mixer session-0 SAJA (tanpa Visualizer). Dipakai serah-terima
@@ -2341,6 +2402,10 @@ internal object EffectGuardPolicy {
      *  umumnya dipakai sistem/app lain, jadi nilai positif besar memenangkan arbitrase saat efek dibuat atau direbut ulang.
      *  Naikkan lagi bila log masih `control-lost`. Tidak berlaku untuk LoudnessEnhancer (API publik tanpa parameter priority). */
     const val EFFECT_PRIORITY = 10_000
+    /** Batch 241: UI dianggap tidak memakai spektrum bila tak membaca `spectrumLevels` selama ini (UI membaca tiap 50 ms). */
+    const val SPECTRUM_IDLE_MS = 3_000L
+    /** Batch 241: jarak pemeriksaan idle spektrum; deteksi jeda paling lambat SPECTRUM_IDLE_MS + ini. */
+    const val SPECTRUM_IDLE_CHECK_MS = 2_000L
     /** Batch 231: jarak pemeriksaan berkala selama ada pemutar media aktif. */
     const val GUARD_TICK_MS = 15_000L
     /** Batch 231: alasan pemeriksaan berkala; hasil "sehat" tidak di-log (hindari banjir log). */
@@ -2457,6 +2522,9 @@ internal object EffectGuardPolicy {
      *  (bukan membuang) pasang-ulang yang tiba di dalam [REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir. */
     fun rebindWaitMs(nowMs: Long, lastBindMs: Long, minIntervalMs: Long = REBIND_MIN_INTERVAL_MS): Long =
         if (lastBindMs == NEVER) 0L else (minIntervalMs - (nowMs - lastBindMs)).coerceAtLeast(0L)
+
+    /** Batch 241: true bila UI sudah [SPECTRUM_IDLE_MS] atau lebih tidak membaca spektrum. */
+    fun isSpectrumIdle(nowMs: Long, lastReadMs: Long): Boolean = nowMs - lastReadMs >= SPECTRUM_IDLE_MS
 
     /** Batch 231: true bila tanda tangan pemutaran memuat minimal satu pemutar media (usage UNKNOWN/MEDIA). */
     fun hasMediaPlayer(signature: String): Boolean = mediaEntryCounts(signature).isNotEmpty()

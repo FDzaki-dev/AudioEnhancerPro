@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 241: Spektrum hanya hidup saat dilihat, ekspor log menyaring derau
+
+Berdasarkan log debug pertama dari tombol ekspor B240. Temuan baiknya: serah-terima efek B238 terbukti berjalan cepat di perangkat (52 sampai 126 ms, tanpa celah state, semua efek tetap ENABLED dan guard melaporkan sehat). Temuan buruknya: 92% isi log adalah banjir `AudioEffect command()` dari capture spektrum Visualizer yang berjalan sekitar 10 kali per detik terus-menerus selama layanan hidup, termasuk saat layar aplikasi tidak dibuka. Akibatnya boros baterai dan log hanya mencakup sekitar 3 menit.
+
+Perbaikan pertama: spektrum sekarang hanya aktif selama layar aplikasi membacanya. Bila tidak ada yang membaca selama 3 detik, Visualizer dijeda; begitu layar membaca lagi, capture dilanjutkan otomatis. Status efek tidak berubah sehingga tampilan spektrum tetap tersedia. Perbaikan kedua: ekspor log kini membuang baris banjir `AudioEffect` dan derau jendela sistem (termasuk koordinat sentuhan), lalu menyimpan 3000 baris bermakna terakhir, sehingga satu berkas mencakup jauh lebih lama. Baris efek, serah-terima, dan crash tidak pernah dibuang; diuji terhadap log nyata (3000 baris menjadi 756, semua baris `EffectRebind`, `EffectGuard`, dan pembuatan efek tetap ada).
+
+Yang belum diketahui: log itu belum memuat skenario sosmed (hanya dua perubahan pemutar musik), jadi belum ada bukti apakah efek benar-benar terdengar di TikTok atau YouTube. 9 tes baru. Belum dikompilasi dan belum diuji di HP.
+
 ## Batch 240: Tombol Ekspor Log Debug di Pengaturan
 
 Permintaan user: "Ya, saya orangnya gak suka yang ribet-ribet!!", menjawab tawaran tombol ekspor log agar tidak perlu adb atau PC. Bagian baru Pengaturan, Log Debug, punya satu tombol Ekspor Log Debug. Aplikasi membaca logcat miliknya sendiri (Android mengizinkan ini tanpa izin khusus; yang terbaca hanya baris dari aplikasi ini), mengambil 3000 baris terakhir, lalu menyimpannya sebagai `aep_debug_<tanggal>_<jam>.txt` di `Documents/AudioEnhancerPro/debug/` lewat MediaStore, dengan pola penyimpanan yang sama seperti `CrashLogger` sehingga tidak butuh izin storage. Berkas memuat header (waktu, perangkat, versi Android, status layanan efek) lalu log. Maksimal 10 berkas terbaru disimpan.

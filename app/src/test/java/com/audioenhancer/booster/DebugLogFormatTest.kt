@@ -71,4 +71,36 @@ class DebugLogFormatTest {
             assertTrue("State `$name` harus rememberSaveable agar tahan rotasi", saveable)
         }
     }
+
+    @Test
+    fun `visualizer capture flood is noise`() {
+        assertTrue(DebugLogFormat.isNoise("10-28 07:46:10.026 D/AudioEffect(24162): command() 0xb400007c1c2127b0, cmdCode = 65536"))
+        assertTrue(DebugLogFormat.isNoise("10-28 07:49:35.076 D/AudioEffect( 9903): commandExecuted(): 0xb400007c1c214370, cmdCode = 5"))
+    }
+
+    @Test
+    fun `effect creation and handoff lines are never noise`() {
+        assertFalse(DebugLogFormat.isNoise("10-28 07:48:18.262 D/AudioEffect(24162): set() 0xb400007c1c228e20 OK effect: DynamicsProcessing id: 47139 status 0 enabled 0 pid 24162"))
+        assertFalse(DebugLogFormat.isNoise("10-28 07:49:11.968 W/AudioEnhancerService( 9903): EffectRebind[playback-start]: efek diserahterimakan tanpa celah; serah-terima 126 ms"))
+        assertFalse(DebugLogFormat.isNoise("10-28 07:48:18.273 W/AudioEnhancerService(24162): retryControlAcquisition(): recreate effect yang CONTROL_LOST/FAILED"))
+        assertFalse(DebugLogFormat.isNoise("10-28 07:49:11.642 D/AudioEffect( 9903): setParameter(): 0xb400007c1c2171b0, param: 85, param2: -1"))
+    }
+
+    @Test
+    fun `window and touch noise is dropped`() {
+        assertTrue(DebugLogFormat.isNoise("10-28 07:48:18.145 I/VRI[MainActivity](24162): enqueueInputEvent: event = MotionEvent { action=ACTION_DOWN, x[0]=682.5 }"))
+        assertTrue(DebugLogFormat.isNoise("10-28 07:48:15.832 I/DecorView(24162): dispatchKeyEvent:KeyEvent { action=ACTION_UP }"))
+        assertTrue(DebugLogFormat.isNoise("10-28 07:48:15.841 D/InsetsController(24162): hide(ime(), fromIme=false)"))
+    }
+
+    @Test
+    fun `crash lines are never noise`() {
+        assertFalse(DebugLogFormat.isNoise("10-28 07:50:00.000 E/AndroidRuntime(9903): FATAL EXCEPTION: main"))
+    }
+
+    @Test
+    fun `lines without the logcat time prefix are kept`() {
+        assertFalse(DebugLogFormat.isNoise("--------- beginning of main"))
+        assertFalse(DebugLogFormat.isNoise(""))
+    }
 }

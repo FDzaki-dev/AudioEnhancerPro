@@ -648,4 +648,32 @@ class EffectGuardPolicyTest {
         )
         assertFalse(guard.contains("markSettingAdjusted("))
     }
+
+    // ---- Batch 241: spektrum hanya hidup selama UI membacanya ----
+
+    @Test
+    fun `spectrum is not idle right after the UI read it`() {
+        assertFalse(EffectGuardPolicy.isSpectrumIdle(nowMs = 10_000L, lastReadMs = 10_000L))
+        assertFalse(EffectGuardPolicy.isSpectrumIdle(10_000L + EffectGuardPolicy.SPECTRUM_IDLE_MS - 1, 10_000L))
+    }
+
+    @Test
+    fun `spectrum is idle once the UI stopped reading for the idle window`() {
+        assertTrue(EffectGuardPolicy.isSpectrumIdle(10_000L + EffectGuardPolicy.SPECTRUM_IDLE_MS, 10_000L))
+        assertTrue(EffectGuardPolicy.isSpectrumIdle(nowMs = 600_000L, lastReadMs = 0L))
+    }
+
+    @Test
+    fun `spectrum idle check is faster than the idle window so the pause is prompt`() {
+        assertTrue(EffectGuardPolicy.SPECTRUM_IDLE_CHECK_MS < EffectGuardPolicy.SPECTRUM_IDLE_MS)
+        assertTrue(EffectGuardPolicy.SPECTRUM_IDLE_MS > 1_000L) // jauh di atas jeda baca UI (50 ms)
+    }
+
+    @Test
+    fun `service source routes spectrum writes through the store not the getter`() {
+        val src = readServiceSource()
+        assertTrue("getter spectrumLevels hilang", src.contains("val spectrumLevels: FloatArray"))
+        assertTrue("penulisan harus lewat spectrumLevelsStore", src.contains("spectrumLevelsStore = computeSpectrumBands(fft)"))
+        assertFalse("tulis lewat getter akan gagal kompilasi/mengubah perilaku", Regex("""\bspectrumLevels\s*=\s*computeSpectrumBands""").containsMatchIn(src))
+    }
 }
