@@ -887,15 +887,14 @@ class AudioEnhancerService : Service() {
         val savedCompressor = PrefsHelper.getCompressorAmount(this)
         val savedVocalFocus = PrefsHelper.getVocalFocus(this)
         try {
-            val config = DynamicsProcessing.Config.Builder(
-                DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
-                2,                                                // channelCount (stereo, lihat catatan panjang di atas)
-                needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
-                true, CompressorCurve.BAND_COUNT, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`)
-                true, CompressorCurve.PRESENCE_BAND_COUNT, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); SEBELUMNYA "false, 0" (tidak dipakai)
-                true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
-            ).build()
+            // Batch 235: `Config` SUDAH berisi nilai tersimpan (MBC, presence, EQ cadangan, limiter) saat konstruktor menulisnya ke
+            // mesin efek; sebelumnya (B234 ke bawah) konstruktor menulis isi bawaan `Config.Builder` dulu, nilai tersimpan baru
+            // menyusul lewat blok `apply` di bawah. Isi `Config` & jalur cadangannya: lihat `buildDynamicsConfig`.
+            val config = buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)
             dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config).apply { // Batch 231
+                // Batch 235: penulisan di blok ini KINI penegasan idempoten (nilai SAMA dgn `config`) — dipertahankan karena
+                // (1) menjaga `dynamicsState = FAILED` tetap terlapor, (2) menjadi jaring bila `buildDynamicsConfig` jatuh ke
+                // `Config` bawaan (pembangunan Config terisi gagal).
                 // Batch 234: HANYA nilai tersimpan yang ditulis, TIDAK PERNAH nilai netral. Pada serah-terima efek (pasang-ulang)
                 // objek baru sering memakai modul efek yang SAMA dgn objek lama (output sama), jadi menulis band kompresor
                 // `enabled=false` dulu lalu memulihkannya belakangan (B84-B233) = kompresor +24 dB mati sesaat = "mendem" +
@@ -912,20 +911,7 @@ class AudioEnhancerService : Service() {
                         setPreEqBandAllChannelsTo(index, DynamicsProcessing.EqBand(true, freqHz, savedGainDb))
                     }
                 }
-                setLimiterAllChannelsTo(
-                    DynamicsProcessing.Limiter(
-                        /* inUse        = */ true, // FIX (v133): constructor Limiter TIDAK punya param channelIndex —
-                                                    // param pertama sebenarnya `inUse: Boolean` (lihat android.media.audiofx.DynamicsProcessing.Limiter).
-                                                    // Literal `0` (Int) di posisi ini yang bikin compileDebugKotlin gagal (run 133).
-                        /* enabled      = */ true,
-                        /* linkGroup    = */ 0,
-                        /* attackTime   = */ 3f,
-                        /* releaseTime  = */ 60f,
-                        /* ratio        = */ 20f,
-                        /* threshold    = */ -1f,
-                        /* postGain     = */ 0f
-                    )
-                )
+                setLimiterAllChannelsTo(masterLimiter()) // Batch 235: angka limiter dipindah ke `masterLimiter()` (dipakai juga `buildDynamicsConfig`)
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
                 // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
@@ -1846,12 +1832,113 @@ class AudioEnhancerService : Service() {
         applyCompressorBands(PrefsHelper.getCompressorAmount(this), clamped)
     }
 
+    // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
+    // sudah ada) dan `buildDynamicsConfig` (mengisi `Config` sebelum objek dibuat). Dua salinan angka bisa berselisih diam-diam.
+    // `amount` DIPAKAI MENTAH (bukan yang sudah di-clamp) untuk `enabled`, sama dgn perilaku B234; `fraction`/`focus` 0..1.
+    @android.annotation.SuppressLint("NewApi")
+    private fun compressorMbcBand(bandIndex: Int, amount: Int, fraction: Float, focus: Float): DynamicsProcessing.MbcBand {
+        val spec = CompressorCurve.band(bandIndex, fraction, focus)
+        return DynamicsProcessing.MbcBand(
+            /* enabled            = */ amount > 0,
+            /* cutoffFrequency    = */ spec.cutoffHz,
+            /* attackTime         = */ spec.attackMs,
+            /* releaseTime        = */ spec.releaseMs,
+            /* ratio              = */ spec.ratio,
+            /* threshold          = */ spec.thresholdDb,
+            /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
+            /* noiseGateThreshold = */ spec.noiseGateDb,
+            /* expanderRatio      = */ spec.expanderRatio,
+            /* preGain            = */ 0f,
+            /* postGain           = */ spec.postGainDb
+        )
+    }
+
+    // Batch 210: presence vokal (post-EQ 3 band: netral / +gain 2-4,5 kHz / netral), ikut Compressor & Vocal Focus.
+    @android.annotation.SuppressLint("NewApi")
+    private fun presenceEqBand(presenceIndex: Int, amount: Int, fraction: Float, focus: Float): DynamicsProcessing.EqBand =
+        DynamicsProcessing.EqBand(
+            amount > 0,
+            CompressorCurve.presenceCutoffHz(presenceIndex),
+            CompressorCurve.presenceGainDb(presenceIndex, fraction, focus)
+        )
+
+    // Batch 84 limiter utama (angka dipindah dari `attachDynamicsProcessing()` di Batch 235, nilai TIDAK berubah).
+    @android.annotation.SuppressLint("NewApi")
+    private fun masterLimiter(): DynamicsProcessing.Limiter = DynamicsProcessing.Limiter(
+        /* inUse        = */ true, // FIX (v133): constructor Limiter TIDAK punya param channelIndex —
+                                    // param pertama sebenarnya `inUse: Boolean` (lihat android.media.audiofx.DynamicsProcessing.Limiter).
+                                    // Literal `0` (Int) di posisi ini yang bikin compileDebugKotlin gagal (run 133).
+        /* enabled      = */ true,
+        /* linkGroup    = */ 0,
+        /* attackTime   = */ 3f,
+        /* releaseTime  = */ 60f,
+        /* ratio        = */ 20f,
+        /* threshold    = */ -1f,
+        /* postGain     = */ 0f
+    )
+
+    @android.annotation.SuppressLint("NewApi")
+    private fun newDynamicsConfigBuilder(needsEqFallback: Boolean): DynamicsProcessing.Config.Builder =
+        DynamicsProcessing.Config.Builder(
+            DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
+            2,                                                // channelCount (stereo, lihat catatan panjang `attachDynamicsProcessing`)
+            needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
+            true, CompressorCurve.BAND_COUNT, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`)
+            true, CompressorCurve.PRESENCE_BAND_COUNT, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); SEBELUMNYA "false, 0" (tidak dipakai)
+            true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
+        )
+
+    /** Batch 235 (lanjutan B234, "Temuan terbuka" jendela konstruktor): `DynamicsProcessing(priority, 0, config)` menulis isi
+     *  `config` ke mesin efek SAAT DIBUAT. Dengan `Config` bawaan (netral) lalu nilai tersimpan ditulis sesudahnya (B234), masih
+     *  ada jendela milidetik: pada serah-terima efek objek baru memakai modul efek yang SAMA dgn objek lama (output sama), jadi
+     *  tulisan netral konstruktor bisa mereset kompresor yang sedang dipakai. Kini `Config` dibangun SUDAH terisi nilai tersimpan
+     *  (MBC 3 band + presence post-EQ + EQ cadangan + limiter), jadi tak ada tulisan netral sama sekali.
+     *  Pembangunan `Config` terisi dibungkus try-catch: bila gagal (mis. tanda tangan API berbeda di sebuah device), jatuh ke
+     *  `Config` bawaan — suara tetap benar lewat penulisan sesudah konstruktor di `attachDynamicsProcessing` (perilaku B234),
+     *  bukan efek hilang. NOT VERIFIED di device (sandbox tanpa kompiler Kotlin/Android). */
+    @android.annotation.SuppressLint("NewApi")
+    private fun buildDynamicsConfig(
+        needsEqFallback: Boolean,
+        savedCompressor: Int,
+        savedVocalFocus: Int
+    ): DynamicsProcessing.Config {
+        return try {
+            val builder = newDynamicsConfigBuilder(needsEqFallback)
+            val fraction = savedCompressor.coerceIn(0, 100) / 100f
+            val focus = savedVocalFocus.coerceIn(0, 100) / 100f
+            val mbc = DynamicsProcessing.Mbc(true, true, CompressorCurve.BAND_COUNT)
+            for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
+                mbc.setBand(bandIndex, compressorMbcBand(bandIndex, savedCompressor, fraction, focus))
+            }
+            builder.setMbcAllChannelsTo(mbc)
+            val presence = DynamicsProcessing.Eq(true, true, CompressorCurve.PRESENCE_BAND_COUNT)
+            for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                presence.setBand(presenceIndex, presenceEqBand(presenceIndex, savedCompressor, fraction, focus))
+            }
+            builder.setPostEqAllChannelsTo(presence)
+            if (needsEqFallback) {
+                val preEq = DynamicsProcessing.Eq(true, true, FALLBACK_EQ_BANDS_HZ.size)
+                FALLBACK_EQ_BANDS_HZ.forEachIndexed { index, freqHz ->
+                    val savedGainDb = PrefsHelper.getEqualizerBandLevel(this, index, 0) / 100f
+                    preEq.setBand(index, DynamicsProcessing.EqBand(true, freqHz, savedGainDb))
+                }
+                builder.setPreEqAllChannelsTo(preEq)
+            }
+            builder.setLimiterAllChannelsTo(masterLimiter())
+            builder.build()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Config DynamicsProcessing terisi nilai tersimpan gagal dibangun; memakai Config bawaan (nilai ditulis sesudah objek dibuat)", e)
+            newDynamicsConfigBuilder(needsEqFallback).build()
+        }
+    }
+
     // Batch 143 (lint NewApi, false positive): `dynamicsProcessing` dijamin null di API<28 (guard
     // SDK_INT<P di attachDynamicsProcessing) & akses via `?.` — argumen MbcBand() tidak dievaluasi.
     // Batch 209: isi 3 band dipisah dari setter publik supaya Compressor & Vocal Focus memakai 1 jalur.
     @android.annotation.SuppressLint("NewApi")
     // Batch 234: [target] eksplisit (bawaan = objek aktif) — dipakai `attachDynamicsProcessing()` untuk menulis nilai
     // tersimpan ke objek yang BARU dibuat selagi field `dynamicsProcessing` masih menunjuk objek lama (serah-terima efek).
+    // Batch 235: konversi band lewat `compressorMbcBand`/`presenceEqBand` (juga dipakai `buildDynamicsConfig`).
     private fun applyCompressorBands(amount: Int, focusPercent: Int, target: DynamicsProcessing? = dynamicsProcessing) {
         val fraction = amount.coerceIn(0, 100) / 100f
         val focus = focusPercent.coerceIn(0, 100) / 100f
@@ -1859,34 +1946,10 @@ class AudioEnhancerService : Service() {
             // Batch 208: 3 band (bass / VOKAL / treble). Band tengah = kurva B198 persis; band luar
             // dapat makeup lebih kecil agar vokal menonjol dari backsound (lihat `CompressorCurve`).
             for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
-                val spec = CompressorCurve.band(bandIndex, fraction, focus)
-                target?.setMbcBandAllChannelsTo(
-                    bandIndex,
-                    DynamicsProcessing.MbcBand(
-                        /* enabled            = */ amount > 0,
-                        /* cutoffFrequency    = */ spec.cutoffHz,
-                        /* attackTime         = */ spec.attackMs,
-                        /* releaseTime        = */ spec.releaseMs,
-                        /* ratio              = */ spec.ratio,
-                        /* threshold          = */ spec.thresholdDb,
-                        /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                        /* noiseGateThreshold = */ spec.noiseGateDb,
-                        /* expanderRatio      = */ spec.expanderRatio,
-                        /* preGain            = */ 0f,
-                        /* postGain           = */ spec.postGainDb
-                    )
-                )
+                target?.setMbcBandAllChannelsTo(bandIndex, compressorMbcBand(bandIndex, amount, fraction, focus))
             }
-            // Batch 210: presence vokal (post-EQ 3 band: netral / +gain 2-4,5 kHz / netral), ikut Compressor & Vocal Focus.
             for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
-                target?.setPostEqBandAllChannelsTo(
-                    presenceIndex,
-                    DynamicsProcessing.EqBand(
-                        amount > 0,
-                        CompressorCurve.presenceCutoffHz(presenceIndex),
-                        CompressorCurve.presenceGainDb(presenceIndex, fraction, focus)
-                    )
-                )
+                target?.setPostEqBandAllChannelsTo(presenceIndex, presenceEqBand(presenceIndex, amount, fraction, focus))
             }
         } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Compressor MBC band", e)

@@ -426,4 +426,52 @@ class EffectGuardPolicyTest {
         assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS <= 3_000L)
         assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS > EffectGuardPolicy.REBIND_DELAY_MS)
     }
+
+    // ---- Batch 235: Config DynamicsProcessing terisi nilai tersimpan sebelum objek dibuat ----
+
+    /** Konstruktor `DynamicsProcessing(priority, 0, config)` menulis isi `config` ke mesin efek. `Config` bawaan = netral, jadi
+     *  pada modul efek bersama (serah-terima, output sama) itu bisa mereset kompresor sesaat. `Config` harus datang dari
+     *  `buildDynamicsConfig` (terisi nilai tersimpan), bukan dibangun polos di tempat. */
+    @Test
+    fun `dynamics processing is constructed from a config already filled with saved values`() {
+        val source = readServiceSource()
+        val attach = bodyBetween(source, "private fun attachDynamicsProcessing(", "fun retryControlAcquisition(")
+        assertTrue(
+            "Config harus dibangun lewat buildDynamicsConfig dgn nilai tersimpan",
+            attach.contains("buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)")
+        )
+        assertTrue(attach.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config)"))
+        assertFalse("Config polos (netral) tidak boleh dibangun lagi di attachDynamicsProcessing", attach.contains("Config.Builder("))
+    }
+
+    /** `buildDynamicsConfig` harus mengisi SEMUA tahap yang dipakai (MBC, post-EQ presence, pre-EQ cadangan, limiter) dan
+     *  punya jalur jatuh ke `Config` bawaan: kegagalan membangun `Config` terisi tidak boleh membuat DynamicsProcessing
+     *  (limiter + kompresor) hilang. */
+    @Test
+    fun `config prefill covers every stage and falls back to a plain config instead of failing`() {
+        val source = readServiceSource()
+        val body = bodyBetween(source, "private fun buildDynamicsConfig(", "private fun applyCompressorBands(")
+        assertTrue(body.contains("setMbcAllChannelsTo("))
+        assertTrue(body.contains("setPostEqAllChannelsTo("))
+        assertTrue(body.contains("setPreEqAllChannelsTo("))
+        assertTrue(body.contains("setLimiterAllChannelsTo("))
+        assertTrue("jalur jatuh ke Config bawaan hilang", body.contains("catch (e: Exception)"))
+        assertTrue(body.contains("newDynamicsConfigBuilder(needsEqFallback).build()"))
+        assertTrue("pre-EQ cadangan hanya diisi saat fallback aktif", body.indexOf("if (needsEqFallback)") < body.indexOf("setPreEqAllChannelsTo("))
+    }
+
+    /** Dua jalur (isi `Config` dan penulisan ke objek yang ada) harus memakai SATU konversi kurva -> band; dua salinan angka
+     *  bisa berselisih diam-diam sehingga penegasan sesudah konstruktor mengubah nilai yang baru saja ditulis `Config`. */
+    @Test
+    fun `config prefill and live compressor writes share one band conversion`() {
+        val source = readServiceSource()
+        val config = bodyBetween(source, "private fun buildDynamicsConfig(", "private fun applyCompressorBands(")
+        val live = bodyBetween(source, "private fun applyCompressorBands(", "fun setEqualizerBand(")
+        assertTrue(config.contains("compressorMbcBand(bandIndex, savedCompressor, fraction, focus)"))
+        assertTrue(config.contains("presenceEqBand(presenceIndex, savedCompressor, fraction, focus)"))
+        assertTrue(live.contains("compressorMbcBand(bandIndex, amount, fraction, focus)"))
+        assertTrue(live.contains("presenceEqBand(presenceIndex, amount, fraction, focus)"))
+        assertFalse("applyCompressorBands tidak boleh membangun MbcBand sendiri lagi", live.contains("DynamicsProcessing.MbcBand("))
+        assertFalse("applyCompressorBands tidak boleh membangun EqBand sendiri lagi", live.contains("DynamicsProcessing.EqBand("))
+    }
 }
