@@ -333,7 +333,7 @@ class EffectGuardPolicyTest {
         assertTrue("runEffectRebind tidak ditemukan", start >= 0)
         val end = source.indexOf("private fun releaseReplaced(", start)
         assertTrue("releaseReplaced tidak ditemukan sesudah runEffectRebind", end > start)
-        val body = source.substring(start, end)
+        val body = withoutLineComments(source.substring(start, end))
 
         val attach = listOf(
             "attachBass(enableNow = false)",
@@ -345,7 +345,7 @@ class EffectGuardPolicyTest {
         assertTrue("kelima efek baru harus dibuat tanpa menyala: $attach", attach.all { it >= 0 })
         assertEquals("urutan attach harus tetap (Equalizer sebelum DynamicsProcessing)", attach.sorted(), attach)
 
-        val restore = body.indexOf("restoreSavedSettings()")
+        val restore = body.indexOf("applySavedToEffects()") // Batch 234: dulu restoreSavedSettings()
         val enable = body.indexOf("enableMixEffects()")
         val release = body.indexOf("releaseReplaced(")
         assertTrue("urutan: attach < restore < enable < release (attach=$attach restore=$restore enable=$enable release=$release)",
@@ -358,5 +358,72 @@ class EffectGuardPolicyTest {
         val source = readServiceSource()
         assertEquals(5, Regex("return@setControlStatusListener").findAll(source).count())
         assertEquals(5, Regex("return@setEnableStatusListener").findAll(source).count())
+    }
+
+    // ---- Batch 234: penutupan celah sisa serah-terima efek ----
+
+    /** Buang komentar baris (`// ...`): penjaga teks sumber harus menilai KODE, bukan komentar yang kebetulan menyebut
+     *  nama fungsi lama (mis. alasan kenapa `restoreSavedSettings()` tidak dipakai lagi). Badan yang diperiksa tidak memuat
+     *  `//` di dalam string. */
+    private fun withoutLineComments(text: String): String =
+        text.lines().joinToString("\n") { it.substringBefore("//") }
+
+    /** Potong badan fungsi dari penanda awal sampai penanda akhir pada teks sumber Service (tes teks sumber), tanpa komentar baris. */
+    private fun bodyBetween(source: String, startMarker: String, endMarker: String): String {
+        val start = source.indexOf(startMarker)
+        assertTrue("$startMarker tidak ditemukan", start >= 0)
+        val end = source.indexOf(endMarker, start + startMarker.length)
+        assertTrue("$endMarker tidak ditemukan sesudah $startMarker", end > start)
+        return withoutLineComments(source.substring(start, end))
+    }
+
+    /** Serah-terima efek hanya boleh menulis ke efek. `restoreSavedSettings()` memanggil setter publik yang menulis ulang
+     *  SharedPreferences dan menandai "user sedang menggeser" (`markSettingAdjusted`) — itu menunda pasang-ulang berikutnya
+     *  dan pemeriksaan drift selama jendela tenang, tepat saat perpindahan pemutar beruntun butuh respons cepat. */
+    @Test
+    fun `handoff paths apply saved values to effects only`() {
+        val source = readServiceSource()
+        val apply = bodyBetween(source, "private fun applySavedToEffects(", "private fun releaseEffects(")
+        assertFalse("applySavedToEffects tidak boleh menulis prefs", apply.contains("PrefsHelper.set"))
+        assertFalse("applySavedToEffects tidak boleh menandai penyesuaian user", apply.contains("markSettingAdjusted("))
+
+        val rebind = bodyBetween(source, "private fun runEffectRebind(", "private fun releaseReplaced(")
+        assertTrue(rebind.contains("applySavedToEffects()"))
+        assertFalse("runEffectRebind tidak boleh kembali ke restoreSavedSettings()", rebind.contains("restoreSavedSettings()"))
+
+        val retry = bodyBetween(source, "fun retryControlAcquisition(", "// ---- Batch 229")
+        assertTrue(retry.contains("applySavedToEffects()"))
+        assertFalse("retryControlAcquisition tidak boleh kembali ke restoreSavedSettings()", retry.contains("restoreSavedSettings()"))
+    }
+
+    /** Objek DynamicsProcessing baru bisa memakai modul efek yang sama dgn yang lama (output sama). Menulis band kompresor
+     *  netral dulu lalu memulihkannya belakangan = kompresor mati sesaat di tiap serah-terima ("mendem" + lonjakan). */
+    @Test
+    fun `new dynamics processing is written with saved compressor values and never neutral ones`() {
+        val source = readServiceSource()
+        val attach = bodyBetween(source, "private fun attachDynamicsProcessing(", "fun retryControlAcquisition(")
+        assertTrue(
+            "nilai kompresor tersimpan harus ditulis ke objek BARU (this), bukan field yang masih menunjuk objek lama",
+            attach.contains("applyCompressorBands(savedCompressor, savedVocalFocus, this)")
+        )
+        assertFalse("band kompresor netral tidak boleh ditulis lagi", attach.contains("CompressorCurve.band(bandIndex, 0f)"))
+        assertFalse("band MBC enabled=false tidak boleh ditulis lagi", attach.contains("/* enabled            = */ false"))
+        assertFalse("band presence netral tidak boleh ditulis lagi", attach.contains("DynamicsProcessing.EqBand(false"))
+    }
+
+    @Test
+    fun `compressor bands are written to the explicit target object`() {
+        val source = readServiceSource()
+        val body = bodyBetween(source, "private fun applyCompressorBands(", "fun setEqualizerBand(")
+        assertTrue(body.contains("target: DynamicsProcessing? = dynamicsProcessing"))
+        assertTrue(body.contains("target?.setMbcBandAllChannelsTo("))
+        assertTrue(body.contains("target?.setPostEqBandAllChannelsTo("))
+        assertFalse("tulis lewat field akan mengenai objek LAMA saat serah-terima", body.contains("dynamicsProcessing?.set"))
+    }
+
+    @Test
+    fun `rebind interval is short now that the handoff has no gap`() {
+        assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS <= 3_000L)
+        assertTrue(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS > EffectGuardPolicy.REBIND_DELAY_MS)
     }
 }

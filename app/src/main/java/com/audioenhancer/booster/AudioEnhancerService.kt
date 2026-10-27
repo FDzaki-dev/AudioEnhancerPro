@@ -834,9 +834,11 @@ class AudioEnhancerService : Service() {
      *  atas SEKARANG JUGA membawa MBC (`mbcInUse=true`; Batch 121 = 1 band, Batch 208 = 3 band `CompressorCurve.BAND_COUNT`,
      *  full-range, `cutoffFrequency` 20000 Hz) — kompresor yang BENERAN bisa diatur
      *  user (beda dari limiter di atas yang hardcoded/tidak ada slider), pelengkap
-     *  `LoudnessEnhancer`. Band ini dipasang `enabled=false` di sini (netral) — nilai
-     *  asli diterapkan belakangan lewat `restoreSavedSettings()` -> `setCompressorAmount()`
-     *  (fungsi publik di bawah, dipanggil UI), pola SAMA seperti PreEq fallback di atas.
+     *  `LoudnessEnhancer`. Batch 234: band ini TIDAK lagi dipasang netral (`enabled=false`) lalu dipulihkan
+     *  belakangan — nilai tersimpan ditulis LANGSUNG begitu objek dibuat (`applyCompressorBands(..., this)`),
+     *  karena pada serah-terima efek objek baru bisa memakai modul yang sama dgn yang lama sehingga netral
+     *  sesaat = kompresor mati sesaat. `restoreSavedSettings()`/`applySavedToEffects()` sesudahnya hanya
+     *  menegaskan nilai yang SAMA. PreEq fallback di atas ikut memakai gain tersimpan.
      *  Konstanta tuning ada di companion (`COMPRESSOR_*`).
      *
      *  channelCount di-hardcode 2 (stereo): `DynamicsProcessing.Config.Builder` (beda
@@ -881,6 +883,9 @@ class AudioEnhancerService : Service() {
         // diaktifkan). needsEqFallback FALSE di mayoritas device (Equalizer legacy normal) —
         // jalur situ 100% identik kode lama, 0 perubahan perilaku.
         val needsEqFallback = equalizerState == EffectState.UNAVAILABLE
+        // Batch 234: nilai tersimpan dibaca SEBELUM objek dibuat supaya bisa ditulis LANGSUNG begitu objek ada (lihat blok `apply`).
+        val savedCompressor = PrefsHelper.getCompressorAmount(this)
+        val savedVocalFocus = PrefsHelper.getVocalFocus(this)
         try {
             val config = DynamicsProcessing.Config.Builder(
                 DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
@@ -891,23 +896,21 @@ class AudioEnhancerService : Service() {
                 true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
             ).build()
             dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config).apply { // Batch 231
+                // Batch 234: HANYA nilai tersimpan yang ditulis, TIDAK PERNAH nilai netral. Pada serah-terima efek (pasang-ulang)
+                // objek baru sering memakai modul efek yang SAMA dgn objek lama (output sama), jadi menulis band kompresor
+                // `enabled=false` dulu lalu memulihkannya belakangan (B84-B233) = kompresor +24 dB mati sesaat = "mendem" +
+                // lonjakan di tiap perpindahan pemutar. Urutan: kompresor + presence dulu (paling terdengar), baru EQ cadangan
+                // dan limiter. `restoreSavedSettings()`/`applySavedToEffects()` sesudahnya hanya menegaskan nilai yang SAMA.
+                applyCompressorBands(savedCompressor, savedVocalFocus, this)
                 // Batch 87: band count HARUS sama dengan preEqBandCount di Config di atas
                 // (kontrak `Eq`/constructor Config — dicek dokumentasi resmi sebelum ditulis).
-                // Gain awal 0 dB (netral) — nilai tersimpan (kalau ada) diterapkan belakangan
-                // lewat `restoreSavedSettings()`, SAMA seperti pola Equalizer asli, jangan
-                // duplikat logic restore di sini.
+                // Batch 234: gain awal = nilai EQ tersimpan (sebelumnya 0 dB netral); `fallbackEqGainsMb` tetap diisi lewat
+                // `restoreSavedSettings()`/`applySavedToEffects()`, jangan duplikat logic itu di sini.
                 if (needsEqFallback) {
                     FALLBACK_EQ_BANDS_HZ.forEachIndexed { index, freqHz ->
-                        setPreEqBandAllChannelsTo(index, DynamicsProcessing.EqBand(true, freqHz, 0f))
+                        val savedGainDb = PrefsHelper.getEqualizerBandLevel(this@AudioEnhancerService, index, 0) / 100f
+                        setPreEqBandAllChannelsTo(index, DynamicsProcessing.EqBand(true, freqHz, savedGainDb))
                     }
-                }
-                // Batch 210: band post-EQ presence mulai NONAKTIF & 0 dB (netral); nilai asli diterapkan
-                // lewat restoreSavedSettings() -> setCompressorAmount() -> applyCompressorBands().
-                for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
-                    setPostEqBandAllChannelsTo(
-                        presenceIndex,
-                        DynamicsProcessing.EqBand(false, CompressorCurve.presenceCutoffHz(presenceIndex), 0f)
-                    )
                 }
                 setLimiterAllChannelsTo(
                     DynamicsProcessing.Limiter(
@@ -923,29 +926,6 @@ class AudioEnhancerService : Service() {
                         /* postGain     = */ 0f
                     )
                 )
-                // Batch 121: band kompresor mulai NONAKTIF (enabled=false, netral) — nilai
-                // asli (kalau ada) diterapkan belakangan lewat restoreSavedSettings() ->
-                // setCompressorAmount(), SAMA pola seperti PreEq fallback di atas (jangan
-                // duplikat logic restore di sini). Batch 208: 3 band, cutoff naik (250/5000/20000 Hz).
-                for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
-                    val spec = CompressorCurve.band(bandIndex, 0f)
-                    setMbcBandAllChannelsTo(
-                        bandIndex,
-                        DynamicsProcessing.MbcBand(
-                            /* enabled            = */ false,
-                            /* cutoffFrequency    = */ spec.cutoffHz,
-                            /* attackTime         = */ spec.attackMs,
-                            /* releaseTime        = */ spec.releaseMs,
-                            /* ratio              = */ spec.ratio,
-                            /* threshold          = */ spec.thresholdDb,
-                            /* kneeWidth          = */ COMPRESSOR_KNEE_DB,
-                            /* noiseGateThreshold = */ spec.noiseGateDb,
-                            /* expanderRatio      = */ spec.expanderRatio,
-                            /* preGain            = */ 0f,
-                            /* postGain           = */ spec.postGainDb
-                        )
-                    )
-                }
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
                 // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
@@ -1068,7 +1048,7 @@ class AudioEnhancerService : Service() {
         }
         if (retried) {
             android.util.Log.w(TAG, "retryControlAcquisition(): recreate effect yang CONTROL_LOST/FAILED")
-            restoreSavedSettings()
+            applySavedToEffects() // Batch 234: hanya menulis ke efek (sebelumnya `restoreSavedSettings()` = + tulis prefs & stempel "user menggeser")
             enableMixEffects() // Batch 233: nyalakan efek yang baru dibuat (tanpa jendela nilai bawaan)
         }
         return retried
@@ -1178,6 +1158,10 @@ class AudioEnhancerService : Service() {
      *  diabaikan lewat pemeriksaan identitas di listener (tanpa ini kontrol yang berpindah memicu pemulihan berantai).
      *  Penjelasan perilaku sistem (instance baru berprioritas sama mengambil kontrol, modul efek yang sama terus berjalan)
      *  berasal dari pembacaan kode AudioFlinger, BELUM diuji di device.
+     *  Batch 234 (menutup dua celah yang B233 sisakan): (1) objek DynamicsProcessing baru KINI langsung ditulis dgn nilai
+     *  tersimpan saat dibuat (bukan netral dulu) — pada output yang sama modulnya dipakai bersama, jadi netral sesaat =
+     *  kompresor mati sesaat; (2) nilai tersimpan diterapkan lewat [applySavedToEffects] (tanpa tulis prefs & tanpa stempel
+     *  "user menggeser" yang menunda pasang-ulang berikutnya); (3) jeda minimum antar pasang-ulang 5 -> 2 dtk.
      *
      *  Batch 230: lepas lalu pasang ulang 5 efek session-0 (Bass, Virtualizer, Equalizer, Loudness, Dynamics) +
      *  terapkan ulang nilai tersimpan. Alasan: sistem memilih output thread untuk efek global saat efek DIBUAT;
@@ -1233,7 +1217,9 @@ class AudioEnhancerService : Service() {
             if (oldFallbackActive) equalizerState = oldEqualizerState
         }
         // Nilai tersimpan diterapkan ke efek baru SEBELUM dinyalakan, supaya tak ada jendela nilai bawaan.
-        restoreSavedSettings()
+        // Batch 234: lewat `applySavedToEffects()` (hanya menulis ke efek; bukan `restoreSavedSettings()` yang juga menulis
+        // prefs + menandai "user menggeser" sehingga menunda pasang-ulang/guard berikutnya).
+        applySavedToEffects()
         enableMixEffects()
         // Efek lama dilepas PALING AKHIR (hanya yang benar-benar digantikan).
         releaseReplaced("BassBoost", oldBass, bassBoost)
@@ -1300,7 +1286,7 @@ class AudioEnhancerService : Service() {
         var reacquired = false
         if (lost && EffectGuardPolicy.mayReacquire(now, lastReacquireAtMs, reacquireFailures)) {
             lastReacquireAtMs = now
-            reacquired = retryControlAcquisition() // sudah memanggil restoreSavedSettings()
+            reacquired = retryControlAcquisition() // sudah menerapkan nilai tersimpan ke efek baru (`applySavedToEffects()`, B234)
             reacquireFailures = if (hasControlLostEffect()) reacquireFailures + 1 else 0
         }
         if (disabled.isNotEmpty()) enableEffects()
@@ -1609,6 +1595,46 @@ class AudioEnhancerService : Service() {
         }
     }
 
+    /** Batch 234: padanan [restoreSavedSettings] KHUSUS serah-terima efek ([runEffectRebind], [retryControlAcquisition]),
+     *  tempat efek BARU dibuat tanpa menyala dan harus sudah bernilai benar sebelum [enableMixEffects]. Beda dari
+     *  [restoreSavedSettings] yang memanggil setter publik: (1) HANYA menulis ke efek — tanpa menulis ulang SharedPreferences
+     *  dan tanpa [markSettingAdjusted]; nilai yang sama ditulis balik ke disk tanpa guna, dan stempel "user sedang menggeser"
+     *  palsu akan menunda pasang-ulang berikutnya + pemeriksaan drift Effect Guard selama [EffectGuardPolicy.USER_ADJUST_QUIET_MS];
+     *  (2) urutan: nilai ringan dulu, kompresor DynamicsProcessing terakhir (nilainya SUDAH ditulis saat objek dibuat —
+     *  lihat [attachDynamicsProcessing]; penulisan ulang di sini idempoten dan menjaga status FAILED tetap terlapor).
+     *  Penanganan gagal per efek SAMA dgn setter publik (state FAILED + Log.e). */
+    @android.annotation.SuppressLint("NewApi")
+    private fun applySavedToEffects() {
+        try { bassBoost?.setStrength(PrefsHelper.getBass(this).toShort()) } catch (e: Exception) {
+            bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal menerapkan BassBoost tersimpan (serah-terima efek)", e)
+        }
+        try { virtualizer?.setStrength(PrefsHelper.getVirtualizer(this).toShort()) } catch (e: Exception) {
+            virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal menerapkan Virtualizer tersimpan (serah-terima efek)", e)
+        }
+        try { loudnessEnhancer?.setTargetGain(PrefsHelper.getLoudness(this).toInt()) } catch (e: Exception) {
+            loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal menerapkan LoudnessEnhancer tersimpan (serah-terima efek)", e)
+        }
+        if (isEqualizerSupported()) {
+            for (band in 0 until getEqualizerBandCount()) {
+                val savedMb = PrefsHelper.getEqualizerBandLevel(this, band, 0)
+                try {
+                    if (equalizerFallbackActive) {
+                        // Jalur cadangan: PreEq DynamicsProcessing, konversi mB -> dB sama dgn `setEqualizerBand()`.
+                        dynamicsProcessing?.setPreEqBandAllChannelsTo(
+                            band, DynamicsProcessing.EqBand(true, FALLBACK_EQ_BANDS_HZ[band], savedMb / 100f)
+                        )
+                        fallbackEqGainsMb[band] = savedMb.toShort()
+                    } else {
+                        equalizer?.setBandLevel(band.toShort(), savedMb.toShort())
+                    }
+                } catch (e: Exception) {
+                    equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal menerapkan EQ band $band tersimpan (serah-terima efek)", e)
+                }
+            }
+        }
+        applyCompressorBands(PrefsHelper.getCompressorAmount(this), PrefsHelper.getVocalFocus(this))
+    }
+
     private fun releaseEffects() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
@@ -1824,7 +1850,9 @@ class AudioEnhancerService : Service() {
     // SDK_INT<P di attachDynamicsProcessing) & akses via `?.` — argumen MbcBand() tidak dievaluasi.
     // Batch 209: isi 3 band dipisah dari setter publik supaya Compressor & Vocal Focus memakai 1 jalur.
     @android.annotation.SuppressLint("NewApi")
-    private fun applyCompressorBands(amount: Int, focusPercent: Int) {
+    // Batch 234: [target] eksplisit (bawaan = objek aktif) — dipakai `attachDynamicsProcessing()` untuk menulis nilai
+    // tersimpan ke objek yang BARU dibuat selagi field `dynamicsProcessing` masih menunjuk objek lama (serah-terima efek).
+    private fun applyCompressorBands(amount: Int, focusPercent: Int, target: DynamicsProcessing? = dynamicsProcessing) {
         val fraction = amount.coerceIn(0, 100) / 100f
         val focus = focusPercent.coerceIn(0, 100) / 100f
         try {
@@ -1832,7 +1860,7 @@ class AudioEnhancerService : Service() {
             // dapat makeup lebih kecil agar vokal menonjol dari backsound (lihat `CompressorCurve`).
             for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
                 val spec = CompressorCurve.band(bandIndex, fraction, focus)
-                dynamicsProcessing?.setMbcBandAllChannelsTo(
+                target?.setMbcBandAllChannelsTo(
                     bandIndex,
                     DynamicsProcessing.MbcBand(
                         /* enabled            = */ amount > 0,
@@ -1851,7 +1879,7 @@ class AudioEnhancerService : Service() {
             }
             // Batch 210: presence vokal (post-EQ 3 band: netral / +gain 2-4,5 kHz / netral), ikut Compressor & Vocal Focus.
             for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
-                dynamicsProcessing?.setPostEqBandAllChannelsTo(
+                target?.setPostEqBandAllChannelsTo(
                     presenceIndex,
                     DynamicsProcessing.EqBand(
                         amount > 0,
@@ -2200,8 +2228,11 @@ internal object EffectGuardPolicy {
      *  tertahan jeda ini sekarang DITUNDA sampai jeda habis (bukan dibuang). Alasan: di aplikasi sosmed pemutar
      *  datang-pergi dalam hitungan detik; dengan jeda 30 dtk yang membuang, pasang-ulang hanya terjadi untuk pemutar
      *  PERTAMA lalu efek berpindah output lagi dan tak pernah dipasang ulang (gejala: efek terdengar sepersekian
-     *  detik lalu "mendem"). Naikkan bila terdengar kedip tiap geser video. */
-    const val REBIND_MIN_INTERVAL_MS = 5_000L
+     *  detik lalu "mendem"). Naikkan bila terdengar kedip tiap geser video.
+     *  Batch 234: 5 dtk -> 2 dtk. Angka 5 dtk dipilih saat pasang-ulang masih punya celah (B230-B232: lepas dulu, baru
+     *  pasang) sehingga sering-sering = kedip; sejak serah-terima tanpa celah (B233) tahanan ini hanya soal biaya CPU/binder,
+     *  sementara 5 dtk membiarkan output baru tanpa efek sampai 5 dtk penuh di perpindahan beruntun. */
+    const val REBIND_MIN_INTERVAL_MS = 2_000L
 
     private const val MAX_BACKOFF_SHIFT = 6
 
