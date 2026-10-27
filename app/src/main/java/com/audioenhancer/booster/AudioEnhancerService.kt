@@ -429,6 +429,16 @@ class AudioEnhancerService : Service() {
     private var lastBindAtMs: Long = EffectGuardPolicy.NEVER
     private val rebindRunnable = Runnable { runEffectRebind("playback-start") }
 
+    // Batch 237 (request user: "Real time 'gapless' belum kesampaian"): serah-terima DUA TAHAP. Tahap CEPAT
+    // (`rebindRunnable`, REBIND_FAST_DELAY_MS) memasang efek ke output baru secepat mungkin sesudah pemutar berganti;
+    // tahap PENEGASAN (`rebindSettleRunnable`, REBIND_DELAY_MS = jalur 700 ms yang terbukti mengatasi "mendem") tetap
+    // jalan sebagai jaring pengaman bila tahap cepat mendarat di output yang belum final. Keduanya make-before-break.
+    // `lastPlayerKey` = identitas pemutar media aktif (pergantian pemutar bertanda tangan atribut SAMA tak terlihat
+    // oleh tanda tangan usage/contentType); `lastPlaybackChangeAtMs` hanya untuk log latensi (diagnostik).
+    private val rebindSettleRunnable = Runnable { runEffectRebind("playback-settle", settle = true) }
+    private var lastPlayerKey: String = ""
+    private var lastPlaybackChangeAtMs: Long = EffectGuardPolicy.NEVER
+
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
     // GUARD_TICK_MS `runEffectGuard("tick")` membaca status nyata efek dan HANYA memulihkan yang rusak (efek sehat = diam).
@@ -1106,19 +1116,42 @@ class AudioEnhancerService : Service() {
             android.util.Log.w(TAG, "Gagal membaca AudioAttributes pemutar aktif", e)
             "n=${configs?.size ?: 0}"
         }
-        if (signature == lastPlaybackSignature) return
+        // Batch 237: identitas pemutar media (hashCode `AudioPlaybackConfiguration`: dua objek yang `equals` pasti sama hash-nya).
+        // Gagal membaca = anggap tak berubah (tak memicu pasang-ulang palsu).
+        val playerKey = try {
+            EffectGuardPolicy.playerKey(
+                configs.orEmpty()
+                    .filter { EffectGuardPolicy.isRebindUsage(it.audioAttributes.usage) }
+                    .map { it.hashCode() }
+            )
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal membaca identitas pemutar media aktif", e)
+            lastPlayerKey
+        }
+        if (signature == lastPlaybackSignature && playerKey == lastPlayerKey) return
         val previousSignature = lastPlaybackSignature
+        val previousPlayerKey = lastPlayerKey
         lastPlaybackSignature = signature
-        val rebind = isRunning && EffectGuardPolicy.shouldRebindOnPlayback(previousSignature, signature)
-        android.util.Log.i(TAG, "Pemutaran sistem berubah: [$signature] running=$isRunning pasangUlang=$rebind")
+        lastPlayerKey = playerKey
+        val rebind = isRunning && (
+            EffectGuardPolicy.shouldRebindOnPlayback(previousSignature, signature) ||
+                EffectGuardPolicy.shouldRebindOnPlayers(previousPlayerKey, playerKey)
+            )
+        android.util.Log.i(TAG, "Pemutaran sistem berubah: [$signature] pemutar=[$playerKey] running=$isRunning pasangUlang=$rebind")
         if (!isRunning) return
         requestEffectGuard("playback")
         if (rebind) {
-            // Batch 230: pemutar media BARU mulai -> pasang ulang efek sesudah jeda singkat (biar sistem selesai memilih output).
+            // Batch 230: pemutar media BARU mulai -> pasang ulang efek (sistem sudah memilih output saat pemutar mulai).
             // Batch 232: juga saat himpunan pemutar media BERUBAH (mis. video lama berhenti sesudah yang baru mulai); tiap
             // perubahan baru mengundurkan jadwal ini (debounce), jadi pasang-ulang jatuh SETELAH perpindahan output reda.
+            // Batch 237: DUA TAHAP — cepat (efek ikut output baru secepat mungkin) + penegasan (jalur 700 ms B230-B236,
+            // jaring pengaman bila tahap cepat mendarat di output yang belum final; efek tak bisa mendeteksinya sendiri).
+            // Pemicunya juga pergantian IDENTITAS pemutar (atribut sama), bukan hanya perubahan tanda tangan atribut.
+            lastPlaybackChangeAtMs = SystemClock.elapsedRealtime()
             guardHandler.removeCallbacks(rebindRunnable)
-            guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
+            guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_FAST_DELAY_MS)
+            guardHandler.removeCallbacks(rebindSettleRunnable)
+            guardHandler.postDelayed(rebindSettleRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
         }
         updateGuardTick() // Batch 231
         guardHandler.removeCallbacks(guardSettleRunnable)
@@ -1157,12 +1190,14 @@ class AudioEnhancerService : Service() {
      *  Pengaman: diam bila Service mati; ditunda selama user menggeser slider; dibatasi
      *  [EffectGuardPolicy.REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir (anti-churn & anti-kedip) — Batch 232:
      *  yang tertahan jeda itu DITUNDA sampai jeda habis (bukan dibuang), dan dibatalkan bila pemutaran sudah berhenti. */
-    private fun runEffectRebind(reason: String) {
+    private fun runEffectRebind(reason: String, settle: Boolean = false) {
         if (!isRunning) return
+        // Batch 237: tahap cepat & penegasan masing-masing menunda DIRINYA sendiri (runnable berbeda), bukan saling menimpa.
+        val runnable = if (settle) rebindSettleRunnable else rebindRunnable
         val now = SystemClock.elapsedRealtime()
         if (EffectGuardPolicy.isQuietPeriod(now, lastAdjustAtMs)) {
-            guardHandler.removeCallbacks(rebindRunnable)
-            guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
+            guardHandler.removeCallbacks(runnable)
+            guardHandler.postDelayed(runnable, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
             return
         }
         if (!EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
@@ -1170,14 +1205,17 @@ class AudioEnhancerService : Service() {
             android.util.Log.i(TAG, "EffectRebind[$reason]: dibatalkan (tak ada pemutar media aktif)")
             return
         }
-        val waitMs = EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs)
+        // Batch 237: tahap penegasan hanya menunggu jeda pendek sesudah tahap cepat (REBIND_SETTLE_MIN_GAP_MS); tahap cepat
+        // memakai pembatas biasa (REBIND_MIN_INTERVAL_MS) supaya perpindahan beruntun tak membanjiri binder.
+        val minGapMs = if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_MIN_INTERVAL_MS
+        val waitMs = EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs, minGapMs)
         if (waitMs > 0L) {
             // Batch 232: DITUNDA, bukan dibuang. Sebelumnya (B230) pasang-ulang yang tiba < 30 dtk sejak pemasangan
             // terakhir langsung dibuang, sehingga perpindahan output berikutnya (pemutar datang-pergi di sosmed) tak
             // pernah diikuti dan efek tertinggal di output lama ("mendem").
             android.util.Log.i(TAG, "EffectRebind[$reason]: ditunda $waitMs ms (efek baru dipasang < ${EffectGuardPolicy.REBIND_MIN_INTERVAL_MS / 1000} dtk lalu)")
-            guardHandler.removeCallbacks(rebindRunnable)
-            guardHandler.postDelayed(rebindRunnable, waitMs)
+            guardHandler.removeCallbacks(runnable)
+            guardHandler.postDelayed(runnable, waitMs)
             return
         }
         val before = describeEffectStates()
@@ -1212,9 +1250,18 @@ class AudioEnhancerService : Service() {
         releaseReplaced("Virtualizer", oldVirtualizer, virtualizer)
         releaseReplaced("Equalizer", oldEqualizer, equalizer)
         releaseReplaced("LoudnessEnhancer", oldLoudness, loudnessEnhancer)
-        releaseReplaced("DynamicsProcessing", oldDynamics, dynamicsProcessing)
-        lastBindAtMs = SystemClock.elapsedRealtime()
-        android.util.Log.w(TAG, "EffectRebind[$reason]: efek diserahterimakan tanpa celah; sebelum ($before) sesudah (${describeEffectStates()})")
+        // Batch 237 (lint run36: NewApi "Implicit cast from DynamicsProcessing to AudioEffect requires API level 28"):
+        // DynamicsProcessing baru ada sejak API 28 dan attach-nya sudah dijaga SDK_INT >= P; pelepasan lamanya kini dijaga sama.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) releaseReplacedDynamics(oldDynamics, dynamicsProcessing)
+        val finishedAtMs = SystemClock.elapsedRealtime()
+        lastBindAtMs = finishedAtMs
+        // Batch 237: latensi NYATA di device (diagnostik): durasi serah-terima + selang sejak perubahan pemutar terakhir.
+        val sincePlaybackChange = if (lastPlaybackChangeAtMs == EffectGuardPolicy.NEVER) "n/a" else "${finishedAtMs - lastPlaybackChangeAtMs} ms"
+        android.util.Log.w(
+            TAG,
+            "EffectRebind[$reason]: efek diserahterimakan tanpa celah; sebelum ($before) sesudah (${describeEffectStates()}); " +
+                "serah-terima ${finishedAtMs - now} ms, sejak perubahan pemutar $sincePlaybackChange"
+        )
     }
 
     /** Batch 233: lepas efek LAMA hanya bila benar-benar sudah digantikan instance baru (`old !== current`). Efek lama
@@ -1224,6 +1271,13 @@ class AudioEnhancerService : Service() {
         try { old.release() } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal release $name lama setelah serah-terima efek", e)
         }
+    }
+
+    /** Batch 237: pembungkus sempit untuk efek DynamicsProcessing (API 28+). Cast implisit ke `AudioEffect` hanya terjadi di
+     *  sini dan HANYA dipanggil di balik `SDK_INT >= P`; `NewApi` ditekan di fungsi ini saja, bukan di `runEffectRebind`. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun releaseReplacedDynamics(old: DynamicsProcessing?, current: DynamicsProcessing?) {
+        releaseReplaced("DynamicsProcessing", old, current)
     }
 
     /** Batch 233: true bila efek baru GAGAL dibuat padahal efek lama masih ada -> pertahankan yang lama (jangan kehilangan
@@ -2285,8 +2339,19 @@ internal object EffectGuardPolicy {
     const val GUARD_TICK_MS = 15_000L
     /** Batch 231: alasan pemeriksaan berkala; hasil "sehat" tidak di-log (hindari banjir log). */
     const val TICK_REASON = "tick"
-    /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output). */
+    /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output).
+     *  Batch 237: kini jeda tahap PENEGASAN (serah-terima kedua, jaring pengaman); tahap pertama = [REBIND_FAST_DELAY_MS].
+     *  JANGAN dihapus/dipendekkan tanpa data device: inilah jalur yang terbukti mengatasi "mendem" (B233). */
     const val REBIND_DELAY_MS = 700L
+    /** Batch 237: jeda tahap CEPAT serah-terima setelah pemutar media berubah. Callback pemutaran datang SETELAH pemutar
+     *  mulai (output sudah dipilih sistem), jadi efek bisa langsung diikutkan; tahap penegasan ([REBIND_DELAY_MS]) menutup
+     *  kemungkinan output belum final. Serah-terima make-before-break, jadi dua kali tak menimbulkan celah. Turunkan HANYA
+     *  bila log `serah-terima N ms, sejak perubahan pemutar M ms` menunjukkan M masih terlalu besar; naikkan bila efek
+     *  di video baru sering tak terdengar sesudah tahap cepat. */
+    const val REBIND_FAST_DELAY_MS = 200L
+    /** Batch 237: jeda minimum antara pemasangan terakhir dan serah-terima tahap PENEGASAN (hanya mencegah dua serah-terima
+     *  saling menumpuk di main thread; jauh lebih pendek dari [REBIND_MIN_INTERVAL_MS] agar jalur 700 ms tetap tepat waktu). */
+    const val REBIND_SETTLE_MIN_GAP_MS = 150L
     /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Batch 232: 30 dtk -> 5 dtk DAN pasang-ulang yang
      *  tertahan jeda ini sekarang DITUNDA sampai jeda habis (bukan dibuang). Alasan: di aplikasi sosmed pemutar
      *  datang-pergi dalam hitungan detik; dengan jeda 30 dtk yang membuang, pasang-ulang hanya terjadi untuk pemutar
@@ -2338,6 +2403,19 @@ internal object EffectGuardPolicy {
      *  (suara pendek sering datang-pergi; memasang ulang tiap kali = kedip tanpa guna). */
     private val REBIND_USAGES = setOf(0, 1)
 
+    /** Batch 237: true bila [usage] termasuk pemutar media yang memicu pasang-ulang (UNKNOWN/MEDIA). */
+    fun isRebindUsage(usage: Int): Boolean = usage in REBIND_USAGES
+
+    /** Batch 237: kunci identitas himpunan pemutar media aktif (urut supaya stabil; kosong = tak ada pemutar media).
+     *  Melengkapi tanda tangan usage/contentType: dua pemutar BERBEDA dengan atribut sama (video lama diganti video baru
+     *  dalam satu callback) bertanda tangan identik sehingga tak terlihat oleh [shouldRebindOnPlayback]. */
+    fun playerKey(mediaPlayerHashes: List<Int>): String = mediaPlayerHashes.sorted().joinToString(",")
+
+    /** Batch 237: true bila himpunan pemutar media berganti identitas selagi masih ada pemutar media (berhenti total =
+     *  false, sama seperti [shouldRebindOnPlayback]). */
+    fun shouldRebindOnPlayers(previousKey: String, newKey: String): Boolean =
+        newKey.isNotEmpty() && newKey != previousKey
+
     private fun mediaEntryCounts(signature: String): Map<String, Int> {
         if (signature.isEmpty()) return emptyMap()
         return signature.split(',')
@@ -2363,8 +2441,8 @@ internal object EffectGuardPolicy {
 
     /** Batch 232: sisa jeda (ms) sebelum pasang-ulang boleh jalan lagi; 0 = boleh sekarang. Dipakai untuk MENUNDA
      *  (bukan membuang) pasang-ulang yang tiba di dalam [REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir. */
-    fun rebindWaitMs(nowMs: Long, lastBindMs: Long): Long =
-        if (lastBindMs == NEVER) 0L else (REBIND_MIN_INTERVAL_MS - (nowMs - lastBindMs)).coerceAtLeast(0L)
+    fun rebindWaitMs(nowMs: Long, lastBindMs: Long, minIntervalMs: Long = REBIND_MIN_INTERVAL_MS): Long =
+        if (lastBindMs == NEVER) 0L else (minIntervalMs - (nowMs - lastBindMs)).coerceAtLeast(0L)
 
     /** Batch 231: true bila tanda tangan pemutaran memuat minimal satu pemutar media (usage UNKNOWN/MEDIA). */
     fun hasMediaPlayer(signature: String): Boolean = mediaEntryCounts(signature).isNotEmpty()

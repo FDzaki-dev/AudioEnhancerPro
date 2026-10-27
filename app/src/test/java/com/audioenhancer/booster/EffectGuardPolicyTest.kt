@@ -474,4 +474,112 @@ class EffectGuardPolicyTest {
         assertFalse("applyCompressorBands tidak boleh membangun MbcBand sendiri lagi", live.contains("DynamicsProcessing.MbcBand("))
         assertFalse("applyCompressorBands tidak boleh membangun EqBand sendiri lagi", live.contains("DynamicsProcessing.EqBand("))
     }
+
+    // ---- Batch 237: serah-terima dua tahap, pemicu identitas pemutar, perbaikan lint NewApi ----
+
+    @Test
+    fun `player key is stable regardless of player order and empty without media`() {
+        assertEquals("", EffectGuardPolicy.playerKey(emptyList()))
+        assertEquals(EffectGuardPolicy.playerKey(listOf(7, -3, 12)), EffectGuardPolicy.playerKey(listOf(12, 7, -3)))
+        assertFalse(EffectGuardPolicy.playerKey(listOf(1)) == EffectGuardPolicy.playerKey(listOf(2)))
+    }
+
+    /** Kasus yang tak terlihat oleh tanda tangan atribut: video lama diganti video baru dalam satu callback ("1/3" -> "1/3"),
+     *  output efek bisa berpindah, tetapi `shouldRebindOnPlayback` tetap false. Identitas pemutar menutup celah itu. */
+    @Test
+    fun `rebind when a media player is replaced by another with identical attributes`() {
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback("1/3", "1/3"))
+        assertTrue(
+            EffectGuardPolicy.shouldRebindOnPlayers(
+                EffectGuardPolicy.playerKey(listOf(11)), EffectGuardPolicy.playerKey(listOf(22))
+            )
+        )
+    }
+
+    @Test
+    fun `no player identity rebind when the same players remain or playback ends`() {
+        val key = EffectGuardPolicy.playerKey(listOf(11, 22))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayers(key, key))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayers(key, ""))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayers("", ""))
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayers("", key))
+    }
+
+    @Test
+    fun `only unknown and media usages count for player identity`() {
+        assertTrue(EffectGuardPolicy.isRebindUsage(0))
+        assertTrue(EffectGuardPolicy.isRebindUsage(1))
+        assertFalse(EffectGuardPolicy.isRebindUsage(4))
+        assertFalse(EffectGuardPolicy.isRebindUsage(5))
+        assertFalse(EffectGuardPolicy.isRebindUsage(14))
+    }
+
+    @Test
+    fun `fast handoff comes well before the settle handoff and the guard checks`() {
+        assertTrue(EffectGuardPolicy.REBIND_FAST_DELAY_MS >= 100L)
+        assertTrue(EffectGuardPolicy.REBIND_FAST_DELAY_MS < EffectGuardPolicy.REBIND_DELAY_MS)
+        assertTrue(EffectGuardPolicy.REBIND_FAST_DELAY_MS < EffectGuardPolicy.DEBOUNCE_MS)
+    }
+
+    /** Tahap penegasan = jalur 700 ms yang terbukti mengatasi "mendem" (B233); jangan dipendekkan tanpa data device. */
+    @Test
+    fun `settle handoff keeps the proven delay and a short gap after the fast stage`() {
+        assertTrue(EffectGuardPolicy.REBIND_DELAY_MS >= 700L)
+        assertTrue(EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS > 0L)
+        assertTrue(EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS < EffectGuardPolicy.REBIND_DELAY_MS)
+        assertTrue(EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS < EffectGuardPolicy.REBIND_MIN_INTERVAL_MS)
+    }
+
+    @Test
+    fun `rebind wait uses the interval it is given and defaults to the regular one`() {
+        val last = 10_000L
+        assertEquals(150L, EffectGuardPolicy.rebindWaitMs(last, last, 150L))
+        assertEquals(50L, EffectGuardPolicy.rebindWaitMs(last + 100L, last, 150L))
+        assertEquals(0L, EffectGuardPolicy.rebindWaitMs(last + 150L, last, 150L))
+        assertEquals(0L, EffectGuardPolicy.rebindWaitMs(0L, EffectGuardPolicy.NEVER, 150L))
+        assertEquals(EffectGuardPolicy.REBIND_MIN_INTERVAL_MS, EffectGuardPolicy.rebindWaitMs(last, last))
+    }
+
+    /** Lint run36: `Implicit cast from DynamicsProcessing to AudioEffect requires API level 28` (minSdk 24). Pelepasan efek
+     *  lama dibungkus fungsi sempit ber-`NewApi` dan hanya dipanggil di balik `SDK_INT >= P`. */
+    @Test
+    fun `dynamics processing is released behind an sdk guard through the narrow helper`() {
+        val source = readServiceSource()
+        val rebind = bodyBetween(source, "private fun runEffectRebind(", "private fun releaseReplaced(")
+        assertTrue(
+            "pelepasan DynamicsProcessing harus di balik SDK_INT >= P",
+            rebind.contains("Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) releaseReplacedDynamics(oldDynamics, dynamicsProcessing)")
+        )
+        assertFalse(
+            "jangan kembali ke releaseReplaced langsung (cast implisit NewApi)",
+            rebind.contains("releaseReplaced(\"DynamicsProcessing\"")
+        )
+        assertTrue(
+            "pembungkus sempit wajib ber-SuppressLint(NewApi)",
+            Regex("""@android\.annotation\.SuppressLint\("NewApi"\)\s+private fun releaseReplacedDynamics\(""").containsMatchIn(source)
+        )
+        val helper = bodyBetween(source, "private fun releaseReplacedDynamics(", "private fun shouldKeepOld(")
+        assertTrue(helper.contains("releaseReplaced(\"DynamicsProcessing\", old, current)"))
+    }
+
+    @Test
+    fun `playback callback reacts to a change of player identity and schedules both stages`() {
+        val source = readServiceSource()
+        val body = bodyBetween(source, "private fun onPlaybackConfigsChanged(", "private fun updateGuardTick(")
+        assertTrue(body.contains("if (signature == lastPlaybackSignature && playerKey == lastPlayerKey) return"))
+        assertTrue(body.contains("EffectGuardPolicy.shouldRebindOnPlayers(previousPlayerKey, playerKey)"))
+        assertTrue(body.contains("guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_FAST_DELAY_MS)"))
+        assertTrue(body.contains("guardHandler.postDelayed(rebindSettleRunnable, EffectGuardPolicy.REBIND_DELAY_MS)"))
+    }
+
+    @Test
+    fun `both rebind stages defer themselves and the settle stage uses its own gap`() {
+        val source = readServiceSource()
+        val body = bodyBetween(source, "private fun runEffectRebind(", "private fun releaseReplaced(")
+        assertTrue(body.contains("val runnable = if (settle) rebindSettleRunnable else rebindRunnable"))
+        assertTrue(body.contains("EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs, minGapMs)"))
+        assertTrue(body.contains("if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_MIN_INTERVAL_MS"))
+        assertFalse("penundaan harus memakai runnable tahap masing-masing", body.contains("postDelayed(rebindRunnable, waitMs)"))
+        assertTrue(withoutLineComments(source).contains("Runnable { runEffectRebind(\"playback-settle\", settle = true) }"))
+    }
 }
