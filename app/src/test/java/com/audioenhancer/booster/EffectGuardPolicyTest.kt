@@ -578,8 +578,74 @@ class EffectGuardPolicyTest {
         val body = bodyBetween(source, "private fun runEffectRebind(", "private fun releaseReplaced(")
         assertTrue(body.contains("val runnable = if (settle) rebindSettleRunnable else rebindRunnable"))
         assertTrue(body.contains("EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs, minGapMs)"))
-        assertTrue(body.contains("if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_MIN_INTERVAL_MS"))
+        assertTrue(body.contains("if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS"))
         assertFalse("penundaan harus memakai runnable tahap masing-masing", body.contains("postDelayed(rebindRunnable, waitMs)"))
         assertTrue(withoutLineComments(source).contains("Runnable { runEffectRebind(\"playback-settle\", settle = true) }"))
+    }
+
+    // ---- Batch 238: tahap cepat tak lagi kelaparan + guard tak lagi menstempel "user menggeser" ----
+
+    /** Tahap cepat harus bisa jalan tanpa melewati tahap penegasan perpindahan yang sama, sekalipun pemasangan terakhir baru saja
+     *  terjadi: jeda cepat + jeda minimum <= jeda penegasan. */
+    @Test
+    fun `fast stage can never be held past the settle stage of the same change`() {
+        assertTrue(
+            EffectGuardPolicy.REBIND_FAST_DELAY_MS + EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS <= EffectGuardPolicy.REBIND_DELAY_MS
+        )
+        assertTrue(EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS >= EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS)
+        assertTrue(EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS < EffectGuardPolicy.REBIND_MIN_INTERVAL_MS)
+    }
+
+    /** Geser video tiap 1,5 dtk: perpindahan 1 -> tahap cepat +200, penegasan +700 (pemasangan terakhir). Perpindahan 2 di +1500 ->
+     *  tahap cepat dijadwalkan di +1700: dengan jeda lama 2 dtk menunggu 1000 ms lagi (efek baru baru datang lewat +700 miliknya),
+     *  dengan jeda B238 langsung jalan. */
+    @Test
+    fun `fast stage runs on time when videos are swiped every one and a half seconds`() {
+        val lastBindAtSettle = 700L
+        val fastScheduledAt = 1_500L + EffectGuardPolicy.REBIND_FAST_DELAY_MS
+        assertEquals(
+            1_000L,
+            EffectGuardPolicy.rebindWaitMs(fastScheduledAt, lastBindAtSettle, EffectGuardPolicy.REBIND_MIN_INTERVAL_MS)
+        )
+        assertEquals(
+            0L,
+            EffectGuardPolicy.rebindWaitMs(fastScheduledAt, lastBindAtSettle, EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS)
+        )
+    }
+
+    /** Geser lebih cepat (tiap 0,9 dtk): tahap cepat menunggu sisa jeda saja dan tetap jatuh SEBELUM penegasan perpindahan itu. */
+    @Test
+    fun `fast stage waits only the remaining gap when videos are swiped every nine hundred milliseconds`() {
+        val lastBindAtSettle = 700L
+        val changeAt = 900L
+        val fastScheduledAt = changeAt + EffectGuardPolicy.REBIND_FAST_DELAY_MS
+        val wait = EffectGuardPolicy.rebindWaitMs(fastScheduledAt, lastBindAtSettle, EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS)
+        assertEquals(100L, wait)
+        assertTrue(fastScheduledAt + wait < changeAt + EffectGuardPolicy.REBIND_DELAY_MS)
+    }
+
+    @Test
+    fun `fast stage uses its own short gap and no longer the two second interval`() {
+        val source = readServiceSource()
+        val body = bodyBetween(source, "private fun runEffectRebind(", "private fun releaseReplaced(")
+        assertTrue(body.contains("EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS"))
+        assertFalse(
+            "tahap cepat tidak boleh kembali ke jeda 2 dtk (REBIND_MIN_INTERVAL_MS)",
+            body.contains("REBIND_MIN_INTERVAL_MS")
+        )
+    }
+
+    /** `restoreSavedSettings()` memanggil setter publik -> `markSettingAdjusted()` -> jendela tenang 1,5 dtk yang menunda
+     *  `runEffectRebind` (tahap penegasan). Guard (400 ms sesudah pemutar berganti) sendiri tak boleh memicu jendela itu. */
+    @Test
+    fun `effect guard restores saved values to effects only and never stamps a user adjustment`() {
+        val source = readServiceSource()
+        val guard = bodyBetween(source, "private fun runEffectGuard(", "private fun hasControlLostEffect(")
+        assertTrue(guard.contains("applySavedToEffects()"))
+        assertFalse(
+            "runEffectGuard tidak boleh kembali ke restoreSavedSettings() (menstempel \"user menggeser\" palsu)",
+            guard.contains("restoreSavedSettings()")
+        )
+        assertFalse(guard.contains("markSettingAdjusted("))
     }
 }

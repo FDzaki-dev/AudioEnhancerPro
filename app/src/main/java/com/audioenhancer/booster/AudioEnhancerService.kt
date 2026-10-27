@@ -1188,7 +1188,7 @@ class AudioEnhancerService : Service() {
      *  terbaca `enabled` dan "sehat" — tak ada API publik untuk mendeteksinya, jadi satu-satunya jalan non-root
      *  adalah membuatnya ulang saat output baru sudah aktif. Visualizer TIDAK disentuh (observer pasif).
      *  Pengaman: diam bila Service mati; ditunda selama user menggeser slider; dibatasi
-     *  [EffectGuardPolicy.REBIND_MIN_INTERVAL_MS] sejak pemasangan terakhir (anti-churn & anti-kedip) — Batch 232:
+     *  [EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS] (tahap cepat; B238, sebelumnya REBIND_MIN_INTERVAL_MS) sejak pemasangan terakhir (anti-churn) — Batch 232:
      *  yang tertahan jeda itu DITUNDA sampai jeda habis (bukan dibuang), dan dibatalkan bila pemutaran sudah berhenti. */
     private fun runEffectRebind(reason: String, settle: Boolean = false) {
         if (!isRunning) return
@@ -1205,15 +1205,17 @@ class AudioEnhancerService : Service() {
             android.util.Log.i(TAG, "EffectRebind[$reason]: dibatalkan (tak ada pemutar media aktif)")
             return
         }
-        // Batch 237: tahap penegasan hanya menunggu jeda pendek sesudah tahap cepat (REBIND_SETTLE_MIN_GAP_MS); tahap cepat
-        // memakai pembatas biasa (REBIND_MIN_INTERVAL_MS) supaya perpindahan beruntun tak membanjiri binder.
-        val minGapMs = if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_MIN_INTERVAL_MS
+        // Batch 237: tahap penegasan hanya menunggu jeda pendek sesudah tahap cepat (REBIND_SETTLE_MIN_GAP_MS).
+        // Batch 238: tahap cepat juga memakai jeda pendek (REBIND_FAST_MIN_GAP_MS). Sebelumnya 2 dtk (REBIND_MIN_INTERVAL_MS)
+        // diukur dari pemasangan terakhir = tahap PENEGASAN perpindahan sebelumnya (+700 ms); pada geser video tiap 1-2 dtk tahap
+        // cepat selalu tertahan sampai melewati tahap penegasan miliknya sendiri, jadi efek di video baru tak pernah datang di +200 ms.
+        val minGapMs = if (settle) EffectGuardPolicy.REBIND_SETTLE_MIN_GAP_MS else EffectGuardPolicy.REBIND_FAST_MIN_GAP_MS
         val waitMs = EffectGuardPolicy.rebindWaitMs(now, lastBindAtMs, minGapMs)
         if (waitMs > 0L) {
             // Batch 232: DITUNDA, bukan dibuang. Sebelumnya (B230) pasang-ulang yang tiba < 30 dtk sejak pemasangan
             // terakhir langsung dibuang, sehingga perpindahan output berikutnya (pemutar datang-pergi di sosmed) tak
             // pernah diikuti dan efek tertinggal di output lama ("mendem").
-            android.util.Log.i(TAG, "EffectRebind[$reason]: ditunda $waitMs ms (efek baru dipasang < ${EffectGuardPolicy.REBIND_MIN_INTERVAL_MS / 1000} dtk lalu)")
+            android.util.Log.i(TAG, "EffectRebind[$reason]: ditunda $waitMs ms (jeda minimum $minGapMs ms sejak serah-terima terakhir)")
             guardHandler.removeCallbacks(runnable)
             guardHandler.postDelayed(runnable, waitMs)
             return
@@ -1330,7 +1332,11 @@ class AudioEnhancerService : Service() {
             reacquireFailures = if (hasControlLostEffect()) reacquireFailures + 1 else 0
         }
         if (disabled.isNotEmpty()) enableEffects()
-        if (!reacquired && (disabled.isNotEmpty() || drifted.isNotEmpty())) restoreSavedSettings()
+        // Batch 238: nilai tersimpan ditulis lewat `applySavedToEffects()` (hanya ke efek), BUKAN `restoreSavedSettings()`.
+        // Setter publik di `restoreSavedSettings()` memanggil `markSettingAdjusted()` -> stempel "user menggeser" palsu ->
+        // `runEffectRebind` (tahap penegasan 700 ms) ditunda USER_ADJUST_QUIET_MS (1,5 dtk) tepat saat guard (400 ms) menemukan
+        // efek rusak = saat perpindahan output paling butuh serah-terima. Jalur serah-terima sudah bersih sejak B234; ini sisanya.
+        if (!reacquired && (disabled.isNotEmpty() || drifted.isNotEmpty())) applySavedToEffects()
         android.util.Log.w(
             TAG,
             "EffectGuard[$reason]: lost=$lost reacquired=$reacquired disabled=$disabled drifted=$drifted " +
@@ -2352,7 +2358,15 @@ internal object EffectGuardPolicy {
     /** Batch 237: jeda minimum antara pemasangan terakhir dan serah-terima tahap PENEGASAN (hanya mencegah dua serah-terima
      *  saling menumpuk di main thread; jauh lebih pendek dari [REBIND_MIN_INTERVAL_MS] agar jalur 700 ms tetap tepat waktu). */
     const val REBIND_SETTLE_MIN_GAP_MS = 150L
-    /** Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Batch 232: 30 dtk -> 5 dtk DAN pasang-ulang yang
+    /** Batch 238: jeda minimum antara pemasangan terakhir (tahap APA PUN) dan serah-terima tahap CEPAT. Syarat (dijaga tes):
+     *  [REBIND_FAST_DELAY_MS] + nilai ini <= [REBIND_DELAY_MS], sehingga tahap cepat TIDAK pernah tertahan melewati tahap
+     *  penegasan perpindahan yang sama (dengan 2 dtk, [REBIND_MIN_INTERVAL_MS], geser video tiap 1-2 dtk membuat tahap cepat
+     *  selalu telat dan efek baru baru terdengar di +700 ms). Make-before-break = tak ada kedip, jadi jeda ini hanya
+     *  pembatas beban binder; naikkan HANYA bila log `ditunda` + `serah-terima N ms` menunjukkan main thread kewalahan. */
+    const val REBIND_FAST_MIN_GAP_MS = 500L
+    /** Batch 238: TIDAK lagi dipakai jalur serah-terima ([REBIND_FAST_MIN_GAP_MS] untuk tahap cepat, [REBIND_SETTLE_MIN_GAP_MS] untuk
+     *  penegasan); dipertahankan sebagai batas atas historis + nilai bawaan [rebindWaitMs]/[mayRebind].
+     *  Batch 230: jarak minimum antar pemasangan efek (awal/ulang). Batch 232: 30 dtk -> 5 dtk DAN pasang-ulang yang
      *  tertahan jeda ini sekarang DITUNDA sampai jeda habis (bukan dibuang). Alasan: di aplikasi sosmed pemutar
      *  datang-pergi dalam hitungan detik; dengan jeda 30 dtk yang membuang, pasang-ulang hanya terjadi untuk pemutar
      *  PERTAMA lalu efek berpindah output lagi dan tak pernah dipasang ulang (gejala: efek terdengar sepersekian

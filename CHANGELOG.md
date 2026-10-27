@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 238: Tahap cepat serah-terima tak lagi tertahan, guard tak lagi menunda penegasan
+
+Permintaan user: "Not enough 'gapless'. Teruskan!!" dengan `Boomly_v237.zip` dan `AEP_laporan-untuk-claude_run37.zip`. Berkas yang berubah: `AudioEnhancerService.kt` dan `EffectGuardPolicyTest.kt`; sisanya dokumen.
+
+1. Triase laporan run37. Penanda proyek cocok (BATCH_PROJECT_STATE=237, COMMIT=3db6dfc, RUN_ID=40477103797). Tes 125/125 lulus, ArchUnit 12 aturan 0 pelanggaran, SpotBugs 0, detekt 0, detekt typed 0, peringatan kompilator 0, lint 0 isu. Error lint `NewApi` B237 hilang, jadi B229-B237 lolos kompilasi, tes, dan analisis statis. Suara di HP belum terbukti; user tidak mengirim logcat, sehingga hanya cacat yang terbukti dari pembacaan kode yang diperbaiki.
+2. Tahap cepat tertahan. `runEffectRebind` memberi tahap cepat jeda minimum 2 dtk (`REBIND_MIN_INTERVAL_MS`) yang diukur dari pemasangan terakhir, dan pemasangan terakhir itu adalah tahap penegasan perpindahan sebelumnya (+700 ms). Pada geser video tiap 1-2 dtk, tahap cepat (+200 ms) menunggu sampai melewati penegasan miliknya sendiri, sehingga efek di video baru baru terdengar di sekitar 700 ms. Kini tahap cepat memakai `REBIND_FAST_MIN_GAP_MS` = 500 ms. Syarat yang dijaga tes: `REBIND_FAST_DELAY_MS + REBIND_FAST_MIN_GAP_MS <= REBIND_DELAY_MS`, sehingga tahap cepat tak pernah jatuh sesudah penegasan perpindahan yang sama. Serah-terima make-before-break tidak menimbulkan kedip, jadi jeda hanya pembatas beban binder.
+3. Stempel palsu dari guard. `runEffectGuard` (400 ms sesudah pemutar berganti) memulihkan nilai lewat `restoreSavedSettings()`, yang memanggil setter publik dan `markSettingAdjusted()`. Stempel "user sedang menggeser" itu membuat `runEffectRebind` menunda dirinya 1,5 dtk, termasuk tahap penegasan 700 ms yang terbukti mengatasi "mendem", bila guard menemukan efek mati atau menyimpang lebih dulu. Kini guard memakai `applySavedToEffects()` (hanya menulis ke efek), seperti jalur serah-terima sejak B234.
+4. Tes. 5 tes baru di `EffectGuardPolicyTest` (65 total): syarat jeda cepat vs penegasan, skenario geser 1,5 dtk dan 0,9 dtk, tahap cepat tak lagi memakai `REBIND_MIN_INTERVAL_MS`, guard tanpa `restoreSavedSettings()`/`markSettingAdjusted(`. 1 tes teks sumber lama disesuaikan ke ekspresi `minGapMs` baru. Konstanta `REBIND_MIN_INTERVAL_MS` dipertahankan (nilai bawaan `rebindWaitMs`/`mayRebind`).
+5. Status. NOT VERIFIED: sandbox tanpa kompiler Kotlin/Gradle; kurung seimbang dan pemeriksaan teks sumber disimulasikan via Python; belum dikompilasi di CI dan belum diuji di HP. Kandidat berikutnya hanya dengan data log `serah-terima N ms, sejak perubahan pemutar M ms`: serah-terima di thread kerja atau pipeline per efek.
+
 ## Batch 237: Serah-terima efek dua tahap, pemicu identitas pemutar, perbaikan lint NewApi
 
 Permintaan user: "Real time 'gapless' belum kesampaian. Teruskan!!" dengan `Boomly_v236.zip` dan `AEP_laporan-untuk-claude_run36.zip`. Berkas yang berubah: `AudioEnhancerService.kt` dan `EffectGuardPolicyTest.kt`; sisanya dokumen.
