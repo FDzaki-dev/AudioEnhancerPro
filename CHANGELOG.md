@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 242: Log kedua dibaca, diagnostik gating spektrum ditambah, ekspor log lebih ringkas
+
+Permintaan user: "Teruskan last progression!!" bersama `Boomly_v241.zip` dan log debug kedua dari tombol ekspor. Kali ini skenario sosmed tertangkap: delapan kali geser video dalam sekitar 45 detik. Tiap pemutar baru memicu serah-terima efek 53 sampai 105 ms, kelima efek tetap ENABLED sebelum dan sesudahnya, guard melaporkan sehat, dan tidak ada kontrol hilang maupun crash. Jadi mekanisme B233 sampai B238 terbukti sehat di perangkat. Yang belum diketahui: apakah efeknya benar-benar terdengar di TikTok atau YouTube.
+
+Yang janggal: tidak ada satu pun baris "Spektrum dijeda" di v241, padahal aplikasi seharusnya ditinggalkan sekitar 70 detik. Log tidak bisa membedakan apakah layar aplikasi memang tidak pernah berhenti membaca (misalnya layar terbagi atau jendela mengambang) atau rantai pemeriksaan idle mati, karena onStop dan onStart tidak dicatat. Batch ini menambahkan baris `LIFECYCLE ui aktif=` di MainActivity, baris "Spektrum aktif" saat pemeriksaan dijadwalkan, dan baris alasan bila rantai pemeriksaan berakhir. Perilaku tidak berubah, hanya bukti yang bertambah.
+
+Ekspor log kini juga membuang baris `getParameter` (29% dari 3000 baris; isinya hanya nomor parameter tanpa nilai). Baris `setParameter` sengaja tetap disimpan. Pada log kedua, 884 dari 3000 baris akan terbuang, sehingga jendela log kira-kira 1,4 kali lebih panjang.
+
+Temuan sampingan: di proses lama, DynamicsProcessing (Compressor) berstatus FAILED berjam-jam sementara guard mencetak "efek sehat". Guard memang sengaja tidak memulihkan FAILED. Penyebabnya ada di luar jendela log sehingga belum diketahui; ini dicatat sebagai temuan terbuka. 3 tes baru. Belum dikompilasi dan belum diuji di HP.
+
 ## Batch 241: Spektrum hanya hidup saat dilihat, ekspor log menyaring derau
 
 Berdasarkan log debug pertama dari tombol ekspor B240. Temuan baiknya: serah-terima efek B238 terbukti berjalan cepat di perangkat (52 sampai 126 ms, tanpa celah state, semua efek tetap ENABLED dan guard melaporkan sehat). Temuan buruknya: 92% isi log adalah banjir `AudioEffect command()` dari capture spektrum Visualizer yang berjalan sekitar 10 kali per detik terus-menerus selama layanan hidup, termasuk saat layar aplikasi tidak dibuka. Akibatnya boros baterai dan log hanya mencakup sekitar 3 menit.

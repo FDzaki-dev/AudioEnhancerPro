@@ -70,7 +70,7 @@ object DebugLogExporter {
         "waktu: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))}",
         "perangkat: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})",
         "layanan efek: ${if (AudioEnhancerService.isRunning) "aktif" else "mati"}",
-        "catatan: baris banjir AudioEffect command()/commandExecuted() dan derau UI (VRI, DecorView, dst.) disaring"
+        "catatan: baris banjir AudioEffect command()/commandExecuted()/getParameter dan derau UI (VRI, DecorView, dst.) disaring"
     )
 
     /** `logcat -d` berhenti sendiri setelah mencetak buffer (tak menggantung). Batch 241: TANPA `-t` — penyaringan derau
@@ -127,8 +127,13 @@ internal object DebugLogFormat {
 
     private const val TS = """^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} """
 
-    /** Banjir capture Visualizer (`command() ... cmdCode = 65536` ~10x/dtk) dan balasannya `commandExecuted()`. */
-    private val AUDIO_EFFECT_FLOOD = Regex(TS + """[VDIWEF]/AudioEffect\(\s*\d+\): (command\(\)|commandExecuted\(\))""")
+    /** Banjir capture Visualizer (`command() ... cmdCode = 65536` ~10x/dtk) dan balasannya `commandExecuted()`.
+     *  Batch 242 (log device kedua: `getParameter:` = 884 dari 3000 baris, 29%): +`getParameter: param: X, param2: Y` — gema
+     *  baca-ulang parameter oleh Effect Guard (8 baris per pemeriksaan) yang HANYA memuat nomor parameter, tanpa nilai,
+     *  jadi nol informasi; hasil pemeriksaannya tetap tercatat di baris `EffectGuard[...]` milik layanan. `setParameter():`
+     *  SENGAJA tetap disimpan (bukti penulisan parameter saat serah-terima). */
+    private val AUDIO_EFFECT_FLOOD =
+        Regex(TS + """[VDIWEF]/AudioEffect\(\s*\d+\): (command\(\)|commandExecuted\(\)|getParameter:)""")
 
     /** Derau jendela/UI sistem yang tak berguna untuk analisis audio (dan memuat koordinat sentuhan). */
     private val UI_NOISE = Regex(

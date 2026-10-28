@@ -103,4 +103,24 @@ class DebugLogFormatTest {
         assertFalse(DebugLogFormat.isNoise("--------- beginning of main"))
         assertFalse(DebugLogFormat.isNoise(""))
     }
+
+    @Test
+    fun `guard parameter read chatter is noise`() {
+        assertTrue(DebugLogFormat.isNoise("10-28 03:55:01.559 D/AudioEffect(24162): getParameter: param: 1, param2: -1"))
+        assertTrue(DebugLogFormat.isNoise("10-28 08:03:40.577 D/AudioEffect(16993): getParameter: param: 2, param2: 4"))
+        assertTrue(DebugLogFormat.isNoise("10-28 07:49:35.100 D/AudioEffect( 9903): getParameter: param: 0, param2: -1"))
+    }
+
+    @Test
+    fun `guard verdict and parameter writes stay when parameter reads are dropped`() {
+        assertFalse(DebugLogFormat.isNoise("10-28 03:55:01.571 I/AudioEnhancerService(24162): EffectGuard[playback]: efek sehat (bass=ENABLED virt=ENABLED eq=ENABLED loud=ENABLED dyn=FAILED)"))
+        assertFalse(DebugLogFormat.isNoise("10-28 07:48:18.262 D/AudioEffect(24162): setParameter(): 0xb400007c1c228e20, param: 48, param2: -1"))
+        assertFalse(DebugLogFormat.isNoise("10-28 08:02:54.098 D/AudioEffect(16993): controlStatusChanged 0xb400007c1c2024b0 control 0 callback 0xb400007acc240810"))
+    }
+
+    @Test
+    fun `lifecycle and spectrum gating lines are never noise`() {
+        assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.500 I/MainActivity(16993): LIFECYCLE ui aktif=false"))
+        assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.766 I/AudioEnhancerService(16993): Spektrum dijeda: UI tidak membaca > 3 dtk (hemat baterai)"))
+    }
 }

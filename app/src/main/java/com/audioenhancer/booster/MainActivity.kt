@@ -372,11 +372,13 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         viewModel.setUiActive(true)
+        Log.i("MainActivity", "LIFECYCLE ui aktif=true") // Batch 242: bukti kapan spektrum boleh dijeda (log kedua tak memuat ini)
     }
 
     override fun onStop() {
         super.onStop()
         viewModel.setUiActive(false)
+        Log.i("MainActivity", "LIFECYCLE ui aktif=false") // Batch 242
     }
 
     override fun onResume() {

@@ -1182,6 +1182,9 @@ class AudioEnhancerService : Service() {
         lastSpectrumReadAtMs = SystemClock.elapsedRealtime() // jendela tenggang sebelum pemeriksaan idle pertama
         visualizerIdlePaused = false
         scheduleVisualizerIdleCheck()
+        // Batch 242: log device kedua tak memuat satu pun `Spektrum dijeda` -> tak bisa dibedakan "UI memang tak pernah berhenti
+        // membaca" dari "rantai pemeriksaan idle mati". Baris ini + `LIFECYCLE ui aktif=` (MainActivity) memutus keraguan itu.
+        android.util.Log.i(TAG, "Spektrum aktif: pemeriksaan idle dijadwalkan (jeda bila UI tak membaca > ${EffectGuardPolicy.SPECTRUM_IDLE_MS / 1000} dtk)")
     }
 
     private fun scheduleVisualizerIdleCheck() {
@@ -1190,7 +1193,11 @@ class AudioEnhancerService : Service() {
     }
 
     private fun checkVisualizerIdle() {
-        if (!isRunning || visualizer == null || visualizerState != EffectState.ENABLED) return
+        if (!isRunning || visualizer == null || visualizerState != EffectState.ENABLED) {
+            // Batch 242: rantai pemeriksaan berakhir tanpa jejak -> catat alasannya (satu baris per akhir rantai).
+            android.util.Log.i(TAG, "Spektrum: pemeriksaan idle berhenti (running=$isRunning visualizer=${visualizer != null} state=$visualizerState)")
+            return
+        }
         if (EffectGuardPolicy.isSpectrumIdle(SystemClock.elapsedRealtime(), lastSpectrumReadAtMs)) {
             try { visualizer?.enabled = false } catch (e: Exception) {
                 android.util.Log.e(TAG, "Gagal menjeda Visualizer (idle)", e)
