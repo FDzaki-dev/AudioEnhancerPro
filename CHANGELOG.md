@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 245: Log keempat membuktikan Reverb berjalan, mode auxiliary terkonfirmasi
+
+Permintaan user: mengunggah log debug keempat (`aep_debug_20261028_135945.txt`) tanpa teks, jadi dilanjutkan sesuai langkah uji yang tercatat. Log berasal dari build B244 di Infinix X6855 (Android 16). Tidak ada perubahan kode; batch ini hanya dokumen.
+
+B244 terbukti terkompilasi dan berjalan: baris `Reverb:` hanya ada bila kodenya masuk APK, sehingga kekhawatiran kompilasi (ikon Waves, setter preset, descriptor) gugur. Efek dibuat dengan mode Auxiliary, nama "Auxiliary Preset Reverb", implementor NXP Software Ltd. Ini menguatkan prediksi Batch 151 bahwa Reverb di session 0 adalah efek auxiliary. Mekaniknya sehat: setiap langkah slider dari Mati sampai Plat dan kembali tercatat dengan status benar, tanpa baris gagal, tanpa FAILED, dan tanpa pesan "tidak tersedia".
+
+Isolasi dari jalur audio lain juga terbukti. Saat Reverb aktif di preset terakhir, pemutar media baru pada 13:58:00 memicu serah-terima efek tahap cepat 120 ms dan tahap penegasan 152 ms, kelima efek tetap ENABLED sebelum dan sesudah, guard melaporkan sehat, dan tidak ada kontrol hilang. Jeda spektrum juga masih bekerja (dijeda tiga detik setelah aplikasi ditinggalkan, dilanjutkan saat dibuka lagi).
+
+Yang belum diketahui: apakah Reverb terdengar. Log tidak bisa menjawabnya, dan user belum melapor. Bila tidak terdengar, itu perilaku platform untuk efek auxiliary, bukan bug kode; jalan satu-satunya adalah reverb per-session lewat izin DUMP (kandidat B246, hanya bila user mau setup). Baris crash bertanggal 9 Oktober di awal log adalah crash v224 lama yang sudah diperbaiki di Batch 185 dan 186. Hasil tes dan lint B244 belum diterima, jadi tetap NOT VERIFIED.
+
 ## Batch 244: Toggle Reverb (preset ruang) di tab Kontrol
 
 Permintaan user: "Lanjut implementasi kan spektrum Reverb/Spatial!!" bersama `Boomly_v243.zip`. Ini item M2 roadmap Fase 8 yang diturunkan di Batch 151 karena `PresetReverb` di session 0 adalah efek auxiliary. Atas permintaan eksplisit user fitur dibangun sekarang, dengan syarat jalur audio yang sudah ada tidak disentuh.
