@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -68,6 +69,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -523,12 +525,15 @@ fun BoosterScreen(
     onCompressor: (Int) -> Unit = {},
     // Batch 209: slider "Vocal Focus" (0..100) di bawah Compressor — keseimbangan vokal vs bass/treble.
     onVocalFocus: (Int) -> Unit = {},
+    // Batch 244 (request user: Reverb/Spatial): slider preset Reverb 0..6 (0 = Mati) di bawah Vocal Focus.
+    onReverb: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
     virtualizerSupported: Boolean = true,
     loudnessSupported: Boolean = true,
     compressorSupported: Boolean = true,
+    reverbSupported: Boolean = true,
     bassStrengthSupported: Boolean = true,
     virtualizerStrengthSupported: Boolean = true,
     // Batch 58: EffectState (Batch 57) di-poll ViewModel, dipass ke sini buat helpText
@@ -538,6 +543,7 @@ fun BoosterScreen(
     virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     compressorEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    reverbEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): default UNAVAILABLE (bukan
     // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
@@ -558,6 +564,7 @@ fun BoosterScreen(
     initialLoudness: Float = 0f,
     initialCompressorAmount: Float = 0f,
     initialVocalFocus: Float = 50f,
+    initialReverbPreset: Float = 0f,
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -664,6 +671,9 @@ fun BoosterScreen(
     var loudness by remember { mutableFloatStateOf(initialLoudness) }
     var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
     var vocalFocus by remember { mutableFloatStateOf(initialVocalFocus) }
+    // Batch 244: nama preset Reverb (7 item, urut = indeks 0..6 `ReverbPresets`); nilai awal dari prefs seperti slider lain.
+    var reverbPreset by remember { mutableFloatStateOf(initialReverbPreset) }
+    val reverbPresetNames = stringArrayResource(R.array.reverb_preset_names)
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -1182,6 +1192,33 @@ fun BoosterScreen(
                     valueRange = 0f..100f,
                     step = 5f,
                     enabled = compressorSupported,
+                    wrapInCard = false
+                )
+
+                SkeuGroupDivider()
+
+                // Batch 244 (request user: Reverb/Spatial): preset ruang `PresetReverb` di mixer global. Seperti Compressor/
+                // Vocal Focus, SENGAJA tidak ikut preset (nilai tersimpan di PrefsHelper terpisah). Teks bantuan jujur soal
+                // batas efek ini (bisa diabaikan sebagian perangkat/aplikasi).
+                FeatureControl(
+                    title = stringResource(R.string.feature_reverb_title),
+                    icon = Icons.Filled.Waves,
+                    accentColor = VirtualizerAccent,
+                    accentColor2 = VirtualizerAccent2,
+                    helpText = when {
+                        !reverbSupported -> stringResource(R.string.feature_help_unsupported)
+                        reverbEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        reverbEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        else -> stringResource(R.string.feature_reverb_help_normal)
+                    },
+                    value = reverbPreset,
+                    valueLabel = reverbPresetNames.getOrElse(reverbPreset.toInt()) { reverbPreset.toInt().toString() },
+                    onValueChange = { reverbPreset = it; onReverb(it.toInt()) },
+                    valueRange = 0f..6f,
+                    step = 1f,
+                    enabled = reverbSupported,
                     wrapInCard = false
                 )
             }

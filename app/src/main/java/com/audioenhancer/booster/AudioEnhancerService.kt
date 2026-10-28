@@ -13,6 +13,7 @@ import android.media.audiofx.BassBoost
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
 import android.media.audiofx.LoudnessEnhancer
+import android.media.audiofx.PresetReverb
 import android.media.audiofx.Virtualizer
 import android.media.audiofx.Visualizer
 import android.os.Binder
@@ -305,6 +306,11 @@ class AudioEnhancerService : Service() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
 
+    // Batch 244 (request user: Reverb/Spatial): `PresetReverb` di session 0. SENGAJA di luar serah-terima efek
+    // (make-before-break B233-B238) dan Effect Guard: tanpa listener, tidak dibuat ulang saat pemutar berganti.
+    // Lihat `attachReverb()`, `enableReverb()`, `setReverbPreset()`.
+    private var presetReverb: PresetReverb? = null
+
     // Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
     // TAMBAHAN, bukan pengganti 4 effect di atas — lihat komentar panjang di
     // `attachDynamicsProcessing()` soal apa yang dipasang & kenapa. Batch 121: objek
@@ -357,6 +363,8 @@ class AudioEnhancerService : Service() {
     @Volatile var loudnessState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var equalizerState: EffectState = EffectState.UNAVAILABLE; private set
     @Volatile var dynamicsState: EffectState = EffectState.UNAVAILABLE; private set
+    // Batch 244: state Reverb. TIDAK ikut `hasControlLostEffect()`/`describeEffectStates()`/Effect Guard (efek opsional).
+    @Volatile var reverbState: EffectState = EffectState.UNAVAILABLE; private set
     // Batch 120: UNAVAILABLE di sini overload 2 arti (beda dari 4 EffectState di atas
     // yang UNAVAILABLE-nya murni "chipset tidak support") — bisa berarti "izin
     // RECORD_AUDIO belum diberikan" ATAU "Visualizer gagal/tidak didukung device".
@@ -710,6 +718,7 @@ class AudioEnhancerService : Service() {
         attachVirtualizer()
         attachEqualizer()
         attachLoudness()
+        attachReverb() // Batch 244: efek opsional, mati sampai user memilih preset (lihat `enableReverb()`)
         // Batch 84: dipanggil PALING TERAKHIR secara kode — TAPI ini urutan penulisan
         // kode saja, BUKAN jaminan urutan proses sinyal DSP aktual. Effect session-0
         // legacy (API `AudioEffect` publik ini) TIDAK punya API resmi buat app menentukan
@@ -772,6 +781,50 @@ class AudioEnhancerService : Service() {
         } catch (e: Exception) {
             virtualizer = null; virtualizerState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "Virtualizer tidak tersedia di device ini", e)
+        }
+    }
+
+    /** Batch 244 (request user: Reverb/Spatial): `PresetReverb` pada session 0 (mixer global). TERPISAH dari 5 efek
+     *  serah-terima B233-B238: tanpa listener control/enable (tes B233 menghitung tepat 5 `return@set...Listener`),
+     *  tidak dibuat ulang saat pemutar berganti, tidak masuk Effect Guard. Dibuat MATI; menyala lewat [enableReverb]
+     *  hanya bila preset tersimpan > 0. Gagal membuat = `UNAVAILABLE` (kartu UI: "tidak didukung"), BUKAN crash.
+     *
+     *  CATATAN fisik: `PresetReverb` di session 0 umumnya efek AUXILIARY (HAL hanya memprosesnya dari aux-send
+     *  pemutar), jadi bisa tak terdengar di aplikasi lain. Mode koneksi nyata + status dicatat di logcat (`Reverb:`)
+     *  supaya uji device membedakan "efek tidak ada" vs "efek ada tapi diabaikan sistem". */
+    private fun attachReverb() {
+        try {
+            val reverb = PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)
+            presetReverb = reverb
+            reverbState = EffectState.AVAILABLE
+            android.util.Log.i(TAG, "Reverb: PresetReverb session 0 dibuat (${describeReverb(reverb)})")
+        } catch (e: Exception) {
+            presetReverb = null; reverbState = EffectState.UNAVAILABLE
+            android.util.Log.e(TAG, "PresetReverb tidak tersedia di device ini", e)
+        }
+    }
+
+    private fun describeReverb(reverb: PresetReverb): String = try {
+        val d = reverb.descriptor
+        "mode=${d.connectMode} nama=${d.name} implementor=${d.implementor}"
+    } catch (e: Exception) {
+        "descriptor tidak terbaca: ${e.javaClass.simpleName}"
+    }
+
+    /** Batch 244: terapkan preset TERSIMPAN ke efek (`preset` lalu `enabled`). Dipanggil dari [enableEffects] (nyalakan,
+     *  perubahan rute, penyalaan ulang guard) dan [setReverbPreset] saat layanan menyala. Preset 0 = efek mati. */
+    private fun enableReverb() {
+        val reverb = presetReverb ?: return
+        val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+        val active = ReverbPresets.isActive(index)
+        try {
+            reverb.preset = ReverbPresets.platformPreset(index)
+            reverb.enabled = active
+            reverbState = if (active) EffectState.ENABLED else EffectState.AVAILABLE
+            android.util.Log.i(TAG, "Reverb: preset=$index aktif=$active")
+        } catch (e: Exception) {
+            reverbState = EffectState.FAILED
+            android.util.Log.e(TAG, "Gagal menerapkan Reverb preset=$index", e)
         }
     }
 
@@ -1750,6 +1803,8 @@ class AudioEnhancerService : Service() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
         dynamicsProcessing?.release()
+        try { presetReverb?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release PresetReverb", e) } // Batch 244
+        presetReverb = null // Batch 244
         try { visualizer?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release Visualizer", e) }
         visualizer = null
         // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
@@ -1760,6 +1815,7 @@ class AudioEnhancerService : Service() {
         loudnessState = EffectState.UNAVAILABLE
         equalizerState = EffectState.UNAVAILABLE
         dynamicsState = EffectState.UNAVAILABLE // Batch 84
+        reverbState = EffectState.UNAVAILABLE // Batch 244
         visualizerState = EffectState.UNAVAILABLE // Batch 120
         spectrumLevelsStore = FloatArray(SPECTRUM_BAND_COUNT) // Batch 120 (Batch 241: lewat penyimpanan, bukan getter)
         equalizerFallbackActive = false // Batch 87
@@ -1779,6 +1835,9 @@ class AudioEnhancerService : Service() {
         // Batch 84: limiter ikut mati bareng — kalau booster "Matikan", tidak ada lagi
         // sinyal yang di-boost, jadi tidak ada lagi yang perlu di-limit.
         try { dynamicsProcessing?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable DynamicsProcessing", e) }
+        // Batch 244: Reverb ikut mati bareng; tanpa listener, jadi state dicatat langsung di sini.
+        try { presetReverb?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable PresetReverb", e) }
+        if (presetReverb != null) reverbState = EffectState.AVAILABLE
         // Batch 120: spectrum ikut berhenti saat "Matikan" — tidak ada gunanya capture
         // audio kalau booster sendiri lagi off, murni hemat CPU/baterai.
         try { visualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Visualizer", e) }
@@ -1793,6 +1852,7 @@ class AudioEnhancerService : Service() {
      *  saat pemanggilan `.enabled = true`). */
     private fun enableEffects() {
         enableMixEffects()
+        enableReverb() // Batch 244: di luar `enableMixEffects()` (itu milik 5 efek serah-terima)
         try { visualizer?.enabled = true } catch (e: Exception) {
             visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
         }
@@ -1825,6 +1885,7 @@ class AudioEnhancerService : Service() {
     // ---- Kontrol dari UI ----
     fun isBassSupported(): Boolean = bassBoost != null
     fun isVirtualizerSupported(): Boolean = virtualizer != null
+    fun isReverbSupported(): Boolean = presetReverb != null // Batch 244
     fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
 
     /** Batch 121 (Fase 8 ROI #4 "Compressor"): band MBC kompresor hidup di objek
@@ -1958,6 +2019,17 @@ class AudioEnhancerService : Service() {
         val clamped = amount.coerceIn(0, 100)
         PrefsHelper.setVocalFocus(this, clamped)
         applyCompressorBands(PrefsHelper.getCompressorAmount(this), clamped)
+    }
+
+    /** Batch 244 (request user: Reverb/Spatial): 0 = mati, 1..6 = preset platform `PresetReverb` (ruang kecil sampai
+     *  plat). Nilai DISIMPAN lebih dulu (pilihan user tetap utuh walau efek tak tersedia). Efek baru ditulis bila
+     *  layanan menyala (`isRunning`); saat "Matikan" nilai hanya tersimpan dan diterapkan di `enableEffects()`.
+     *  Tidak menyentuh efek lain, listener, maupun Effect Guard. Sengaja TIDAK ikut preset Bass/Virtualizer/Loudness/EQ
+     *  (pola SAMA Compressor/Vocal Focus) sehingga kontrak data preset tidak berubah. */
+    fun setReverbPreset(index: Int) {
+        val clamped = ReverbPresets.clamp(index)
+        PrefsHelper.setReverbPreset(this, clamped)
+        if (isRunning) enableReverb()
     }
 
     // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
@@ -2553,4 +2625,21 @@ internal object EffectGuardPolicy {
     /** Urutan pemutar tidak berarti: diurutkan supaya tanda tangan stabil. Kosong = tidak ada pemutaran aktif. */
     fun playbackSignature(usageAndContentType: List<Pair<Int, Int>>): String =
         usageAndContentType.map { "${it.first}/${it.second}" }.sorted().joinToString(",")
+}
+
+/**
+ * Batch 244 (request user: Reverb/Spatial): aturan murni preset `PresetReverb` (JVM murni, dites `ReverbPresetsTest`).
+ * Indeks UI 0..6 = nilai platform `PresetReverb.PRESET_NONE..PRESET_PLATE` persis (NONE, SMALLROOM, MEDIUMROOM,
+ * LARGEROOM, MEDIUMHALL, LARGEHALL, PLATE) — tanpa tabel konversi supaya tak ada dua sumber angka.
+ */
+internal object ReverbPresets {
+    const val COUNT = 7
+    const val MAX_INDEX = COUNT - 1
+
+    fun clamp(index: Int): Int = index.coerceIn(0, MAX_INDEX)
+
+    /** Preset 0 (NONE) = efek dimatikan; 1..6 = efek menyala. */
+    fun isActive(index: Int): Boolean = clamp(index) > 0
+
+    fun platformPreset(index: Int): Short = clamp(index).toShort()
 }

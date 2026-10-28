@@ -28,8 +28,10 @@ object DebugLogExporter {
     private const val APP_FOLDER = "AudioEnhancerPro"
     private const val MAX_FILES = 10
 
-    /** Jumlah baris logcat terakhir yang diambil. Cukup untuk beberapa menit uji gapless, tetap kecil (~300 KB). */
-    internal const val MAX_LINES = 3000
+    /** Jumlah baris BERMAKNA terakhir yang disimpan. Batch 243 (log device ketiga): satu siklus serah-terima efek ±200 baris
+     *  (`setParameter():` 63%) -> 3000 baris hanya ±15 siklus (±1 menit geser video) dan penanda awal uji
+     *  (`LIFECYCLE ui aktif=false`) bisa terpotong; 10.000 ±50 siklus, berkas ±1 MB (masih mudah dikirim). Batas atas dijaga tes. */
+    internal const val MAX_LINES = 10_000
 
     // Bukan `const val`: bergantung `Environment.DIRECTORY_DOCUMENTS` (field runtime, bukan konstanta kompilasi).
     // MediaStore menormalisasi RELATIVE_PATH dengan trailing slash — WAJIB sama persis agar query prune cocok.

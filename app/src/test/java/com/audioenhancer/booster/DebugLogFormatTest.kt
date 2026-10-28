@@ -54,7 +54,8 @@ class DebugLogFormatTest {
 
     @Test
     fun `line cap is large enough for a gapless test but bounded`() {
-        assertTrue(DebugLogExporter.MAX_LINES >= 1000)
+        // Batch 243: 3000 baris hanya ±15 siklus serah-terima (±1 menit geser video) -> ambang bawah dinaikkan.
+        assertTrue(DebugLogExporter.MAX_LINES >= 8_000)
         assertTrue(DebugLogExporter.MAX_LINES <= 10_000)
     }
 

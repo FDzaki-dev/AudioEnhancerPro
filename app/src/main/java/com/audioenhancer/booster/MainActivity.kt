@@ -228,6 +228,7 @@ class MainActivity : ComponentActivity() {
                             onLoudness = { viewModel.setLoudness(it) },
                             onCompressor = { viewModel.setCompressor(it) },
                             onVocalFocus = { viewModel.setVocalFocus(it) },
+                            onReverb = { viewModel.setReverb(it) }, // Batch 244
                             onEqualizerBand = { band, level -> viewModel.setEqualizerBand(band, level) },
                             onOpenHelp = { showOnboarding = true },
                             onOpenSettings = { showSettings = true },
@@ -235,6 +236,7 @@ class MainActivity : ComponentActivity() {
                             virtualizerSupported = viewModel.virtualizerSupported,
                             loudnessSupported = viewModel.loudnessSupported,
                             compressorSupported = viewModel.compressorSupported,
+                            reverbSupported = viewModel.reverbSupported, // Batch 244
                             bassStrengthSupported = viewModel.bassStrengthSupported,
                             virtualizerStrengthSupported = viewModel.virtualizerStrengthSupported,
                             // Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57)
@@ -244,6 +246,7 @@ class MainActivity : ComponentActivity() {
                             virtualizerEffectState = viewModel.virtualizerEffectState,
                             loudnessEffectState = viewModel.loudnessEffectState,
                             compressorEffectState = viewModel.compressorEffectState,
+                            reverbEffectState = viewModel.reverbEffectState, // Batch 244
                             equalizerEffectState = viewModel.equalizerEffectState,
                             // Batch 120 (Fase 8E, part 2/2): sama pola poll seperti 4 EffectState
                             // di atas, cuma sumbernya loop 50ms terpisah (lihat BoosterViewModel).
@@ -263,6 +266,7 @@ class MainActivity : ComponentActivity() {
                             initialLoudness = PrefsHelper.getLoudness(this@MainActivity),
                             initialCompressorAmount = PrefsHelper.getCompressorAmount(this@MainActivity).toFloat(),
                             initialVocalFocus = PrefsHelper.getVocalFocus(this@MainActivity).toFloat(),
+                            initialReverbPreset = PrefsHelper.getReverbPreset(this@MainActivity).toFloat(), // Batch 244
                             initialActivePreset = PrefsHelper.getActivePreset(this@MainActivity),
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,

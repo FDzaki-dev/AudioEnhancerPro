@@ -72,6 +72,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     var compressorSupported by mutableStateOf(true); private set
     var bassStrengthSupported by mutableStateOf(true); private set
     var virtualizerStrengthSupported by mutableStateOf(true); private set
+    var reverbSupported by mutableStateOf(true); private set // Batch 244
 
     // Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) — sebelumnya cuma
     // "supported/tidak" yang dibaca SEKALI saat konek (di atas), sekarang effect state
@@ -92,6 +93,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     // `AudioEnhancerService.compressorState`) — dipoll di loop 1 detik yang SAMA seperti
     // 4 EffectState di atas, BUKAN loop terpisah.
     var compressorEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    var reverbEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set // Batch 244
     // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat PROJECT_STATE.md RESUME
     // POINT): DIPOLL TERPISAH di init block (interval jauh lebih pendek dari loop
     // EffectState 1 detik di atas — lihat komentar loop-nya). `visualizerEffectState`
@@ -134,6 +136,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingLoudness: Float? = null
     private var pendingCompressor: Int? = null // Batch 121
     private var pendingVocalFocus: Int? = null // Batch 209
+    private var pendingReverb: Int? = null // Batch 244
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
     // Batch 189 (request user "gejala masih kambuh, perluas optimalisasi" — tab Equalizer Manual):
@@ -198,6 +201,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             compressorSupported = service?.isCompressorSupported() ?: true
             bassStrengthSupported = service?.isBassStrengthSupported() ?: true
             virtualizerStrengthSupported = service?.isVirtualizerStrengthSupported() ?: true
+            reverbSupported = service?.isReverbSupported() ?: true // Batch 244
 
             equalizerSupported = service?.isEqualizerSupported() ?: false
             val bandCount = service?.getEqualizerBandCount() ?: 0
@@ -215,6 +219,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingLoudness?.let { service?.setLoudnessGain(it) }; pendingLoudness = null
             pendingCompressor?.let { service?.setCompressorAmount(it) }; pendingCompressor = null
             pendingVocalFocus?.let { service?.setVocalFocus(it) }; pendingVocalFocus = null
+            pendingReverb?.let { service?.setReverbPreset(it) }; pendingReverb = null // Batch 244
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
             // Batch 189: nilai yang sempat tertahan di `eqLatestMb` saat service putus.
@@ -258,6 +263,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     loudnessEffectState = service?.loudnessState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     equalizerEffectState = service?.equalizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     compressorEffectState = service?.compressorState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    reverbEffectState = service?.reverbState ?: AudioEnhancerService.EffectState.UNAVAILABLE // Batch 244
                     // Fase 0 item #9: deteksi route BARU (beda dari deskripsi terakhir yang
                     // sudah ditampilkan) — reset dismiss supaya perpindahan route BERIKUTNYA
                     // tetap muncul lagi walau user sudah dismiss route sebelumnya.
@@ -344,6 +350,11 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun setVocalFocus(value: Int) {
         if (bound) service?.setVocalFocus(value) else pendingVocalFocus = value
+    }
+
+    // Batch 244: indeks preset Reverb 0..6 (0 = mati); pola SAMA setVocalFocus.
+    fun setReverb(value: Int) {
+        if (bound) service?.setReverbPreset(value) else pendingReverb = value
     }
 
     fun setEqualizerBand(band: Int, level: Short) {

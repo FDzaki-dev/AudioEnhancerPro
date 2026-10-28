@@ -73,6 +73,7 @@ app/src/test/java/com/audioenhancer/booster/DebugLogFormatTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectGuardPolicyTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
+app/src/test/java/com/audioenhancer/booster/ReverbPresetsTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt
 app/src/test/java/com/audioenhancer/booster/SettingsRotationStateTest.kt
 build.gradle.kts

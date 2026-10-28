@@ -12,6 +12,8 @@ object PrefsHelper {
     private const val KEY_COMPRESSOR_AMOUNT = "compressor_amount" // Batch 121, Fase 8 ROI #4
     private const val KEY_VOCAL_FOCUS = "vocal_focus" // Batch 209
     const val VOCAL_FOCUS_DEFAULT = 50 // Batch 209
+    private const val KEY_REVERB_PRESET = "reverb_preset" // Batch 244
+    const val REVERB_PRESET_DEFAULT = 0 // Batch 244: 0 = mati
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
     // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
@@ -118,6 +120,15 @@ object PrefsHelper {
 
     fun setVocalFocus(context: Context, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_VOCAL_FOCUS, value).apply()
+    }
+
+    // Batch 244 (request user: Reverb/Spatial): indeks preset `PresetReverb` 0..6 (0 = mati, default). Sengaja
+    // terpisah dari preset Bass/Virtualizer/Loudness/EQ (lihat AudioEnhancerService.setReverbPreset()).
+    fun getReverbPreset(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_REVERB_PRESET, REVERB_PRESET_DEFAULT)
+
+    fun setReverbPreset(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_REVERB_PRESET, value).apply()
     }
 
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): opt-in, default MATI —

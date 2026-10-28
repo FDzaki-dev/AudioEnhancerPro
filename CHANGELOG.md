@@ -1,5 +1,27 @@
 # Changelog
 
+## Batch 244: Toggle Reverb (preset ruang) di tab Kontrol
+
+Permintaan user: "Lanjut implementasi kan spektrum Reverb/Spatial!!" bersama `Boomly_v243.zip`. Ini item M2 roadmap Fase 8 yang diturunkan di Batch 151 karena `PresetReverb` di session 0 adalah efek auxiliary. Atas permintaan eksplisit user fitur dibangun sekarang, dengan syarat jalur audio yang sudah ada tidak disentuh.
+
+Yang baru: kartu **Reverb** di tab Kontrol, tepat di bawah Vocal Focus. Slider 7 posisi (Mati, Ruang Kecil, Ruang Sedang, Ruang Besar, Aula Sedang, Aula Besar, Plat) yang sama persis dengan nilai platform `PresetReverb.PRESET_NONE` sampai `PRESET_PLATE`. Pilihan disimpan di key `reverb_preset` (default Mati), diterapkan saat Boomly menyala atau diubah, dimatikan oleh tombol Matikan, dan tidak ikut preset Bass/Virtualizer/Loudness/EQ sehingga format preset dan JSON ekspor tidak berubah. Nama preset tersedia dalam bahasa Indonesia dan Inggris.
+
+Isolasi: efek ini sengaja berdiri sendiri. Tidak ada listener control/enable (tes B233 menghitung tepat lima), tidak ikut serah-terima efek make-before-break, Effect Guard, maupun pemulihan kontrol, karena jalur audio B229 sampai B243 belum terverifikasi di HP dan tidak boleh ditumpuki fitur baru. Efek dibuat dalam keadaan mati, dinyalakan hanya bila preset tersimpan lebih dari nol dan layanan menyala, dan dilepas bersama efek lain saat layanan dihancurkan. Kegagalan membuat efek menampilkan "tidak didukung" di kartu, bukan crash.
+
+Soal "Spatial": pelebar spasial sudah ada sebagai Virtualizer. Spatializer sistem Android 12L+ tidak bisa dinyalakan oleh aplikasi biasa, jadi tidak dibuat.
+
+Risiko yang dicatat jujur: `PresetReverb` di session 0 umumnya berjenis auxiliary, yang hanya diproses dari aux-send pemutar, sehingga bisa tidak terdengar di aplikasi lain. Teks bantuan kartu menyebutkannya. Saat efek dibuat, mode koneksi nyata dicatat di logcat (`Reverb: PresetReverb session 0 dibuat (mode=...)`), jadi ekspor log debug cukup untuk membedakan "efek tidak ada" dari "efek ada tapi diabaikan sistem". 11 tes baru (`ReverbPresetsTest`: aturan murni, isolasi dari jalur serah-terima/guard, urutan simpan lalu terapkan, dan kelengkapan nama preset ID/EN). Belum dikompilasi, belum lewat CI, belum diuji di HP.
+
+## Batch 243: Log ketiga membuktikan jeda spektrum, batas ekspor log dinaikkan
+
+Permintaan user: mengunggah log debug ketiga (`aep_debug_20261028_082003.txt`) tanpa teks, jadi dilanjutkan sesuai langkah uji yang tercatat. Log ini berasal dari v242 dan memuat penanda lifecycle yang baru ditambahkan.
+
+Jeda spektrum terbukti bekerja di perangkat. Setelah layar aplikasi ditinggalkan, Visualizer dijeda 3,7 detik kemudian; begitu aplikasi dibuka lagi, capture dilanjutkan dalam 52 ms. Keraguan di log kedua pun terjawab: baris "Spektrum dijeda" waktu itu tidak muncul karena layar aplikasi memang tidak pernah ditinggalkan selama uji (geser video dilakukan dengan Boomly masih terlihat), bukan karena pemeriksaan idle mati. Di log kedua, jeda itu justru muncul sekitar 12 detik setelah ekspor.
+
+Serah-terima efek juga sehat saat aplikasi sepenuhnya di latar belakang: enam pemutar baru dalam sekitar 50 detik, tahap cepat 65 sampai 122 ms dan tahap penegasan 77 sampai 137 ms, kelima efek tetap ENABLED, tanpa kontrol hilang, efek mati, drift, status FAILED, maupun baris error. Yang masih belum diketahui: apakah efeknya terdengar di TikTok atau YouTube; belum ada laporan dari user.
+
+Satu-satunya perubahan kode: batas baris ekspor log naik dari 3000 ke 10.000. Satu siklus serah-terima menghasilkan sekitar 200 baris (63% di antaranya `setParameter`), sehingga 3000 baris hanya cukup untuk sekitar satu menit geser video dan penanda awal uji bisa terpotong. Tidak ada baris yang disaring tambahan; berkas log menjadi sekitar 1 MB. Satu tes diubah (ambang bawah batas baris 1000 menjadi 8000). Belum dikompilasi dan belum diuji di HP.
+
 ## Batch 242: Log kedua dibaca, diagnostik gating spektrum ditambah, ekspor log lebih ringkas
 
 Permintaan user: "Teruskan last progression!!" bersama `Boomly_v241.zip` dan log debug kedua dari tombol ekspor. Kali ini skenario sosmed tertangkap: delapan kali geser video dalam sekitar 45 detik. Tiap pemutar baru memicu serah-terima efek 53 sampai 105 ms, kelima efek tetap ENABLED sebelum dan sesudahnya, guard melaporkan sehat, dan tidak ada kontrol hilang maupun crash. Jadi mekanisme B233 sampai B238 terbukti sehat di perangkat. Yang belum diketahui: apakah efeknya benar-benar terdengar di TikTok atau YouTube.

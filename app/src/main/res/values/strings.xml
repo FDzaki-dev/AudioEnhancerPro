@@ -65,6 +65,17 @@
     <string name="feature_vocal_focus_title">Vocal Focus</string>
     <string name="feature_vocal_focus_help_normal">Menonjolkan suara vokal dari backsound/noise. Makin tinggi, bass dan treble makin ditekan dan noise pelannya diredam, sementara kejernihan vokal naik. Hanya berefek saat Compressor menyala.</string>
     <string name="feature_vocal_focus_help_inactive">Compressor masih 0% (mati), jadi Vocal Focus belum terdengar. Naikkan Compressor dulu; nilai Vocal Focus ini tetap tersimpan.</string>
+    <string name="feature_reverb_title">Reverb</string>
+    <string name="feature_reverb_help_normal">Menambah gema ruang pada suara; geser dari Mati sampai Plat. Efek ini dipasang di mixer global sistem, jadi sebagian perangkat atau aplikasi bisa mengabaikannya dan hasilnya belum tentu terdengar di semua aplikasi.</string>
+    <string-array name="reverb_preset_names">
+        <item>Mati</item>
+        <item>Ruang Kecil</item>
+        <item>Ruang Sedang</item>
+        <item>Ruang Besar</item>
+        <item>Aula Sedang</item>
+        <item>Aula Besar</item>
+        <item>Plat</item>
+    </string-array>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —
