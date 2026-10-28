@@ -76,6 +76,17 @@
         <item>Aula Besar</item>
         <item>Plat</item>
     </string-array>
+    <!-- Batch 250: akses Reverb (izin DUMP) lewat Shizuku, satu tombol di kartu Reverb. -->
+    <string name="reverb_access_granted">Akses Reverb aktif — Reverb bisa dipasang di aplikasi pemutar.</string>
+    <string name="reverb_access_need_install">Reverb butuh izin sistem sekali saja. Pasang Shizuku dan jalankan sekali; setelah itu Boomly mengurus izinnya sendiri, tanpa komputer.</string>
+    <string name="reverb_access_need_start">Shizuku sudah terpasang tapi belum berjalan. Buka Shizuku, jalankan sekali, lalu kembali ke sini.</string>
+    <string name="reverb_access_ready">Cukup satu ketukan: Boomly meminta izin lewat Shizuku lalu mengaktifkan akses Reverb sendiri.</string>
+    <string name="reverb_access_working">Mengaktifkan akses Reverb…</string>
+    <string name="reverb_access_denied">Boomly belum diizinkan di Shizuku. Ketuk tombol, lalu pilih Izinkan.</string>
+    <string name="reverb_access_failed">Gagal mengaktifkan akses Reverb. Ketuk untuk coba lagi; rincian tercatat di Ekspor Log Debug.</string>
+    <string name="reverb_access_button_enable">Aktifkan Reverb</string>
+    <string name="reverb_access_button_open">Buka Shizuku</string>
+    <string name="reverb_access_button_get">Pasang Shizuku</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —

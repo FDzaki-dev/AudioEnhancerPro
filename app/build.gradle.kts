@@ -181,6 +181,11 @@ dependencies {
     // resiko OOM) — bukan buat networking (masih HttpURLConnection bawaan Android, 0
     // dependency HTTP client baru ditambahkan, biar tetap minim seperti gaya project ini).
     implementation("com.squareup.okio:okio:3.9.0")
+    // Batch 250 (request user: akses Reverb gampang): Shizuku API (api + provider) dipakai KHUSUS untuk memberi izin `DUMP`
+    // ke Boomly sendiri lewat satu tombol di kartu Reverb (`ShizukuGrant.kt`), menggantikan `adb shell pm grant` dari komputer.
+    // Hanya berjalan bila user sendiri memasang & menjalankan Shizuku; tanpa Shizuku = perilaku lama (nol perubahan).
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")

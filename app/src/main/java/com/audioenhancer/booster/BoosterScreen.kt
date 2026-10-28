@@ -19,6 +19,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -1221,6 +1224,12 @@ fun BoosterScreen(
                     enabled = reverbSupported,
                     wrapInCard = false
                 )
+
+                // Batch 250 (request user: akses Reverb gampang): satu tombol Shizuku untuk izin DUMP (tanpa komputer). Setelah izin
+                // baru terbaca, preset yang sedang dipilih dikirim ulang supaya service langsung memasang Reverb per-session.
+                if (reverbSupported) {
+                    ReverbAccessBlock(onGranted = { onReverb(reverbPreset.toInt()) })
+                }
             }
         }
 
@@ -1969,6 +1978,81 @@ fun BoosterScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
         )
+    }
+}
+
+/** Batch 250: status + satu tombol untuk izin `DUMP` (Reverb per-session, B247) lewat Shizuku — lihat `ShizukuGrant.kt`. Pendengar Shizuku
+ *  hidup selama blok ini tampil; status dibaca ulang tiap layar kembali RESUME (user mungkin baru memasang/menjalankan Shizuku).
+ *  [onGranted] dipanggil SEKALI saat status berpindah ke GRANTED selama blok tampil (bukan saat sudah GRANTED dari awal). */
+@Composable
+private fun ReverbAccessBlock(onGranted: () -> Unit) {
+    val context = LocalContext.current
+    val owner = context as? LifecycleOwner
+    DisposableEffect(owner) {
+        ShizukuGrant.start(context)
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) ShizukuGrant.onResume(context)
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose {
+            owner?.lifecycle?.removeObserver(observer)
+            ShizukuGrant.stop()
+        }
+    }
+
+    val access = ShizukuGrant.access
+    val latestOnGranted = rememberUpdatedState(onGranted)
+    var previous by remember { mutableStateOf(access) }
+    LaunchedEffect(access) {
+        if (previous != ReverbAccess.GRANTED && access == ReverbAccess.GRANTED) latestOnGranted.value()
+        previous = access
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    if (access == ReverbAccess.GRANTED) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+            Text(stringResource(R.string.reverb_access_granted), style = MaterialTheme.typography.bodySmall)
+        }
+        return
+    }
+
+    val message = when (access) {
+        ReverbAccess.NOT_INSTALLED -> stringResource(R.string.reverb_access_need_install)
+        ReverbAccess.NOT_RUNNING -> stringResource(R.string.reverb_access_need_start)
+        ReverbAccess.READY -> stringResource(R.string.reverb_access_ready)
+        ReverbAccess.WORKING -> stringResource(R.string.reverb_access_working)
+        ReverbAccess.DENIED -> stringResource(R.string.reverb_access_denied)
+        else -> stringResource(R.string.reverb_access_failed)
+    }
+    val isProblem = access == ReverbAccess.DENIED || access == ReverbAccess.FAILED
+    Text(
+        message,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (isProblem) MaterialTheme.colorScheme.error else Color.Unspecified
+    )
+    if (access == ReverbAccess.WORKING) return
+
+    Spacer(modifier = Modifier.height(6.dp))
+    val label = when (access) {
+        ReverbAccess.NOT_INSTALLED -> stringResource(R.string.reverb_access_button_get)
+        ReverbAccess.NOT_RUNNING -> stringResource(R.string.reverb_access_button_open)
+        else -> stringResource(R.string.reverb_access_button_enable)
+    }
+    SkeuOutlinedButton(
+        onClick = {
+            if (access == ReverbAccess.NOT_INSTALLED || access == ReverbAccess.NOT_RUNNING) {
+                ShizukuGrant.openShizukuOrDownload(context)
+            } else {
+                ShizukuGrant.enable(context)
+            }
+        }
+    ) {
+        Text(label)
     }
 }
 

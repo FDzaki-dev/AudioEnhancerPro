@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <!-- Batch 246 (PROBE, request user "Teruskan ke reverb izin dump"): izin `DUMP` TIDAK diberikan otomatis (signature|privileged|development).
          Hanya aktif bila user menjalankan sekali: adb shell pm grant com.audioenhancer.booster android.permission.DUMP
-         (atau lewat Shizuku). Tanpa izin = nol perubahan perilaku. Dipakai `DumpProbe` untuk MEMBACA session pemutar (dumpsys), bukan mengubah suara. -->
+         (atau, sejak Batch 250, lewat tombol "Aktifkan Reverb" di kartu Reverb yang memakai Shizuku). Tanpa izin = nol perubahan perilaku. Dipakai `DumpProbe` untuk MEMBACA session pemutar (dumpsys), bukan mengubah suara. -->
     <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions" />
     <!-- Batch 120 (Fase 8E, spectrum visualizer): WAJIB untuk Visualizer AudioEffect di
          session 0 (mixer global) - beda dari Visualizer di sesi App sendiri yang tidak
@@ -32,6 +32,12 @@
          hasil unduhan via intent instalasi (FileProvider di bawah). -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- Batch 250: izinkan Boomly melihat/membuka aplikasi Shizuku (Android 11+ menyembunyikan paket lain tanpa <queries>).
+         Dipakai tombol di kartu Reverb: "Buka Shizuku" bila terpasang, selain itu membuka halaman unduhnya. -->
+    <queries>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
 
     <application
         android:name=".AudioEnhancerApp"
@@ -103,6 +109,16 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_booster_info" />
         </receiver>
+
+        <!-- Batch 250: penerima binder Shizuku (standar README Shizuku-API). Izin INTERACT_ACROSS_USERS_FULL melindungi
+             provider ini dari aplikasi biasa; hanya server Shizuku yang bisa mengirim binder ke sini. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:enabled="true"
+            android:exported="true"
+            android:multiprocess="false"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <!-- Fitur baru: in-app update (UpdateManager.kt) — expose APK hasil unduhan
              di cacheDir/updates/ ke intent instalasi sistem via content:// URI, TANPA

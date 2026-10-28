@@ -26,6 +26,7 @@ app/src/main/java/com/audioenhancer/booster/QuickToggleTileService.kt
 app/src/main/java/com/audioenhancer/booster/ScheduleWorker.kt
 app/src/main/java/com/audioenhancer/booster/ServiceWatchdogWorker.kt
 app/src/main/java/com/audioenhancer/booster/SettingsScreen.kt
+app/src/main/java/com/audioenhancer/booster/ShizukuGrant.kt
 app/src/main/java/com/audioenhancer/booster/ShortcutHelper.kt
 app/src/main/java/com/audioenhancer/booster/SkeuomorphicComponents.kt
 app/src/main/java/com/audioenhancer/booster/Theme.kt
@@ -77,6 +78,7 @@ app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 app/src/test/java/com/audioenhancer/booster/ReverbPresetsTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt
 app/src/test/java/com/audioenhancer/booster/SettingsRotationStateTest.kt
+app/src/test/java/com/audioenhancer/booster/ShizukuGrantTest.kt
 build.gradle.kts
 config/detekt/detekt-typed.yml
 config/detekt/detekt.yml

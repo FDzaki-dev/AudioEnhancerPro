@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 250: Akses Reverb lewat Shizuku, satu ketukan tanpa komputer
+
+Permintaan user: lanjutkan integrasi Shizuku supaya mode Reverb mudah diakses. Reverb per-session (Batch 247) baru bekerja bila Boomly punya izin sistem DUMP, dan izin itu dulu hanya bisa diberikan dengan perintah adb dari komputer.
+
+Sekarang kartu Reverb punya satu tombol yang menyesuaikan keadaan. Bila Shizuku belum terpasang, tombolnya Pasang Shizuku (membuka halaman unduh resmi). Bila terpasang tapi belum berjalan, tombolnya Buka Shizuku. Bila sudah berjalan, tombolnya Aktifkan Reverb: Boomly meminta izin ke Shizuku, lalu Shizuku menjalankan satu perintah, memberi izin DUMP hanya untuk Boomly sendiri. Boomly lalu membaca ulang izinnya; baris Akses Reverb aktif baru muncul bila izin benar-benar terbaca. Begitu aktif, preset Reverb yang sedang dipilih langsung dikirim ulang ke layanan sehingga efek dipasang tanpa menggeser slider lagi.
+
+Status dibaca ulang tiap layar kembali tampil, jadi setelah user memasang atau menjalankan Shizuku, tombol berganti sendiri. Bila user pernah memilih Tolak dan jangan tanya lagi, tombol membuka aplikasi Shizuku. Kegagalan tercatat di log (tag `ShizukuGrant`, termasuk keluaran mentah perintah) dan ikut dalam Ekspor Log Debug.
+
+Teknis: dependensi `dev.rikka.shizuku` api dan provider 13.1.5, `ShizukuProvider` dan `<queries>` di manifest, layanan shell `ShizukuGrantService` tanpa AIDL dengan tag tetap, aturan R8 supaya kelas itu tidak dibuang di rilis. Jalur audio tidak disentuh. 20 tes JVM murni baru.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v249.zip`.
+
 ## Batch 249: Percobaan ulang menyalakan Reverb per-session
 
 Permintaan user: unggah log dari Batch 248 dengan slider Reverb digeser ke atas. Log itu menjelaskan masalahnya. Saat Boomly baru saja membuat Reverb per-session, perintah menyalakannya ditolak sistem dengan kode INVALID_OPERATION. Sekitar 140 milidetik kemudian, percobaan kedua pada efek yang sama berhasil (SUCCESS) dan efek aktif di session YouTube. Anggaran efek sistem juga longgar (74 dari 100 MIPS, memori 232 KB), jadi penolakan itu bersifat sementara, bukan karena kehabisan anggaran.
