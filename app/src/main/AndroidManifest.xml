@@ -1,9 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Batch 195: getar bilah tab langsung via Vibrator (izin normal, otomatis diberikan, tanpa dialog). -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Batch 246 (PROBE, request user "Teruskan ke reverb izin dump"): izin `DUMP` TIDAK diberikan otomatis (signature|privileged|development).
+         Hanya aktif bila user menjalankan sekali: adb shell pm grant com.audioenhancer.booster android.permission.DUMP
+         (atau lewat Shizuku). Tanpa izin = nol perubahan perilaku. Dipakai `DumpProbe` untuk MEMBACA session pemutar (dumpsys), bukan mengubah suara. -->
+    <uses-permission android:name="android.permission.DUMP" tools:ignore="ProtectedPermissions" />
     <!-- Batch 120 (Fase 8E, spectrum visualizer): WAJIB untuk Visualizer AudioEffect di
          session 0 (mixer global) - beda dari Visualizer di sesi App sendiri yang tidak
          butuh izin ini. Runtime request ada di Part 2 (UI, belum dikerjakan) - deklarasi

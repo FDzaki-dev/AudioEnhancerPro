@@ -22,6 +22,8 @@ import android.os.IBinder
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Service utama: menempelkan efek audio ke sesi output global (session 0)
@@ -460,6 +462,16 @@ class AudioEnhancerService : Service() {
     private var lastPlayerKey: String = ""
     private var lastPlaybackChangeAtMs: Long = EffectGuardPolicy.NEVER
 
+    // Batch 246 (PROBE, request user "Teruskan ke reverb izin dump"): Reverb session 0 = efek AUXILIARY (B245: mode=Auxiliary) ->
+    // tak terdengar di app lain. Jalan audible = efek insert pada session PEMUTAR, dan session itu hanya terbaca lewat `dumpsys`
+    // (butuh izin DUMP via adb/Shizuku). Batch ini HANYA MEMBACA & MENCATAT keluaran dump ke log (format `sessionId` BELUM terverifikasi,
+    // jadi BELUM ada parser/efek baru; suara tidak berubah). Tanpa izin DUMP = diam (satu baris log per umur service).
+    private val dumpProbeScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
+    private val dumpProbeBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var lastDumpProbeAtMs: Long = EffectGuardPolicy.NEVER
+    private var dumpProbeDeniedLogged = false
+    private val dumpProbeRunnable = Runnable { probePlayerSessions("playback-settle") }
+
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
     // GUARD_TICK_MS `runEffectGuard("tick")` membaca status nyata efek dan HANYA memulihkan yang rusak (efek sehat = diam).
@@ -686,6 +698,7 @@ class AudioEnhancerService : Service() {
         sleepHandler.removeCallbacks(sleepTick) // Batch 119 (prefs sengaja TIDAK dibersihkan)
         unregisterPlaybackGuard() // Batch 229
         guardHandler.removeCallbacksAndMessages(null)
+        dumpProbeScope.cancel() // Batch 246 (CoroutineScope.cancel menghentikan probe yang berjalan)
         releaseEffects()
         isRunning = false
         endUsageSession() // no-op kalau sesi sudah ditutup di jalur ACTION_STOP
@@ -1218,10 +1231,71 @@ class AudioEnhancerService : Service() {
             guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_FAST_DELAY_MS)
             guardHandler.removeCallbacks(rebindSettleRunnable)
             guardHandler.postDelayed(rebindSettleRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
+            guardHandler.removeCallbacks(dumpProbeRunnable) // Batch 246: baca session pemutar SETELAH pemutar baru terdaftar
+            guardHandler.postDelayed(dumpProbeRunnable, DumpProbe.DELAY_MS)
         }
         updateGuardTick() // Batch 231
         guardHandler.removeCallbacks(guardSettleRunnable)
         guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
+    }
+
+    /** Batch 246: PROBE read-only. Bila izin DUMP diberikan, jalankan `dumpsys` (di `Dispatchers.IO`, bukan main thread) dan catat
+     *  baris yang memuat session/pemutar ke log mentah. TIDAK menyentuh efek/suara. Dibatasi jeda minimum + satu proses sekaligus. */
+    private fun probePlayerSessions(reason: String) {
+        if (!isRunning) return
+        if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
+            if (!dumpProbeDeniedLogged) {
+                dumpProbeDeniedLogged = true
+                android.util.Log.i(TAG, "DumpProbe: izin DUMP belum diberikan (adb shell pm grant ${packageName} ${DumpProbe.PERMISSION})")
+            }
+            return
+        }
+        val now = SystemClock.elapsedRealtime()
+        if (!DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return
+        if (!dumpProbeBusy.compareAndSet(false, true)) return
+        lastDumpProbeAtMs = now
+        dumpProbeScope.launch {
+            try {
+                for (command in DumpProbe.COMMANDS) runDumpProbe(reason, command)
+            } finally {
+                dumpProbeBusy.set(false)
+            }
+        }
+    }
+
+    private fun runDumpProbe(reason: String, command: List<String>) {
+        val label = command.joinToString(" ")
+        val startedAt = SystemClock.elapsedRealtime()
+        val process = try {
+            ProcessBuilder(command).redirectErrorStream(true).start()
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "DumpProbe[$reason] $label: gagal dijalankan", e)
+            return
+        }
+        // Pemutus: dump yang menggantung dimatikan paksa (menutup stream -> pembacaan di bawah keluar dengan IOException).
+        val watchdog = dumpProbeScope.launch {
+            kotlinx.coroutines.delay(DumpProbe.TIMEOUT_MS)
+            process.destroy()
+        }
+        var total = 0
+        val selected = try {
+            process.inputStream.bufferedReader().use { reader ->
+                DumpProbe.select(reader.lineSequence().onEach { total++ })
+            }
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "DumpProbe[$reason] $label: pembacaan terhenti", e)
+            emptyList()
+        } finally {
+            watchdog.cancel()
+            process.destroy()
+        }
+        val exit = try { process.exitValue() } catch (e: IllegalThreadStateException) { -1 }
+        android.util.Log.i(
+            TAG,
+            "DumpProbe[$reason] $label: baris=$total terpilih=${selected.size} exit=$exit ${SystemClock.elapsedRealtime() - startedAt} ms"
+        )
+        // Satu panggilan Log per potongan (bukan per baris) supaya buffer logcat tidak membuang baris.
+        for (chunk in DumpProbe.chunk(selected)) android.util.Log.i(TAG, "DumpProbe| $label\n$chunk")
     }
 
     /** Batch 241: dipanggil tiap UI membaca [spectrumLevels]. Mencatat waktu baca; bila capture sedang dijeda karena
@@ -2625,6 +2699,62 @@ internal object EffectGuardPolicy {
     /** Urutan pemutar tidak berarti: diurutkan supaya tanda tangan stabil. Kosong = tidak ada pemutaran aktif. */
     fun playbackSignature(usageAndContentType: List<Pair<Int, Int>>): String =
         usageAndContentType.map { "${it.first}/${it.second}" }.sorted().joinToString(",")
+}
+
+/** Batch 246: aturan murni PROBE `dumpsys` (read-only; tes `DumpProbeTest`). Format teks `sessionId` di dump BELUM terverifikasi
+ *  di device, jadi `select` TIDAK menebak format baris pemutar: ia hanya meloloskan baris yang menyebut kata kunci session/pemutar
+ *  dan, setelah header tabel yang memuat kolom `Session`, beberapa baris tabel apa adanya. Parser sungguhan ditulis SETELAH
+ *  keluaran mentah dari HP terbaca. */
+internal object DumpProbe {
+    const val PERMISSION = "android.permission.DUMP"
+    const val MIN_INTERVAL_MS = 20_000L
+    const val DELAY_MS = 1_500L
+    const val TIMEOUT_MS = 6_000L
+    const val MAX_LINES = 200
+    const val MAX_LINE_CHARS = 300
+    const val TABLE_ROWS = 12
+    const val CHUNK_CHARS = 3_500
+
+    val COMMANDS: List<List<String>> = listOf(
+        listOf("dumpsys", "audio"),
+        listOf("dumpsys", "media.audio_flinger")
+    )
+
+    private val KEYWORDS = listOf("session", "piid", "AudioPlaybackConfiguration", "players")
+
+    fun shouldRun(lastAtMs: Long, nowMs: Long): Boolean =
+        lastAtMs == EffectGuardPolicy.NEVER || nowMs - lastAtMs >= MIN_INTERVAL_MS
+
+    private fun isTableHeader(line: String): Boolean =
+        line.contains("session", ignoreCase = true) &&
+            (line.contains("client", ignoreCase = true) || Regex("""\bid\b""", RegexOption.IGNORE_CASE).containsMatchIn(line))
+
+    fun select(lines: Sequence<String>): List<String> {
+        val out = ArrayList<String>()
+        var tableLeft = 0
+        for (raw in lines) {
+            if (out.size >= MAX_LINES) continue // tetap habiskan aliran: hitungan total baris di log tetap akurat
+            val take = when {
+                isTableHeader(raw) -> { tableLeft = TABLE_ROWS; true }
+                tableLeft > 0 -> { tableLeft--; raw.isNotBlank() }
+                else -> KEYWORDS.any { raw.contains(it, ignoreCase = true) }
+            }
+            if (take) out.add(raw.take(MAX_LINE_CHARS))
+        }
+        return out
+    }
+
+    fun chunk(lines: List<String>): List<String> {
+        val chunks = ArrayList<String>()
+        val sb = StringBuilder()
+        for (line in lines) {
+            if (sb.isNotEmpty() && sb.length + line.length + 1 > CHUNK_CHARS) { chunks.add(sb.toString()); sb.setLength(0) }
+            if (sb.isNotEmpty()) sb.append('\n')
+            sb.append(line)
+        }
+        if (sb.isNotEmpty()) chunks.add(sb.toString())
+        return chunks
+    }
 }
 
 /**

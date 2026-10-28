@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 246: Probe dumpsys untuk membaca session pemutar (izin DUMP), suara tidak berubah
+
+Permintaan user: "Gak kedengeran bedanya. Teruskan ke reverb izin dump!!" bersama log keempat, `Boomly_v245.zip`, dan laporan CI run 43. Laporan run 43 menunjukkan kode B245 (B244 Reverb) lolos penuh: ArchUnit 12 aturan, SpotBugs 0, detekt 0 (polos dan typed), lint 0, tes 164 dari 164, peringatan kompilator 0.
+
+Reverb di session 0 tidak terdengar di aplikasi lain, sesuai prediksi: efeknya berjenis auxiliary. Satu-satunya jalan agar terdengar adalah efek insert pada session pemutar, dan session itu hanya terbaca lewat `dumpsys` yang butuh izin `DUMP`. Karena format teks session di dump belum pernah terlihat di HP ini, batch ini sengaja hanya membaca dan mencatat, tanpa parser dan tanpa efek baru.
+
+Yang berubah: manifest mendeklarasikan `android.permission.DUMP` (penanda lint sempit `ProtectedPermissions`; izin tidak aktif sebelum user memberikannya sekali lewat adb atau Shizuku). Bila izin ada dan Boomly menyala, setiap kali pemutar media baru terdeteksi (jeda 1,5 detik, minimal 20 detik antar-probe, satu proses sekaligus, di thread IO), Boomly menjalankan `dumpsys audio` dan `dumpsys media.audio_flinger`, lalu mencatat baris yang menyebut session/pemutar ke log dengan awalan `DumpProbe`. Tanpa izin hanya satu baris log yang menyebut perintah pemberian izin. Jalur efek, serah-terima, Effect Guard, dan Reverb tidak disentuh; tes baru menjaga hal itu.
+
+Cara pakai: jalankan `adb shell pm grant com.audioenhancer.booster android.permission.DUMP`, buka Boomly dan nyalakan, putar media dari beberapa aplikasi (ganti pemutar), lalu unggah log debug. Hasil batch ini belum dikompilasi dan belum diuji di HP, jadi tetap NOT VERIFIED.
+
 ## Batch 245: Log keempat membuktikan Reverb berjalan, mode auxiliary terkonfirmasi
 
 Permintaan user: mengunggah log debug keempat (`aep_debug_20261028_135945.txt`) tanpa teks, jadi dilanjutkan sesuai langkah uji yang tercatat. Log berasal dari build B244 di Infinix X6855 (Android 16). Tidak ada perubahan kode; batch ini hanya dokumen.
