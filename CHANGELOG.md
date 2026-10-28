@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 248: Catat penyebab Reverb per-session ditolak sistem (diagnostik, suara tidak berubah)
+
+User mengunggah log pertama dari Batch 247 tanpa catatan. Hasilnya: pembacaan `dumpsys audio` dan pemasangan berjalan sesuai rancangan. Boomly menemukan session pemutar (misalnya YouTube di session 77545), membuat `PresetReverb` berjenis Insert (nama Insert Preset Reverb) dengan kontrol penuh, memperbarui presetnya saat slider digeser, dan melepasnya saat pemutar selesai.
+
+Masalahnya: setiap Reverb yang dibuat berstatus `aktif=false`. Perintah enable terkirim ke sistem, tetapi sistem menolaknya, sehingga tidak ada gema yang terdengar. Pada Batch 247 kode status penolakan itu belum dicatat, jadi penyebabnya belum bisa dibaca dari log.
+
+Batch ini hanya menambah pencatatan: kode status `setEnabled` (dengan nama konstanta seperti INVALID_OPERATION atau NO_MEMORY) di log `Reverb[sesi=...]`, dan sekali per umur layanan, bila ada Reverb yang gagal menyala, baris efek/CPU/memori dari `dumpsys media.audio_policy` (anggaran efek yang dipegang sistem). Penyebab sebenarnya baru diputuskan setelah log berikutnya terbaca; tidak ada tebakan perbaikan di batch ini, dan efek lain tidak disentuh.
+
+Cara pakai: sama seperti Batch 247 (izin DUMP sudah terpasang), putar media dengan slider Reverb di atas Mati, lalu unggah log debug. Hasil batch ini belum dikompilasi dan belum diuji di HP, jadi tetap NOT VERIFIED. Revert: `Boomly_v247.zip`.
+
 ## Batch 247: Reverb per-session lewat izin DUMP (parser dumpsys dari log asli)
 
 Permintaan user: "Teruskan!!" setelah mengunggah log probe Batch 246. Log itu membuktikan `dumpsys audio` terbaca di Android 16 (Infinix X6855) tanpa root: sekitar 1.700 baris dalam 70 sampai 170 ms, dan tiap pemutar tampil satu baris yang memuat `state`, `usage`, dan `sessionId`. Contoh nyata: pemutar YouTube berstatus started di session 76081 dan satu pemutar lain berstatus paused di session 47009.

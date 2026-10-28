@@ -137,6 +137,57 @@ class DumpProbeTest {
         )
     }
 
+    // ---- diagnostik B248 ----
+
+    @Test
+    fun `statusName maps the AudioEffect status codes`() {
+        assertEquals("SUCCESS", DumpProbe.statusName(0))
+        assertEquals("INVALID_OPERATION", DumpProbe.statusName(-5))
+        assertEquals("NO_MEMORY", DumpProbe.statusName(-6))
+        assertEquals("DEAD_OBJECT", DumpProbe.statusName(-7))
+        assertEquals("UNKNOWN", DumpProbe.statusName(-99))
+    }
+
+    @Test
+    fun `selectEffectLines keeps effect cpu and memory lines only`() {
+        val dump = sequenceOf(
+            "AudioPolicyManager Dump",
+            "Registered effects:",
+            "  Id: 47747 Type: 47382d60 Cpu: 20 Mem: 1 Enabled: 0",
+            "Total Effects CPU: 3.400000 MIPS, Total Effects memory: 12 KB",
+            "Outputs dump:"
+        )
+        assertEquals(
+            listOf(
+                "Registered effects:",
+                "  Id: 47747 Type: 47382d60 Cpu: 20 Mem: 1 Enabled: 0",
+                "Total Effects CPU: 3.400000 MIPS, Total Effects memory: 12 KB"
+            ),
+            DumpProbe.selectEffectLines(dump)
+        )
+    }
+
+    @Test
+    fun `selectEffectLines caps and truncates but drains the stream`() {
+        var consumed = 0
+        val dump = (1..(DumpProbe.POLICY_MAX_LINES + 30)).asSequence().onEach { consumed++ }.map { "effect $it " + "x".repeat(500) }
+        val picked = DumpProbe.selectEffectLines(dump)
+        assertEquals(DumpProbe.POLICY_MAX_LINES, picked.size)
+        assertTrue(picked.all { it.length <= DumpProbe.MAX_LINE_CHARS })
+        assertEquals(DumpProbe.POLICY_MAX_LINES + 30, consumed)
+    }
+
+    @Test
+    fun `chunk keeps order and never exceeds the chunk size`() {
+        val lines = (1..100).map { "baris-$it " + "y".repeat(120) }
+        val chunks = DumpProbe.chunk(lines)
+        assertTrue(chunks.size > 1)
+        assertTrue(chunks.all { it.length <= DumpProbe.CHUNK_CHARS })
+        assertEquals(lines, chunks.flatMap { it.split('\n') })
+        assertTrue(DumpProbe.chunk(emptyList()).isEmpty())
+        assertEquals(listOf("dumpsys", "media.audio_policy"), DumpProbe.POLICY_COMMAND)
+    }
+
     // ---- tes teks sumber ----
 
     @Test
@@ -186,6 +237,19 @@ class DumpProbeTest {
         val callback = bodyBetween(src, "private fun onPlaybackConfigsChanged(", "// ---- Batch 247")
         assertTrue(callback.contains("scheduleSessionReverbRefresh()"))
         assertEquals("satu-satunya penjadwal runnable", 1, Regex("""postDelayed\(dumpProbeRunnable""").findAll(src).count())
+    }
+
+    @Test
+    fun `enable status is logged and the policy dump runs once and only after a failed enable`() {
+        val src = serviceSource()
+        val create = bodyBetween(src, "private fun createSessionReverb(", "private fun updateSessionReverb(")
+        assertTrue("status setEnabled dicatat", create.contains("created.setEnabled(true)") && create.contains("DumpProbe.statusName(status)"))
+        assertTrue("diagnostik hanya bila gagal menyala", create.contains("if (!active) policyDumpWanted = true"))
+        val apply = bodyBetween(src, "private fun applySessionReverbs(", "private fun createSessionReverb(")
+        val lockEnd = apply.indexOf("if (policyDumpWanted && !policyDumpDone)")
+        assertTrue("dump dijalankan di LUAR kunci", lockEnd > apply.lastIndexOf("sessionReverbFailed.add(session)"))
+        assertTrue("sekali per umur service", apply.contains("policyDumpDone = true"))
+        assertEquals("satu-satunya pemanggil dump policy", 1, Regex("""logPolicyEffects\(reason\)""").findAll(src).count())
     }
 
     @Test
