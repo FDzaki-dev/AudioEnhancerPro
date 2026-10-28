@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 249: Percobaan ulang menyalakan Reverb per-session
+
+Permintaan user: unggah log dari Batch 248 dengan slider Reverb digeser ke atas. Log itu menjelaskan masalahnya. Saat Boomly baru saja membuat Reverb per-session, perintah menyalakannya ditolak sistem dengan kode INVALID_OPERATION. Sekitar 140 milidetik kemudian, percobaan kedua pada efek yang sama berhasil (SUCCESS) dan efek aktif di session YouTube. Anggaran efek sistem juga longgar (74 dari 100 MIPS, memori 232 KB), jadi penolakan itu bersifat sementara, bukan karena kehabisan anggaran.
+
+Sebelumnya Boomly hanya mencoba lagi pada penyegaran berikutnya (saat pemutar berganti atau slider digeser), yang bisa berselang menit. Selama itu Reverb tetap mati dan tidak terdengar. Sekarang, bila ada Reverb per-session yang belum menyala setelah penyegaran, Boomly otomatis mencoba lagi tiap 300 milidetik, paling banyak 5 kali, tanpa membaca dump lagi, dan mencatat hasilnya di log (`coba-ulang setEnabled=...`). Jatah percobaan diisi ulang di setiap penyegaran.
+
+Pencatatan diagnostik dump `audio_policy` dari Batch 248 dihapus karena tugasnya selesai; angka anggarannya tercatat di PROJECT_STATE. Efek session 0 dari Batch 244, serah-terima efek, dan Effect Guard tidak disentuh.
+
+Hasil batch ini belum dikompilasi dan belum diuji di HP, jadi tetap NOT VERIFIED. Revert: `Boomly_v248.zip`.
+
 ## Batch 248: Catat penyebab Reverb per-session ditolak sistem (diagnostik, suara tidak berubah)
 
 User mengunggah log pertama dari Batch 247 tanpa catatan. Hasilnya: pembacaan `dumpsys audio` dan pemasangan berjalan sesuai rancangan. Boomly menemukan session pemutar (misalnya YouTube di session 77545), membuat `PresetReverb` berjenis Insert (nama Insert Preset Reverb) dengan kontrol penuh, memperbarui presetnya saat slider digeser, dan melepasnya saat pemutar selesai.

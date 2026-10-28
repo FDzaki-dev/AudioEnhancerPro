@@ -478,8 +478,7 @@ class AudioEnhancerService : Service() {
     private val sessionReverbs = HashMap<Int, PresetReverb>()      // dijaga sessionReverbLock
     private val sessionReverbFailed = HashSet<Int>()               // dijaga sessionReverbLock; session yang gagal dibuat (tak dicoba ulang tiap probe)
     private val sessionReverbEnableStatus = HashMap<Int, Int>()   // dijaga sessionReverbLock; status setEnabled terakhir yang dicatat per session (cegah banjir log)
-    @Volatile private var policyDumpWanted = false                  // Batch 248: ada Reverb yang gagal dinyalakan -> catat dump audio_policy SEKALI
-    @Volatile private var policyDumpDone = false
+    private var sessionReverbRetries = 0                            // dijaga sessionReverbLock; percobaan ulang enable berurutan (Batch 249)
 
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
@@ -1342,18 +1341,10 @@ class AudioEnhancerService : Service() {
         return Pair(parsed, total)
     }
 
-    /** Batch 248 (DIAGNOSTIK, sekali per umur service): log mentah menunjukkan `PresetReverb` per-session berhasil DIBUAT (mode=Insert)
-     *  tetapi `setEnabled(true)` ditolak sistem. Catat baris efek/CPU/memori dari `dumpsys media.audio_policy` (anggaran efek) agar
-     *  penyebab penolakan terbaca dari HP, bukan ditebak. Tidak mengubah efek apa pun. */
-    private fun logPolicyEffects(reason: String) {
-        val (lines, total) = readDump(reason, DumpProbe.POLICY_COMMAND) { DumpProbe.selectEffectLines(it) } ?: return
-        android.util.Log.i(TAG, "DumpProbe[$reason]: ${DumpProbe.POLICY_COMMAND.joinToString(" ")} baris=$total terpilih=${lines.size}")
-        for (chunk in DumpProbe.chunk(lines)) android.util.Log.i(TAG, "DumpProbe| policy\n$chunk")
-    }
-
     /** Samakan himpunan `PresetReverb` per-session dengan [sessions] dan preset slider TERBARU (dibaca ulang di sini). */
     private fun applySessionReverbs(reason: String, sessions: List<Int>) {
         synchronized(sessionReverbLock) {
+            sessionReverbRetries = 0 // tiap penyegaran = jatah percobaan ulang enable yang baru
             val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
             val wanted = if (isRunning && dumpProbeScope.isActive && ReverbPresets.isActive(index)) sessions else emptyList()
             val iterator = sessionReverbs.entries.iterator()
@@ -1377,11 +1368,54 @@ class AudioEnhancerService : Service() {
                 val created = createSessionReverb(session, index)
                 if (created != null) sessionReverbs[session] = created else sessionReverbFailed.add(session)
             }
+            if (hasDisabledSessionReverb()) {
+                scheduleEnableRetry()
+            } else {
+                sessionReverbRetries = 0
+            }
         }
-        if (policyDumpWanted && !policyDumpDone) {
-            policyDumpWanted = false
-            policyDumpDone = true
-            logPolicyEffects(reason)
+    }
+
+    /** Batch 249: log mentah B247/B248 — `setEnabled(true)` PERTAMA tepat setelah efek dibuat ditolak (INVALID_OPERATION), tetapi percobaan
+     *  kedua ±140 ms kemudian berhasil (SUCCESS) dengan kondisi sama; anggaran efek policy longgar (74 dari 100 MIPS). Jadi penolakan
+     *  itu sementara. Tanpa percobaan ulang, Reverb baru menyala di refresh berikutnya (bisa menit kemudian). Dipanggil di bawah
+     *  [sessionReverbLock]. */
+    private fun hasDisabledSessionReverb(): Boolean = sessionReverbs.values.any {
+        try { !it.enabled } catch (e: Exception) { false }
+    }
+
+    private fun scheduleEnableRetry() {
+        if (sessionReverbRetries >= DumpProbe.ENABLE_RETRIES) return
+        sessionReverbRetries++
+        dumpProbeScope.launch {
+            kotlinx.coroutines.delay(DumpProbe.ENABLE_RETRY_DELAY_MS)
+            retryEnableSessionReverbs()
+        }
+    }
+
+    /** Nyalakan ulang Reverb per-session yang belum menyala (tanpa dump). Berhenti bila semua menyala atau jatah percobaan habis. */
+    private fun retryEnableSessionReverbs() {
+        synchronized(sessionReverbLock) {
+            if (!isRunning || !dumpProbeScope.isActive) return
+            for ((session, reverb) in sessionReverbs) {
+                try {
+                    if (reverb.enabled) continue
+                    val status = reverb.setEnabled(true)
+                    if (sessionReverbEnableStatus.put(session, status) != status || reverb.enabled) {
+                        android.util.Log.i(
+                            TAG,
+                            "Reverb[sesi=$session]: coba-ulang setEnabled=${DumpProbe.statusName(status)}($status) aktif=${reverb.enabled}"
+                        )
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Reverb[sesi=$session]: coba-ulang gagal", e)
+                }
+            }
+            if (hasDisabledSessionReverb()) {
+                scheduleEnableRetry()
+            } else {
+                sessionReverbRetries = 0
+            }
         }
     }
 
@@ -1399,7 +1433,6 @@ class AudioEnhancerService : Service() {
                 "Reverb[sesi=$session]: dibuat (${describeReverb(created)}) preset=$index " +
                     "setEnabled=${DumpProbe.statusName(status)}($status) aktif=$active kontrol=${created.hasControl()}"
             )
-            if (!active) policyDumpWanted = true
             created
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Reverb[sesi=$session]: gagal dibuat/dinyalakan", e)
@@ -2860,14 +2893,10 @@ internal object DumpProbe {
     const val MAX_SESSIONS = 3
     const val LOG_PLAYERS = 6
 
-    const val POLICY_MAX_LINES = 120
-    const val MAX_LINE_CHARS = 300
-    const val CHUNK_CHARS = 3_500
+    const val ENABLE_RETRIES = 5
+    const val ENABLE_RETRY_DELAY_MS = 300L
 
     val COMMAND: List<String> = listOf("dumpsys", "audio")
-
-    /** Batch 248 (diagnostik): anggaran/daftar efek yang terdaftar di audio policy. */
-    val POLICY_COMMAND: List<String> = listOf("dumpsys", "media.audio_policy")
 
     /** Satu pemutar dari bagian `players:` pada dump. [sessionId] 0 = tak punya session sendiri (SoundPool, dst). */
     data class Player(val piid: Int, val uid: Int, val state: String, val usage: String, val sessionId: Int)
@@ -2909,35 +2938,6 @@ internal object DumpProbe {
             .map { it.sessionId }
             .distinct()
             .take(max)
-
-    private val EFFECT_KEYWORDS = listOf("effect", "cpu", "memory", "mips")
-
-    /** Baris dump yang menyebut efek/CPU/memori (maks [POLICY_MAX_LINES], dipotong [MAX_LINE_CHARS]); aliran tetap dihabiskan
-     *  supaya jumlah baris total akurat. Sengaja longgar: format dump audio_policy belum pernah terlihat di HP ini. */
-    fun selectEffectLines(lines: Sequence<String>): List<String> {
-        val out = ArrayList<String>()
-        for (raw in lines) {
-            if (out.size >= POLICY_MAX_LINES) continue
-            if (EFFECT_KEYWORDS.any { raw.contains(it, ignoreCase = true) }) out.add(raw.take(MAX_LINE_CHARS))
-        }
-        return out
-    }
-
-    /** Gabungkan baris menjadi potongan <= [CHUNK_CHARS] (satu panggilan Log per potongan supaya buffer logcat tak membuang baris). */
-    fun chunk(lines: List<String>): List<String> {
-        val chunks = ArrayList<String>()
-        val sb = StringBuilder()
-        for (line in lines) {
-            if (sb.isNotEmpty() && sb.length + line.length + 1 > CHUNK_CHARS) {
-                chunks.add(sb.toString())
-                sb.setLength(0)
-            }
-            if (sb.isNotEmpty()) sb.append('\n')
-            sb.append(line)
-        }
-        if (sb.isNotEmpty()) chunks.add(sb.toString())
-        return chunks
-    }
 
     /** Nama konstanta `AudioEffect` untuk kode status `setEnabled`/`setParameter` (SUCCESS=0 ... DEAD_OBJECT=-7). */
     fun statusName(code: Int): String = when (code) {

@@ -149,43 +149,9 @@ class DumpProbeTest {
     }
 
     @Test
-    fun `selectEffectLines keeps effect cpu and memory lines only`() {
-        val dump = sequenceOf(
-            "AudioPolicyManager Dump",
-            "Registered effects:",
-            "  Id: 47747 Type: 47382d60 Cpu: 20 Mem: 1 Enabled: 0",
-            "Total Effects CPU: 3.400000 MIPS, Total Effects memory: 12 KB",
-            "Outputs dump:"
-        )
-        assertEquals(
-            listOf(
-                "Registered effects:",
-                "  Id: 47747 Type: 47382d60 Cpu: 20 Mem: 1 Enabled: 0",
-                "Total Effects CPU: 3.400000 MIPS, Total Effects memory: 12 KB"
-            ),
-            DumpProbe.selectEffectLines(dump)
-        )
-    }
-
-    @Test
-    fun `selectEffectLines caps and truncates but drains the stream`() {
-        var consumed = 0
-        val dump = (1..(DumpProbe.POLICY_MAX_LINES + 30)).asSequence().onEach { consumed++ }.map { "effect $it " + "x".repeat(500) }
-        val picked = DumpProbe.selectEffectLines(dump)
-        assertEquals(DumpProbe.POLICY_MAX_LINES, picked.size)
-        assertTrue(picked.all { it.length <= DumpProbe.MAX_LINE_CHARS })
-        assertEquals(DumpProbe.POLICY_MAX_LINES + 30, consumed)
-    }
-
-    @Test
-    fun `chunk keeps order and never exceeds the chunk size`() {
-        val lines = (1..100).map { "baris-$it " + "y".repeat(120) }
-        val chunks = DumpProbe.chunk(lines)
-        assertTrue(chunks.size > 1)
-        assertTrue(chunks.all { it.length <= DumpProbe.CHUNK_CHARS })
-        assertEquals(lines, chunks.flatMap { it.split('\n') })
-        assertTrue(DumpProbe.chunk(emptyList()).isEmpty())
-        assertEquals(listOf("dumpsys", "media.audio_policy"), DumpProbe.POLICY_COMMAND)
+    fun `enable retries are bounded and quick`() {
+        assertTrue(DumpProbe.ENABLE_RETRIES in 1..10)
+        assertTrue(DumpProbe.ENABLE_RETRY_DELAY_MS in 100L..1_000L)
     }
 
     // ---- tes teks sumber ----
@@ -240,16 +206,21 @@ class DumpProbeTest {
     }
 
     @Test
-    fun `enable status is logged and the policy dump runs once and only after a failed enable`() {
+    fun `enable status is logged and a failed enable is retried under the lock`() {
         val src = serviceSource()
         val create = bodyBetween(src, "private fun createSessionReverb(", "private fun updateSessionReverb(")
         assertTrue("status setEnabled dicatat", create.contains("created.setEnabled(true)") && create.contains("DumpProbe.statusName(status)"))
-        assertTrue("diagnostik hanya bila gagal menyala", create.contains("if (!active) policyDumpWanted = true"))
-        val apply = bodyBetween(src, "private fun applySessionReverbs(", "private fun createSessionReverb(")
-        val lockEnd = apply.indexOf("if (policyDumpWanted && !policyDumpDone)")
-        assertTrue("dump dijalankan di LUAR kunci", lockEnd > apply.lastIndexOf("sessionReverbFailed.add(session)"))
-        assertTrue("sekali per umur service", apply.contains("policyDumpDone = true"))
-        assertEquals("satu-satunya pemanggil dump policy", 1, Regex("""logPolicyEffects\(reason\)""").findAll(src).count())
+        val apply = bodyBetween(src, "private fun applySessionReverbs(", "/** Batch 249")
+        assertTrue("jatah percobaan ulang di-reset tiap penyegaran", apply.contains("sessionReverbRetries = 0"))
+        assertTrue("percobaan ulang dijadwalkan bila ada yang belum menyala", apply.contains("if (hasDisabledSessionReverb()) {") && apply.contains("scheduleEnableRetry()"))
+        val retry = bodyBetween(src, "private fun scheduleEnableRetry(", "private fun createSessionReverb(")
+        assertTrue("jumlah percobaan dibatasi", retry.contains("sessionReverbRetries >= DumpProbe.ENABLE_RETRIES"))
+        assertTrue("jeda singkat sebelum mencoba lagi", retry.contains("kotlinx.coroutines.delay(DumpProbe.ENABLE_RETRY_DELAY_MS)"))
+        assertTrue("di bawah kunci", retry.contains("synchronized(sessionReverbLock)"))
+        assertTrue("hanya saat menyala dan scope hidup", retry.contains("if (!isRunning || !dumpProbeScope.isActive) return"))
+        for (forbidden in listOf("presetReverb", "bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer")) {
+            assertFalse("percobaan ulang tidak boleh menyentuh: $forbidden", retry.contains(forbidden))
+        }
     }
 
     @Test
