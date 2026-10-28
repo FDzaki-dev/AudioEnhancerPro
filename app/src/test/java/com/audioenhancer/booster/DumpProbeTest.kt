@@ -7,11 +7,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 246 — penjaga PROBE `dumpsys` (izin DUMP; read-only).
+ * Batch 247 — penjaga pembacaan `dumpsys audio` (izin DUMP) dan Reverb per-session.
  *
- * Dua bagian JVM murni: (1) aturan murni `DumpProbe` (pemilihan baris, pemotongan, jeda minimum), (2) tes teks sumber yang
- * menjaga bahwa probe HANYA membaca: tanpa izin = diam, tanpa menyentuh efek/suara, dan izin DUMP terdeklarasi di manifest
- * dengan penanda lint yang sempit. Format `sessionId` di dump BELUM terverifikasi, jadi tak ada tes parser.
+ * Bagian 1 (JVM murni): parser `DumpProbe` diuji dengan baris ASLI dari log device B246 (Infinix X6855, Android 16),
+ * dipotong persis seperti tercatat di log. Bagian 2 (tes teks sumber): Reverb per-session hanya aktif bila slider > Mati dan
+ * izin DUMP ada, tidak menyentuh efek session 0 / serah-terima efek / Effect Guard, dan selalu dilepas saat Matikan/destroy.
  */
 class DumpProbeTest {
 
@@ -23,6 +23,8 @@ class DumpProbeTest {
         return file.readText()
     }
 
+    private fun serviceSource(): String = readMain("java/com/audioenhancer/booster/AudioEnhancerService.kt")
+
     private fun bodyBetween(source: String, start: String, end: String): String {
         val s = source.indexOf(start)
         assertTrue("Penanda awal tidak ditemukan: $start", s >= 0)
@@ -31,51 +33,93 @@ class DumpProbeTest {
         return source.substring(s, e).replace(Regex("//[^\n]*"), "")
     }
 
-    // ---- aturan murni ----
+    // Baris asli dari `aep_debug_20261028_143047.txt` (bagian `players:` pada `dumpsys audio`).
+    private val soundPoolSystem =
+        "  AudioPlaybackConfiguration piid:519 deviceIds:[] type:android.media.SoundPool u/pid:1000/3772 state:idle attr:AudioAttributes: " +
+            "usage=USAGE_ASSISTANCE_SONIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null sessionId:0 mutedState:none  FormatInfo{isSpatializ"
+    private val soundPoolMedia =
+        "  AudioPlaybackConfiguration piid:106999 deviceIds:[] type:android.media.SoundPool u/pid:10385/3843 state:idle attr:AudioAttributes: " +
+            "usage=USAGE_MEDIA content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null sessionId:0 mutedState:none  FormatInfo{isSpatialized=false, channelMa"
+    private val pausedMusic =
+        "  AudioPlaybackConfiguration piid:107095 deviceIds:[3] type:android.media.AudioTrack u/pid:10553/32467 state:paused attr:AudioAttributes: " +
+            "usage=USAGE_MEDIA content=CONTENT_TYPE_MUSIC flags=0xA00 tags= bundle=null sessionId:47009 mutedState:none  FormatInfo{isSpatialized=false, ch"
+    private val stoppedSonification =
+        "  AudioPlaybackConfiguration piid:109335 deviceIds:[3] type:android.media.MediaPlayer u/pid:1000/2960 state:stopped attr:AudioAttributes: " +
+            "usage=USAGE_ASSISTANCE_SONIFICATION content=CONTENT_TYPE_SONIFICATION flags=0x800 tags= bundle=null sessionId:75529 mutedState:none  FormatInf"
+    private val startedMusic =
+        "  AudioPlaybackConfiguration piid:111935 deviceIds:[3] type:android.media.AudioTrack u/pid:10460/31403 state:started attr:AudioAttributes: " +
+            "usage=USAGE_MEDIA content=CONTENT_TYPE_MUSIC flags=0xA00 tags= bundle=null sessionId:76081 mutedState:none  FormatInfo{isSpatialized=false, c"
+    private val noiseLines = listOf(
+        "  players:",
+        "  ducked players piids:",
+        "  piid: 107095 portId: 16010",
+        "10-28 14:19:03:688 new player piid:111839 uid/pid:10170/3810 package:com.android.systemui type:android.media.MediaPlayer " +
+            "attr:AudioAttributes: usage=USAGE_UNKNOWN content=CONTENT_TYPE_UNKNOWN flags=0x800 tags= bundle=null session:77225"
+    )
+
+    private fun realDump(): Sequence<String> =
+        (listOf(noiseLines[0], soundPoolSystem, soundPoolMedia, pausedMusic, stoppedSonification, startedMusic) + noiseLines.drop(1)).asSequence()
+
+    // ---- parser ----
 
     @Test
-    fun `select keeps keyword lines and drops unrelated ones`() {
-        val dump = sequenceOf(
-            "Audio Service state",
-            "  players:",
-            "  AudioPlaybackConfiguration piid:42 type:MediaPlayer",
-            "  mute master: false",
-            "  sessionId:77 attached"
-        )
-        val picked = DumpProbe.select(dump)
+    fun `parsePlayers reads every player line and ignores noise`() {
+        val players = DumpProbe.parsePlayers(realDump())
+        assertEquals(listOf(519, 106999, 107095, 109335, 111935), players.map { it.piid })
+    }
+
+    @Test
+    fun `parsePlayers reads all fields and does not confuse mutedState with state`() {
+        val player = DumpProbe.parsePlayers(sequenceOf(startedMusic)).single()
+        assertEquals(DumpProbe.Player(piid = 111935, uid = 10460, state = "started", usage = "USAGE_MEDIA", sessionId = 76081), player)
+    }
+
+    @Test
+    fun `parsePlayers tolerates a different field order`() {
+        val line = "AudioPlaybackConfiguration piid:7 sessionId:99 usage=USAGE_GAME u/pid:10001/5 state:started"
         assertEquals(
-            listOf("  players:", "  AudioPlaybackConfiguration piid:42 type:MediaPlayer", "  sessionId:77 attached"),
-            picked
+            DumpProbe.Player(piid = 7, uid = 10001, state = "started", usage = "USAGE_GAME", sessionId = 99),
+            DumpProbe.parsePlayers(sequenceOf(line)).single()
         )
     }
 
     @Test
-    fun `select takes table rows after a Session header then returns to keyword mode`() {
-        val rows = (1..20).map { "    ${it}  1 yes  1234  ${100 + it}  9" }
-        val dump = sequenceOf("Tracks of 1 threads", "    Type  Id Active Client Session Port Id") + rows.asSequence() + sequenceOf("unrelated line")
-        val picked = DumpProbe.select(dump)
-        assertTrue(picked.contains("    Type  Id Active Client Session Port Id"))
-        assertEquals("header + TABLE_ROWS baris tabel", 1 + DumpProbe.TABLE_ROWS, picked.size)
-        assertEquals(rows.first(), picked[1])
-        assertEquals(rows[DumpProbe.TABLE_ROWS - 1], picked.last())
-        assertFalse(picked.contains("unrelated line"))
+    fun `parsePlayers skips a player line that lacks a session id`() {
+        val line = "AudioPlaybackConfiguration piid:7 u/pid:10001/5 state:started attr:AudioAttributes: usage=USAGE_MEDIA"
+        assertTrue(DumpProbe.parsePlayers(sequenceOf(line)).isEmpty())
+    }
+
+    // ---- pemilihan session ----
+
+    @Test
+    fun `pickSessions keeps media sessions with started first and drops system and sessionless players`() {
+        val players = DumpProbe.parsePlayers(realDump())
+        assertEquals(listOf(76081, 47009), DumpProbe.pickSessions(players, ownUid = 1, max = DumpProbe.MAX_SESSIONS))
     }
 
     @Test
-    fun `select skips blank table rows`() {
-        val dump = sequenceOf("Type Id Active Client Session", "", "   ", "row 7")
-        assertEquals(listOf("Type Id Active Client Session", "row 7"), DumpProbe.select(dump))
+    fun `pickSessions skips the players of the own uid`() {
+        val players = DumpProbe.parsePlayers(realDump())
+        assertEquals(listOf(47009), DumpProbe.pickSessions(players, ownUid = 10460, max = DumpProbe.MAX_SESSIONS))
     }
 
     @Test
-    fun `select caps lines and truncates long lines but still drains the whole stream`() {
-        var consumed = 0
-        val dump = (1..(DumpProbe.MAX_LINES + 50)).asSequence().onEach { consumed++ }.map { "session $it " + "x".repeat(500) }
-        val picked = DumpProbe.select(dump)
-        assertEquals(DumpProbe.MAX_LINES, picked.size)
-        assertTrue(picked.all { it.length <= DumpProbe.MAX_LINE_CHARS })
-        assertEquals("aliran dihabiskan supaya hitungan total baris akurat", DumpProbe.MAX_LINES + 50, consumed)
+    fun `pickSessions de-duplicates and caps the result`() {
+        val players = listOf(11, 12, 12, 13, 14).mapIndexed { i, session ->
+            DumpProbe.Player(piid = i, uid = 10001, state = "started", usage = "USAGE_MEDIA", sessionId = session)
+        }
+        assertEquals(listOf(11, 12, 13), DumpProbe.pickSessions(players, ownUid = 1, max = 3))
     }
+
+    @Test
+    fun `pickSessions ignores stopped and released players`() {
+        val players = listOf("stopped", "released").mapIndexed { i, state ->
+            DumpProbe.Player(piid = i, uid = 10001, state = state, usage = "USAGE_MEDIA", sessionId = 20 + i)
+        }
+        assertTrue(DumpProbe.pickSessions(players, ownUid = 1, max = 3).isEmpty())
+    }
+
+    // ---- aturan lain ----
 
     @Test
     fun `shouldRun respects first run and minimum interval`() {
@@ -85,45 +129,63 @@ class DumpProbeTest {
     }
 
     @Test
-    fun `chunk keeps order and never exceeds the chunk size`() {
-        val lines = (1..100).map { "baris-$it " + "y".repeat(120) }
-        val chunks = DumpProbe.chunk(lines)
-        assertTrue(chunks.size > 1)
-        assertTrue(chunks.all { it.length <= DumpProbe.CHUNK_CHARS })
-        assertEquals(lines, chunks.flatMap { it.split('\n') })
-        assertTrue(DumpProbe.chunk(emptyList()).isEmpty())
-    }
-
-    @Test
-    fun `commands are read-only dumpsys calls`() {
-        assertTrue(DumpProbe.COMMANDS.isNotEmpty())
-        assertTrue(DumpProbe.COMMANDS.all { it.first() == "dumpsys" && it.size == 2 })
+    fun `command is a read-only dumpsys audio call and describe is compact`() {
+        assertEquals(listOf("dumpsys", "audio"), DumpProbe.COMMAND)
+        assertEquals(
+            "piid=1 uid=2 state=started usage=USAGE_MEDIA sesi=3",
+            DumpProbe.describe(DumpProbe.Player(1, 2, "started", "USAGE_MEDIA", 3))
+        )
     }
 
     // ---- tes teks sumber ----
 
     @Test
-    fun `probe runs only when running and permission is granted and never touches effects`() {
-        val src = readMain("java/com/audioenhancer/booster/AudioEnhancerService.kt")
-        val body = bodyBetween(src, "private fun probePlayerSessions(", "/** Batch 241")
-        assertTrue(body.contains("if (!isRunning) return"))
-        assertTrue(body.contains("ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED"))
-        assertTrue("jeda minimum", body.contains("DumpProbe.shouldRun(lastDumpProbeAtMs, now)"))
-        assertTrue("satu proses sekaligus", body.contains("dumpProbeBusy.compareAndSet(false, true)"))
-        assertTrue("berjalan di IO, bukan main thread", src.contains("kotlinx.coroutines.Dispatchers.IO"))
-        for (forbidden in listOf("presetReverb", "bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer", ".enabled =")) {
-            assertFalse("probe tidak boleh menyentuh efek: $forbidden", body.contains(forbidden))
-        }
+    fun `refresh does nothing unless running, slider is above Off, permission is granted and interval allows`() {
+        val body = bodyBetween(serviceSource(), "private fun refreshSessionReverb(", "private fun readPlayerSessions(")
+        val running = body.indexOf("if (!isRunning) return")
+        val slider = body.indexOf("if (!ReverbPresets.isActive(index))")
+        val release = body.indexOf("releaseSessionReverbs(")
+        val permission = body.indexOf("ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED")
+        val interval = body.indexOf("if (!force && !DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return")
+        val busy = body.indexOf("dumpProbeBusy.compareAndSet(false, true)")
+        assertTrue(running in 0 until slider)
+        assertTrue("slider Mati melepas tanpa dump", slider < release && release < permission)
+        assertTrue("izin dicek sebelum jeda & proses", permission < interval && interval < busy)
+        assertTrue("dump berjalan di IO, bukan main thread", serviceSource().contains("kotlinx.coroutines.Dispatchers.IO"))
     }
 
     @Test
-    fun `probe is scheduled only from the rebind branch and its scope is cancelled on destroy`() {
-        val src = readMain("java/com/audioenhancer/booster/AudioEnhancerService.kt")
-        val callback = bodyBetween(src, "private fun onPlaybackConfigsChanged(", "private fun probePlayerSessions(")
-        assertTrue(callback.contains("guardHandler.postDelayed(dumpProbeRunnable, DumpProbe.DELAY_MS)"))
+    fun `apply works only while running and active and never touches the session 0 effects`() {
+        val src = serviceSource()
+        val body = bodyBetween(src, "private fun applySessionReverbs(", "private fun createSessionReverb(")
+        assertTrue(body.contains("synchronized(sessionReverbLock)"))
+        assertTrue(body.contains("isRunning && dumpProbeScope.isActive && ReverbPresets.isActive(index)"))
+        val perSession = bodyBetween(src, "private fun applySessionReverbs(", "/** Lepas SEMUA Reverb per-session")
+        for (forbidden in listOf("presetReverb", "bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer", "setControlStatusListener", "setEnableStatusListener")) {
+            assertFalse("Reverb per-session tidak boleh menyentuh: $forbidden", perSession.contains(forbidden))
+        }
+        assertTrue("dibuat di session pemutar, BUKAN session 0", perSession.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, session)"))
+    }
+
+    @Test
+    fun `slider change saves first then forces a refresh while running`() {
+        val body = bodyBetween(serviceSource(), "fun setReverbPreset(", "private fun compressorMbcBand(")
+        val save = body.indexOf("PrefsHelper.setReverbPreset(this, clamped)")
+        val refresh = body.indexOf("if (isRunning) refreshSessionReverb(\"slider\", force = true)")
+        assertTrue(save >= 0)
+        assertTrue("segar dipicu SESUDAH nilai disimpan", refresh > save)
+    }
+
+    @Test
+    fun `per-session reverbs are released on Matikan and on destroy and scheduled from player changes`() {
+        val src = serviceSource()
+        assertTrue(bodyBetween(src, "private fun disableEffects(", "private fun enableEffects(").contains("releaseSessionReverbs("))
+        assertTrue(bodyBetween(src, "private fun releaseEffects(", "private fun disableEffects(").contains("releaseSessionReverbs("))
         val onDestroy = bodyBetween(src, "override fun onDestroy()", "/** Menempel ke audio session 0")
-        assertTrue(onDestroy.contains("dumpProbeScope.cancel()"))
-        assertEquals("pemicu probe hanya satu", 1, Regex("""postDelayed\(dumpProbeRunnable""").findAll(src).count())
+        assertTrue("scope dibatalkan SEBELUM efek dilepas", onDestroy.indexOf("dumpProbeScope.cancel()") in 0 until onDestroy.indexOf("releaseEffects()"))
+        val callback = bodyBetween(src, "private fun onPlaybackConfigsChanged(", "// ---- Batch 247")
+        assertTrue(callback.contains("scheduleSessionReverbRefresh()"))
+        assertEquals("satu-satunya penjadwal runnable", 1, Regex("""postDelayed\(dumpProbeRunnable""").findAll(src).count())
     }
 
     @Test
@@ -134,6 +196,6 @@ class DumpProbeTest {
                 .containsMatchIn(manifest)
         )
         assertTrue(manifest.contains("""xmlns:tools="http://schemas.android.com/tools""""))
-        assertEquals("DUMP hanya berlaku bila user memberi lewat adb/Shizuku", "android.permission.DUMP", DumpProbe.PERMISSION)
+        assertEquals("android.permission.DUMP", DumpProbe.PERMISSION)
     }
 }

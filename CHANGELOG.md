@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 247: Reverb per-session lewat izin DUMP (parser dumpsys dari log asli)
+
+Permintaan user: "Teruskan!!" setelah mengunggah log probe Batch 246. Log itu membuktikan `dumpsys audio` terbaca di Android 16 (Infinix X6855) tanpa root: sekitar 1.700 baris dalam 70 sampai 170 ms, dan tiap pemutar tampil satu baris yang memuat `state`, `usage`, dan `sessionId`. Contoh nyata: pemutar YouTube berstatus started di session 76081 dan satu pemutar lain berstatus paused di session 47009.
+
+Karena formatnya kini terlihat, parser ditulis dan diuji dengan baris asli dari log itu. Bila izin DUMP sudah diberikan dan slider Reverb di atas Mati, Boomly membuat `PresetReverb` pada session pemutar media yang aktif (paling banyak tiga, yang sedang started lebih dulu) sehingga Reverb akhirnya bisa terdengar di aplikasi lain. Efek diperbarui saat pemutar berganti dan saat slider digeser, dilepas saat slider Mati, saat Matikan, dan saat layanan dihancurkan. Setiap pembuatan dicatat di log (`Reverb[sesi=...]`, termasuk mode efek dan status kontrol) supaya hasilnya bisa dibaca tanpa menebak.
+
+Yang tidak berubah: efek session 0 dari Batch 244, serah-terima efek tanpa celah, Effect Guard, dan semua efek lain tidak disentuh; tes menjaganya. Tanpa izin DUMP atau dengan slider Mati, perilaku sama persis seperti sebelumnya. Probe `audio_flinger` dari Batch 246 dihapus karena sudah tidak diperlukan.
+
+Hasil batch ini belum dikompilasi dan belum diuji di HP, jadi tetap NOT VERIFIED. Revert: `Boomly_v246.zip` atau `Boomly_v245.zip`.
+
 ## Batch 246: Probe dumpsys untuk membaca session pemutar (izin DUMP), suara tidak berubah
 
 Permintaan user: "Gak kedengeran bedanya. Teruskan ke reverb izin dump!!" bersama log keempat, `Boomly_v245.zip`, dan laporan CI run 43. Laporan run 43 menunjukkan kode B245 (B244 Reverb) lolos penuh: ArchUnit 12 aturan, SpotBugs 0, detekt 0 (polos dan typed), lint 0, tes 164 dari 164, peringatan kompilator 0.

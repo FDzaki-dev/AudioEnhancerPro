@@ -23,6 +23,7 @@ import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
@@ -462,15 +463,20 @@ class AudioEnhancerService : Service() {
     private var lastPlayerKey: String = ""
     private var lastPlaybackChangeAtMs: Long = EffectGuardPolicy.NEVER
 
-    // Batch 246 (PROBE, request user "Teruskan ke reverb izin dump"): Reverb session 0 = efek AUXILIARY (B245: mode=Auxiliary) ->
-    // tak terdengar di app lain. Jalan audible = efek insert pada session PEMUTAR, dan session itu hanya terbaca lewat `dumpsys`
-    // (butuh izin DUMP via adb/Shizuku). Batch ini HANYA MEMBACA & MENCATAT keluaran dump ke log (format `sessionId` BELUM terverifikasi,
-    // jadi BELUM ada parser/efek baru; suara tidak berubah). Tanpa izin DUMP = diam (satu baris log per umur service).
+    // Batch 247 (request user: "Gak kedengeran bedanya. Teruskan ke reverb izin dump!!"): Reverb session 0 = efek AUXILIARY
+    // (B245: mode=Auxiliary) -> tak terdengar di app lain. Log B246 membuktikan `dumpsys audio` terbaca di Android 16 dan tiap
+    // pemutar memuat `sessionId:N`. Jadi, BILA izin DUMP diberikan (adb/Shizuku) DAN slider Reverb > Mati, Boomly membuat
+    // `PresetReverb` pada session pemutar media aktif (maks `DumpProbe.MAX_SESSIONS`). Berdiri sendiri: di luar serah-terima efek,
+    // Effect Guard, dan efek session 0 B244 (tak ada listener). Tanpa izin / slider Mati = nol perubahan perilaku.
     private val dumpProbeScope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO)
     private val dumpProbeBusy = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var dumpProbePending = false
     @Volatile private var lastDumpProbeAtMs: Long = EffectGuardPolicy.NEVER
     private var dumpProbeDeniedLogged = false
-    private val dumpProbeRunnable = Runnable { probePlayerSessions("playback-settle") }
+    private val dumpProbeRunnable = Runnable { refreshSessionReverb("playback-settle") }
+    private val sessionReverbLock = Any()
+    private val sessionReverbs = HashMap<Int, PresetReverb>()      // dijaga sessionReverbLock
+    private val sessionReverbFailed = HashSet<Int>()               // dijaga sessionReverbLock; session yang gagal dibuat (tak dicoba ulang tiap probe)
 
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
@@ -839,6 +845,7 @@ class AudioEnhancerService : Service() {
             reverbState = EffectState.FAILED
             android.util.Log.e(TAG, "Gagal menerapkan Reverb preset=$index", e)
         }
+        if (active) scheduleSessionReverbRefresh() // Batch 247: nyala/ubah rute -> pasang Reverb per-session bila izin DUMP ada
     }
 
     private fun attachEqualizer(enableNow: Boolean = true) {
@@ -1231,46 +1238,68 @@ class AudioEnhancerService : Service() {
             guardHandler.postDelayed(rebindRunnable, EffectGuardPolicy.REBIND_FAST_DELAY_MS)
             guardHandler.removeCallbacks(rebindSettleRunnable)
             guardHandler.postDelayed(rebindSettleRunnable, EffectGuardPolicy.REBIND_DELAY_MS)
-            guardHandler.removeCallbacks(dumpProbeRunnable) // Batch 246: baca session pemutar SETELAH pemutar baru terdaftar
-            guardHandler.postDelayed(dumpProbeRunnable, DumpProbe.DELAY_MS)
         }
+        scheduleSessionReverbRefresh() // Batch 247: juga saat pemutar berhenti total (lepas Reverb session yang mati)
         updateGuardTick() // Batch 231
         guardHandler.removeCallbacks(guardSettleRunnable)
         guardHandler.postDelayed(guardSettleRunnable, EffectGuardPolicy.SETTLE_RECHECK_MS)
     }
 
-    /** Batch 246: PROBE read-only. Bila izin DUMP diberikan, jalankan `dumpsys` (di `Dispatchers.IO`, bukan main thread) dan catat
-     *  baris yang memuat session/pemutar ke log mentah. TIDAK menyentuh efek/suara. Dibatasi jeda minimum + satu proses sekaligus. */
-    private fun probePlayerSessions(reason: String) {
+    // ---- Batch 247: Reverb per-session (izin DUMP) ----
+
+    /** Jadwalkan penyegaran Reverb per-session SETELAH sistem selesai mendaftarkan pemutar (debounce lewat `removeCallbacks`). */
+    private fun scheduleSessionReverbRefresh() {
+        guardHandler.removeCallbacks(dumpProbeRunnable)
+        guardHandler.postDelayed(dumpProbeRunnable, DumpProbe.DELAY_MS)
+    }
+
+    /** Segarkan Reverb per-session: slider Mati -> lepas semua (tanpa dump); selain itu, bila izin DUMP ada, baca session pemutar
+     *  lewat `dumpsys audio` (thread IO) lalu pasang/ubah/lepas `PresetReverb` per session. [force] = abaikan jeda minimum
+     *  (dari slider). Panggilan yang bertabrakan dengan proses berjalan ditandai `dumpProbePending` dan diulang SEKALI sesudahnya. */
+    private fun refreshSessionReverb(reason: String, force: Boolean = false) {
         if (!isRunning) return
+        val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+        if (!ReverbPresets.isActive(index)) {
+            releaseSessionReverbs("slider Mati ($reason)")
+            return
+        }
         if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
             if (!dumpProbeDeniedLogged) {
                 dumpProbeDeniedLogged = true
-                android.util.Log.i(TAG, "DumpProbe: izin DUMP belum diberikan (adb shell pm grant ${packageName} ${DumpProbe.PERMISSION})")
+                android.util.Log.i(TAG, "DumpProbe: izin DUMP belum diberikan, Reverb per-session nonaktif (adb shell pm grant ${packageName} ${DumpProbe.PERMISSION})")
             }
             return
         }
         val now = SystemClock.elapsedRealtime()
-        if (!DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return
-        if (!dumpProbeBusy.compareAndSet(false, true)) return
+        if (!force && !DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return
+        if (!dumpProbeBusy.compareAndSet(false, true)) {
+            dumpProbePending = true
+            return
+        }
         lastDumpProbeAtMs = now
         dumpProbeScope.launch {
             try {
-                for (command in DumpProbe.COMMANDS) runDumpProbe(reason, command)
+                val sessions = readPlayerSessions(reason)
+                if (sessions != null) applySessionReverbs(reason, sessions)
             } finally {
                 dumpProbeBusy.set(false)
+                if (dumpProbePending) {
+                    dumpProbePending = false
+                    guardHandler.post { refreshSessionReverb("susulan", force = true) }
+                }
             }
         }
     }
 
-    private fun runDumpProbe(reason: String, command: List<String>) {
-        val label = command.joinToString(" ")
+    /** Jalankan `dumpsys audio` dan kembalikan session pemutar media yang layak diberi Reverb; null = dump gagal/kosong
+     *  (pemasangan yang ada DIBIARKAN, bukan dilepas). Read-only. */
+    private fun readPlayerSessions(reason: String): List<Int>? {
         val startedAt = SystemClock.elapsedRealtime()
         val process = try {
-            ProcessBuilder(command).redirectErrorStream(true).start()
+            ProcessBuilder(DumpProbe.COMMAND).redirectErrorStream(true).start()
         } catch (e: Exception) {
-            android.util.Log.e(TAG, "DumpProbe[$reason] $label: gagal dijalankan", e)
-            return
+            android.util.Log.e(TAG, "DumpProbe[$reason]: gagal menjalankan dumpsys", e)
+            return null
         }
         // Pemutus: dump yang menggantung dimatikan paksa (menutup stream -> pembacaan di bawah keluar dengan IOException).
         val watchdog = dumpProbeScope.launch {
@@ -1278,24 +1307,105 @@ class AudioEnhancerService : Service() {
             process.destroy()
         }
         var total = 0
-        val selected = try {
+        val players = try {
             process.inputStream.bufferedReader().use { reader ->
-                DumpProbe.select(reader.lineSequence().onEach { total++ })
+                DumpProbe.parsePlayers(reader.lineSequence().onEach { total++ })
             }
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "DumpProbe[$reason] $label: pembacaan terhenti", e)
-            emptyList()
+            android.util.Log.w(TAG, "DumpProbe[$reason]: pembacaan terhenti", e)
+            null
         } finally {
             watchdog.cancel()
             process.destroy()
         }
-        val exit = try { process.exitValue() } catch (e: IllegalThreadStateException) { -1 }
+        if (players == null || total == 0) {
+            android.util.Log.w(TAG, "DumpProbe[$reason]: keluaran dumpsys kosong/gagal (baris=$total)")
+            return null
+        }
+        val sessions = DumpProbe.pickSessions(players, android.os.Process.myUid(), DumpProbe.MAX_SESSIONS)
         android.util.Log.i(
             TAG,
-            "DumpProbe[$reason] $label: baris=$total terpilih=${selected.size} exit=$exit ${SystemClock.elapsedRealtime() - startedAt} ms"
+            "DumpProbe[$reason]: baris=$total pemutar=${players.size} sesi=$sessions ${SystemClock.elapsedRealtime() - startedAt} ms"
         )
-        // Satu panggilan Log per potongan (bukan per baris) supaya buffer logcat tidak membuang baris.
-        for (chunk in DumpProbe.chunk(selected)) android.util.Log.i(TAG, "DumpProbe| $label\n$chunk")
+        for (player in players.filter { it.sessionId > 0 }.take(DumpProbe.LOG_PLAYERS)) {
+            android.util.Log.i(TAG, "DumpProbe| ${DumpProbe.describe(player)}")
+        }
+        return sessions
+    }
+
+    /** Samakan himpunan `PresetReverb` per-session dengan [sessions] dan preset slider TERBARU (dibaca ulang di sini). */
+    private fun applySessionReverbs(reason: String, sessions: List<Int>) {
+        synchronized(sessionReverbLock) {
+            val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+            val wanted = if (isRunning && dumpProbeScope.isActive && ReverbPresets.isActive(index)) sessions else emptyList()
+            val iterator = sessionReverbs.entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.key in wanted) continue
+                releaseSessionReverb(entry.key, entry.value, reason)
+                iterator.remove()
+            }
+            sessionReverbFailed.retainAll(wanted.toSet())
+            for (session in wanted) {
+                val existing = sessionReverbs[session]
+                if (existing != null) {
+                    if (!updateSessionReverb(session, existing, index)) {
+                        releaseSessionReverb(session, existing, "gagal diperbarui")
+                        sessionReverbs.remove(session)
+                    }
+                    continue
+                }
+                if (session in sessionReverbFailed) continue
+                val created = createSessionReverb(session, index)
+                if (created != null) sessionReverbs[session] = created else sessionReverbFailed.add(session)
+            }
+        }
+    }
+
+    private fun createSessionReverb(session: Int, index: Int): PresetReverb? {
+        var reverb: PresetReverb? = null
+        return try {
+            val created = PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, session)
+            reverb = created
+            created.preset = ReverbPresets.platformPreset(index)
+            created.enabled = true
+            android.util.Log.i(
+                TAG,
+                "Reverb[sesi=$session]: dibuat (${describeReverb(created)}) preset=$index aktif=${created.enabled} kontrol=${created.hasControl()}"
+            )
+            created
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Reverb[sesi=$session]: gagal dibuat/dinyalakan", e)
+            try { reverb?.release() } catch (_: Exception) { }
+            null
+        }
+    }
+
+    private fun updateSessionReverb(session: Int, reverb: PresetReverb, index: Int): Boolean = try {
+        val platform = ReverbPresets.platformPreset(index)
+        if (reverb.preset != platform) {
+            reverb.preset = platform
+            android.util.Log.i(TAG, "Reverb[sesi=$session]: preset=$index")
+        }
+        if (!reverb.enabled) reverb.enabled = true
+        true
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "Reverb[sesi=$session]: gagal diperbarui", e)
+        false
+    }
+
+    private fun releaseSessionReverb(session: Int, reverb: PresetReverb, reason: String) {
+        try { reverb.release() } catch (e: Exception) { android.util.Log.w(TAG, "Reverb[sesi=$session]: gagal dilepas", e) }
+        android.util.Log.i(TAG, "Reverb[sesi=$session]: dilepas ($reason)")
+    }
+
+    /** Lepas SEMUA Reverb per-session (slider Mati, tombol Matikan, service dihancurkan). Aman dipanggil berulang. */
+    private fun releaseSessionReverbs(reason: String) {
+        synchronized(sessionReverbLock) {
+            for ((session, reverb) in sessionReverbs) releaseSessionReverb(session, reverb, reason)
+            sessionReverbs.clear()
+            sessionReverbFailed.clear()
+        }
     }
 
     /** Batch 241: dipanggil tiap UI membaca [spectrumLevels]. Mencatat waktu baca; bila capture sedang dijeda karena
@@ -1879,6 +1989,7 @@ class AudioEnhancerService : Service() {
         dynamicsProcessing?.release()
         try { presetReverb?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release PresetReverb", e) } // Batch 244
         presetReverb = null // Batch 244
+        releaseSessionReverbs("service dihancurkan") // Batch 247
         try { visualizer?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release Visualizer", e) }
         visualizer = null
         // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
@@ -1912,6 +2023,7 @@ class AudioEnhancerService : Service() {
         // Batch 244: Reverb ikut mati bareng; tanpa listener, jadi state dicatat langsung di sini.
         try { presetReverb?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable PresetReverb", e) }
         if (presetReverb != null) reverbState = EffectState.AVAILABLE
+        releaseSessionReverbs("Matikan") // Batch 247
         // Batch 120: spectrum ikut berhenti saat "Matikan" — tidak ada gunanya capture
         // audio kalau booster sendiri lagi off, murni hemat CPU/baterai.
         try { visualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Visualizer", e) }
@@ -2104,6 +2216,7 @@ class AudioEnhancerService : Service() {
         val clamped = ReverbPresets.clamp(index)
         PrefsHelper.setReverbPreset(this, clamped)
         if (isRunning) enableReverb()
+        if (isRunning) refreshSessionReverb("slider", force = true) // Batch 247
     }
 
     // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
@@ -2701,60 +2814,63 @@ internal object EffectGuardPolicy {
         usageAndContentType.map { "${it.first}/${it.second}" }.sorted().joinToString(",")
 }
 
-/** Batch 246: aturan murni PROBE `dumpsys` (read-only; tes `DumpProbeTest`). Format teks `sessionId` di dump BELUM terverifikasi
- *  di device, jadi `select` TIDAK menebak format baris pemutar: ia hanya meloloskan baris yang menyebut kata kunci session/pemutar
- *  dan, setelah header tabel yang memuat kolom `Session`, beberapa baris tabel apa adanya. Parser sungguhan ditulis SETELAH
- *  keluaran mentah dari HP terbaca. */
+/** Batch 247: aturan murni pembacaan `dumpsys audio` untuk Reverb per-session (tes `DumpProbeTest`, memakai baris ASLI dari
+ *  log device B246, Android 16). Tiap pemutar tampil satu baris: `AudioPlaybackConfiguration piid:N ... u/pid:UID/PID state:S
+ *  attr:AudioAttributes: usage=USAGE_X ... sessionId:N ...`. Setiap field dibaca terpisah (bukan satu regex panjang) supaya
+ *  perubahan urutan field di versi Android lain tidak mematahkan pembacaan. Dump yang tak terbaca = pemasangan dibiarkan. */
 internal object DumpProbe {
     const val PERMISSION = "android.permission.DUMP"
-    const val MIN_INTERVAL_MS = 20_000L
+    const val MIN_INTERVAL_MS = 3_000L
     const val DELAY_MS = 1_500L
     const val TIMEOUT_MS = 6_000L
-    const val MAX_LINES = 200
-    const val MAX_LINE_CHARS = 300
-    const val TABLE_ROWS = 12
-    const val CHUNK_CHARS = 3_500
+    const val MAX_SESSIONS = 3
+    const val LOG_PLAYERS = 6
 
-    val COMMANDS: List<List<String>> = listOf(
-        listOf("dumpsys", "audio"),
-        listOf("dumpsys", "media.audio_flinger")
-    )
+    val COMMAND: List<String> = listOf("dumpsys", "audio")
 
-    private val KEYWORDS = listOf("session", "piid", "AudioPlaybackConfiguration", "players")
+    /** Satu pemutar dari bagian `players:` pada dump. [sessionId] 0 = tak punya session sendiri (SoundPool, dst). */
+    data class Player(val piid: Int, val uid: Int, val state: String, val usage: String, val sessionId: Int)
+
+    private const val PLAYER_MARK = "AudioPlaybackConfiguration piid:"
+    private val PIID = Regex("""\bpiid:(\d+)""")
+    private val UID_PID = Regex("""\bu/pid:(\d+)/(\d+)""")
+    private val STATE = Regex("""\bstate:(\w+)""")
+    private val USAGE = Regex("""\busage=(\w+)""")
+    private val SESSION = Regex("""\bsessionId:(\d+)""")
+
+    /** Pemutar yang layak diberi Reverb: musik/video/game. Notifikasi, suara sistem, dan asisten dikecualikan. */
+    private val CANDIDATE_USAGES = setOf("USAGE_MEDIA", "USAGE_GAME")
+    private val ACTIVE_STATES = setOf("started", "paused", "idle")
 
     fun shouldRun(lastAtMs: Long, nowMs: Long): Boolean =
         lastAtMs == EffectGuardPolicy.NEVER || nowMs - lastAtMs >= MIN_INTERVAL_MS
 
-    private fun isTableHeader(line: String): Boolean =
-        line.contains("session", ignoreCase = true) &&
-            (line.contains("client", ignoreCase = true) || Regex("""\bid\b""", RegexOption.IGNORE_CASE).containsMatchIn(line))
-
-    fun select(lines: Sequence<String>): List<String> {
-        val out = ArrayList<String>()
-        var tableLeft = 0
-        for (raw in lines) {
-            if (out.size >= MAX_LINES) continue // tetap habiskan aliran: hitungan total baris di log tetap akurat
-            val take = when {
-                isTableHeader(raw) -> { tableLeft = TABLE_ROWS; true }
-                tableLeft > 0 -> { tableLeft--; raw.isNotBlank() }
-                else -> KEYWORDS.any { raw.contains(it, ignoreCase = true) }
-            }
-            if (take) out.add(raw.take(MAX_LINE_CHARS))
+    fun parsePlayers(lines: Sequence<String>): List<Player> {
+        val out = ArrayList<Player>()
+        for (line in lines) {
+            if (!line.contains(PLAYER_MARK)) continue
+            val piid = PIID.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            val uid = UID_PID.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            val state = STATE.find(line)?.groupValues?.get(1) ?: continue
+            val usage = USAGE.find(line)?.groupValues?.get(1) ?: continue
+            val session = SESSION.find(line)?.groupValues?.get(1)?.toIntOrNull() ?: continue
+            out.add(Player(piid, uid, state, usage, session))
         }
         return out
     }
 
-    fun chunk(lines: List<String>): List<String> {
-        val chunks = ArrayList<String>()
-        val sb = StringBuilder()
-        for (line in lines) {
-            if (sb.isNotEmpty() && sb.length + line.length + 1 > CHUNK_CHARS) { chunks.add(sb.toString()); sb.setLength(0) }
-            if (sb.isNotEmpty()) sb.append('\n')
-            sb.append(line)
-        }
-        if (sb.isNotEmpty()) chunks.add(sb.toString())
-        return chunks
-    }
+    /** Session unik pemutar kandidat: yang sedang `started` lebih dulu, lalu `paused`/`idle` (supaya Reverb sudah terpasang saat
+     *  dilanjutkan), maksimal [max]. Pemutar milik Boomly sendiri ([ownUid]) dan yang tanpa session dilewati. */
+    fun pickSessions(players: List<Player>, ownUid: Int, max: Int): List<Int> =
+        players
+            .filter { it.uid != ownUid && it.sessionId > 0 && it.usage in CANDIDATE_USAGES && it.state in ACTIVE_STATES }
+            .sortedBy { if (it.state == "started") 0 else 1 }
+            .map { it.sessionId }
+            .distinct()
+            .take(max)
+
+    fun describe(player: Player): String =
+        "piid=${player.piid} uid=${player.uid} state=${player.state} usage=${player.usage} sesi=${player.sessionId}"
 }
 
 /**
