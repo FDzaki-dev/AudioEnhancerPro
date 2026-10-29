@@ -111,7 +111,7 @@ class ReverbPresetsTest {
     fun `setReverbPreset saves first then applies only while running`() {
         val body = bodyBetween(serviceSource(), "fun setReverbPreset(", "private fun compressorMbcBand(")
         val save = body.indexOf("PrefsHelper.setReverbPreset(this, clamped)")
-        val apply = body.indexOf("if (isRunning) enableReverb()")
+        val apply = body.indexOf("if (isRunning) enableReverb(refreshSessions = false)")
         assertTrue("nilai disimpan dulu", save >= 0)
         assertTrue("diterapkan hanya saat layanan menyala, SESUDAH disimpan", apply > save)
     }

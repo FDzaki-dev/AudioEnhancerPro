@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 254: Hemat baterai lanjutan dan perbaikan Reverb yang gagal dibuat sekali
+
+Log HP setelah Batch 253 menunjukkan perbaikan slider bekerja: dengan Reverb terpasang, geser slider hanya mengganti preset (2 sampai 8 ms per langkah) tanpa dumpsys, dan dari Mati ke aktif hanya satu dumpsys sekitar 0,4 detik kemudian. Dari log yang sama ada tiga temuan, semuanya diperbaiki di sini.
+
+Pertama, geser slider masih memicu satu dumpsys 1,5 detik sesudahnya lewat jalur lain (penyegaran efek session 0). Sekarang jalur itu dilewati saat slider digeser, karena efek per-session sudah diurus sendiri.
+
+Kedua, aplikasi lain yang membunyikan alarm atau suara sistem naik-turun (6 dari 9 perubahan pemutaran dalam 30 detik di log) memicu dumpsys padahal tidak punya sesi musik. Sekarang dumpsys hanya dijadwalkan bila himpunan pemutar yang relevan (media, tak dikenal, game) berubah. Pemeriksaan Effect Guard tetap jalan untuk semua perubahan.
+
+Ketiga, tepat setelah service mulai, pembuatan Reverb di sesi 82033 gagal sekali (mesin efek belum siap, error -3) dan sesi itu dilewati terus sampai slider dimatikan, sekitar 10 detik tanpa gema. Sekarang pembuatan dicoba ulang di pemeriksaan berikutnya, dibatasi 3 kali per sesi supaya tidak berulang tanpa henti.
+
+13 tes JVM murni di `SliderProbeTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v253.zip`.
+
 ## Batch 253: Hemat baterai, menggeser slider Reverb tidak lagi memanggil dumpsys tiap langkah
 
 Permintaan user: optimalisasi baterai wajib diutamakan. Dari log HP: menggeser slider Reverb dulu menjalankan `dumpsys audio` di setiap langkah (7 kali dalam setengah detik, masing-masing sekitar 50 ms dan membuat proses baru). Saat idle Boomly sudah senyap (tidak ada pekerjaan berkala, spektrum otomatis dijeda), jadi inilah satu-satunya pemborosan yang terukur.
