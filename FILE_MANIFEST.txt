@@ -79,6 +79,7 @@ app/src/test/java/com/audioenhancer/booster/ReverbPresetsTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt
 app/src/test/java/com/audioenhancer/booster/SettingsRotationStateTest.kt
 app/src/test/java/com/audioenhancer/booster/ShizukuGrantTest.kt
+app/src/test/java/com/audioenhancer/booster/SliderProbeTest.kt
 build.gradle.kts
 config/detekt/detekt-typed.yml
 config/detekt/detekt.yml

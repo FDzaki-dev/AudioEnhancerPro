@@ -185,10 +185,10 @@ class DumpProbeTest {
     }
 
     @Test
-    fun `slider change saves first then forces a refresh while running`() {
+    fun `slider change saves first then refreshes while running`() {
         val body = bodyBetween(serviceSource(), "fun setReverbPreset(", "private fun compressorMbcBand(")
         val save = body.indexOf("PrefsHelper.setReverbPreset(this, clamped)")
-        val refresh = body.indexOf("if (isRunning) refreshSessionReverb(\"slider\", force = true)")
+        val refresh = body.indexOf("if (isRunning) refreshSessionReverbAfterPreset(changed)")
         assertTrue(save >= 0)
         assertTrue("segar dipicu SESUDAH nilai disimpan", refresh > save)
     }

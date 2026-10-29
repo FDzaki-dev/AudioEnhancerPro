@@ -474,6 +474,7 @@ class AudioEnhancerService : Service() {
     @Volatile private var lastDumpProbeAtMs: Long = EffectGuardPolicy.NEVER
     private var dumpProbeDeniedLogged = false
     private val dumpProbeRunnable = Runnable { refreshSessionReverb("playback-settle") }
+    private val sliderProbeRunnable = Runnable { refreshSessionReverb("slider", force = true) } // Batch 253: dump tertunda setelah slider tenang
     private val sessionReverbLock = Any()
     private val sessionReverbs = HashMap<Int, PresetReverb>()      // dijaga sessionReverbLock
     private val sessionReverbFailed = HashSet<Int>()               // dijaga sessionReverbLock; session yang gagal dibuat (tak dicoba ulang tiap probe)
@@ -1253,6 +1254,45 @@ class AudioEnhancerService : Service() {
     private fun scheduleSessionReverbRefresh() {
         guardHandler.removeCallbacks(dumpProbeRunnable)
         guardHandler.postDelayed(dumpProbeRunnable, DumpProbe.DELAY_MS)
+    }
+
+    /** Batch 253 (hemat baterai, request user): menggeser slider dulu memicu `dumpsys audio` TIAP langkah (log B251: 7x dalam 0,5 dtk, masing-masing
+     *  ±50 ms + proses baru). Sekarang: kirim ulang tanpa perubahan / slider Mati / izin tak ada = langsung (tanpa dump, seperti sebelumnya);
+     *  selain itu preset efek yang SUDAH terpasang diganti di thread IO tanpa dump, dan satu dump tertunda ([DumpProbe.SLIDER_DEBOUNCE_MS] setelah
+     *  langkah terakhir) hanya bila belum ada efek terpasang. Sesi baru/mati tetap ditemukan probe pemutaran (`playback-settle`) seperti biasa. */
+    private fun refreshSessionReverbAfterPreset(changed: Boolean) {
+        val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+        val granted = ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) == PackageManager.PERMISSION_GRANTED
+        guardHandler.removeCallbacks(sliderProbeRunnable)
+        if (DumpProbe.sliderRefresh(changed, ReverbPresets.isActive(index), granted) == DumpProbe.SliderRefresh.NOW) {
+            refreshSessionReverb("slider", force = true)
+            return
+        }
+        dumpProbeScope.launch {
+            if (DumpProbe.needsDebouncedProbe(updateAttachedSessionReverbs())) {
+                guardHandler.post {
+                    guardHandler.removeCallbacks(sliderProbeRunnable)
+                    guardHandler.postDelayed(sliderProbeRunnable, DumpProbe.SLIDER_DEBOUNCE_MS)
+                }
+            }
+        }
+    }
+
+    /** Batch 253: ganti preset SEMUA Reverb per-session yang sudah terpasang dengan nilai slider TERBARU (dibaca ulang di sini; langkah beruntun
+     *  jadi menyatu). TIDAK membuat efek baru dan TIDAK menjalankan dump. Gagal diperbarui = dilepas. Mengembalikan jumlah efek yang masih terpasang. */
+    private fun updateAttachedSessionReverbs(): Int = synchronized(sessionReverbLock) {
+        val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+        if (!isRunning || !ReverbPresets.isActive(index)) return@synchronized sessionReverbs.size
+        val iterator = sessionReverbs.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (!updateSessionReverb(entry.key, entry.value, index)) {
+                releaseSessionReverb(entry.key, entry.value, "gagal diperbarui")
+                iterator.remove()
+            }
+        }
+        if (hasDisabledSessionReverb()) scheduleEnableRetry()
+        sessionReverbs.size
     }
 
     /** Segarkan Reverb per-session: slider Mati -> lepas semua (tanpa dump); selain itu, bila izin DUMP ada, baca session pemutar
@@ -2285,9 +2325,10 @@ class AudioEnhancerService : Service() {
      *  (pola SAMA Compressor/Vocal Focus) sehingga kontrak data preset tidak berubah. */
     fun setReverbPreset(index: Int) {
         val clamped = ReverbPresets.clamp(index)
+        val changed = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this)) != clamped
         PrefsHelper.setReverbPreset(this, clamped)
         if (isRunning) enableReverb()
-        if (isRunning) refreshSessionReverb("slider", force = true) // Batch 247
+        if (isRunning) refreshSessionReverbAfterPreset(changed) // Batch 247; B253: hemat baterai (tanpa dump tiap langkah slider)
     }
 
     // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
@@ -2918,6 +2959,19 @@ internal object DumpProbe {
 
     fun shouldRun(lastAtMs: Long, nowMs: Long): Boolean =
         lastAtMs == EffectGuardPolicy.NEVER || nowMs - lastAtMs >= MIN_INTERVAL_MS
+
+    /** Batch 253 (hemat baterai): jeda tenang setelah slider berhenti sebelum SATU `dumpsys`, dipakai hanya bila belum ada efek terpasang. */
+    const val SLIDER_DEBOUNCE_MS = 350L
+
+    /** Batch 253: keputusan SINKRON saat preset Reverb disimpan. NOW = segarkan langsung tanpa penundaan (kirim ulang tanpa perubahan seperti
+     *  saat izin berubah, slider Mati = lepas tanpa dump, atau izin tak ada = lepas + catat tanpa dump). UPDATE_ATTACHED = ganti preset efek
+     *  yang SUDAH terpasang tanpa dump; dump baru hanya bila tak ada efek terpasang ([needsDebouncedProbe]). */
+    enum class SliderRefresh { NOW, UPDATE_ATTACHED }
+
+    fun sliderRefresh(presetChanged: Boolean, active: Boolean, hasPermission: Boolean): SliderRefresh =
+        if (!presetChanged || !active || !hasPermission) SliderRefresh.NOW else SliderRefresh.UPDATE_ATTACHED
+
+    fun needsDebouncedProbe(attachedAfterUpdate: Int): Boolean = attachedAfterUpdate == 0
 
     fun parsePlayers(lines: Sequence<String>): List<Player> {
         val out = ArrayList<Player>()

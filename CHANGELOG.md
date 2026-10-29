@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 253: Hemat baterai, menggeser slider Reverb tidak lagi memanggil dumpsys tiap langkah
+
+Permintaan user: optimalisasi baterai wajib diutamakan. Dari log HP: menggeser slider Reverb dulu menjalankan `dumpsys audio` di setiap langkah (7 kali dalam setengah detik, masing-masing sekitar 50 ms dan membuat proses baru). Saat idle Boomly sudah senyap (tidak ada pekerjaan berkala, spektrum otomatis dijeda), jadi inilah satu-satunya pemborosan yang terukur.
+
+Sekarang, bila Reverb sudah terpasang di pemutar, geser slider hanya mengganti preset efek yang sudah ada, tanpa dumpsys sama sekali, dan gemanya tetap berubah seketika. Bila belum ada efek terpasang (misalnya slider naik dari Mati), Boomly menunggu slider tenang selama 350 ms lalu menjalankan satu dumpsys saja, bukan satu per langkah. Kirim ulang tanpa perubahan (saat izin berubah), slider Mati, dan izin tidak ada tetap diproses langsung seperti sebelumnya. Pemasangan ke pemutar baru tetap ditangani pemeriksaan saat pemutaran berubah, tidak berubah.
+
+Sekaligus dicatat: Batch 252 terverifikasi di HP lewat log (Aktifkan sekitar 0,45 detik sampai gema aktif, Cabut melepas efek dalam 62 ms).
+
+8 tes JVM murni baru di `SliderProbeTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v252.zip`.
+
 ## Batch 252: Cabut izin kini benar-benar mematikan Reverb per-session
 
 Temuan dari dua log HP: tombol Cabut izin dan Aktifkan Reverb berjalan benar (kedua perintah exit=0, aplikasi tidak tertutup, izin terbaca seketika). Tetapi efek Reverb yang sudah terpasang di sesi pemutar bertahan sekitar 80 detik setelah izin dicabut, karena service hanya berhenti mengurus efek dan tidak melepasnya. Akibatnya uji ulang tidak bisa dibedakan: gema tetap terdengar walau izin sudah tercabut.
