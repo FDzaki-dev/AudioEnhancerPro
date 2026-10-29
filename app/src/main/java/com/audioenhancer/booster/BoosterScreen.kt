@@ -1228,7 +1228,7 @@ fun BoosterScreen(
                 // Batch 250 (request user: akses Reverb gampang): satu tombol Shizuku untuk izin DUMP (tanpa komputer). Setelah izin
                 // baru terbaca, preset yang sedang dipilih dikirim ulang supaya service langsung memasang Reverb per-session.
                 if (reverbSupported) {
-                    ReverbAccessBlock(onGranted = { onReverb(reverbPreset.toInt()) })
+                    ReverbAccessBlock(onPermissionChanged = { onReverb(reverbPreset.toInt()) })
                 }
             }
         }
@@ -1983,9 +1983,10 @@ fun BoosterScreen(
 
 /** Batch 250: status + satu tombol untuk izin `DUMP` (Reverb per-session, B247) lewat Shizuku — lihat `ShizukuGrant.kt`. Pendengar Shizuku
  *  hidup selama blok ini tampil; status dibaca ulang tiap layar kembali RESUME (user mungkin baru memasang/menjalankan Shizuku).
- *  [onGranted] dipanggil SEKALI saat status berpindah ke GRANTED selama blok tampil (bukan saat sudah GRANTED dari awal). */
+ *  [onPermissionChanged] dipanggil SEKALI tiap izin DUMP berubah (diberikan ATAU dicabut, B252) selama blok tampil; status WORKING diabaikan
+ *  dan keadaan awal tidak dihitung. Service lalu menyegarkan Reverb per-session: memasang saat izin ada, melepas saat izin tak ada. */
 @Composable
-private fun ReverbAccessBlock(onGranted: () -> Unit) {
+private fun ReverbAccessBlock(onPermissionChanged: () -> Unit) {
     val context = LocalContext.current
     val owner = context as? LifecycleOwner
     DisposableEffect(owner) {
@@ -2001,11 +2002,15 @@ private fun ReverbAccessBlock(onGranted: () -> Unit) {
     }
 
     val access = ShizukuGrant.access
-    val latestOnGranted = rememberUpdatedState(onGranted)
-    var previous by remember { mutableStateOf(access) }
+    val latestOnChanged = rememberUpdatedState(onPermissionChanged)
+    var lastGranted by remember { mutableStateOf(access == ReverbAccess.GRANTED) }
     LaunchedEffect(access) {
-        if (previous != ReverbAccess.GRANTED && access == ReverbAccess.GRANTED) latestOnGranted.value()
-        previous = access
+        if (access == ReverbAccess.WORKING) return@LaunchedEffect
+        val granted = access == ReverbAccess.GRANTED
+        if (granted != lastGranted) {
+            lastGranted = granted
+            latestOnChanged.value()
+        }
     }
 
     Spacer(modifier = Modifier.height(8.dp))

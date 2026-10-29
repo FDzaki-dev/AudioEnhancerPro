@@ -1270,8 +1270,12 @@ class AudioEnhancerService : Service() {
                 dumpProbeDeniedLogged = true
                 android.util.Log.i(TAG, "DumpProbe: izin DUMP belum diberikan, Reverb per-session nonaktif (adb shell pm grant ${packageName} ${DumpProbe.PERMISSION})")
             }
+            // Batch 252: izin bisa DICABUT saat Reverb per-session sudah terpasang (tombol "Cabut izin", B251). Tanpa izin efek lama tak
+            // bisa lagi disegarkan/diurus, jadi lepas supaya "nonaktif" benar-benar nonaktif (log B251: efek sesi 82033 bertahan 80 dtk).
+            releaseSessionReverbs("izin DUMP tidak ada ($reason)")
             return
         }
+        dumpProbeDeniedLogged = false // izin kembali: pencabutan berikutnya dicatat lagi
         val now = SystemClock.elapsedRealtime()
         if (!force && !DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return
         if (!dumpProbeBusy.compareAndSet(false, true)) {

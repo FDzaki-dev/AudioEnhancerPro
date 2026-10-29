@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 252: Cabut izin kini benar-benar mematikan Reverb per-session
+
+Temuan dari dua log HP: tombol Cabut izin dan Aktifkan Reverb berjalan benar (kedua perintah exit=0, aplikasi tidak tertutup, izin terbaca seketika). Tetapi efek Reverb yang sudah terpasang di sesi pemutar bertahan sekitar 80 detik setelah izin dicabut, karena service hanya berhenti mengurus efek dan tidak melepasnya. Akibatnya uji ulang tidak bisa dibedakan: gema tetap terdengar walau izin sudah tercabut.
+
+Sekarang saat izin DUMP tidak ada, Reverb per-session yang terpasang langsung dilepas (hanya jalur itu yang berubah; dengan izin tetap seperti sebelumnya). Kartu Reverb juga memberi tahu service tiap kali izin berubah, ke arah mana pun, sehingga setelah Cabut gema hilang seketika dan setelah Aktifkan gema kembali seketika tanpa menggeser slider. Catatan log pencabutan juga dicatat ulang tiap kali izin dicabut lagi.
+
+22 tes JVM murni di `ShizukuGrantTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v251.zip`.
+
 ## Batch 251: Tombol Cabut izin (uji ulang) di kartu Reverb
 
 Permintaan user: karena HP sudah punya izin DUMP dari perintah adb sebelumnya, jalur Shizuku (pop-up izin lalu pemberian izin) tidak pernah jalan dan tidak bisa diuji tanpa uninstall.

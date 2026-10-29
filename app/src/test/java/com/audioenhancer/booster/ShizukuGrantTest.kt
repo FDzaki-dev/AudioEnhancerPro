@@ -196,13 +196,28 @@ class ShizukuGrantTest {
     @Test
     fun `reverb card hosts the access block and pairs start with stop`() {
         val screen = code(module("src/main/java/com/audioenhancer/booster/BoosterScreen.kt"))
-        assertTrue(screen.contains("ReverbAccessBlock(onGranted = { onReverb(reverbPreset.toInt()) })"))
+        assertTrue(screen.contains("ReverbAccessBlock(onPermissionChanged = { onReverb(reverbPreset.toInt()) })"))
         val body = screen.substring(screen.indexOf("private fun ReverbAccessBlock"))
         assertTrue(body.contains("ShizukuGrant.start(context)"))
         assertTrue(body.contains("ShizukuGrant.stop()"))
         assertTrue("segarkan status saat RESUME", body.contains("Lifecycle.Event.ON_RESUME"))
         assertTrue("tombol uji ulang hanya saat Shizuku hidup", body.contains("if (ShizukuGrant.shizukuAlive)"))
+        assertTrue("izin diberikan ATAU dicabut harus menyegarkan service", body.contains("if (granted != lastGranted)"))
+        assertTrue("status WORKING tidak boleh memicu", body.contains("if (access == ReverbAccess.WORKING) return@LaunchedEffect"))
         assertTrue(body.contains("ShizukuGrant.revoke(context)"))
+    }
+
+    @Test
+    fun `missing DUMP permission releases stale session reverbs`() {
+        val service = code(module("src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt"))
+        val start = service.indexOf("private fun refreshSessionReverb(")
+        val body = service.substring(start, service.indexOf("private fun readPlayerSessions("))
+        val denied = body.indexOf("PackageManager.PERMISSION_GRANTED) {")
+        val release = body.indexOf("releaseSessionReverbs(\"izin DUMP tidak ada")
+        val ret = body.indexOf("return", release)
+        assertTrue("pelepasan ada di cabang izin-tidak-ada", denied in 0 until release)
+        assertTrue("dan terjadi SEBELUM return cabang itu", release in 0 until ret)
+        assertTrue("penanda log direset saat izin ada", body.contains("dumpProbeDeniedLogged = false"))
     }
 
     @Test
