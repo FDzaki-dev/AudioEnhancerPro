@@ -32,11 +32,11 @@ class ShizukuGrantTest {
     // ---- aturan murni ----
 
     @Test
-    fun `granted wins over everything`() {
-        for (installed in listOf(true, false)) for (alive in listOf(true, false)) for (busy in listOf(true, false)) {
+    fun `granted wins over everything except busy`() {
+        for (installed in listOf(true, false)) for (alive in listOf(true, false)) {
             assertEquals(
                 ReverbAccess.GRANTED,
-                ReverbAccessPolicy.resolve(true, installed, alive, busy, ReverbAccess.FAILED)
+                ReverbAccessPolicy.resolve(true, installed, alive, false, ReverbAccess.FAILED)
             )
         }
     }
@@ -45,6 +45,8 @@ class ShizukuGrantTest {
     fun `busy shows working before shizuku state`() {
         assertEquals(ReverbAccess.WORKING, ReverbAccessPolicy.resolve(false, true, true, true, null))
         assertEquals(ReverbAccess.WORKING, ReverbAccessPolicy.resolve(false, false, false, true, ReverbAccess.DENIED))
+        // Batch 251: saat mencabut izin (izin masih ada) status harus WORKING, bukan GRANTED.
+        assertEquals(ReverbAccess.WORKING, ReverbAccessPolicy.resolve(true, true, true, true, null))
     }
 
     @Test
@@ -68,11 +70,11 @@ class ShizukuGrantTest {
 
     @Test
     fun `pm grant success needs exit zero and clean output`() {
-        assertTrue(ReverbAccessPolicy.grantSucceeded(0, ""))
-        assertFalse(ReverbAccessPolicy.grantSucceeded(255, ""))
-        assertFalse(ReverbAccessPolicy.grantSucceeded(-1, ""))
-        assertFalse(ReverbAccessPolicy.grantSucceeded(0, "Exception occurred while executing 'grant':\njava.lang.SecurityException: x"))
-        assertFalse(ReverbAccessPolicy.grantSucceeded(0, "Error: Unknown permission"))
+        assertTrue(ReverbAccessPolicy.commandSucceeded(0, ""))
+        assertFalse(ReverbAccessPolicy.commandSucceeded(255, ""))
+        assertFalse(ReverbAccessPolicy.commandSucceeded(-1, ""))
+        assertFalse(ReverbAccessPolicy.commandSucceeded(0, "Exception occurred while executing 'grant':\njava.lang.SecurityException: x"))
+        assertFalse(ReverbAccessPolicy.commandSucceeded(0, "Error: Unknown permission"))
     }
 
     @Test
@@ -91,8 +93,18 @@ class ShizukuGrantTest {
     }
 
     @Test
+    fun `revoke command is exactly pm revoke of DUMP from this app`() {
+        assertEquals(
+            listOf("pm", "revoke", "com.audioenhancer.booster", "android.permission.DUMP"),
+            ReverbAccessPolicy.REVOKE_COMMAND
+        )
+        assertEquals(ReverbAccessPolicy.GRANT_COMMAND.drop(2), ReverbAccessPolicy.REVOKE_COMMAND.drop(2))
+    }
+
+    @Test
     fun `service transaction codes follow the shizuku contract`() {
         assertEquals(1, ShizukuGrantService.CODE_GRANT)
+        assertEquals(2, ShizukuGrantService.CODE_REVOKE)
         assertEquals(16_777_115, ShizukuGrantService.CODE_DESTROY)
     }
 
@@ -156,7 +168,7 @@ class ShizukuGrantTest {
     fun `shell service knows only grant and destroy and never exits via System`() {
         val src = code(grantSource)
         val service = src.substring(src.indexOf("class ShizukuGrantService"), src.indexOf("internal object ShizukuGrant "))
-        assertTrue(service.contains("CODE_GRANT ->"))
+        assertTrue(service.contains("CODE_GRANT, CODE_REVOKE ->"))
         assertTrue(service.contains("CODE_DESTROY ->"))
         assertFalse("tak boleh membaca argumen dari pemanggil", service.contains("data.readString"))
         assertFalse("detekt ExitOutsideMain / ArchUnit: pakai Process.killProcess", service.contains("System.exit"))
@@ -189,6 +201,8 @@ class ShizukuGrantTest {
         assertTrue(body.contains("ShizukuGrant.start(context)"))
         assertTrue(body.contains("ShizukuGrant.stop()"))
         assertTrue("segarkan status saat RESUME", body.contains("Lifecycle.Event.ON_RESUME"))
+        assertTrue("tombol uji ulang hanya saat Shizuku hidup", body.contains("if (ShizukuGrant.shizukuAlive)"))
+        assertTrue(body.contains("ShizukuGrant.revoke(context)"))
     }
 
     @Test
@@ -196,7 +210,7 @@ class ShizukuGrantTest {
         val keys = listOf(
             "reverb_access_granted", "reverb_access_need_install", "reverb_access_need_start", "reverb_access_ready",
             "reverb_access_working", "reverb_access_denied", "reverb_access_failed",
-            "reverb_access_button_enable", "reverb_access_button_open", "reverb_access_button_get"
+            "reverb_access_button_enable", "reverb_access_button_open", "reverb_access_button_get", "reverb_access_button_revoke"
         )
         for (file in listOf("src/main/res/values/strings.xml", "src/main/res/values-en/strings.xml")) {
             val xml = module(file)

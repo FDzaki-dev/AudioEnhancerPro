@@ -2018,6 +2018,13 @@ private fun ReverbAccessBlock(onGranted: () -> Unit) {
             Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
             Text(stringResource(R.string.reverb_access_granted), style = MaterialTheme.typography.bodySmall)
         }
+        // Batch 251: tombol uji ulang (cabut izin DUMP) hanya bila server Shizuku hidup; tanpa Shizuku tak ada yang bisa dicabut dari sini.
+        if (ShizukuGrant.shizukuAlive) {
+            Spacer(modifier = Modifier.height(6.dp))
+            SkeuOutlinedButton(onClick = { ShizukuGrant.revoke(context) }) {
+                Text(stringResource(R.string.reverb_access_button_revoke))
+            }
+        }
         return
     }
 

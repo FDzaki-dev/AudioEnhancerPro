@@ -81,11 +81,12 @@
     <string name="reverb_access_need_install">Reverb needs a one-time system permission. Install Shizuku and start it once; after that Boomly sets the permission up by itself, no computer needed.</string>
     <string name="reverb_access_need_start">Shizuku is installed but not running. Open Shizuku, start it once, then come back here.</string>
     <string name="reverb_access_ready">One tap: Boomly asks for permission through Shizuku, then turns Reverb access on by itself.</string>
-    <string name="reverb_access_working">Turning Reverb access on…</string>
+    <string name="reverb_access_working">Working on Reverb access…</string>
     <string name="reverb_access_denied">Boomly isn\'t allowed in Shizuku yet. Tap the button, then choose Allow.</string>
     <string name="reverb_access_failed">Couldn\'t turn Reverb access on. Tap to try again; details are saved in Export Debug Log.</string>
     <string name="reverb_access_button_enable">Enable Reverb</string>
     <string name="reverb_access_button_open">Open Shizuku</string>
+    <string name="reverb_access_button_revoke">Revoke permission (retest)</string>
     <string name="reverb_access_button_get">Get Shizuku</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>

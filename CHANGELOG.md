@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 251: Tombol Cabut izin (uji ulang) di kartu Reverb
+
+Permintaan user: karena HP sudah punya izin DUMP dari perintah adb sebelumnya, jalur Shizuku (pop-up izin lalu pemberian izin) tidak pernah jalan dan tidak bisa diuji tanpa uninstall.
+
+Kartu Reverb kini punya tombol Cabut izin (uji ulang) di bawah baris Akses Reverb aktif. Tombol hanya tampil bila izin sedang aktif dan Shizuku berjalan. Ketukannya menjalankan satu perintah, mencabut izin DUMP hanya dari Boomly sendiri, lewat layanan Shizuku yang sama dengan tombol Aktifkan. Boomly lalu membaca ulang izinnya; bila sudah tercabut, kartu kembali ke tombol Aktifkan Reverb sehingga alur pop-up izin Shizuku bisa dicoba lagi.
+
+Perubahan kecil lain: saat sebuah aksi berjalan, status WORKING sekarang menang atas GRANTED (supaya saat mencabut izin, kartu tidak tampak masih aktif), dan teks proses dibuat netral untuk pemberian maupun pencabutan.
+
+Catatan: OS bisa saja menutup aplikasi saat sebuah izin dicabut; belum diketahui di HP ini. 21 tes JVM murni di `ShizukuGrantTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v250.zip`.
+
 ## Batch 250: Akses Reverb lewat Shizuku, satu ketukan tanpa komputer
 
 Permintaan user: lanjutkan integrasi Shizuku supaya mode Reverb mudah diakses. Reverb per-session (Batch 247) baru bekerja bila Boomly punya izin sistem DUMP, dan izin itu dulu hanya bisa diberikan dengan perintah adb dari komputer.

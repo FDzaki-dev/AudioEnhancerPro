@@ -75,7 +75,10 @@ internal object ReverbAccessPolicy {
     /** Satu-satunya perintah yang dijalankan di proses shell: izin DUMP untuk Boomly sendiri, tanpa parameter dari luar. */
     val GRANT_COMMAND: List<String> = listOf("pm", "grant", APP_PACKAGE, DumpProbe.PERMISSION)
 
-    /** Urutan prioritas status: izin ada > sedang bekerja > Shizuku tak hidup > kegagalan terakhir > siap. */
+    /** Batch 251: lawan GRANT_COMMAND, hanya untuk tombol uji ulang "Cabut izin" (juga tanpa argumen dari luar). */
+    val REVOKE_COMMAND: List<String> = listOf("pm", "revoke", APP_PACKAGE, DumpProbe.PERMISSION)
+
+    /** Urutan prioritas status: sedang bekerja > izin ada > Shizuku tak hidup > kegagalan terakhir > siap (B251: bekerja di atas, supaya cabut izin tak tampak GRANTED). */
     fun resolve(
         dumpGranted: Boolean,
         shizukuInstalled: Boolean,
@@ -83,15 +86,15 @@ internal object ReverbAccessPolicy {
         busy: Boolean,
         failure: ReverbAccess?
     ): ReverbAccess = when {
-        dumpGranted -> ReverbAccess.GRANTED
         busy -> ReverbAccess.WORKING
+        dumpGranted -> ReverbAccess.GRANTED
         !binderAlive -> if (shizukuInstalled) ReverbAccess.NOT_RUNNING else ReverbAccess.NOT_INSTALLED
         failure != null -> failure
         else -> ReverbAccess.READY
     }
 
-    /** `pm grant` sukses hanya bila exit 0 DAN keluarannya tak memuat jejak pengecualian (pm mencetak `Exception occurred ...`). */
-    fun grantSucceeded(exitCode: Int, output: String): Boolean =
+    /** `pm grant`/`pm revoke` sukses hanya bila exit 0 DAN keluarannya tak memuat jejak pengecualian (pm mencetak `Exception occurred ...`). */
+    fun commandSucceeded(exitCode: Int, output: String): Boolean =
         exitCode == 0 && !output.contains("Exception", ignoreCase = true) && !output.contains("Error", ignoreCase = true)
 
     fun trimOutput(text: String): String = text.trim().take(OUTPUT_MAX_CHARS)
@@ -99,7 +102,7 @@ internal object ReverbAccessPolicy {
 
 /**
  * Layanan yang dijalankan Shizuku di proses shell (UID 2000) atau root. Proses ini BUKAN proses aplikasi biasa: tanpa
- * Context/Compose, hanya `Binder` mentah (tanpa AIDL). Hanya satu perintah yang dikenal ([CODE_GRANT]) dan tak menerima
+ * Context/Compose, hanya `Binder` mentah (tanpa AIDL). Hanya dua perintah yang dikenal ([CODE_GRANT], [CODE_REVOKE]) dan tak menerima
  * argumen, jadi pemegang binder tak bisa memberi izin ke paket atau izin lain. Kelas ini dipertahankan R8 lewat
  * `proguard-rules.pro` (dibuat lewat refleksi oleh Shizuku, bukan dipanggil dari kode).
  */
@@ -107,9 +110,10 @@ class ShizukuGrantService : Binder() {
 
     override fun onTransact(code: Int, data: Parcel, reply: Parcel?, flags: Int): Boolean {
         when (code) {
-            CODE_GRANT -> {
+            CODE_GRANT, CODE_REVOKE -> {
                 data.enforceInterface(DESCRIPTOR)
-                val (exitCode, output) = runGrantCommand()
+                val command = if (code == CODE_GRANT) ReverbAccessPolicy.GRANT_COMMAND else ReverbAccessPolicy.REVOKE_COMMAND
+                val (exitCode, output) = runCommand(command)
                 reply?.writeNoException()
                 reply?.writeInt(exitCode)
                 reply?.writeString(output)
@@ -125,30 +129,35 @@ class ShizukuGrantService : Binder() {
         return super.onTransact(code, data, reply, flags)
     }
 
-    private fun runGrantCommand(): Pair<Int, String> = try {
-        val process = ProcessBuilder(ReverbAccessPolicy.GRANT_COMMAND).redirectErrorStream(true).start()
+    private fun runCommand(command: List<String>): Pair<Int, String> = try {
+        val process = ProcessBuilder(command).redirectErrorStream(true).start()
         val output = process.inputStream.bufferedReader().use { it.readText() }
         process.waitFor() to ReverbAccessPolicy.trimOutput(output)
     } catch (e: Exception) {
-        Log.w("ShizukuGrantService", "menjalankan pm grant gagal", e)
+        Log.w("ShizukuGrantService", "menjalankan perintah shell gagal", e)
         -1 to ReverbAccessPolicy.trimOutput(e.toString())
     }
 
     companion object {
         const val DESCRIPTOR = "com.audioenhancer.booster.ShizukuGrantService"
         const val CODE_GRANT = IBinder.FIRST_CALL_TRANSACTION
+        const val CODE_REVOKE = 2
 
         /** Nomor transaksi "destroy" yang ditetapkan Shizuku (16777115). */
         const val CODE_DESTROY = 16_777_115
     }
 }
 
-/** Pengendali status akses Reverb. Berdiri sendiri (di luar service audio); UI hanya membaca [access] dan memanggil [enable]. */
+/** Pengendali status akses Reverb. Berdiri sendiri (di luar service audio); UI hanya membaca [access] dan memanggil [enable]/[revoke]. */
 internal object ShizukuGrant {
     private const val TAG = "ShizukuGrant"
 
     /** Status untuk UI (state Compose: aman ditulis dari thread mana pun). */
     var access: ReverbAccess by mutableStateOf(ReverbAccess.NOT_INSTALLED)
+        private set
+
+    /** Batch 251: server Shizuku hidup. Syarat tampilnya tombol "Cabut izin (uji ulang)" saat izin sedang aktif. */
+    var shizukuAlive: Boolean by mutableStateOf(false)
         private set
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -163,6 +172,9 @@ internal object ShizukuGrant {
     @Volatile private var busy = false
 
     @Volatile private var failure: ReverbAccess? = null
+
+    /** Kode transaksi (grant/revoke) yang menunggu hasil dialog izin Shizuku; 0 = tak ada. */
+    @Volatile private var pending = 0
 
     private val binderReceived = Shizuku.OnBinderReceivedListener { onShizukuChanged() }
     private val binderDead = Shizuku.OnBinderDeadListener { onShizukuChanged() }
@@ -202,34 +214,10 @@ internal object ShizukuGrant {
     }
 
     /** Aksi tombol utama saat Shizuku hidup: minta izin Shizuku bila perlu, lalu beri izin DUMP. */
-    fun enable(context: Context) {
-        val app = context.applicationContext
-        appContext = app
-        if (busy) return
-        failure = null
-        if (hasDump(app) || !Shizuku.pingBinder()) {
-            recompute()
-            return
-        }
-        if (shizukuPermissionGranted()) {
-            grant(app)
-            return
-        }
-        if (shouldOpenShizukuForPermission()) {
-            // User pernah memilih "Tolak dan jangan tanya lagi": dialog tak akan muncul, jadi arahkan ke aplikasi Shizuku.
-            failure = ReverbAccess.DENIED
-            recompute()
-            openShizukuOrDownload(context)
-            return
-        }
-        try {
-            Shizuku.requestPermission(ReverbAccessPolicy.REQUEST_CODE)
-        } catch (e: Exception) {
-            Log.w(TAG, "requestPermission gagal", e)
-            failure = ReverbAccess.FAILED
-            recompute()
-        }
-    }
+    fun enable(context: Context) = begin(context, ShizukuGrantService.CODE_GRANT)
+
+    /** Batch 251 (request user): cabut izin DUMP Boomly sendiri supaya jalur "Aktifkan Reverb" bisa diuji ulang tanpa uninstall. */
+    fun revoke(context: Context) = begin(context, ShizukuGrantService.CODE_REVOKE)
 
     /** Buka aplikasi Shizuku bila terpasang; selain itu halaman unduhnya (alamat resmi dari README Shizuku-API). */
     fun openShizukuOrDownload(context: Context) {
@@ -245,6 +233,39 @@ internal object ShizukuGrant {
 
     // ---- internal ----
 
+    /** Mulai satu aksi ([ShizukuGrantService.CODE_GRANT] atau [ShizukuGrantService.CODE_REVOKE]); aksi sia-sia (sudah/belum punya izin) diabaikan. */
+    private fun begin(context: Context, code: Int) {
+        val app = context.applicationContext
+        appContext = app
+        if (busy) return
+        failure = null
+        val pointless = if (code == ShizukuGrantService.CODE_GRANT) hasDump(app) else !hasDump(app)
+        if (pointless || !Shizuku.pingBinder()) {
+            recompute()
+            return
+        }
+        if (shizukuPermissionGranted()) {
+            runShell(app, code)
+            return
+        }
+        if (shouldOpenShizukuForPermission()) {
+            // User pernah memilih "Tolak dan jangan tanya lagi": dialog tak akan muncul, jadi arahkan ke aplikasi Shizuku.
+            failure = ReverbAccess.DENIED
+            recompute()
+            openShizukuOrDownload(context)
+            return
+        }
+        pending = code
+        try {
+            Shizuku.requestPermission(ReverbAccessPolicy.REQUEST_CODE)
+        } catch (e: Exception) {
+            Log.w(TAG, "requestPermission gagal", e)
+            pending = 0
+            failure = ReverbAccess.FAILED
+            recompute()
+        }
+    }
+
     private fun onShizukuChanged() {
         failure = null
         if (!Shizuku.pingBinder() && busy) {
@@ -257,8 +278,10 @@ internal object ShizukuGrant {
     private fun onPermissionResult(requestCode: Int, grantResult: Int) {
         if (requestCode != ReverbAccessPolicy.REQUEST_CODE) return
         val app = appContext ?: return
+        val code = if (pending != 0) pending else ShizukuGrantService.CODE_GRANT
+        pending = 0
         if (grantResult == PackageManager.PERMISSION_GRANTED) {
-            grant(app)
+            runShell(app, code)
         } else {
             failure = ReverbAccess.DENIED
             recompute()
@@ -267,10 +290,12 @@ internal object ShizukuGrant {
 
     private fun recompute() {
         val app = appContext ?: return
+        val alive = Shizuku.pingBinder()
+        shizukuAlive = alive
         access = ReverbAccessPolicy.resolve(
             dumpGranted = hasDump(app),
             shizukuInstalled = app.packageManager.getLaunchIntentForPackage(ReverbAccessPolicy.SHIZUKU_PACKAGE) != null,
-            binderAlive = Shizuku.pingBinder(),
+            binderAlive = alive,
             busy = busy,
             failure = failure
         )
@@ -293,9 +318,10 @@ internal object ShizukuGrant {
         false
     }
 
-    /** Ikat UserService di proses shell, jalankan `pm grant` sekali, lepas layanan, lalu BACA ULANG izin (kebenaran akhir). */
-    private fun grant(app: Context) {
+    /** Ikat UserService di proses shell, jalankan `pm grant`/`pm revoke` sekali, lepas layanan, lalu BACA ULANG izin (kebenaran akhir). */
+    private fun runShell(app: Context, code: Int) {
         val mine = attempt.incrementAndGet()
+        val expectGranted = code == ShizukuGrantService.CODE_GRANT
         busy = true
         failure = null
         recompute()
@@ -312,9 +338,9 @@ internal object ShizukuGrant {
                 val self = this
                 if (!finished.compareAndSet(false, true)) return
                 scope.launch {
-                    val ok = service != null && callGrant(service)
+                    val ok = service != null && callCommand(service, code)
                     unbind(args, self)
-                    finish(app, mine, ok)
+                    finish(app, mine, ok, expectGranted)
                 }
             }
 
@@ -326,7 +352,7 @@ internal object ShizukuGrant {
         } catch (e: Exception) {
             Log.w(TAG, "bindUserService gagal", e)
             finished.set(true)
-            scope.launch { finish(app, mine, false) }
+            scope.launch { finish(app, mine, false, expectGranted) }
             return
         }
         scope.launch {
@@ -334,7 +360,7 @@ internal object ShizukuGrant {
             if (finished.compareAndSet(false, true)) {
                 Log.w(TAG, "layanan Shizuku tak tersambung dalam ${ReverbAccessPolicy.CONNECT_TIMEOUT_MS} ms")
                 unbind(args, connection)
-                finish(app, mine, false)
+                finish(app, mine, false, expectGranted)
             }
         }
     }
@@ -347,21 +373,22 @@ internal object ShizukuGrant {
         }
     }
 
-    /** Kirim perintah ke layanan shell. true = `pm grant` selesai tanpa galat. Keluaran mentah dicatat ke log. */
-    private fun callGrant(service: IBinder): Boolean {
+    /** Kirim perintah ke layanan shell. true = `pm grant`/`pm revoke` selesai tanpa galat. Keluaran mentah dicatat ke log. */
+    private fun callCommand(service: IBinder, code: Int): Boolean {
+        val name = if (code == ShizukuGrantService.CODE_GRANT) "grant" else "revoke"
         val data = Parcel.obtain()
         val reply = Parcel.obtain()
         return try {
             data.writeInterfaceToken(ShizukuGrantService.DESCRIPTOR)
-            if (!service.transact(ShizukuGrantService.CODE_GRANT, data, reply, 0)) {
+            if (!service.transact(code, data, reply, 0)) {
                 Log.w(TAG, "transact ke layanan Shizuku ditolak")
                 false
             } else {
                 reply.readException()
                 val exitCode = reply.readInt()
                 val output = reply.readString().orEmpty()
-                Log.i(TAG, "pm grant ${DumpProbe.PERMISSION}: exit=$exitCode keluaran='${ReverbAccessPolicy.trimOutput(output)}'")
-                ReverbAccessPolicy.grantSucceeded(exitCode, output)
+                Log.i(TAG, "pm $name ${DumpProbe.PERMISSION}: exit=$exitCode keluaran='${ReverbAccessPolicy.trimOutput(output)}'")
+                ReverbAccessPolicy.commandSucceeded(exitCode, output)
             }
         } catch (e: Exception) {
             Log.w(TAG, "transact ke layanan Shizuku gagal", e)
@@ -372,21 +399,21 @@ internal object ShizukuGrant {
         }
     }
 
-    /** Akhiri satu percobaan: pada sukses, tunggu sebentar sampai izin benar-benar terbaca OS; hasil basi diabaikan. */
-    private suspend fun finish(app: Context, mine: Int, commandOk: Boolean) {
-        var granted = false
+    /** Akhiri satu percobaan: pada sukses, tunggu sebentar sampai OS benar-benar menunjukkan izin sesuai harapan; hasil basi diabaikan. */
+    private suspend fun finish(app: Context, mine: Int, commandOk: Boolean, expectGranted: Boolean) {
+        var reached = false
         if (commandOk) {
             repeat(ReverbAccessPolicy.VERIFY_TRIES) {
-                if (!granted) {
-                    granted = hasDump(app)
-                    if (!granted) delay(ReverbAccessPolicy.VERIFY_DELAY_MS)
+                if (!reached) {
+                    reached = hasDump(app) == expectGranted
+                    if (!reached) delay(ReverbAccessPolicy.VERIFY_DELAY_MS)
                 }
             }
-            if (!granted) Log.w(TAG, "pm grant sukses tetapi izin DUMP belum terbaca setelah verifikasi")
+            if (!reached) Log.w(TAG, "perintah sukses tetapi izin DUMP belum ${if (expectGranted) "terbaca aktif" else "tercabut"} setelah verifikasi")
         }
         if (attempt.get() != mine) return
         busy = false
-        failure = if (granted) null else ReverbAccess.FAILED
+        failure = if (reached) null else ReverbAccess.FAILED
         recompute()
     }
 }
