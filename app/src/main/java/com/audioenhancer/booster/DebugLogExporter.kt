@@ -3,10 +3,12 @@ package com.audioenhancer.booster
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.ContextCompat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,7 +49,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = readOwnLogcat(),
                 maxLines = MAX_LINES
-            )
+            ) + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -64,6 +66,32 @@ object DebugLogExporter {
         } catch (e: Exception) {
             Log.e(TAG, "Ekspor log debug gagal", e)
             null
+        }
+    }
+
+    /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
+     *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran
+     *  + rantai efek + sesi), disaring ke baris relevan dan dibatasi. HANYA saat user menekan Ekspor (tanpa biaya baterai); tanpa izin = kosong. */
+    private fun readAudioPathSnapshot(context: Context): String {
+        if (ContextCompat.checkSelfPermission(context, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return ""
+        return try {
+            val process = ProcessBuilder("dumpsys", "media.audio_flinger").redirectErrorStream(true).start()
+            try {
+                val kept = ArrayList<String>()
+                var read = 0
+                process.inputStream.bufferedReader().use { reader ->
+                    for (line in reader.lineSequence()) {
+                        if (++read > DebugLogFormat.PATH_MAX_READ) break
+                        if (DebugLogFormat.isAudioPathLine(line) && kept.size < DebugLogFormat.PATH_MAX_LINES) kept.add(line.trimEnd())
+                    }
+                }
+                DebugLogFormat.buildAudioPathSection(kept, read)
+            } finally {
+                process.destroy()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Cuplikan jalur audio gagal", e)
+            DebugLogFormat.buildAudioPathSection(emptyList(), 0)
         }
     }
 
@@ -145,6 +173,24 @@ internal object DebugLogFormat {
 
     /** True untuk baris derau yang dibuang dari laporan; baris lain (efek, serah-terima, crash) selalu dipertahankan. */
     fun isNoise(line: String): Boolean = AUDIO_EFFECT_FLOOD.containsMatchIn(line) || UI_NOISE.containsMatchIn(line)
+
+    /** Batch 255: baris `dumpsys media.audio_flinger` yang menjelaskan jalur keluaran: thread keluaran (tipe MIXER/OFFLOAD/DIRECT/MMAP), rantai efek,
+     *  efek, sesi. Disaring supaya laporan tak membengkak. */
+    private val AUDIO_PATH_KEYS = Regex(
+        "output thread|input thread|thread type|effect chain|effect|chain|session|offload|direct|mmap|standby|sample rate|devices?:",
+        RegexOption.IGNORE_CASE
+    )
+
+    const val PATH_MAX_LINES = 600
+    const val PATH_MAX_READ = 60_000
+
+    fun isAudioPathLine(line: String): Boolean = line.isNotBlank() && AUDIO_PATH_KEYS.containsMatchIn(line)
+
+    /** Bagian akhir laporan. [readLines] = jumlah baris dump yang dibaca (0 + kosong = gagal/tak terbaca). */
+    fun buildAudioPathSection(lines: List<String>, readLines: Int): String = buildString {
+        appendLine("---- jalur audio (dumpsys media.audio_flinger, disaring ${lines.size} dari $readLines baris) ----")
+        if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris relevan)") else lines.forEach { appendLine(it) }
+    }
 
     /** `aep_debug_yyyyMMdd_HHmmss.txt` — mudah diurutkan dan dikenali di File Manager. */
     fun fileName(timestampMillis: Long): String =

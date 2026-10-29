@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 255: Diagnostik jalur audio di Ekspor Log Debug
+
+Laporan user: efek Boomly tidak terdengar dan saklar on/off tidak mengubah suara. Log HP (30 Okt 06:14 sampai 06:30) menunjukkan sisi aplikasi sehat: layanan berjalan terus, kelima efek utama aktif dan dinyatakan sehat di setiap pemeriksaan, serah-terima saat musik mulai normal (68 dan 128 ms), rute keluaran speaker, dan Reverb per-sesi terpasang benar. Log itu tidak memuat penekanan saklar on/off sama sekali (user hanya menguji slider Reverb), dan pemutar musik yang dipakai sekarang adalah aplikasi yang berbeda dari tes sebelumnya. Penyebabnya dengan demikian ada di jalur keluaran pemutar itu di sistem audio, di luar penglihatan log aplikasi, dan belum bisa dipastikan.
+
+Agar penyebabnya terlihat, Ekspor Log Debug kini menambahkan di akhir laporan cuplikan jalur audio sistem (thread keluaran, rantai efek, sesi), disaring dan dibatasi. Cuplikan hanya dibuat saat tombol Ekspor ditekan dan hanya bila izin DUMP aktif (yang sudah kamu miliki lewat Shizuku), jadi tidak ada beban baterai tambahan. Tidak ada perubahan pada efek atau layanan.
+
+4 tes JVM murni di `AudioPathSnapshotTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v254.zip`.
+
 ## Batch 254: Hemat baterai lanjutan dan perbaikan Reverb yang gagal dibuat sekali
 
 Log HP setelah Batch 253 menunjukkan perbaikan slider bekerja: dengan Reverb terpasang, geser slider hanya mengganti preset (2 sampai 8 ms per langkah) tanpa dumpsys, dan dari Mati ke aktif hanya satu dumpsys sekitar 0,4 detik kemudian. Dari log yang sama ada tiga temuan, semuanya diperbaiki di sini.

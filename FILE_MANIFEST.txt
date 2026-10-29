@@ -69,6 +69,7 @@ app/src/main/res/xml/shortcuts.xml
 app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/ArchitectureTest.kt
 app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
+app/src/test/java/com/audioenhancer/booster/AudioPathSnapshotTest.kt
 app/src/test/java/com/audioenhancer/booster/CompressorCurveTest.kt
 app/src/test/java/com/audioenhancer/booster/DebugLogFormatTest.kt
 app/src/test/java/com/audioenhancer/booster/DumpProbeTest.kt
