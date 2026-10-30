@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 257: Efek utama terikat ke sesi pemutar (perbaikan suara mendem di Shorts)
+
+Log HP dengan cuplikan jalur audio menjelaskan struktur masalahnya. Speaker punya tiga output: primary, deep_buffer, dan fast. Seluruh efek global Boomly hidup di thread primary, sedangkan semua track YouTube (diperiksa di seluruh riwayat log) selalu berada di thread deep_buffer. Efek global hanya mengenai track itu bila sistem audio memindahkannya ke thread deep_buffer saat pemutaran mulai, dan perpindahan itu rapuh pada berhenti-lalu-mulai cepat seperti Shorts, channel, lalu Shorts lagi: efek bisa tertinggal di thread lama, dan suara terdengar datar atau mendem sampai track baru dibuat. Ini kelas masalah yang sudah beberapa kali ditambal dengan serah-terima ulang tanpa menyelesaikan akarnya.
+
+Perubahannya: lima efek utama (bass, virtualizer, equalizer, loudness, dynamics) sekarang dipasang pada sesi pemutar yang sedang main, dibaca dari pemeriksaan yang sudah ada (izin DUMP lewat Shizuku), bukan pada output global. Efek yang terikat sesi ikut track ke thread mana pun, jadi tidak bergantung pada kebijakan sistem. Bila ada lebih dari satu pemutar yang sedang main, atau izin DUMP tidak ada, Boomly memakai cara lama (global). Reverb dan spektrum tidak berubah.
+
+Efek samping yang baik untuk baterai: serah-terima ulang dua tahap setiap musik mulai (sekitar 70 sampai 130 ms CPU dan 10 objek dilepas tiap kali) dilewati bila efek sudah terikat ke sesi yang benar. Efek samping lainnya: pemeriksaan sesi kini juga berjalan saat Reverb mati (satu dumpsys sekitar 50 ms per perubahan pemutar, tidak saat slider digeser), supaya efek utama tetap bisa mengikuti sesi.
+
+8 tes JVM murni di `EffectSessionTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED; kompilasi adalah risiko terbesarnya. Revert: `Boomly_v256.zip`.
+
 ## Batch 256: Diagnostik suara mendem di YouTube Shorts, cuplikan jalur audio lengkap
 
 Laporan user: di YouTube Shorts, pindah ke channel lalu masuk Shorts lagi, suara tiba-tiba mendem dan kembali normal saat scroll ke short lain. Log HP pertama dengan cuplikan jalur audio (Batch 255) menunjukkan sisi Boomly identik antara saat mendem dan saat normal: kelima efek utama terpasang dan aktif dengan cara yang sama. Cuplikan sistem audio menunjukkan ada tiga thread keluaran speaker, dan rantai efek global hanya ada di satu thread (`AudioOut_D`). Dugaan kuat tetapi belum terbukti: track YouTube setelah pindah halaman mendarat di thread lain yang tidak punya rantai efek global, sehingga suaranya tanpa efek Boomly (terdengar datar atau mendem). Track baru saat scroll kembali ke thread yang benar.

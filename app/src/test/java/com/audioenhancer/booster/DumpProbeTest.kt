@@ -166,7 +166,7 @@ class DumpProbeTest {
         val interval = body.indexOf("if (!force && !DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return")
         val busy = body.indexOf("dumpProbeBusy.compareAndSet(false, true)")
         assertTrue(running in 0 until slider)
-        assertTrue("slider Mati melepas tanpa dump", slider < release && release < permission)
+        assertTrue("slider Mati melepas dulu (B257: probe lanjut utk efek utama kecuali pemicu slider)", slider < release && release < permission)
         assertTrue("izin dicek sebelum jeda & proses", permission < interval && interval < busy)
         assertTrue("dump berjalan di IO, bukan main thread", serviceSource().contains("kotlinx.coroutines.Dispatchers.IO"))
     }

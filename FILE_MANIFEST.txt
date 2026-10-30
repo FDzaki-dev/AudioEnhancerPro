@@ -74,6 +74,7 @@ app/src/test/java/com/audioenhancer/booster/CompressorCurveTest.kt
 app/src/test/java/com/audioenhancer/booster/DebugLogFormatTest.kt
 app/src/test/java/com/audioenhancer/booster/DumpProbeTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectGuardPolicyTest.kt
+app/src/test/java/com/audioenhancer/booster/EffectSessionTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 app/src/test/java/com/audioenhancer/booster/ReverbPresetsTest.kt

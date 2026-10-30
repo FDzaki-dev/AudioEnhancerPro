@@ -440,7 +440,7 @@ class EffectGuardPolicyTest {
             "Config harus dibangun lewat buildDynamicsConfig dgn nilai tersimpan",
             attach.contains("buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)")
         )
-        assertTrue(attach.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config)"))
+        assertTrue(attach.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config)"))
         assertFalse("Config polos (netral) tidak boleh dibangun lagi di attachDynamicsProcessing", attach.contains("Config.Builder("))
     }
 

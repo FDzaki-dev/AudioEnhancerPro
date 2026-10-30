@@ -462,6 +462,15 @@ class AudioEnhancerService : Service() {
     private val rebindSettleRunnable = Runnable { runEffectRebind("playback-settle", settle = true) }
     private var lastPlayerKey: String = ""
     private var lastReverbPlayerKey: String = "" // Batch 254: himpunan pemutar yang relevan untuk Reverb per-session (MEDIA/UNKNOWN/GAME)
+
+    // Batch 257 ("mendem" di Shorts): sesi tujuan 5 efek utama. 0 = output mix global (perilaku lama, nasib efek ditentukan kebijakan audio sistem:
+    // log v256 menunjukkan efek global hanya hidup di SATU thread keluaran sementara track YouTube selalu di thread deep_buffer yang lain, jadi
+    // setelah berhenti-lalu-mulai cepat efek bisa tertinggal di thread lama). >0 = sesi pemutar media yang sedang `started` (dari probe DUMP):
+    // efek sesi dipindahkan sistem BERSAMA track ke thread mana pun. Hanya diubah di thread utama (`followEffectSession`).
+    @Volatile private var effectSession = 0
+
+    /** Batch 257: sesi tempat objek 5 efek yang SEKARANG hidup benar-benar terikat (beda dari [effectSession] selama perpindahan tertunda/gagal). */
+    @Volatile private var boundEffectSession = 0
     private var lastPlaybackChangeAtMs: Long = EffectGuardPolicy.NEVER
 
     // Batch 247 (request user: "Gak kedengeran bedanya. Teruskan ke reverb izin dump!!"): Reverb session 0 = efek AUXILIARY
@@ -756,12 +765,13 @@ class AudioEnhancerService : Service() {
         // Terapkan ulang setting terakhir yang tersimpan, supaya tidak balik ke default
         // setiap kali service ini dibuat ulang (app ditutup, task dikill, atau HP reboot).
         restoreSavedSettings()
+        boundEffectSession = effectSession // Batch 257
         lastBindAtMs = SystemClock.elapsedRealtime() // Batch 230: efek baru dipasang -> pasang-ulang otomatis ditahan sementara
     }
 
     private fun attachBass(enableNow: Boolean = true) {
         try {
-            bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
+            bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== bassBoost) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -785,7 +795,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachVirtualizer(enableNow: Boolean = true) {
         try {
-            virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
+            virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== virtualizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -857,7 +867,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachEqualizer(enableNow: Boolean = true) {
         try {
-            equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, 0).apply { // Batch 231
+            equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== equalizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -881,7 +891,7 @@ class AudioEnhancerService : Service() {
 
     private fun attachLoudness(enableNow: Boolean = true) {
         try {
-            loudnessEnhancer = LoudnessEnhancer(0).apply {
+            loudnessEnhancer = LoudnessEnhancer(effectSession).apply {
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== loudnessEnhancer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -994,7 +1004,7 @@ class AudioEnhancerService : Service() {
             // mesin efek; sebelumnya (B234 ke bawah) konstruktor menulis isi bawaan `Config.Builder` dulu, nilai tersimpan baru
             // menyusul lewat blok `apply` di bawah. Isi `Config` & jalur cadangannya: lihat `buildDynamicsConfig`.
             val config = buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)
-            dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, 0, config).apply { // Batch 231
+            dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config).apply { // Batch 231
                 // Batch 235: penulisan di blok ini KINI penegasan idempoten (nilai SAMA dgn `config`) — dipertahankan karena
                 // (1) menjaga `dynamicsState = FAILED` tetap terlapor, (2) menjadi jaring bila `buildDynamicsConfig` jatuh ke
                 // `Config` bawaan (pembangunan Config terisi gagal).
@@ -1317,12 +1327,15 @@ class AudioEnhancerService : Service() {
     private fun refreshSessionReverb(reason: String, force: Boolean = false) {
         if (!isRunning) return
         val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+        val reverbActive = ReverbPresets.isActive(index)
         if (!ReverbPresets.isActive(index)) {
             releaseSessionReverbs("slider Mati ($reason)")
-            return
+            // Batch 257: probe juga dipakai efek utama untuk mengikuti sesi pemutar, jadi Reverb Mati TIDAK lagi berarti tanpa dump; kecuali
+            // pemicunya geser slider sendiri (hemat baterai: tak ada yang perlu dibaca saat user baru mematikan Reverb).
+            if (reason == "slider") return
         }
         if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) {
-            if (!dumpProbeDeniedLogged) {
+            if (reverbActive && !dumpProbeDeniedLogged) {
                 dumpProbeDeniedLogged = true
                 android.util.Log.i(TAG, "DumpProbe: izin DUMP belum diberikan, Reverb per-session nonaktif (adb shell pm grant ${packageName} ${DumpProbe.PERMISSION})")
             }
@@ -1342,7 +1355,7 @@ class AudioEnhancerService : Service() {
         dumpProbeScope.launch {
             try {
                 val sessions = readPlayerSessions(reason)
-                if (sessions != null) applySessionReverbs(reason, sessions)
+                if (sessions != null && reverbActive) applySessionReverbs(reason, sessions)
             } finally {
                 dumpProbeBusy.set(false)
                 if (dumpProbePending) {
@@ -1366,7 +1379,20 @@ class AudioEnhancerService : Service() {
         for (player in players.filter { it.sessionId > 0 }.take(DumpProbe.LOG_PLAYERS)) {
             android.util.Log.i(TAG, "DumpProbe| ${DumpProbe.describe(player)}")
         }
+        followEffectSession(DumpProbe.startedSessions(players, android.os.Process.myUid()))
         return sessions
+    }
+
+    /** Batch 257: ikat 5 efek utama ke sesi pemutar media yang sedang `started` (tepat satu sesi); lebih dari satu = global; tak ada = biarkan.
+     *  Perpindahan memakai serah-terima tanpa celah yang sama (`runEffectRebind`), dijalankan di thread utama; dipanggil dari thread IO probe. */
+    private fun followEffectSession(started: List<Int>) {
+        val desired = DumpProbe.chooseEffectSession(started) ?: return
+        guardHandler.post {
+            if (!isRunning || desired == effectSession) return@post
+            android.util.Log.i(TAG, "EffectSession: efek utama dipindah dari sesi $effectSession ke sesi $desired (sedang main: $started)")
+            effectSession = desired
+            runEffectRebind("sesi-pemutar")
+        }
     }
 
     /** Jalankan [command] (`dumpsys ...`, read-only, thread IO) dan olah keluarannya per baris lewat [parse]. Pasangan hasil +
@@ -1626,6 +1652,13 @@ class AudioEnhancerService : Service() {
      *  yang tertahan jeda itu DITUNDA sampai jeda habis (bukan dibuang), dan dibatalkan bila pemutaran sudah berhenti. */
     private fun runEffectRebind(reason: String, settle: Boolean = false) {
         if (!isRunning) return
+        // Batch 257 (hemat baterai + "mendem"): efek yang terikat sesi pemutar ikut track ke thread keluaran mana pun, jadi serah-terima
+        // karena pemutaran mulai/berhenti (2 tahap, ±70-130 ms CPU + 10 destruktor tiap kali) tak diperlukan lagi. Hanya perpindahan sesi
+        // itu sendiri ("sesi-pemutar") yang tetap membuat efek baru.
+        if (effectSession != DumpProbe.GLOBAL_EFFECT_SESSION && boundEffectSession == effectSession) {
+            android.util.Log.i(TAG, "EffectRebind[$reason]: dilewati (efek utama terikat sesi $effectSession, ikut track sendiri)")
+            return
+        }
         // Batch 237: tahap cepat & penegasan masing-masing menunda DIRINYA sendiri (runnable berbeda), bukan saling menimpa.
         val runnable = if (settle) rebindSettleRunnable else rebindRunnable
         val now = SystemClock.elapsedRealtime()
@@ -1691,6 +1724,17 @@ class AudioEnhancerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) releaseReplacedDynamics(oldDynamics, dynamicsProcessing)
         val finishedAtMs = SystemClock.elapsedRealtime()
         lastBindAtMs = finishedAtMs
+        // Batch 257: semua efek yang ada benar-benar berpindah (efek lama null = tak didukung, tak dihitung)? Bila ada yang gagal dibuat di sesi
+        // baru, objek lama dipertahankan (shouldKeepOld) = masih terikat sesi lama: kembalikan tujuan agar probe berikutnya mencoba lagi.
+        val movedAll = (oldBass == null || bassBoost !== oldBass) && (oldVirtualizer == null || virtualizer !== oldVirtualizer) &&
+            (oldEqualizer == null || equalizer !== oldEqualizer) && (oldLoudness == null || loudnessEnhancer !== oldLoudness) &&
+            (oldDynamics == null || dynamicsProcessing !== oldDynamics)
+        if (movedAll) {
+            boundEffectSession = effectSession
+        } else if (effectSession != boundEffectSession) {
+            android.util.Log.w(TAG, "EffectSession: sebagian efek gagal pindah ke sesi $effectSession; tetap di sesi $boundEffectSession")
+            effectSession = boundEffectSession
+        }
         // Batch 237: latensi NYATA di device (diagnostik): durasi serah-terima + selang sejak perubahan pemutar terakhir.
         val sincePlaybackChange = if (lastPlaybackChangeAtMs == EffectGuardPolicy.NEVER) "n/a" else "${finishedAtMs - lastPlaybackChangeAtMs} ms"
         android.util.Log.w(
@@ -2117,6 +2161,8 @@ class AudioEnhancerService : Service() {
     }
 
     private fun releaseEffects() {
+        effectSession = DumpProbe.GLOBAL_EFFECT_SESSION // Batch 257: ikatan sesi hanya berlaku selama objek efek yang sekarang
+        boundEffectSession = DumpProbe.GLOBAL_EFFECT_SESSION
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
         dynamicsProcessing?.release()
@@ -3005,6 +3051,27 @@ internal object DumpProbe {
     const val CREATE_ATTEMPTS = 3
 
     fun shouldTryCreate(failures: Int): Boolean = failures < CREATE_ATTEMPTS
+
+    /** Batch 257: sesi unik pemutar kandidat (MEDIA/GAME, bukan milik Boomly) yang sedang `started` (BUKAN paused/idle). */
+    fun startedSessions(players: List<Player>, ownUid: Int): List<Int> =
+        players
+            .filter { it.uid != ownUid && it.sessionId > 0 && it.usage in CANDIDATE_USAGES && it.state == "started" }
+            .map { it.sessionId }
+            .distinct()
+
+    /** Sesi 0 = output mix global (perilaku lama). */
+    const val GLOBAL_EFFECT_SESSION = 0
+
+    /** Batch 257: sesi tujuan efek utama dari daftar sesi yang sedang main. Tepat satu = sesi itu; lebih dari satu = global (satu ikatan tak bisa
+     *  melayani dua pemutar); kosong = null (jeda/berhenti: biarkan ikatan sekarang supaya tak ada celah saat dilanjutkan). */
+    fun chooseEffectSession(started: List<Int>): Int? {
+        val sessions = started.filter { it > 0 }.distinct()
+        return when {
+            sessions.isEmpty() -> null
+            sessions.size == 1 -> sessions[0]
+            else -> GLOBAL_EFFECT_SESSION
+        }
+    }
 
     /** Batch 254: penyegaran per-session dijadwalkan saat pemutaran berubah HANYA bila himpunan pemutar relevan berubah (atau tak terbaca = null). */
     fun shouldRefreshOnPlayback(previousKey: String, newKey: String?): Boolean = newKey == null || newKey != previousKey
