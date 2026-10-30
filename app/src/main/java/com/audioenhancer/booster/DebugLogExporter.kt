@@ -70,29 +70,33 @@ object DebugLogExporter {
     }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
-     *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran
-     *  + rantai efek + sesi), disaring ke baris relevan dan dibatasi. HANYA saat user menekan Ekspor (tanpa biaya baterai); tanpa izin = kosong. */
+     *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran +
+     *  rantai efek + baris track) dan `dumpsys media.audio_policy` (output + flag + efek). Batch 256: TANPA saringan kata kunci (v255 membuang baris
+     *  track/efek yang justru dibutuhkan), hanya baris kosong/derau timestamp dibuang dan jumlah baris dibatasi. HANYA saat user menekan Ekspor
+     *  (tanpa biaya baterai); tanpa izin = kosong. */
     private fun readAudioPathSnapshot(context: Context): String {
         if (ContextCompat.checkSelfPermission(context, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return ""
-        return try {
-            val process = ProcessBuilder("dumpsys", "media.audio_flinger").redirectErrorStream(true).start()
-            try {
-                val kept = ArrayList<String>()
-                var read = 0
-                process.inputStream.bufferedReader().use { reader ->
-                    for (line in reader.lineSequence()) {
-                        if (++read > DebugLogFormat.PATH_MAX_READ) break
-                        if (DebugLogFormat.isAudioPathLine(line) && kept.size < DebugLogFormat.PATH_MAX_LINES) kept.add(line.trimEnd())
-                    }
+        return DebugLogFormat.AUDIO_DUMPS.joinToString("") { dump -> readDump(dump) }
+    }
+
+    private fun readDump(dump: DebugLogFormat.AudioDump): String = try {
+        val process = ProcessBuilder("dumpsys", dump.service).redirectErrorStream(true).start()
+        try {
+            val kept = ArrayList<String>()
+            var read = 0
+            process.inputStream.bufferedReader().use { reader ->
+                for (line in reader.lineSequence()) {
+                    if (++read > DebugLogFormat.PATH_MAX_READ) break
+                    if (DebugLogFormat.isAudioPathLine(line) && kept.size < dump.maxLines) kept.add(line.trimEnd())
                 }
-                DebugLogFormat.buildAudioPathSection(kept, read)
-            } finally {
-                process.destroy()
             }
-        } catch (e: Exception) {
-            Log.w(TAG, "Cuplikan jalur audio gagal", e)
-            DebugLogFormat.buildAudioPathSection(emptyList(), 0)
+            DebugLogFormat.buildAudioPathSection(dump.service, kept, read)
+        } finally {
+            process.destroy()
         }
+    } catch (e: Exception) {
+        Log.w(TAG, "Cuplikan ${dump.service} gagal", e)
+        DebugLogFormat.buildAudioPathSection(dump.service, emptyList(), 0)
     }
 
     private fun buildHeader(nowMillis: Long): List<String> = listOf(
@@ -174,22 +178,25 @@ internal object DebugLogFormat {
     /** True untuk baris derau yang dibuang dari laporan; baris lain (efek, serah-terima, crash) selalu dipertahankan. */
     fun isNoise(line: String): Boolean = AUDIO_EFFECT_FLOOD.containsMatchIn(line) || UI_NOISE.containsMatchIn(line)
 
-    /** Batch 255: baris `dumpsys media.audio_flinger` yang menjelaskan jalur keluaran: thread keluaran (tipe MIXER/OFFLOAD/DIRECT/MMAP), rantai efek,
-     *  efek, sesi. Disaring supaya laporan tak membengkak. */
-    private val AUDIO_PATH_KEYS = Regex(
-        "output thread|input thread|thread type|effect chain|effect|chain|session|offload|direct|mmap|standby|sample rate|devices?:",
-        RegexOption.IGNORE_CASE
+    /** Batch 256: dump sistem yang dilampirkan ke ekspor; [maxLines] membatasi ukuran laporan per dump. */
+    data class AudioDump(val service: String, val maxLines: Int)
+
+    val AUDIO_DUMPS: List<AudioDump> = listOf(
+        AudioDump("media.audio_flinger", 2_500),
+        AudioDump("media.audio_policy", 1_500)
     )
 
-    const val PATH_MAX_LINES = 600
     const val PATH_MAX_READ = 60_000
 
-    fun isAudioPathLine(line: String): Boolean = line.isNotBlank() && AUDIO_PATH_KEYS.containsMatchIn(line)
+    /** Derau timestamp dump thread (panjang, tak berguna); sisanya dipertahankan. */
+    private val DUMP_NOISE = Regex("ExtendedTimestamp|BOOTTIME offset")
 
-    /** Bagian akhir laporan. [readLines] = jumlah baris dump yang dibaca (0 + kosong = gagal/tak terbaca). */
-    fun buildAudioPathSection(lines: List<String>, readLines: Int): String = buildString {
-        appendLine("---- jalur audio (dumpsys media.audio_flinger, disaring ${lines.size} dari $readLines baris) ----")
-        if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris relevan)") else lines.forEach { appendLine(it) }
+    fun isAudioPathLine(line: String): Boolean = line.isNotBlank() && !DUMP_NOISE.containsMatchIn(line)
+
+    /** Satu bagian laporan. [readLines] = jumlah baris dump yang dibaca (0 + kosong = gagal/tak terbaca). */
+    fun buildAudioPathSection(title: String, lines: List<String>, readLines: Int): String = buildString {
+        appendLine("---- jalur audio (dumpsys $title, ${lines.size} dari $readLines baris) ----")
+        if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris)") else lines.forEach { appendLine(it) }
     }
 
     /** `aep_debug_yyyyMMdd_HHmmss.txt` — mudah diurutkan dan dikenali di File Manager. */

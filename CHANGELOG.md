@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 256: Diagnostik suara mendem di YouTube Shorts, cuplikan jalur audio lengkap
+
+Laporan user: di YouTube Shorts, pindah ke channel lalu masuk Shorts lagi, suara tiba-tiba mendem dan kembali normal saat scroll ke short lain. Log HP pertama dengan cuplikan jalur audio (Batch 255) menunjukkan sisi Boomly identik antara saat mendem dan saat normal: kelima efek utama terpasang dan aktif dengan cara yang sama. Cuplikan sistem audio menunjukkan ada tiga thread keluaran speaker, dan rantai efek global hanya ada di satu thread (`AudioOut_D`). Dugaan kuat tetapi belum terbukti: track YouTube setelah pindah halaman mendarat di thread lain yang tidak punya rantai efek global, sehingga suaranya tanpa efek Boomly (terdengar datar atau mendem). Track baru saat scroll kembali ke thread yang benar.
+
+Cuplikan itu belum bisa membuktikan karena saat diekspor semua thread sudah standby dan baris track tidak ikut tersimpan (disaring kata kunci). Sekarang cuplikan tidak disaring kata kunci lagi, dan ditambah cuplikan kebijakan audio (output beserta flag dan letak efek). Tetap hanya dibuat saat tombol Ekspor ditekan dan hanya bila izin DUMP aktif, jadi tidak ada beban baterai tambahan. Tidak ada perubahan pada efek atau layanan.
+
+Agar terbukti: ulangi skenario Shorts sampai suara mendem, lalu langsung Ekspor Log Debug sebelum scroll. 4 tes JVM murni di `AudioPathSnapshotTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v255.zip`.
+
 ## Batch 255: Diagnostik jalur audio di Ekspor Log Debug
 
 Laporan user: efek Boomly tidak terdengar dan saklar on/off tidak mengubah suara. Log HP (30 Okt 06:14 sampai 06:30) menunjukkan sisi aplikasi sehat: layanan berjalan terus, kelima efek utama aktif dan dinyatakan sehat di setiap pemeriksaan, serah-terima saat musik mulai normal (68 dan 128 ms), rute keluaran speaker, dan Reverb per-sesi terpasang benar. Log itu tidak memuat penekanan saklar on/off sama sekali (user hanya menguji slider Reverb), dan pemutar musik yang dipakai sekarang adalah aplikasi yang berbeda dari tes sebelumnya. Penyebabnya dengan demikian ada di jalur keluaran pemutar itu di sistem audio, di luar penglihatan log aplikasi, dan belum bisa dipastikan.
