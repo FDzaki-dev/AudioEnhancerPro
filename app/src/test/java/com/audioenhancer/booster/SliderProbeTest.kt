@@ -99,6 +99,53 @@ class SliderProbeTest {
         assertFalse("tak boleh kembali ke set yang blokir selamanya", apply.contains("sessionReverbFailed.add("))
     }
 
+    // ---- Batch 258: coba-ulang buat berjangka pendek (log HP B257, 06:50:33 gagal -> pulih 06:50:40) ----
+
+    @Test
+    fun `create retry targets are failed sessions without a reverb and with attempts left`() {
+        // log B257: sesi 89729 dan 84241 sama-sama gagal sekali; keduanya layak dicoba lagi, urut naik
+        assertEquals(listOf(84241, 89729), DumpProbe.createRetryTargets(mapOf(89729 to 1, 84241 to 1), emptySet()))
+        // sudah punya Reverb = tak dicoba lagi
+        assertEquals(listOf(84241), DumpProbe.createRetryTargets(mapOf(89729 to 1, 84241 to 1), setOf(89729)))
+        // jatah antar-probe habis = tak dicoba tanpa henti
+        assertEquals(
+            emptyList<Int>(),
+            DumpProbe.createRetryTargets(mapOf(89729 to DumpProbe.CREATE_ATTEMPTS), emptySet())
+        )
+        assertEquals(listOf(89729), DumpProbe.createRetryTargets(mapOf(89729 to DumpProbe.CREATE_ATTEMPTS - 1), emptySet()))
+        // tak ada kegagalan tercatat = tak ada yang dicoba
+        assertEquals(emptyList<Int>(), DumpProbe.createRetryTargets(emptyMap(), setOf(1, 2)))
+    }
+
+    @Test
+    fun `create retry is short and bounded`() {
+        assertTrue(DumpProbe.CREATE_RETRIES in 1..3)
+        assertTrue("jeda cukup singkat (log: pulih <= 7 dtk, target < 1,5 dtk total)", DumpProbe.CREATE_RETRY_DELAY_MS in 200L..1_000L)
+        assertTrue(DumpProbe.CREATE_RETRIES * DumpProbe.CREATE_RETRY_DELAY_MS < DumpProbe.DELAY_MS * 2)
+    }
+
+    @Test
+    fun `timed create retry runs under the lock and never consumes the probe level attempts`() {
+        val src = code(serviceSource)
+        val schedule = between(src, "private fun scheduleCreateRetry(", "private fun retryCreateSessionReverbs(")
+        assertTrue(schedule.contains("sessionReverbCreateRetries >= DumpProbe.CREATE_RETRIES"))
+        assertTrue("hanya satu coba-ulang terjadwal sekaligus", schedule.contains("sessionReverbCreateRetryPending"))
+        assertTrue(schedule.contains("kotlinx.coroutines.delay(DumpProbe.CREATE_RETRY_DELAY_MS)"))
+        val retry = between(src, "private fun retryCreateSessionReverbs(", "private fun createSessionReverb(")
+        assertTrue(retry.contains("synchronized(sessionReverbLock)"))
+        assertTrue(retry.contains("if (!isRunning || !dumpProbeScope.isActive) return"))
+        assertTrue("preset dibaca ulang, hanya saat slider aktif", retry.contains("ReverbPresets.isActive(index)"))
+        assertTrue(retry.contains("DumpProbe.createRetryTargets(sessionReverbFailed, sessionReverbs.keys)"))
+        assertTrue(retry.contains("sessionReverbFailed.remove(session)"))
+        assertFalse("coba-ulang berjangka pendek tidak boleh menambah hitungan gagal tingkat-probe", retry.contains("failures + 1"))
+        assertFalse(retry.contains("sessionReverbFailed[session] ="))
+        val apply = between(src, "private fun applySessionReverbs(", "private fun hasDisabledSessionReverb(")
+        assertTrue("jatah coba-ulang buat di-reset tiap penyegaran", apply.contains("sessionReverbCreateRetries = 0"))
+        assertTrue(
+            apply.contains("if (DumpProbe.createRetryTargets(sessionReverbFailed, sessionReverbs.keys).isNotEmpty()) scheduleCreateRetry()")
+        )
+    }
+
     // ---- tes teks sumber ----
 
     @Test

@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 258: Reverb per-sesi pulih lebih cepat setelah gagal dibuat sesaat, filter SpotBugs dirapikan
+
+Laporan CI run55 mengonfirmasi Batch 257 lolos kompilasi: 229 tes hijau, ArchUnit 12 aturan, detekt, detekt typed, dan lint semuanya bersih, tanpa peringatan kompilator. Log HP dari build yang sama juga menunjukkan perubahan besar Batch 257 bekerja: efek utama dipindah dari sesi 0 ke sesi pemutar YouTube, serah-terima ulang berjalan 134 ms, dan pada pemutaran berikutnya serah-terima ulang dilewati karena efek sudah terikat sesi itu.
+
+Satu masalah nyata muncul di log yang sama. Tepat saat efek utama pindah sesi, pembuatan Reverb per-sesi gagal di dua sesi sekaligus (AudioFlinger menolak dengan kode -38, di aplikasi tampil sebagai error -3). Reverb baru terpasang sekitar 7 detik kemudian, menunggu pemeriksaan berikutnya yang ikut perubahan pemutar, jadi selama itu gema tidak terdengar. Sekarang pembuatan yang gagal dicoba ulang dua kali dengan jeda setengah detik, di bawah kunci yang sama dengan jalur lain, tanpa menghabiskan jatah percobaan antar-pemeriksaan. Penyebab penolakan di sisi sistem audio belum diketahui, jadi perbaikan ini hanya mempersingkat jeda pulihnya. Efek utama, Effect Guard, dan serah-terima tidak disentuh.
+
+SpotBugs melaporkan 8 temuan di run55, semuanya sudah dicocokkan satu per satu dengan kode dan ternyata bukan bug: tujuh penulisan properti di `ShizukuGrant` (objek tunggal Kotlin, propertinya memang disimpan sebagai field static) dan satu penugasan lokal yang sebenarnya artefak kompilator pada blok `try` di `createSessionReverb`. Keduanya difilter dengan aturan sempit (hanya kelas itu, dan hanya metode itu), jadi temuan serupa di tempat lain tetap dilaporkan.
+
+3 tes JVM baru di `SliderProbeTest`. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v257.zip`.
+
 ## Batch 257: Efek utama terikat ke sesi pemutar (perbaikan suara mendem di Shorts)
 
 Log HP dengan cuplikan jalur audio menjelaskan struktur masalahnya. Speaker punya tiga output: primary, deep_buffer, dan fast. Seluruh efek global Boomly hidup di thread primary, sedangkan semua track YouTube (diperiksa di seluruh riwayat log) selalu berada di thread deep_buffer. Efek global hanya mengenai track itu bila sistem audio memindahkannya ke thread deep_buffer saat pemutaran mulai, dan perpindahan itu rapuh pada berhenti-lalu-mulai cepat seperti Shorts, channel, lalu Shorts lagi: efek bisa tertinggal di thread lama, dan suara terdengar datar atau mendem sampai track baru dibuat. Ini kelas masalah yang sudah beberapa kali ditambal dengan serah-terima ulang tanpa menyelesaikan akarnya.

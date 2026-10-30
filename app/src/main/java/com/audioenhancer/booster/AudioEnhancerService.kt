@@ -490,6 +490,8 @@ class AudioEnhancerService : Service() {
     private val sessionReverbFailed = HashMap<Int, Int>()          // dijaga sessionReverbLock; session -> jumlah kegagalan buat (B254: maks DumpProbe.CREATE_ATTEMPTS, lalu tak dicoba ulang)
     private val sessionReverbEnableStatus = HashMap<Int, Int>()   // dijaga sessionReverbLock; status setEnabled terakhir yang dicatat per session (cegah banjir log)
     private var sessionReverbRetries = 0                            // dijaga sessionReverbLock; percobaan ulang enable berurutan (Batch 249)
+    private var sessionReverbCreateRetries = 0                      // dijaga sessionReverbLock; coba-ulang BUAT berjangka pendek per penyegaran (Batch 258)
+    private var sessionReverbCreateRetryPending = false             // dijaga sessionReverbLock; satu coba-ulang buat terjadwal sekaligus (Batch 258)
 
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
@@ -1431,6 +1433,7 @@ class AudioEnhancerService : Service() {
     private fun applySessionReverbs(reason: String, sessions: List<Int>) {
         synchronized(sessionReverbLock) {
             sessionReverbRetries = 0 // tiap penyegaran = jatah percobaan ulang enable yang baru
+            sessionReverbCreateRetries = 0 // Batch 258: dan jatah coba-ulang buat yang baru
             val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
             val wanted = if (isRunning && dumpProbeScope.isActive && ReverbPresets.isActive(index)) sessions else emptyList()
             val iterator = sessionReverbs.entries.iterator()
@@ -1465,6 +1468,7 @@ class AudioEnhancerService : Service() {
             } else {
                 sessionReverbRetries = 0
             }
+            if (DumpProbe.createRetryTargets(sessionReverbFailed, sessionReverbs.keys).isNotEmpty()) scheduleCreateRetry()
         }
     }
 
@@ -1508,6 +1512,39 @@ class AudioEnhancerService : Service() {
             } else {
                 sessionReverbRetries = 0
             }
+        }
+    }
+
+    /** Batch 258: log HP B257 (06:50:33) — pembuatan Reverb per-sesi GAGAL sesaat di dua sesi sekaligus (`AudioFlinger could not create effect ... -38`,
+     *  `Error: -3`) tepat saat efek utama pindah sesi; baru pulih di probe berikutnya ±7 dtk kemudian (menunggu perubahan pemutar) = ±7 dtk tanpa
+     *  gema. Coba-ulang berjangka pendek ([DumpProbe.CREATE_RETRIES] kali, jeda [DumpProbe.CREATE_RETRY_DELAY_MS]) TANPA menyentuh hitungan gagal
+     *  tingkat-probe ([sessionReverbFailed]), jadi jatah [DumpProbe.CREATE_ATTEMPTS] antar-probe tidak terkuras. Dipanggil di bawah [sessionReverbLock]. */
+    private fun scheduleCreateRetry() {
+        if (sessionReverbCreateRetryPending || sessionReverbCreateRetries >= DumpProbe.CREATE_RETRIES) return
+        sessionReverbCreateRetryPending = true
+        sessionReverbCreateRetries++
+        dumpProbeScope.launch {
+            kotlinx.coroutines.delay(DumpProbe.CREATE_RETRY_DELAY_MS)
+            retryCreateSessionReverbs()
+        }
+    }
+
+    /** Buat ulang Reverb per-sesi yang gagal dibuat (tanpa dump, di bawah kunci). Hanya sesi yang tercatat gagal di probe terakhir dan jatah
+     *  [DumpProbe.CREATE_ATTEMPTS]-nya belum habis; preset dibaca ulang dari prefs supaya slider terbaru yang dipakai. */
+    private fun retryCreateSessionReverbs() {
+        synchronized(sessionReverbLock) {
+            sessionReverbCreateRetryPending = false
+            if (!isRunning || !dumpProbeScope.isActive) return
+            val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
+            if (!ReverbPresets.isActive(index)) return
+            for (session in DumpProbe.createRetryTargets(sessionReverbFailed, sessionReverbs.keys)) {
+                val created = createSessionReverb(session, index) ?: continue
+                sessionReverbs[session] = created
+                sessionReverbFailed.remove(session)
+                android.util.Log.i(TAG, "Reverb[sesi=$session]: berhasil dibuat pada coba-ulang buat")
+            }
+            if (hasDisabledSessionReverb()) scheduleEnableRetry()
+            if (DumpProbe.createRetryTargets(sessionReverbFailed, sessionReverbs.keys).isNotEmpty()) scheduleCreateRetry()
         }
     }
 
@@ -3051,6 +3088,17 @@ internal object DumpProbe {
     const val CREATE_ATTEMPTS = 3
 
     fun shouldTryCreate(failures: Int): Boolean = failures < CREATE_ATTEMPTS
+
+    /** Batch 258: log HP B257 — pembuatan Reverb per-sesi gagal sesaat (-38/-3) di DUA sesi sekaligus saat efek utama pindah sesi, pulih ±7 dtk
+     *  kemudian di probe berikutnya. Coba-ulang berjangka pendek (maks [CREATE_RETRIES] per penyegaran, jeda [CREATE_RETRY_DELAY_MS]) mempersingkat
+     *  jeda tanpa gema itu; TIDAK menambah hitungan gagal tingkat-probe. */
+    const val CREATE_RETRIES = 2
+    const val CREATE_RETRY_DELAY_MS = 500L
+
+    /** Batch 258: sesi yang layak dicoba buat ulang = pernah gagal ([failures]: sesi -> jumlah gagal), belum punya Reverb ([attached]), dan jatah
+     *  [CREATE_ATTEMPTS]-nya belum habis (sesi yang memang tak bisa dipasangi tidak dicoba tanpa henti). Urut naik supaya deterministik. */
+    fun createRetryTargets(failures: Map<Int, Int>, attached: Set<Int>): List<Int> =
+        failures.filter { (session, count) -> session !in attached && shouldTryCreate(count) }.keys.sorted()
 
     /** Batch 257: sesi unik pemutar kandidat (MEDIA/GAME, bukan milik Boomly) yang sedang `started` (BUKAN paused/idle). */
     fun startedSessions(players: List<Player>, ownUid: Int): List<Int> =

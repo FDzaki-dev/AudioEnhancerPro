@@ -2,7 +2,7 @@
 <!-- Batch 201 — filter SpotBugs REPORT-ONLY untuk Boomly (adaptasi `config/spotbugs/exclude.xml` template SONIX, Batch 574).
      Hanya membuang NOISE khas bytecode Kotlin/Compose (bukan bug nyata) supaya `laporan-untuk-claude.txt` tetap ringkas.
      Pola yang DIBUANG bisa dipulihkan satu per satu bila ingin dicek ulang (hapus blok `<Match>`-nya). Pattern yang tidak
-     disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*; SA_*/ST_* hanya disaring pada 2 kelas di blok Batch 205) TETAP dilaporkan. Dipakai hanya lewat
+     disaring (mis. DE_*, RV_*, DM_*, IS2_*, MS_*; SA_*/ST_* hanya disaring pada kelas/metode di blok Batch 205 dan Batch 258) TETAP dilaporkan. Dipakai hanya lewat
      `./gradlew spotbugsDebug -Pboomly.spotbugs=true` (workflow `android-artifact.yml`); build/rilis biasa tidak menyentuh
      file ini. Pertama jalan di laporan CI run2 (Batch 201): 285 temuan; blok Batch 203 di bawah = hasil triase run2. -->
 <FindBugsFilter>
@@ -114,5 +114,24 @@
     <Match>
         <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
         <Class name="com.audioenhancer.booster.AudioEnhancerService"/>
+    </Match>
+
+    <!-- Batch 258 (triase laporan CI run55: SpotBugs 8 temuan = 7 ST_* + 1 SA_*; tiap titik dicocokkan satu per satu dengan sumber v257, SEMUANYA noise).
+         ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD (7 temuan, ShizukuGrant.kt baris 188, 189, 200, 211, 212, 239, 270): `ShizukuGrant` adalah Kotlin
+         `object` (singleton); propertinya (`appContext`, `starts`, `failure`) dikompilasi jadi field static dan ditulis dari "metode instance"
+         singleton itu = bentuk bytecode normal sebuah `object`, bukan penulisan static yang tak sengaja. State-nya SENGAJA satu per proses
+         (@Volatile atau di bawah `lock`, alasan di komentar Batch 250/251). Hanya kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+        <Class name="com.audioenhancer.booster.ShizukuGrant"/>
+    </Match>
+
+    <!-- SA_LOCAL_SELF_ASSIGNMENT (1 temuan, AudioEnhancerService.kt baris 1528 = ekspresi hasil `created` di akhir blok `try` pada
+         `createSessionReverb`): sumber tak punya penugasan variabel ke dirinya sendiri (grep nihil); kompilator Kotlin menyimpan nilai `try`-sebagai-ekspresi
+         ke slot lokal sementara yang memakai ulang nomor slot `created` (ALOAD n; ASTORE n). Hanya pola ini di metode ini yang disaring. -->
+    <Match>
+        <Bug pattern="SA_LOCAL_SELF_ASSIGNMENT"/>
+        <Class name="com.audioenhancer.booster.AudioEnhancerService"/>
+        <Method name="createSessionReverb"/>
     </Match>
 </FindBugsFilter>
