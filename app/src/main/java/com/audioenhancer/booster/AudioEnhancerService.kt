@@ -2789,6 +2789,13 @@ internal data class CompressorBandSpec(
  * di atas `ATTACK_MAX_MS`). Tuning utama: `THRESHOLD_MAX_DB[1]` (naikkan -> vokal lebih menonjol & konten pelan terangkat
  * lebih kecil; turunkan -> konten pelan lebih keras tetapi backsound di jeda ikut naik).
  *
+ * Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict!!" setelah B261): B261 memaku
+ * keseimbangan nada terlalu jauh (band luar ditarik -6 dB + vokal +4 dB = vokal 10 dB lebih menonjol dari B260; kompresi 20:1 membuat
+ * tiga band keluar di tiga level tetap) dan limiter bekerja 3,9 dB di konten keras. Sweet spot: band luar KEMBALI ke angka B260;
+ * puncak band vokal (ambang + makeup) TETAP -12 dB seperti B259/B260 (konten keras tak naik, limiter tak terbebani), hanya ambang
+ * diturunkan -22 -> -25 dB dan makeup 10 -> 13 dB (konten normal/pelan terangkat). Alasan & angka model: komentar di atas `ATTACK_MAX_MS`.
+ * Ini setelan AKHIR: jangan setel ulang angka band tanpa bukti dari HP.
+ *
  * Tuning (ubah HANYA angka ini, bukan logika): jangkauan slider Vocal Focus = `FOCUS_DEPTH_DB` (bass 16,
  * treble 12; naikkan = efek slider lebih kuat); batas vokal/noise = `CUTOFFS_HZ` (250 / 5000).
  * NOT VERIFIED di device.
@@ -2826,17 +2833,32 @@ internal object CompressorCurve {
     // -21,8 (B259) / -20,7 (B260) -> -16,7 dB, konten pelan -22,6 / -28,8 -> -24,9 dB, vokal di atas backsound 4,7 / 6,5 -> 6,8 dB, backsound
     // naik di jeda 6,9 / 2,8 -> 2,7 dB, lonjakan awal 7,0 -> 3,8 dB. Puncak model +0,8 dBFS (limiter tanpa lookahead, float sebelum volume
     // LVM). Slider turun ke 50%/75%: kontras 8,1/7,9 dB (tak ada pumping). NOT VERIFIED di telinga/HP (model != DP asli).
+    // Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict!!"): B261 'maksimalkan vokal'
+    // lewat dua gerak sekaligus -- makeup vokal +4 dB DAN band luar -6 dB. Karena tiap band 20:1, level keluar band di atas ambang =
+    // ambang + makeup (bukan fungsi masukan): B261 memaku bass/vokal/treble di -26/-8/-32 dB (vokal 18 dB di atas bass, 24 dB di atas
+    // treble; B260 = -20/-12/-26) = spektrum 'radio' tanpa bass & udara, limiter (-1 dB, tanpa lookahead) bekerja 3,9 dB di konten keras.
+    // Model sandbox (vokal +7 dB di atas backsound, respons speaker HP; dikalibrasi ulang: konten pelan B260 -28,4 / B261 -25,0 dB vs
+    // -28,8 / -24,9 di catatan B261), ukuran vokal normal / pelan / keras dBFS, selisih gain band luar vs tengah (bass / treble), GR limiter
+    // konten keras: B260 -19,95 / -28,39 / -16,28, -0,1 / 0,0, 1,3 dB; B261 -16,68 / -25,02 / -14,37, -7,8 / -8,7, 3,9 dB;
+    // B262 -17,81 / -25,66 / -16,04, -2,1 / -2,1, 1,5 dB. Vokal-atas-backsound 5,7 / 5,5 / 5,5 dB, backsound naik di jeda 0,3 / 0,5 / 0,8 dB,
+    // lonjakan awal 1,2 / 3,3 / 2,2 dB, puncak model -0,8 / +1,0 / +0,5 dBFS. Perbaikan: band luar KEMBALI ke B260 (bass 24 - focus x 16,
+    // treble 16 - focus x 12 = +16 / +10 dB di fokus bawaan); band vokal ambang -22 -> -25 dB dan makeup 10 -> 13 dB (puncak band tetap
+    // -12 dB seperti B259/B260 sehingga konten keras tak naik; konten normal +2,1 dB dan pelan +2,7 dB di atas B260, 1,1 / 0,6 dB di
+    // bawah B261); rilis vokal 70 -> 80 ms (kembali ke nilai B260; model tak sensitif terhadap 60-90 ms / attack 6-15 ms). Titik
+    // LUTUT: menurunkan ambang lagi (-26/+14, -27/+15) menambah vokal tetapi backsound-jeda 1,2 -> 1,6 dB, puncak +0,9 -> +1,2 dBFS dan
+    // pumping naik; menaikkan (-24/+12) menurunkan ongkos tetapi vokal hanya +1,5 dB. Slider 50%/75%: selisih nada tetap kecil.
+    // NOT VERIFIED di telinga/HP (model != DP asli). Tuning berikutnya HANYA bila HP menunjukkan gejala spesifik.
     private val ATTACK_MAX_MS = floatArrayOf(6f, 10f, 1f)
-    private val RELEASE_MAX_MS = floatArrayOf(150f, 70f, 40f)
+    private val RELEASE_MAX_MS = floatArrayOf(150f, 80f, 40f)
     private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
-    private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -22f, -36f)
-    private val POST_GAIN_MAX_DB = floatArrayOf(16f, 14f, 8f)
+    private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -25f, -36f)
+    private val POST_GAIN_MAX_DB = floatArrayOf(24f, 13f, 16f)
 
     // Batch 209 (slider "Vocal Focus"): makeup band bass/treble di 100% = POST_GAIN_MAX_DB - focus * FOCUS_DEPTH_DB.
-    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). Batch 261: focus 0.5 (default) = 16-6 = 10 dB bass, 8-4 = 4 dB treble;
-    // band vokal +14 dB berambang -22 dB (bass/treble -36 dB), jadi makeup antar band TIDAK sebanding langsung -- bandingkan level
-    // KELUARAN pada level masukan yang sama (dijaga CompressorCurveTest). focus 0 = bass +16 / treble +8; focus 1 = bass +4 / treble 0.
-    private val FOCUS_DEPTH_DB = floatArrayOf(12f, 0f, 8f)
+    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). Batch 262: focus 0.5 (default) = 24-8 = 16 dB bass, 16-6 = 10 dB treble;
+    // band vokal +13 dB berambang -25 dB (bass/treble -36 dB), jadi makeup antar band TIDAK sebanding langsung -- bandingkan level
+    // KELUARAN pada level masukan yang sama (dijaga CompressorCurveTest). focus 0 = bass +24 / treble +16; focus 1 = bass +8 / treble +4.
+    private val FOCUS_DEPTH_DB = floatArrayOf(16f, 0f, 12f)
     const val DEFAULT_FOCUS = 0.5f
 
     // Batch 210 (polish, request user "1+2"): (2) noise-gate/expander ringan HANYA band bass & treble: di bawah

@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 262: Kompresor vokal disetel ulang ke sweet spot, tidak lagi uncanny
+
+Setelah Batch 261 suara terdengar uncanny. Penyebabnya bukan sekadar terlalu keras: Batch 261 menaikkan makeup vokal 4 dB sekaligus menarik band bass dan treble 6 dB. Karena tiap band berkompresi 20:1, level keluar band di atas ambang praktis sama dengan ambang ditambah makeup, berapa pun masukannya. Hasilnya bass, vokal, dan treble dipaku di sekitar -26, -8, dan -32 dB: vokal 18 dB di atas bass dan 24 dB di atas treble, spektrum seperti radio tanpa bass dan udara. Limiter juga bekerja sekitar 3,9 dB di konten keras. Angka model bukan pengukuran DynamicsProcessing asli.
+
+Setelan akhir (hanya angka `CompressorCurve`): band bass dan treble kembali ke angka Batch 260 (makeup 24 dan 16 dB, kedalaman Vocal Focus 16 dan 12, jadi +16 dan +10 dB di fokus bawaan). Band vokal: ambang -22 menjadi -25 dB, makeup 10 menjadi 13 dB, rilis 70 menjadi 80 ms. Puncak band vokal (ambang + makeup) tetap -12 dB seperti Batch 259 dan 260, jadi konten keras tidak naik dan limiter tidak terbebani; yang terangkat hanya konten normal dan pelan.
+
+Di model sandbox (dikalibrasi ke angka Batch 260 dan 261 di konten pelan): vokal konten normal / pelan / keras -19,95 / -28,39 / -16,28 dB (Batch 260), -16,68 / -25,02 / -14,37 dB (Batch 261), -17,81 / -25,66 / -16,04 dB (Batch 262). Selisih gain bass dan treble terhadap tengah -7,8 dan -8,7 dB di Batch 261 menjadi -2,1 dan -2,1 dB. Kerja limiter di konten keras 3,9 menjadi 1,5 dB, lonjakan awal suara 3,3 menjadi 2,2 dB, vokal di atas backsound 5,5 dB, backsound naik di jeda 0,8 dB. Menurunkan ambang lagi menambah vokal tetapi backsound di jeda dan puncak ikut naik, jadi -25/+13 adalah titik lutut.
+
+**Tes dan status.** 5 tes `CompressorCurveTest` diperbarui, 2 tes baru: selisih level vokal terhadap bass dan treble dibatasi (maks 10 dan 16 dB; Batch 261 = 17 dan 23 dB) dan puncak band vokal dikunci -12 dB. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Bila masih terasa kurang natural, turunkan slider Vocal Focus (makeup bass dan treble naik); bila kurang keras, geser ke arah Batch 261 hanya lewat angka ambang vokal. Revert: `Boomly_v261.zip`.
+
 ## Batch 261: Vokal dimaksimalkan, kompresor lebih bertenaga untuk suara manusia
 
 Setelah Batch 260 vokal masih terdengar kurang keras. Pengukuran ulang di model sinyal sandbox menunjukkan sebabnya: Batch 260 menurunkan makeup band vokal dari 24 ke 10 dB supaya backsound di jeda tidak ikut naik, tetapi harganya vokal di konten pelan jadi sekitar 6 dB lebih pelan dari Batch 259 (-28,8 dibanding -22,6 dB), dan di konten normal hanya naik 1 dB. Angka model bukan pengukuran DynamicsProcessing asli.
