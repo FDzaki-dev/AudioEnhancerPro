@@ -2784,6 +2784,11 @@ internal data class CompressorBandSpec(
  * Batch 210: + presence vokal (post-EQ 2-4,5 kHz, hingga +4 dB) dan expander/noise-gate band bass/treble
  * (ambang hingga -60 dB, rasio hingga 3:1), keduanya ikut slider Compressor & Vocal Focus.
  *
+ * Batch 260: band vokal tak lagi "AGC" (ambang -36 dB + makeup +24 dB meratakan vokal dan backsound ke level yang sama,
+ * backsound di jeda ikut naik): ambang -22 dB + makeup +10 dB + attack 10 / rilis 80 ms (alasan & angka model: komentar
+ * di atas `ATTACK_MAX_MS`). Tuning utama: `THRESHOLD_MAX_DB[1]` (naikkan -> vokal lebih menonjol & konten pelan terangkat
+ * lebih kecil; turunkan -> konten pelan lebih keras tetapi backsound di jeda ikut naik).
+ *
  * Tuning (ubah HANYA angka ini, bukan logika): jangkauan slider Vocal Focus = `FOCUS_DEPTH_DB` (bass 16,
  * treble 12; naikkan = efek slider lebih kuat); batas vokal/noise = `CUTOFFS_HZ` (250 / 5000).
  * NOT VERIFIED di device.
@@ -2800,21 +2805,30 @@ internal object CompressorCurve {
     // Indeks band: 0 = bass/gemuruh, 1 = VOKAL, 2 = treble/desis. `cutoffFrequency` MbcBand = batas ATAS band
     // (harus naik); band terakhir 20000 Hz = nilai yang sudah terbukti diterima (B121, kompresor 1 band).
     private val CUTOFFS_HZ = floatArrayOf(250f, 5000f, 20000f)
-    // Batch 259 (request user: "Lonjakan lalu mendem nya masih ada!!"): waktu attack/release DIPERCEPAT; ratio/threshold/makeup TIDAK berubah
-    // (kekuatan & loudness tetap). Simulasi kompresor+limiter tanpa lookahead pada awal suara keras sesudah hening (tiap Shorts baru):
-    // makeup +24 dB sudah menyala sebelum detektor sempat menurunkan gain = lonjakan di 100 ms pertama, lalu gain tertahan turun
-    // = mendem; rilis lebih pendek memperpendek 'mendem' (0-50 ms: -18,5 -> -13,7 dB; 50-150 ms: -8,7 -> -3,4 dB), attack lebih
-    // cepat + limiter lebih cepat memangkas lonjakan (RMS 100 ms pertama +4,6 -> +0,4 dB di atas kondisi stabil). Riak gain pada
-    // nada stabil <= 0,2 dB p-p. Sebelumnya: attack 10/3/2 ms, rilis 250/100/80 ms. NOT VERIFIED di telinga/HP.
-    private val ATTACK_MAX_MS = floatArrayOf(6f, 1.5f, 1f)
-    private val RELEASE_MAX_MS = floatArrayOf(150f, 50f, 40f)
+    // Batch 260 (request user: "setiap sehabis setel kompresor, voice manusia kalah besar dibanding backsound yang makin keras/overloud").
+    // Penyebab (model sinyal, vokal +7 dB di atas backsound, respons speaker HP): band VOKAL B198-B259 = 20:1 / ambang -36 dB / makeup +24 dB
+    // = pengatur gain otomatis. Semua isi band di atas -36 dB dipaksa ke level yang nyaris sama (+/- 1,8 dB), jadi backsound di jeda
+    // ucapan ikut terangkat ke level vokal: kontras campuran bicara-vs-jeda +7,0 -> -0,7 dB, backsound naik +6,9 dB di jeda dan +3,7 dB
+    // di lembah antar-suku-kata (pumping). Waktu B259 (attack 1,5 / rilis 50 ms) memperparah: transien suku kata terjepit, vokal
+    // di atas backsound saat bicara 5,8 -> 4,7 dB. Band bass/treble sebelumnya sama-sama diangkat (treble +9 dB di atas kering = 'noisy').
+    // Perbaikan (loudness saat bicara SAMA, +0,9 dB): ambang vokal -36 -> -22 dB dan makeup 24 -> 10 dB (isi band yang lebih pelan dari
+    // ambang -- backsound di jeda -- tak lagi dipaksa naik ke level vokal), attack vokal 1,5 -> 10 ms (transien suku kata lolos) dan
+    // rilis 50 -> 80 ms (gain tak pulih di antara suku kata), makeup treble 24 -> 16 (+10 dB di fokus bawaan; bass tetap +16).
+    // Model: kontras -0,7 -> +4,7 dB, vokal di atas backsound 4,7 -> 6,5 dB, backsound naik di jeda 6,9 -> 2,8 dB, pumping lembah
+    // 3,7 -> 1,9 dB, lonjakan awal 7,0 -> 3,9 dB, mendem 0-50 ms -14 -> -2,7 dB. Konsekuensi SADAR: konten yang jauh lebih pelan dari
+    // ambang terangkat lebih kecil (+9 dB, sebelumnya +16 dB). Ratio 20:1 & limiter TIDAK berubah. NOT VERIFIED di telinga/HP (model != DP asli).
+    // Sebelumnya: B259 attack 6/1,5/1 ms, rilis 150/50/40 ms, ambang -36 dB & makeup 24 dB di semua band.
+    private val ATTACK_MAX_MS = floatArrayOf(6f, 10f, 1f)
+    private val RELEASE_MAX_MS = floatArrayOf(150f, 80f, 40f)
     private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
-    private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -36f, -36f)
-    private val POST_GAIN_MAX_DB = floatArrayOf(24f, 24f, 24f)
+    private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -22f, -36f)
+    private val POST_GAIN_MAX_DB = floatArrayOf(24f, 10f, 16f)
 
     // Batch 209 (slider "Vocal Focus"): makeup band bass/treble di 100% = POST_GAIN_MAX_DB - focus * FOCUS_DEPTH_DB.
-    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). focus 0.5 (default) = 24-8 = 16 dB bass,
-    // 24-6 = 18 dB treble = angka Batch 208 persis; focus 0 = semua band +24; focus 1 = bass +8 / treble +12.
+    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). Batch 260: focus 0.5 (default) = 24-8 = 16 dB bass (sama B208),
+    // 16-6 = 10 dB treble (B208: 18); band vokal kini +10 dB tetapi berambang -22 dB (bass/treble -36 dB), jadi makeup antar band
+    // TIDAK lagi sebanding langsung -- bandingkan level KELUARAN pada level masukan yang sama (dijaga CompressorCurveTest).
+    // focus 0 = bass +24 / treble +16; focus 1 = bass +8 / treble +4.
     private val FOCUS_DEPTH_DB = floatArrayOf(16f, 0f, 12f)
     const val DEFAULT_FOCUS = 0.5f
 

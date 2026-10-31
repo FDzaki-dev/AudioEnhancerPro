@@ -113,7 +113,7 @@ object PrefsHelper {
     }
 
     // Batch 209 (request user: slider "Vocal Focus"): 0..100, default 50 = keseimbangan Batch 208
-    // (makeup band bass +16 dB / treble +18 dB / vokal +24 dB di Compressor 100%). Hanya berefek saat
+    // (Batch 260: makeup band bass +16 dB / treble +10 dB / vokal +10 dB berambang -22 dB di Compressor 100%). Hanya berefek saat
     // Compressor > 0 (lihat AudioEnhancerService.setVocalFocus() & CompressorCurve).
     fun getVocalFocus(context: Context): Int =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_VOCAL_FOCUS, VOCAL_FOCUS_DEFAULT)

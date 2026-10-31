@@ -5,10 +5,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 208/209/210 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
- * Yang dijaga: slider 0 = netral/bypass, band VOKAL (indeks 1) = kurva B198 persis (kekuatan tidak
- * berkurang), band bass/treble selalu makeup LEBIH KECIL dari band vokal (vokal menonjol dari backsound),
- * cutoff menaik, dan nilai interpolasi monoton.
+ * Batch 208/209/210/260 — Pure-Kotlin test, tanpa Robolectric: menjaga kurva kompresor 3 band (`CompressorCurve`).
+ * Yang dijaga: slider 0 = netral/bypass, band VOKAL (indeks 1) berambang tinggi (-22 dB) + makeup kecil (+10 dB)
+ * supaya backsound di jeda tidak ikut terangkat (Batch 260), pada level masukan yang sama band vokal keluar
+ * PALING keras (vokal menonjol dari backsound), cutoff menaik, dan nilai interpolasi monoton.
  */
 class CompressorCurveTest {
 
@@ -28,32 +28,57 @@ class CompressorCurveTest {
     }
 
     @Test
-    fun `vocal band at 100 percent keeps the Batch 198 strength with Batch 259 timing`() {
+    fun `vocal band at 100 percent uses the Batch 260 curve`() {
         val b = CompressorCurve.band(vocal, 1f)
-        assertEquals(1.5f, b.attackMs, delta)
-        assertEquals(50f, b.releaseMs, delta)
+        assertEquals(10f, b.attackMs, delta)
+        assertEquals(80f, b.releaseMs, delta)
         assertEquals(20f, b.ratio, delta)
-        assertEquals(-36f, b.thresholdDb, delta)
-        assertEquals(24f, b.postGainDb, delta)
+        assertEquals(-22f, b.thresholdDb, delta)
+        assertEquals(10f, b.postGainDb, delta)
     }
 
     @Test
-    fun `vocal band at 50 percent keeps the Batch 198 strength with Batch 259 timing`() {
+    fun `vocal band at 50 percent uses the Batch 260 curve`() {
         val b = CompressorCurve.band(vocal, 0.5f)
-        assertEquals(5.75f, b.attackMs, delta)
-        assertEquals(100f, b.releaseMs, delta)
+        assertEquals(10f, b.attackMs, delta)
+        assertEquals(115f, b.releaseMs, delta)
         assertEquals(10.5f, b.ratio, delta)
-        assertEquals(-18.5f, b.thresholdDb, delta)
-        assertEquals(12f, b.postGainDb, delta)
+        assertEquals(-11.5f, b.thresholdDb, delta)
+        assertEquals(5f, b.postGainDb, delta)
     }
 
+    /** Batch 260: ambang band tidak sama (vokal -22, luar -36), jadi makeup tak bisa dibandingkan langsung; yang dibandingkan
+     *  = level KELUARAN keadaan-stabil (di bawah ambang +makeup, di atas ambang dikompresi) pada level masukan yang sama. */
+    private fun steadyOutDb(b: CompressorBandSpec, inDb: Float): Float =
+        if (inDb <= b.thresholdDb) inDb + b.postGainDb
+        else b.thresholdDb + (inDb - b.thresholdDb) / b.ratio + b.postGainDb
+
     @Test
-    fun `outer bands get less makeup than the vocal band`() {
-        for (f in floatArrayOf(0.25f, 0.5f, 0.75f, 1f)) {
-            val vocalGain = CompressorCurve.band(vocal, f).postGainDb
-            assertTrue(CompressorCurve.band(0, f).postGainDb < vocalGain)
-            assertTrue(CompressorCurve.band(2, f).postGainDb < vocalGain)
+    fun `at the same input level the vocal band comes out loudest at default focus`() {
+        val v = CompressorCurve.band(vocal, 1f)
+        val bass = CompressorCurve.band(0, 1f)
+        val treble = CompressorCurve.band(2, 1f)
+        for (inDb in floatArrayOf(-24f, -18f, -12f, -6f)) {
+            assertTrue(steadyOutDb(v, inDb) > steadyOutDb(bass, inDb))
+            assertTrue(steadyOutDb(v, inDb) > steadyOutDb(treble, inDb))
         }
+    }
+
+    /** Batch 260: penyebab "backsound makin keras, vokal kalah" = ambang -36 dB + makeup +24 dB meratakan semua isi band vokal. */
+    @Test
+    fun `vocal band does not lift quiet backsound like an automatic gain control`() {
+        val b = CompressorCurve.band(vocal, 1f)
+        assertTrue(b.thresholdDb >= -26f)
+        assertTrue(b.postGainDb <= 12f)
+    }
+
+    /** Batch 260: attack terlalu cepat menjepit transien suku kata; rilis terlalu cepat mengangkat backsound di antara suku kata. */
+    @Test
+    fun `vocal band timing lets syllable onsets through without pumping`() {
+        val b = CompressorCurve.band(vocal, 1f)
+        assertTrue(b.attackMs >= 6f)
+        assertTrue(b.releaseMs >= 60f)
+        assertTrue(b.releaseMs <= CompressorCurve.NEUTRAL_RELEASE_MS)
     }
 
     @Test
@@ -85,24 +110,24 @@ class CompressorCurveTest {
     }
 
     @Test
-    fun `default focus gives the Batch 208 makeup values`() {
+    fun `default focus gives the Batch 260 makeup values`() {
         assertEquals(16f, CompressorCurve.band(0, 1f).postGainDb, delta)
-        assertEquals(24f, CompressorCurve.band(vocal, 1f).postGainDb, delta)
-        assertEquals(18f, CompressorCurve.band(2, 1f).postGainDb, delta)
+        assertEquals(10f, CompressorCurve.band(vocal, 1f).postGainDb, delta)
+        assertEquals(10f, CompressorCurve.band(2, 1f).postGainDb, delta)
     }
 
     @Test
-    fun `focus zero gives every band the same makeup`() {
-        for (i in 0 until CompressorCurve.BAND_COUNT) {
-            assertEquals(24f, CompressorCurve.band(i, 1f, 0f).postGainDb, delta)
-        }
+    fun `focus zero gives bass and treble their maximum makeup`() {
+        assertEquals(24f, CompressorCurve.band(0, 1f, 0f).postGainDb, delta)
+        assertEquals(10f, CompressorCurve.band(vocal, 1f, 0f).postGainDb, delta)
+        assertEquals(16f, CompressorCurve.band(2, 1f, 0f).postGainDb, delta)
     }
 
     @Test
     fun `focus one pulls bass and treble back furthest`() {
         assertEquals(8f, CompressorCurve.band(0, 1f, 1f).postGainDb, delta)
-        assertEquals(24f, CompressorCurve.band(vocal, 1f, 1f).postGainDb, delta)
-        assertEquals(12f, CompressorCurve.band(2, 1f, 1f).postGainDb, delta)
+        assertEquals(10f, CompressorCurve.band(vocal, 1f, 1f).postGainDb, delta)
+        assertEquals(4f, CompressorCurve.band(2, 1f, 1f).postGainDb, delta)
     }
 
     @Test
@@ -111,7 +136,7 @@ class CompressorCurveTest {
         var prevTreble = Float.MAX_VALUE
         for (step in 0..10) {
             val g = step / 10f
-            assertEquals(24f, CompressorCurve.band(vocal, 1f, g).postGainDb, delta)
+            assertEquals(10f, CompressorCurve.band(vocal, 1f, g).postGainDb, delta)
             val bass = CompressorCurve.band(0, 1f, g).postGainDb
             val treble = CompressorCurve.band(2, 1f, g).postGainDb
             assertTrue(bass <= prevBass)
@@ -187,8 +212,8 @@ class CompressorCurveTest {
         assertEquals(CompressorCurve.band(vocal, 1f).postGainDb, CompressorCurve.band(vocal, 7f).postGainDb, delta)
     }
 
-    /** Batch 259: attack & rilis di ujung slider tak boleh lebih lambat dari nilai netral (lonjakan awal suara + "mendem" sesudahnya
-     *  membesar bila lambat) dan band vokal/treble harus cepat; ratio/threshold/makeup dijaga tes lain. */
+    /** Batch 259/260: attack & rilis di ujung slider tak boleh lebih lambat dari nilai netral (lonjakan awal suara + "mendem"
+     *  sesudahnya membesar bila lambat); batas bawah band vokal dijaga tes terpisah di atas. */
     @Test
     fun `attack and release at full slider are never slower than neutral`() {
         for (i in 0 until CompressorCurve.BAND_COUNT) {
@@ -196,7 +221,5 @@ class CompressorCurveTest {
             assertTrue(full.attackMs <= CompressorCurve.NEUTRAL_ATTACK_MS)
             assertTrue(full.releaseMs <= CompressorCurve.NEUTRAL_RELEASE_MS)
         }
-        assertTrue(CompressorCurve.band(vocal, 1f).attackMs <= 2f)
-        assertTrue(CompressorCurve.band(vocal, 1f).releaseMs <= 60f)
     }
 }

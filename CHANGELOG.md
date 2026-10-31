@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 260: Vokal tidak lagi kalah dari backsound saat Compressor dinaikkan
+
+Keluhan: setiap habis menyetel kompresor, suara manusia kalah dari backsound yang terdengar makin keras. Log HP (12:33, build v259) tidak berisi kesalahan: lima efek aktif dan sehat, tetapi log tidak memuat posisi slider, jadi penyebabnya dicari lewat model sinyal di sandbox (vokal 7 dB di atas backsound, respons speaker HP). Angka model bukan pengukuran DynamicsProcessing asli.
+
+Penyebabnya ada di band vokal. Kurva 20:1, ambang -36 dB, makeup +24 dB bekerja sebagai pengatur gain otomatis: semua isi band di atas -36 dB dipaksa ke level yang nyaris sama, sehingga backsound di jeda ucapan ikut naik ke level vokal. Di model, selisih campuran saat bicara dan saat jeda turun dari +7,0 dB menjadi -0,7 dB, backsound naik 6,9 dB di jeda dan 3,7 dB di lembah antar suku kata. Waktu Batch 259 (attack 1,5 ms, rilis 50 ms) memperparah karena transien suku kata terjepit dan gain pulih di antara suku kata.
+
+Perubahan hanya angka `CompressorCurve`: band vokal ambang -36 menjadi -22 dB, makeup 24 menjadi 10 dB, attack 1,5 menjadi 10 ms, rilis 50 menjadi 80 ms; makeup treble 24 menjadi 16 dB. Bass, rasio 20:1, limiter, presence, dan gate tidak berubah. Di model, dengan loudness saat bicara sama (+0,9 dB): kontras +4,7 dB, vokal di atas backsound 4,7 menjadi 6,5 dB, lonjakan awal suara 7,0 menjadi 3,9 dB, mendem 0-50 ms dari -14 menjadi -2,7 dB.
+
+Harga yang disadari: konten yang jauh lebih pelan dari ambang kini terangkat sekitar 9 dB, sebelumnya 16 dB. Penyetelan utama ada di `THRESHOLD_MAX_DB[1]` dan `POST_GAIN_MAX_DB[1]`.
+
+Temuan terbuka, tidak diubah: dump audio_flinger sesi 169 menunjukkan Virtualizer berada setelah DynamicsProcessing di rantai efek. Jika overloud masih ada saat Compressor 0%, kandidat berikutnya adalah membuat DynamicsProcessing sebelum Virtualizer.
+
+5 tes `CompressorCurveTest` diperbarui, 3 tes baru. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v259.zip`.
+
 ## Batch 259: Lonjakan di awal suara dan mendem sesudahnya, waktu kompresor dan limiter dipercepat
 
 Laporan CI run56 mengonfirmasi Batch 258 lolos: 232 tes hijau, ArchUnit 12 aturan, SpotBugs 0, detekt, detekt typed, dan lint bersih. Log HP dari build yang sama menunjukkan penempatan efek sudah benar: lima efek utama terikat ke sesi YouTube, serah-terima ulang dilewati di tiap Shorts, semua efek sehat, dan dump sistem audio memperlihatkan rantai efek aktif di thread yang dipakai track YouTube. Karena lonjakan lalu mendem tetap terdengar walau efek berada di tempat yang benar, penyebabnya bukan lagi penempatan atau serah-terima, melainkan perilaku kompresor itu sendiri.
