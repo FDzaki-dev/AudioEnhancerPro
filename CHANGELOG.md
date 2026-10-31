@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 261: Vokal dimaksimalkan, kompresor lebih bertenaga untuk suara manusia
+
+Setelah Batch 260 vokal masih terdengar kurang keras. Pengukuran ulang di model sinyal sandbox menunjukkan sebabnya: Batch 260 menurunkan makeup band vokal dari 24 ke 10 dB supaya backsound di jeda tidak ikut naik, tetapi harganya vokal di konten pelan jadi sekitar 6 dB lebih pelan dari Batch 259 (-28,8 dibanding -22,6 dB), dan di konten normal hanya naik 1 dB. Angka model bukan pengukuran DynamicsProcessing asli.
+
+Perubahan hanya angka `CompressorCurve`: makeup vokal 10 menjadi 14 dB dengan ambang tetap -22 dB, rilis vokal 80 menjadi 70 ms, makeup bass 24 menjadi 16 dB, makeup treble 16 menjadi 8 dB, dan kedalaman Vocal Focus bass 16 menjadi 12, treble 12 menjadi 8 supaya makeup band luar tidak pernah negatif. Dengan fokus bawaan, makeup di Compressor 100% menjadi bass +10, vokal +14, treble +4 dB.
+
+Di model: level vokal konten normal -21,8 (Batch 259) menjadi -16,7 dB, konten pelan -24,9 dB, vokal di atas backsound 4,7 menjadi 6,8 dB, backsound naik di jeda 6,9 menjadi 2,7 dB, lonjakan awal suara 7,0 menjadi 3,8 dB. Puncak model +0,8 dBFS sebelum volume sistem, karena limiter tanpa lookahead. Konten pelan masih sekitar 2 dB di bawah Batch 259; menurunkan ambang ke -25 dB mengangkatnya, tetapi backsound di jeda naik lagi sekitar 5 dB.
+
+5 tes `CompressorCurveTest` diperbarui, 1 tes baru. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v260.zip`.
+
 ## Batch 260: Vokal tidak lagi kalah dari backsound saat Compressor dinaikkan
 
 Keluhan: setiap habis menyetel kompresor, suara manusia kalah dari backsound yang terdengar makin keras. Log HP (12:33, build v259) tidak berisi kesalahan: lima efek aktif dan sehat, tetapi log tidak memuat posisi slider, jadi penyebabnya dicari lewat model sinyal di sandbox (vokal 7 dB di atas backsound, respons speaker HP). Angka model bukan pengukuran DynamicsProcessing asli.

@@ -2818,18 +2818,25 @@ internal object CompressorCurve {
     // 3,7 -> 1,9 dB, lonjakan awal 7,0 -> 3,9 dB, mendem 0-50 ms -14 -> -2,7 dB. Konsekuensi SADAR: konten yang jauh lebih pelan dari
     // ambang terangkat lebih kecil (+9 dB, sebelumnya +16 dB). Ratio 20:1 & limiter TIDAK berubah. NOT VERIFIED di telinga/HP (model != DP asli).
     // Sebelumnya: B259 attack 6/1,5/1 ms, rilis 150/50/40 ms, ambang -36 dB & makeup 24 dB di semua band.
+    // Batch 261 (request user: "Masih kureng keras, maksimalkan vokal nya!!"): B260 menurunkan makeup vokal 24 -> 10 dB, sehingga
+    // vokal di konten PELAN justru 6 dB lebih pelan dari B259 (model: -28,8 vs -22,6) dan di konten normal hanya +1 dB. Kini makeup vokal
+    // 10 -> 14 dB (ambang TETAP -22 dB, jadi backsound di jeda tetap tak ikut terangkat), rilis vokal 80 -> 70 ms, dan band luar ditarik
+    // lebih jauh supaya jatah puncak limiter dipakai vokal: makeup bass 24 -> 16 dB, treble 16 -> 8 dB (kedalaman Vocal Focus bass 16 -> 12,
+    // treble 12 -> 8 agar makeup band luar tak pernah negatif). Model (vokal +7 dB di atas backsound, speaker HP): level vokal konten normal
+    // -21,8 (B259) / -20,7 (B260) -> -16,7 dB, konten pelan -22,6 / -28,8 -> -24,9 dB, vokal di atas backsound 4,7 / 6,5 -> 6,8 dB, backsound
+    // naik di jeda 6,9 / 2,8 -> 2,7 dB, lonjakan awal 7,0 -> 3,8 dB. Puncak model +0,8 dBFS (limiter tanpa lookahead, float sebelum volume
+    // LVM). Slider turun ke 50%/75%: kontras 8,1/7,9 dB (tak ada pumping). NOT VERIFIED di telinga/HP (model != DP asli).
     private val ATTACK_MAX_MS = floatArrayOf(6f, 10f, 1f)
-    private val RELEASE_MAX_MS = floatArrayOf(150f, 80f, 40f)
+    private val RELEASE_MAX_MS = floatArrayOf(150f, 70f, 40f)
     private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
     private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -22f, -36f)
-    private val POST_GAIN_MAX_DB = floatArrayOf(24f, 10f, 16f)
+    private val POST_GAIN_MAX_DB = floatArrayOf(16f, 14f, 8f)
 
     // Batch 209 (slider "Vocal Focus"): makeup band bass/treble di 100% = POST_GAIN_MAX_DB - focus * FOCUS_DEPTH_DB.
-    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). Batch 260: focus 0.5 (default) = 24-8 = 16 dB bass (sama B208),
-    // 16-6 = 10 dB treble (B208: 18); band vokal kini +10 dB tetapi berambang -22 dB (bass/treble -36 dB), jadi makeup antar band
-    // TIDAK lagi sebanding langsung -- bandingkan level KELUARAN pada level masukan yang sama (dijaga CompressorCurveTest).
-    // focus 0 = bass +24 / treble +16; focus 1 = bass +8 / treble +4.
-    private val FOCUS_DEPTH_DB = floatArrayOf(16f, 0f, 12f)
+    // Band vokal kedalaman 0 (TIDAK pernah dipengaruhi focus). Batch 261: focus 0.5 (default) = 16-6 = 10 dB bass, 8-4 = 4 dB treble;
+    // band vokal +14 dB berambang -22 dB (bass/treble -36 dB), jadi makeup antar band TIDAK sebanding langsung -- bandingkan level
+    // KELUARAN pada level masukan yang sama (dijaga CompressorCurveTest). focus 0 = bass +16 / treble +8; focus 1 = bass +4 / treble 0.
+    private val FOCUS_DEPTH_DB = floatArrayOf(12f, 0f, 8f)
     const val DEFAULT_FOCUS = 0.5f
 
     // Batch 210 (polish, request user "1+2"): (2) noise-gate/expander ringan HANYA band bass & treble: di bawah
