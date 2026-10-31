@@ -2474,7 +2474,7 @@ class AudioEnhancerService : Service() {
                                     // Literal `0` (Int) di posisi ini yang bikin compileDebugKotlin gagal (run 133).
         /* enabled      = */ true,
         /* linkGroup    = */ 0,
-        /* attackTime   = */ 3f,
+        /* attackTime   = */ 0.5f, // Batch 259: sebelumnya 3 ms (lonjakan di awal suara keras lolos sebelum limiter menahan)
         /* releaseTime  = */ 60f,
         /* ratio        = */ 20f,
         /* threshold    = */ -1f,
@@ -2800,8 +2800,14 @@ internal object CompressorCurve {
     // Indeks band: 0 = bass/gemuruh, 1 = VOKAL, 2 = treble/desis. `cutoffFrequency` MbcBand = batas ATAS band
     // (harus naik); band terakhir 20000 Hz = nilai yang sudah terbukti diterima (B121, kompresor 1 band).
     private val CUTOFFS_HZ = floatArrayOf(250f, 5000f, 20000f)
-    private val ATTACK_MAX_MS = floatArrayOf(10f, 3f, 2f)
-    private val RELEASE_MAX_MS = floatArrayOf(250f, 100f, 80f)
+    // Batch 259 (request user: "Lonjakan lalu mendem nya masih ada!!"): waktu attack/release DIPERCEPAT; ratio/threshold/makeup TIDAK berubah
+    // (kekuatan & loudness tetap). Simulasi kompresor+limiter tanpa lookahead pada awal suara keras sesudah hening (tiap Shorts baru):
+    // makeup +24 dB sudah menyala sebelum detektor sempat menurunkan gain = lonjakan di 100 ms pertama, lalu gain tertahan turun
+    // = mendem; rilis lebih pendek memperpendek 'mendem' (0-50 ms: -18,5 -> -13,7 dB; 50-150 ms: -8,7 -> -3,4 dB), attack lebih
+    // cepat + limiter lebih cepat memangkas lonjakan (RMS 100 ms pertama +4,6 -> +0,4 dB di atas kondisi stabil). Riak gain pada
+    // nada stabil <= 0,2 dB p-p. Sebelumnya: attack 10/3/2 ms, rilis 250/100/80 ms. NOT VERIFIED di telinga/HP.
+    private val ATTACK_MAX_MS = floatArrayOf(6f, 1.5f, 1f)
+    private val RELEASE_MAX_MS = floatArrayOf(150f, 50f, 40f)
     private val RATIO_MAX = floatArrayOf(20f, 20f, 20f)
     private val THRESHOLD_MAX_DB = floatArrayOf(-36f, -36f, -36f)
     private val POST_GAIN_MAX_DB = floatArrayOf(24f, 24f, 24f)

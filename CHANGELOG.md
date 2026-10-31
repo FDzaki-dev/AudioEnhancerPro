@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 259: Lonjakan di awal suara dan mendem sesudahnya, waktu kompresor dan limiter dipercepat
+
+Laporan CI run56 mengonfirmasi Batch 258 lolos: 232 tes hijau, ArchUnit 12 aturan, SpotBugs 0, detekt, detekt typed, dan lint bersih. Log HP dari build yang sama menunjukkan penempatan efek sudah benar: lima efek utama terikat ke sesi YouTube, serah-terima ulang dilewati di tiap Shorts, semua efek sehat, dan dump sistem audio memperlihatkan rantai efek aktif di thread yang dipakai track YouTube. Karena lonjakan lalu mendem tetap terdengar walau efek berada di tempat yang benar, penyebabnya bukan lagi penempatan atau serah-terima, melainkan perilaku kompresor itu sendiri.
+
+Kompresor di 100% memakai rasio 20:1, ambang -36 dB, dan makeup +24 dB tanpa lookahead. Di awal suara keras sesudah hening (tiap Shorts baru), makeup +24 dB sudah menyala sebelum pendeteksi sempat menurunkan gain, jadi puncak 10 ms pertama melonjak jauh di atas level stabil lalu dipotong limiter; sesudahnya gain tertahan turun dan baru pulih mengikuti waktu rilis, sehingga suara berikutnya terdengar tertahan. Simulasi sederhana dengan parameter lama memberi RMS 100 ms pertama sekitar 3 sampai 4,6 dB di atas level stabil, dan konten pelan sesudahnya tertekan sekitar 14 dB (0-50 ms), 7 dB (50-150 ms), dan 2 dB (150-300 ms). Ini model ideal, bukan pengukuran mesin DynamicsProcessing asli.
+
+Perubahannya hanya waktu, kekuatan tidak disentuh: attack maksimum band bass/vokal/treble 10/3/2 menjadi 6/1,5/1 ms, rilis maksimum 250/100/80 menjadi 150/50/40 ms, dan attack limiter utama 3 menjadi 0,5 ms. Rasio, ambang, makeup, dan rilis limiter tetap. Pada model, RMS 100 ms pertama turun ke sekitar 0,4 dB di atas level stabil, tekanan 0-50 ms dan 50-150 ms turun ke sekitar 14 dan 3 dB, dan riak gain pada nada stabil tetap di bawah 0,2 dB puncak-ke-puncak.
+
+Satu hal terbuka yang ditemukan saat membaca log: probe sesi yang jatuh dalam jeda minimum 3 detik dari probe sebelumnya dibuang tanpa dijadwalkan ulang (log 07:21:15, pemutar baru tanpa probe selama 12 detik). Pada YouTube sesinya tetap sama sehingga tidak berdampak, tetapi bila sebuah aplikasi mengganti sesi, efek bisa tertinggal di sesi lama. Belum diperbaiki di batch ini.
+
+2 tes `CompressorCurveTest` diperbarui, 1 tes baru. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v258.zip`.
+
 ## Batch 258: Reverb per-sesi pulih lebih cepat setelah gagal dibuat sesaat, filter SpotBugs dirapikan
 
 Laporan CI run55 mengonfirmasi Batch 257 lolos kompilasi: 229 tes hijau, ArchUnit 12 aturan, detekt, detekt typed, dan lint semuanya bersih, tanpa peringatan kompilator. Log HP dari build yang sama juga menunjukkan perubahan besar Batch 257 bekerja: efek utama dipindah dari sesi 0 ke sesi pemutar YouTube, serah-terima ulang berjalan 134 ms, dan pada pemutaran berikutnya serah-terima ulang dilewati karena efek sudah terikat sesi itu.

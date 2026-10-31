@@ -28,20 +28,20 @@ class CompressorCurveTest {
     }
 
     @Test
-    fun `vocal band at 100 percent equals the Batch 198 curve`() {
+    fun `vocal band at 100 percent keeps the Batch 198 strength with Batch 259 timing`() {
         val b = CompressorCurve.band(vocal, 1f)
-        assertEquals(3f, b.attackMs, delta)
-        assertEquals(100f, b.releaseMs, delta)
+        assertEquals(1.5f, b.attackMs, delta)
+        assertEquals(50f, b.releaseMs, delta)
         assertEquals(20f, b.ratio, delta)
         assertEquals(-36f, b.thresholdDb, delta)
         assertEquals(24f, b.postGainDb, delta)
     }
 
     @Test
-    fun `vocal band at 50 percent equals the Batch 198 curve`() {
+    fun `vocal band at 50 percent keeps the Batch 198 strength with Batch 259 timing`() {
         val b = CompressorCurve.band(vocal, 0.5f)
-        assertEquals(6.5f, b.attackMs, delta)
-        assertEquals(125f, b.releaseMs, delta)
+        assertEquals(5.75f, b.attackMs, delta)
+        assertEquals(100f, b.releaseMs, delta)
         assertEquals(10.5f, b.ratio, delta)
         assertEquals(-18.5f, b.thresholdDb, delta)
         assertEquals(12f, b.postGainDb, delta)
@@ -185,5 +185,18 @@ class CompressorCurveTest {
     fun `fraction outside 0 to 1 is clamped`() {
         assertEquals(CompressorCurve.band(vocal, 0f).postGainDb, CompressorCurve.band(vocal, -3f).postGainDb, delta)
         assertEquals(CompressorCurve.band(vocal, 1f).postGainDb, CompressorCurve.band(vocal, 7f).postGainDb, delta)
+    }
+
+    /** Batch 259: attack & rilis di ujung slider tak boleh lebih lambat dari nilai netral (lonjakan awal suara + "mendem" sesudahnya
+     *  membesar bila lambat) dan band vokal/treble harus cepat; ratio/threshold/makeup dijaga tes lain. */
+    @Test
+    fun `attack and release at full slider are never slower than neutral`() {
+        for (i in 0 until CompressorCurve.BAND_COUNT) {
+            val full = CompressorCurve.band(i, 1f)
+            assertTrue(full.attackMs <= CompressorCurve.NEUTRAL_ATTACK_MS)
+            assertTrue(full.releaseMs <= CompressorCurve.NEUTRAL_RELEASE_MS)
+        }
+        assertTrue(CompressorCurve.band(vocal, 1f).attackMs <= 2f)
+        assertTrue(CompressorCurve.band(vocal, 1f).releaseMs <= 60f)
     }
 }
