@@ -58,6 +58,11 @@ class AudioEnhancerService : Service() {
 
     companion object {
         private const val TAG = "AudioEnhancerService"
+        // Batch 264 (log Samsung SM-S711B: DynamicsProcessing ditolak device, lihat `DynamicsProfiles`): profil DynamicsProcessing yang sedang
+        // dipakai (indeks ke `DynamicsProfiles.ORDER`) diingat selama proses hidup supaya device yang menolak profil lengkap tidak mengulang
+        // percobaan gagal di tiap serah-terima efek; `dynamicsRejectedAll` = SEMUA profil ditolak (tidak dicoba lagi sampai proses baru).
+        @Volatile private var dynamicsProfileIndex = 0
+        @Volatile private var dynamicsRejectedAll = false
         const val CHANNEL_ID = "audio_booster_channel"
         const val NOTIF_ID = 1001
         // Batch 124 (hotfix URGENT, laporan user): app kehilangan kendali/pengaruh ke
@@ -990,6 +995,11 @@ class AudioEnhancerService : Service() {
             equalizerFallbackActive = false // Batch 87: API<28 = tidak ada limiter MAUPUN fallback EQ, sama-sama UNAVAILABLE
             return
         }
+        if (dynamicsRejectedAll) { // Batch 264: semua profil sudah ditolak device ini; jangan ulang percobaan + galat yang sama
+            dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
+            equalizerFallbackActive = false
+            return
+        }
         // Batch 87 (roadmap.md Fase 0 #6, FASE 1): dievaluasi SEBELUM try-block karena
         // `attachEqualizer()` SELALU dipanggil duluan (urutan tetap di `attachEffects()`/
         // `retryControlAcquisition()`, TIDAK diubah) — `equalizerState` di titik ini SUDAH
@@ -1005,7 +1015,8 @@ class AudioEnhancerService : Service() {
             // Batch 235: `Config` SUDAH berisi nilai tersimpan (MBC, presence, EQ cadangan, limiter) saat konstruktor menulisnya ke
             // mesin efek; sebelumnya (B234 ke bawah) konstruktor menulis isi bawaan `Config.Builder` dulu, nilai tersimpan baru
             // menyusul lewat blok `apply` di bawah. Isi `Config` & jalur cadangannya: lihat `buildDynamicsConfig`.
-            val config = buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)
+            val profile = DynamicsProfiles.ORDER[dynamicsProfileIndex] // Batch 264
+            val config = buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus, profile)
             dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config).apply { // Batch 231
                 // Batch 235: penulisan di blok ini KINI penegasan idempoten (nilai SAMA dgn `config`) — dipertahankan karena
                 // (1) menjaga `dynamicsState = FAILED` tetap terlapor, (2) menjadi jaring bila `buildDynamicsConfig` jatuh ke
@@ -1051,6 +1062,9 @@ class AudioEnhancerService : Service() {
             }
             dynamicsState = EffectState.ENABLED
             equalizerFallbackActive = needsEqFallback
+            if (dynamicsProfileIndex > 0) {
+                android.util.Log.i(TAG, "DynamicsProcessing aktif dengan profil cadangan #$dynamicsProfileIndex $profile (device menolak profil lengkap)") // Batch 264
+            }
             // Batch 87: "upgrade" equalizerState dari UNAVAILABLE -> ENABLED HANYA di jalur
             // fallback (needsEqFallback true berarti equalizerState memang UNAVAILABLE tepat
             // sebelum baris ini — lihat definisi needsEqFallback di atas) — TIDAK PERNAH
@@ -1059,6 +1073,18 @@ class AudioEnhancerService : Service() {
         } catch (e: Exception) {
             dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
             equalizerFallbackActive = false
+            if (DynamicsProfiles.isDeterministicRejection(e)) {
+                // Batch 264: penolakan deterministik (mis. Samsung SM-S711B "bad parameter value") -> turun satu profil dan coba lagi;
+                // bila sudah profil terakhir, tandai semua ditolak (tanpa percobaan/galat berulang). Galat lain TIDAK menurunkan profil.
+                val rejected = dynamicsProfileIndex
+                if (rejected < DynamicsProfiles.LAST_INDEX) {
+                    dynamicsProfileIndex = rejected + 1
+                    android.util.Log.w(TAG, "DynamicsProcessing profil #$rejected ${DynamicsProfiles.ORDER[rejected]} ditolak device (${e.message}); mencoba profil #${rejected + 1}")
+                    attachDynamicsProcessing(enableNow)
+                    return
+                }
+                dynamicsRejectedAll = true
+            }
             // Batch 87: equalizerState SENGAJA TIDAK disentuh di sini kalau needsEqFallback
             // true — sudah UNAVAILABLE dari attachEqualizer() sebelumnya (Equalizer legacy
             // gagal), sekarang fallback-nya JUGA gagal (device ini API<28 pun sudah return
@@ -2482,13 +2508,14 @@ class AudioEnhancerService : Service() {
     )
 
     @android.annotation.SuppressLint("NewApi")
-    private fun newDynamicsConfigBuilder(needsEqFallback: Boolean): DynamicsProcessing.Config.Builder =
+    private fun newDynamicsConfigBuilder(needsEqFallback: Boolean, profile: DynamicsProfile): DynamicsProcessing.Config.Builder =
         DynamicsProcessing.Config.Builder(
-            DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION, // respons transient limiter lebih relevan dari resolusi frekuensi di sini
+            // respons transient limiter lebih relevan dari resolusi frekuensi di sini (Batch 264: profil cadangan boleh FREQUENCY)
+            if (profile.favorFrequency) DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION else DynamicsProcessing.VARIANT_FAVOR_TIME_RESOLUTION,
             2,                                                // channelCount (stereo, lihat catatan panjang `attachDynamicsProcessing`)
             needsEqFallback, if (needsEqFallback) FALLBACK_EQ_BANDS_HZ.size else 0, // pre-EQ: Batch 87, HANYA aktif kalau Equalizer legacy UNAVAILABLE
-            true, CompressorCurve.BAND_COUNT, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`)
-            true, CompressorCurve.PRESENCE_BAND_COUNT, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); SEBELUMNYA "false, 0" (tidak dipakai)
+            profile.mbc, if (profile.mbc) CompressorCurve.BAND_COUNT else 0, // Batch 121: MBC = kompresor user-adjustable (lihat setCompressorAmount()); Batch 208: 1 band full-range -> 3 band (`CompressorCurve`); Batch 264: ikut profil
+            profile.postEq, if (profile.postEq) CompressorCurve.PRESENCE_BAND_COUNT else 0, // post-EQ: Batch 210, presence vokal 2-4,5 kHz (lihat `CompressorCurve`); Batch 264: ikut profil
             true      // limiter: tetap selalu dipakai (Batch 84), lepas dari status fallback EQ
         )
 
@@ -2504,22 +2531,27 @@ class AudioEnhancerService : Service() {
     private fun buildDynamicsConfig(
         needsEqFallback: Boolean,
         savedCompressor: Int,
-        savedVocalFocus: Int
+        savedVocalFocus: Int,
+        profile: DynamicsProfile
     ): DynamicsProcessing.Config {
         return try {
-            val builder = newDynamicsConfigBuilder(needsEqFallback)
+            val builder = newDynamicsConfigBuilder(needsEqFallback, profile)
             val fraction = savedCompressor.coerceIn(0, 100) / 100f
             val focus = savedVocalFocus.coerceIn(0, 100) / 100f
-            val mbc = DynamicsProcessing.Mbc(true, true, CompressorCurve.BAND_COUNT)
-            for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
-                mbc.setBand(bandIndex, compressorMbcBand(bandIndex, savedCompressor, fraction, focus))
+            if (profile.mbc) { // Batch 264: profil cadangan bisa tanpa MBC / presence
+                val mbc = DynamicsProcessing.Mbc(true, true, CompressorCurve.BAND_COUNT)
+                for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
+                    mbc.setBand(bandIndex, compressorMbcBand(bandIndex, savedCompressor, fraction, focus))
+                }
+                builder.setMbcAllChannelsTo(mbc)
             }
-            builder.setMbcAllChannelsTo(mbc)
-            val presence = DynamicsProcessing.Eq(true, true, CompressorCurve.PRESENCE_BAND_COUNT)
-            for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
-                presence.setBand(presenceIndex, presenceEqBand(presenceIndex, savedCompressor, fraction, focus))
+            if (profile.postEq) {
+                val presence = DynamicsProcessing.Eq(true, true, CompressorCurve.PRESENCE_BAND_COUNT)
+                for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                    presence.setBand(presenceIndex, presenceEqBand(presenceIndex, savedCompressor, fraction, focus))
+                }
+                builder.setPostEqAllChannelsTo(presence)
             }
-            builder.setPostEqAllChannelsTo(presence)
             if (needsEqFallback) {
                 val preEq = DynamicsProcessing.Eq(true, true, FALLBACK_EQ_BANDS_HZ.size)
                 FALLBACK_EQ_BANDS_HZ.forEachIndexed { index, freqHz ->
@@ -2532,7 +2564,7 @@ class AudioEnhancerService : Service() {
             builder.build()
         } catch (e: Exception) {
             android.util.Log.w(TAG, "Config DynamicsProcessing terisi nilai tersimpan gagal dibangun; memakai Config bawaan (nilai ditulis sesudah objek dibuat)", e)
-            newDynamicsConfigBuilder(needsEqFallback).build()
+            newDynamicsConfigBuilder(needsEqFallback, profile).build()
         }
     }
 
@@ -2549,11 +2581,16 @@ class AudioEnhancerService : Service() {
         try {
             // Batch 208: 3 band (bass / VOKAL / treble). Band tengah = kurva B198 persis; band luar
             // dapat makeup lebih kecil agar vokal menonjol dari backsound (lihat `CompressorCurve`).
-            for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
-                target?.setMbcBandAllChannelsTo(bandIndex, compressorMbcBand(bandIndex, amount, fraction, focus))
+            val profile = DynamicsProfiles.ORDER[dynamicsProfileIndex] // Batch 264: tulis hanya ke tahap yang ada di profil aktif
+            if (profile.mbc) {
+                for (bandIndex in 0 until CompressorCurve.BAND_COUNT) {
+                    target?.setMbcBandAllChannelsTo(bandIndex, compressorMbcBand(bandIndex, amount, fraction, focus))
+                }
             }
-            for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
-                target?.setPostEqBandAllChannelsTo(presenceIndex, presenceEqBand(presenceIndex, amount, fraction, focus))
+            if (profile.postEq) {
+                for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                    target?.setPostEqBandAllChannelsTo(presenceIndex, presenceEqBand(presenceIndex, amount, fraction, focus))
+                }
             }
         } catch (e: Exception) {
             dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Compressor MBC band", e)

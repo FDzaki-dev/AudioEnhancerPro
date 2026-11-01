@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 264: Limiter dan kompresor kembali aktif di device yang menolak DynamicsProcessing penuh
+
+Log Samsung SM-S711B (Android 14) menunjukkan `DynamicsProcessing` ditolak saat dibuat ("AudioEffect: bad parameter value" di `setEngineArchitecture`): rantai efek di device itu hanya berisi Reverb, Bass, Equalizer, Loudness, dan Virtualizer, jadi limiter dan kompresor tidak ada sama sekali (dan preset tanpa pengaman terasa terlalu keras). Percobaan yang sama diulang di setiap serah-terima efek: 109 galat dengan stack trace dalam 25 menit.
+
+Perbaikan: tangga profil cadangan (`DynamicsProfiles.kt`). Urutan: konfigurasi penuh Batch 210 (tidak berubah untuk device yang menerimanya), tanpa presence, varian resolusi frekuensi (dengan dan tanpa presence), lalu limiter saja. Profil turun satu tingkat hanya bila device menolak dengan `IllegalArgumentException`; galat lain tidak menurunkan profil. Profil yang diterima diingat selama proses hidup, dan bila semua ditolak percobaan berhenti (satu galat, bukan ratusan). Penulisan band kompresor dan presence mengikuti profil aktif. Log mencatat "profil cadangan #N" saat berhasil.
+
+**Status.** 3 file kode: `AudioEnhancerService.kt`, `DynamicsProfiles.kt` (baru), `DynamicsProfilesTest.kt` (baru, 5 tes). Belum dikompilasi dan belum diuji di Samsung, jadi NOT VERIFIED; profil mana yang diterima Samsung baru terlihat di log berikutnya. Preset B263 dan kompresor B262 tidak berubah. Revert: `Boomly_v263.zip`.
+
 ## Batch 263: Level 9 preset bawaan disamakan ke sweet spot, tidak lagi terlalu keras
 
 Semua preset bawaan terasa terlalu keras. Penyebabnya terukur di model: LoudnessEnhancer 600 sampai 1200 mB (setara +6 sampai +12 dB) ditumpuk dengan boost EQ dan BassBoost 1000, sehingga preset non-Flat berada +8 sampai +19 dB di atas Flat dan selisih antar preset sampai 10 dB (Acoustic +8, Cinema +16, EDM +19 di bobot K).
