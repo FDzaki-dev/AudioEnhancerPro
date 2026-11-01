@@ -2789,7 +2789,7 @@ internal data class CompressorBandSpec(
  * di atas `ATTACK_MAX_MS`). Tuning utama: `THRESHOLD_MAX_DB[1]` (naikkan -> vokal lebih menonjol & konten pelan terangkat
  * lebih kecil; turunkan -> konten pelan lebih keras tetapi backsound di jeda ikut naik).
  *
- * Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict!!" setelah B261): B261 memaku
+ * Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict" setelah B261): B261 memaku
  * keseimbangan nada terlalu jauh (band luar ditarik -6 dB + vokal +4 dB = vokal 10 dB lebih menonjol dari B260; kompresi 20:1 membuat
  * tiga band keluar di tiga level tetap) dan limiter bekerja 3,9 dB di konten keras. Sweet spot: band luar KEMBALI ke angka B260;
  * puncak band vokal (ambang + makeup) TETAP -12 dB seperti B259/B260 (konten keras tak naik, limiter tak terbebani), hanya ambang
@@ -2833,7 +2833,7 @@ internal object CompressorCurve {
     // -21,8 (B259) / -20,7 (B260) -> -16,7 dB, konten pelan -22,6 / -28,8 -> -24,9 dB, vokal di atas backsound 4,7 / 6,5 -> 6,8 dB, backsound
     // naik di jeda 6,9 / 2,8 -> 2,7 dB, lonjakan awal 7,0 -> 3,8 dB. Puncak model +0,8 dBFS (limiter tanpa lookahead, float sebelum volume
     // LVM). Slider turun ke 50%/75%: kontras 8,1/7,9 dB (tak ada pumping). NOT VERIFIED di telinga/HP (model != DP asli).
-    // Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict!!"): B261 'maksimalkan vokal'
+    // Batch 262 (request user: "Malah jadi uncanny. Lakukan penyetelan perfect sweet spot dan last verdict"): B261 'maksimalkan vokal'
     // lewat dua gerak sekaligus -- makeup vokal +4 dB DAN band luar -6 dB. Karena tiap band 20:1, level keluar band di atas ambang =
     // ambang + makeup (bukan fungsi masukan): B261 memaku bass/vokal/treble di -26/-8/-32 dB (vokal 18 dB di atas bass, 24 dB di atas
     // treble; B260 = -20/-12/-26) = spektrum 'radio' tanpa bass & udara, limiter (-1 dB, tanpa lookahead) bekerja 3,9 dB di konten keras.

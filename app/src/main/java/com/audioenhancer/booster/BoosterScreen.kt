@@ -626,21 +626,30 @@ fun BoosterScreen(
         // (H1) tiap band eqBands |nilai| ≤ 800 mB; (H2) puncak boost EQ (max eqBands, minimal 0) + loudness
         // ≤ 1800 mB (batas kasar penjumlahan terburuk, BELUM diuji dengar; BassBoost tak ikut dihitung).
         // Cinema (loudness 1600→1200) & EDM (2000→1050) dipangkas tepat sampai batas; EQ/bass/virtualizer tetap.
+        // Batch 263 (request user: "Setiap preset outputnya itu terlalu keras, tuning semua agar jadi sweet spot") — STANDAR LEVEL
+        // menggantikan H2 (H1 tetap): model sandbox (K-weighting BS.1770 + varian respons speaker HP; BassBoost diasumsikan +9 dB maks
+        // di <150 Hz, NOT VERIFIED) menunjukkan 8 preset B161-B262 +8..+19 dB di atas Flat (nominal), selisih antar preset 10 dB:
+        // LoudnessEnhancer 600-1200 mB (= +6..+12 dB) ditumpuk EQ boost + BassBoost 1000. Standar baru (cek: docs/preset_loudness_check.py):
+        // (L1) rata-rata kenaikan K-weighted & speaker vs Flat = 3,0 ±0,5 dB untuk semua preset non-Flat (volume tak melompat antar
+        // preset), (L2) K-weighted ≤ 5,5 dB dan speaker ≥ 0,5 dB, (L3) loudness ≤ 500 mB, BassBoost ≤ 700 (bass platform MAX dulu), EQ 60 Hz ≤ +500.
+        // Bentuk EQ dipertahankan: offset seragam -50..-150 mB (Vocal/Treble/Gaming/Cinema), loudness 0 (Podcast 1200→0 dll; EQ tak berubah),
+        // Bass Heavy/EDM: BassBoost 1000→700 + EQ 60/230 Hz dipangkas. Virtualizer TIDAK diubah (bukan stage gain; efek level di vendor tertentu NOT VERIFIED).
+        // Naik/turun level semua preset = slider Loudness (100 mB = +1 dB), bukan angka preset.
         Preset(
             stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f,
             eqBands = listOf(0, 0, 0, 0, 0)
         ),
         Preset( // Bass Heavy: low-end tebal (60/230Hz naik), mid netral, treble sedikit dijinakkan
-            stringResource(R.string.preset_bass_heavy), bass = 1000f, virtualizer = 400f, loudness = 750f,
-            eqBands = listOf(700, 450, 0, -100, 0)
+            stringResource(R.string.preset_bass_heavy), bass = 700f, virtualizer = 400f, loudness = 50f,
+            eqBands = listOf(500, 300, 0, -100, 0)
         ),
         Preset( // Vocal Boost: rumble dipangkas, 910Hz/3.6kHz (badan+presence vokal) naik, sedikit udara
-            stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 1100f,
-            eqBands = listOf(-150, 0, 400, 500, 150)
+            stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 0f,
+            eqBands = listOf(-200, -50, 350, 450, 100)
         ),
         Preset( // Treble Boost: low-end dikurangi, hi-mid naik bertahap, 14kHz paling tinggi (detail/udara)
-            stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 850f,
-            eqBands = listOf(-200, -100, 150, 450, 800)
+            stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 0f,
+            eqBands = listOf(-250, -150, 100, 400, 750)
         ),
         // Batch 136 (merge dari sesi paralel, aslinya "Batch 128" cabang lain — request
         // eksplisit user "preset powerful sesuai spesialisasi nya masing-masing"): 5 preset
@@ -649,23 +658,23 @@ fun BoosterScreen(
         // 1 knob didorong) supaya benar-benar "powerful" buat skenario itu. eqBands index =
         // [60Hz, 230Hz, 910Hz, 3600Hz, 14000Hz].
         Preset( // Gaming: deteksi arah (virtualizer MAX) + detail langkah kaki/tembakan (boost hi-mid/treble)
-            stringResource(R.string.preset_gaming), bass = 400f, virtualizer = 1000f, loudness = 900f,
-            eqBands = listOf(50, -150, 100, 700, 750)
+            stringResource(R.string.preset_gaming), bass = 400f, virtualizer = 1000f, loudness = 0f,
+            eqBands = listOf(-100, -300, -50, 550, 600)
         ),
         Preset( // Cinema: dialog jernih (boost 910Hz) + rumble low-end + surround virtualizer tinggi
-            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 1200f,
-            eqBands = listOf(250, -50, 600, 300, 100)
+            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 0f,
+            eqBands = listOf(150, -150, 500, 200, 0)
         ),
-        Preset( // EDM: signature V-shape (sub+bass+treble naik, mid di-scoop), bass platform MAX
-            stringResource(R.string.preset_edm), bass = 1000f, virtualizer = 750f, loudness = 1050f,
-            eqBands = listOf(750, 300, -400, 200, 600)
+        Preset( // EDM: signature V-shape (sub+bass+treble naik, mid di-scoop), bass 700 (Batch 263; dulu platform MAX)
+            stringResource(R.string.preset_edm), bass = 700f, virtualizer = 750f, loudness = 0f,
+            eqBands = listOf(500, 200, -400, 200, 600)
         ),
         Preset( // Podcast: kejernihan bicara — bass/virtualizer diminimalkan, mid presence suara dinaikkan
-            stringResource(R.string.preset_podcast), bass = 100f, virtualizer = 150f, loudness = 1200f,
+            stringResource(R.string.preset_podcast), bass = 100f, virtualizer = 150f, loudness = 0f,
             eqBands = listOf(-350, -150, 600, 350, -250)
         ),
         Preset( // Acoustic: hangat & natural, semua parameter halus (bukan ekstrem kayak 5 preset lain)
-            stringResource(R.string.preset_acoustic), bass = 300f, virtualizer = 400f, loudness = 600f,
+            stringResource(R.string.preset_acoustic), bass = 300f, virtualizer = 400f, loudness = 100f,
             eqBands = listOf(150, 100, 250, 150, 50)
         )
     )

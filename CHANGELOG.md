@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 263: Level 9 preset bawaan disamakan ke sweet spot, tidak lagi terlalu keras
+
+Semua preset bawaan terasa terlalu keras. Penyebabnya terukur di model: LoudnessEnhancer 600 sampai 1200 mB (setara +6 sampai +12 dB) ditumpuk dengan boost EQ dan BassBoost 1000, sehingga preset non-Flat berada +8 sampai +19 dB di atas Flat dan selisih antar preset sampai 10 dB (Acoustic +8, Cinema +16, EDM +19 di bobot K).
+
+Setelan baru menyamakan level semua preset non-Flat ke sekitar +3 dB di atas Flat (rata-rata bobot K dan respons speaker HP, toleransi ±0,5 dB), jadi volume tidak melompat saat ganti preset. Bentuk EQ dipertahankan: Vocal, Treble, Gaming, dan Cinema hanya digeser seragam 50 sampai 150 mB; Podcast dan Acoustic EQ tetap (loudness 1200 menjadi 0 dan 600 menjadi 100); Bass Heavy dan EDM BassBoost 1000 menjadi 700 dan EQ 60/230 Hz dipangkas. Virtualizer tidak diubah.
+
+Standar baru L1 sampai L3 menggantikan batas H2 lama (H1 tetap) dan dicek oleh `docs/preset_loudness_check.py`: skrip ini membaca tabel preset dari kode, sudah lolos di Batch 263 dan menandai 8 preset Batch 262 sebagai pelanggar. Model memakai BassBoost +9 dB maks (asumsi) dan gain LoudnessEnhancer nominal.
+
+**Status.** Hanya angka di `BoosterScreen.kt` yang berubah (kompresor Batch 262 tidak disentuh). Belum dikompilasi dan belum didengar di HP, jadi NOT VERIFIED. Mau lebih keras atau pelan: naik atau turunkan slider Loudness (100 mB = 1 dB). Revert: `Boomly_v262.zip`.
+
 ## Batch 262: Kompresor vokal disetel ulang ke sweet spot, tidak lagi uncanny
 
 Setelah Batch 261 suara terdengar uncanny. Penyebabnya bukan sekadar terlalu keras: Batch 261 menaikkan makeup vokal 4 dB sekaligus menarik band bass dan treble 6 dB. Karena tiap band berkompresi 20:1, level keluar band di atas ambang praktis sama dengan ambang ditambah makeup, berapa pun masukannya. Hasilnya bass, vokal, dan treble dipaku di sekitar -26, -8, dan -32 dB: vokal 18 dB di atas bass dan 24 dB di atas treble, spektrum seperti radio tanpa bass dan udara. Limiter juga bekerja sekitar 3,9 dB di konten keras. Angka model bukan pengukuran DynamicsProcessing asli.
