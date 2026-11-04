@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 267: Perbaikan hasil CI run 64 (2 tes penjaga sumber, 2 temuan detekt typed)
+
+Laporan CI run 64 (commit Batch 266) menunjukkan kompilasi hijau, detekt, ArchUnit (12 aturan), SpotBugs, lint, dan peringatan kompilator semuanya 0; yang gagal hanya dua tes dan dua temuan detekt typed. Dua tes penjaga sumber di `EffectGuardPolicyTest` masih mencari tanda tangan lama `buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)` dan `newDynamicsConfigBuilder(needsEqFallback).build()`, padahal Batch 264 sengaja menambah parameter `profile`; string tes diperbarui (maksud tes tidak berubah). Dua temuan `NullableToStringCall` (log profil di `AudioEnhancerService`, galat `queryEffects` di `DebugLogExporter`) diperbaiki dengan `e.message.orEmpty()`.
+
+Dari log Infinix X6855 (5 Nov): `Environmental Reverb` tersedia (mode Insert dan Auxiliary, NXP) dari 19 efek terdaftar; efek lain di luar yang dipakai Boomly: DTS Audio, Spatializer (MediaTek), Haptic Generator, Downmix, Volume, AGC V2.
+
+**Status.** 3 file kode, tidak ada perubahan perilaku. Belum dijalankan ulang di CI, jadi NOT VERIFIED. Revert: `Boomly_v266.zip`.
+
 ## Batch 266: Log debug memuat daftar efek audio yang tersedia di device
 
 Pertanyaan "ada lagi konfigurasi audio mirip reverb yang belum terpasang?" ternyata belum bisa dijawab dari log: dump `audio_flinger` hanya menampilkan efek yang sedang dipakai. Dari kode, Boomly memakai 7 komponen audiofx (Equalizer, BassBoost, Virtualizer, LoudnessEnhancer, DynamicsProcessing, PresetReverb, Visualizer); satu-satunya kandidat yang mirip reverb adalah `EnvironmentalReverb`, tetapi apakah device melaporkannya belum terbukti.

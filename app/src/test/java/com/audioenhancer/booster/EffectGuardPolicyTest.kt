@@ -438,7 +438,7 @@ class EffectGuardPolicyTest {
         val attach = bodyBetween(source, "private fun attachDynamicsProcessing(", "fun retryControlAcquisition(")
         assertTrue(
             "Config harus dibangun lewat buildDynamicsConfig dgn nilai tersimpan",
-            attach.contains("buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)")
+            attach.contains("buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus, profile)")
         )
         assertTrue(attach.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config)"))
         assertFalse("Config polos (netral) tidak boleh dibangun lagi di attachDynamicsProcessing", attach.contains("Config.Builder("))
@@ -456,7 +456,7 @@ class EffectGuardPolicyTest {
         assertTrue(body.contains("setPreEqAllChannelsTo("))
         assertTrue(body.contains("setLimiterAllChannelsTo("))
         assertTrue("jalur jatuh ke Config bawaan hilang", body.contains("catch (e: Exception)"))
-        assertTrue(body.contains("newDynamicsConfigBuilder(needsEqFallback).build()"))
+        assertTrue(body.contains("newDynamicsConfigBuilder(needsEqFallback, profile).build()"))
         assertTrue("pre-EQ cadangan hanya diisi saat fallback aktif", body.indexOf("if (needsEqFallback)") < body.indexOf("setPreEqAllChannelsTo("))
     }
 

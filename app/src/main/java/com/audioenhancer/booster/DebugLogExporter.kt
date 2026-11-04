@@ -86,7 +86,7 @@ object DebugLogExporter {
         DebugLogFormat.buildEffectsSection(infos, null)
     } catch (e: Exception) {
         Log.w(TAG, "queryEffects gagal", e)
-        DebugLogFormat.buildEffectsSection(null, "${e.javaClass.simpleName}: ${e.message}")
+        DebugLogFormat.buildEffectsSection(null, "${e.javaClass.simpleName}: ${e.message.orEmpty()}")
     }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi

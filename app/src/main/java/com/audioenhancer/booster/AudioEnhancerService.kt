@@ -1079,7 +1079,7 @@ class AudioEnhancerService : Service() {
                 val rejected = dynamicsProfileIndex
                 if (rejected < DynamicsProfiles.LAST_INDEX) {
                     dynamicsProfileIndex = rejected + 1
-                    android.util.Log.w(TAG, "DynamicsProcessing profil #$rejected ${DynamicsProfiles.ORDER[rejected]} ditolak device (${e.message}); mencoba profil #${rejected + 1}")
+                    android.util.Log.w(TAG, "DynamicsProcessing profil #$rejected ${DynamicsProfiles.ORDER[rejected]} ditolak device (${e.message.orEmpty()}); mencoba profil #${rejected + 1}")
                     attachDynamicsProcessing(enableNow)
                     return
                 }
