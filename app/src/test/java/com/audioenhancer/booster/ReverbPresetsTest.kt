@@ -117,13 +117,17 @@ class ReverbPresetsTest {
     }
 
     @Test
-    fun `enableReverb applies saved preset before enabling`() {
+    fun `session zero reverb keeps the saved preset but is never switched on`() {
+        // Batch 268: PresetReverb session 0 = Auxiliary (log HP B245: tak terdengar) -> tak pernah dinyalakan; suara hanya dari Reverb per-sesi.
         val body = bodyBetween(serviceSource(), "private fun enableReverb(", "private fun attachEqualizer(")
         val preset = body.indexOf("reverb.preset = ReverbPresets.platformPreset(index)")
-        val enabled = body.indexOf("reverb.enabled = active")
+        val off = body.indexOf("reverb.enabled = false")
         assertTrue(preset >= 0)
-        assertTrue("preset ditulis SEBELUM efek dinyalakan", enabled > preset)
+        assertTrue("preset ditulis, lalu efek DIPASTIKAN mati", off > preset)
+        assertFalse("efek session 0 tak boleh dinyalakan lagi", body.contains("reverb.enabled = active") || body.contains("reverb.enabled = true"))
+        assertFalse("tak boleh memanggil setEnabled(true) pada efek session 0", body.contains("setEnabled(true)"))
         assertTrue("kegagalan menandai FAILED, bukan crash", body.contains("reverbState = EffectState.FAILED"))
+        assertTrue("jalur per-sesi tetap dijadwalkan", body.contains("if (active && refreshSessions) scheduleSessionReverbRefresh()"))
     }
 
     // ---- sumber daya ----

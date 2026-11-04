@@ -852,16 +852,23 @@ class AudioEnhancerService : Service() {
     }
 
     /** Batch 244: terapkan preset TERSIMPAN ke efek (`preset` lalu `enabled`). Dipanggil dari [enableEffects] (nyalakan,
-     *  perubahan rute, penyalaan ulang guard) dan [setReverbPreset] saat layanan menyala. Preset 0 = efek mati. */
+     *  perubahan rute, penyalaan ulang guard) dan [setReverbPreset] saat layanan menyala. Preset 0 = efek mati.
+     *
+     *  Batch 268: efek session 0 ini TIDAK PERNAH dinyalakan lagi (`enabled = false`). Log HP B245 membuktikan ia berjenis
+     *  Auxiliary dan tak terdengar (user: "gak kedengeran bedanya"); suara Reverb sekarang HANYA dari Reverb per-sesi
+     *  (B247+). Instance tetap dibuat sebagai penanda dukungan ([isReverbSupported]) dan penampung preset. Log HP 5 Nov
+     *  (dumpsys audio_policy): Aux Preset Reverb ini "Enabled" menghabiskan jatah CPU/memori efek sistem, sementara Insert
+     *  Preset Reverb per-sesi tercatat "Disabled" (4 efek lain di sesi yang sama "Enabled"); mematikan yang tak terdengar
+     *  adalah uji hipotesis berbiaya nol (bila terbukti tak berpengaruh, tak ada suara yang hilang). */
     private fun enableReverb(refreshSessions: Boolean = true) {
         val reverb = presetReverb ?: return
         val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
         val active = ReverbPresets.isActive(index)
         try {
             reverb.preset = ReverbPresets.platformPreset(index)
-            reverb.enabled = active
+            reverb.enabled = false // Batch 268: Auxiliary session 0 tak terdengar -> JANGAN dinyalakan (lihat KDoc)
             reverbState = if (active) EffectState.ENABLED else EffectState.AVAILABLE
-            android.util.Log.i(TAG, "Reverb: preset=$index aktif=$active")
+            android.util.Log.i(TAG, "Reverb: preset=$index pilihan-aktif=$active session0=dimatikan (suara hanya dari Reverb per-sesi)")
         } catch (e: Exception) {
             reverbState = EffectState.FAILED
             android.util.Log.e(TAG, "Gagal menerapkan Reverb preset=$index", e)

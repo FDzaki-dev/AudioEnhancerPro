@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 268: Efek reverb session 0 yang tak terdengar dimatikan, uji dugaan jatah efek sistem
+
+Permintaan user: "Mulai opsi A", bersama laporan CI run 65 dan log debug 5 November. CI untuk v267 hijau penuh: 248 tes lulus, detekt, detekt typed, lint, SpotBugs, dan ArchUnit bersih.
+
+Sebelum membangun EnvironmentalReverb, log dibaca dulu, dan hasilnya mengubah rencana. Reverb per-sesi sejak Batch 247 ternyata sudah berupa efek Insert (Insert Preset Reverb pada sesi pemutar), jadi jenis efeknya bukan masalah. Yang janggal adalah status enable: panggilan enable pertama selalu ditolak sistem dengan INVALID_OPERATION, percobaan ulang berhasil dan aplikasi membaca efek aktif, tetapi dumpsys audio_policy mencatat efek itu Disabled, padahal empat efek lain di sesi yang sama Enabled. Di sisi lain, Auxiliary Preset Reverb di session 0 dari Batch 244, yang terbukti tidak terdengar, tercatat Enabled dan ikut menghabiskan jatah CPU dan memori efek sistem (62 MIPS dan 232 KB saat dump, puncak 464 KB).
+
+EnvironmentalReverb memakai mesin NXP yang sama, jadi menggantinya sekarang kemungkinan besar mewarisi masalah yang sama. Karena itu batch ini mengerjakan uji paling murah dulu: efek session 0 tidak lagi dinyalakan. Instance-nya tetap dibuat sebagai penanda bahwa perangkat mendukung reverb, dan pilihan preset tetap tersimpan. Suara reverb hanya berasal dari jalur per-sesi, jadi tidak ada suara yang hilang. Satu tes diganti agar menjaga aturan baru ini.
+
+Ini hipotesis, bukan kesimpulan. Log berikutnya akan menjawab: apakah Insert Preset Reverb kini tercatat Enabled, apakah total CPU dan memori efek turun, dan apakah reverb terdengar. Bila tetap Disabled atau tidak terdengar, EnvironmentalReverb Insert per-sesi menjadi rencana cadangan. Belum diuji di CI maupun HP.
+
 ## Batch 267: Perbaikan hasil CI run 64 (2 tes penjaga sumber, 2 temuan detekt typed)
 
 Laporan CI run 64 (commit Batch 266) menunjukkan kompilasi hijau, detekt, ArchUnit (12 aturan), SpotBugs, lint, dan peringatan kompilator semuanya 0; yang gagal hanya dua tes dan dua temuan detekt typed. Dua tes penjaga sumber di `EffectGuardPolicyTest` masih mencari tanda tangan lama `buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus)` dan `newDynamicsConfigBuilder(needsEqFallback).build()`, padahal Batch 264 sengaja menambah parameter `profile`; string tes diperbarui (maksud tes tidak berubah). Dua temuan `NullableToStringCall` (log profil di `AudioEnhancerService`, galat `queryEffects` di `DebugLogExporter`) diperbaiki dengan `e.message.orEmpty()`.
