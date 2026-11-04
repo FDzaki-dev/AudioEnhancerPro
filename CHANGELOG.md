@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 266: Log debug memuat daftar efek audio yang tersedia di device
+
+Pertanyaan "ada lagi konfigurasi audio mirip reverb yang belum terpasang?" ternyata belum bisa dijawab dari log: dump `audio_flinger` hanya menampilkan efek yang sedang dipakai. Dari kode, Boomly memakai 7 komponen audiofx (Equalizer, BassBoost, Virtualizer, LoudnessEnhancer, DynamicsProcessing, PresetReverb, Visualizer); satu-satunya kandidat yang mirip reverb adalah `EnvironmentalReverb`, tetapi apakah device melaporkannya belum terbukti.
+
+Langkah konkret: ekspor log debug kini menambah bagian "efek audio tersedia" dari `AudioEffect.queryEffects()` (API publik, tanpa izin tambahan). Isinya ringkasan jumlah per tipe, baris eksplisit "Environmental Reverb tersedia: ya/TIDAK", lalu satu baris per efek dengan nama, mode (Insert/Auxiliary), implementor, dan UUID mentah. Tipe di luar daftar publik AOSP tidak ditebak (dicetak sebagai "tipe tak dikenal" beserta UUID). Gagal aman: bila pembacaan gagal, bagian itu berisi alasannya dan laporan tetap terbit.
+
+**Status.** 2 file kode: `DebugLogExporter.kt`, `DebugLogFormatTest.kt` (+5 tes, murni JVM). Tidak ada perubahan perilaku efek atau UI. Belum dikompilasi dan belum dicoba di HP, jadi NOT VERIFIED. Langkah berikutnya: ekspor log di Infinix dan Samsung, lalu cari baris "Environmental Reverb tersedia". Revert: `Boomly_v265.zip`.
+
 ## Batch 265: Aturan PIN disinkron ke konstitusi terkini (M8b), log B262-B264 diringkas
 
 Permintaan "Lanjut kerjakan milestone lainnya": semua milestone M0 sampai M9 sudah selesai atau diblokir (M6 butuh keputusan kredensial dari pengguna), sehingga satu-satunya yang bisa dikerjakan adalah M8b. Teks aturan "Micro-Batch" dan "Format chat" di `PROJECT_STATE.md` kini mengikuti Konstitusi v5.3: 3 sampai 5 file per tugas (maksimal 8 hanya untuk perubahan interface, kontrak data, atau domain dengan satu kalimat pembenaran), dan urutan jawaban summary bullet tanpa backticks, lalu ZIP, lalu skrip Termux.

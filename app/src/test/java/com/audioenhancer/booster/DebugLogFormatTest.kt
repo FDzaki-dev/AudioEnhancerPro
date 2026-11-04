@@ -119,6 +119,51 @@ class DebugLogFormatTest {
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:54.098 D/AudioEffect(16993): controlStatusChanged 0xb400007c1c2024b0 control 0 callback 0xb400007acc240810"))
     }
 
+    /** Batch 266 — daftar efek tersedia (jawaban "Environmental Reverb ada di device ini?"). */
+    private val envReverb = DebugLogFormat.EffectInfo("c2e5d5f0-94bd-4763-9cac-4e234d06839e", "aaaa0000-0000-0000-0000-000000000001", "Auxiliary", "Env Reverb", "NXP Software Ltd.")
+    private val presetReverb = DebugLogFormat.EffectInfo("47382d60-ddd8-11db-bf3a-0002a5d5c51b", "bbbb0000-0000-0000-0000-000000000002", "Insert", "Insert Preset Reverb", "NXP Software Ltd.")
+    private val vendor = DebugLogFormat.EffectInfo("11111111-2222-3333-4444-555555555555", "cccc0000-0000-0000-0000-000000000003", "Insert", "Vendor FX", "Vendor")
+
+    @Test
+    fun `known effect types are labeled case-insensitively and unknown types are not guessed`() {
+        assertEquals(DebugLogFormat.ENVIRONMENTAL_REVERB, DebugLogFormat.effectTypeLabel("C2E5D5F0-94BD-4763-9CAC-4E234D06839E"))
+        assertEquals("Preset Reverb", DebugLogFormat.effectTypeLabel(" 47382d60-ddd8-11db-bf3a-0002a5d5c51b "))
+        assertEquals(DebugLogFormat.UNKNOWN_EFFECT_TYPE, DebugLogFormat.effectTypeLabel("11111111-2222-3333-4444-555555555555"))
+        assertEquals(DebugLogFormat.UNKNOWN_EFFECT_TYPE, DebugLogFormat.effectTypeLabel(""))
+    }
+
+    @Test
+    fun `effects section lists every effect with raw uuids and reports environmental reverb as available`() {
+        val section = DebugLogFormat.buildEffectsSection(listOf(presetReverb, envReverb, vendor), null)
+        assertTrue(section.startsWith("---- efek audio tersedia (AudioEffect.queryEffects, 3 efek) ----"))
+        assertTrue(section.contains("Environmental Reverb tersedia: ya (1 entri)"))
+        assertTrue(section.contains("type=c2e5d5f0-94bd-4763-9cac-4e234d06839e | uuid=aaaa0000-0000-0000-0000-000000000001"))
+        assertTrue(section.contains("tipe tak dikenal | Vendor FX | mode=Insert | implementor=Vendor | type=11111111-2222-3333-4444-555555555555"))
+        assertEquals(3, section.lines().count { it.contains(" | mode=") })
+    }
+
+    @Test
+    fun `effects section says environmental reverb is absent when the device does not report it`() {
+        val section = DebugLogFormat.buildEffectsSection(listOf(presetReverb), null)
+        assertTrue(section.contains("Environmental Reverb tersedia: TIDAK"))
+        assertTrue(section.contains("ringkasan: Preset Reverb x1"))
+    }
+
+    @Test
+    fun `effects section reports failure and null results instead of failing`() {
+        assertTrue(DebugLogFormat.buildEffectsSection(null, "SecurityException: x").contains("(gagal dibaca: SecurityException: x)"))
+        assertTrue(DebugLogFormat.buildEffectsSection(null, null).contains("queryEffects mengembalikan null"))
+        assertTrue(DebugLogFormat.buildEffectsSection(emptyList(), null).contains("ringkasan: (kosong)"))
+    }
+
+    @Test
+    fun `effects section keeps all effects up to the cap and says how many were left out`() {
+        val many = (1..305).map { DebugLogFormat.EffectInfo("11111111-2222-3333-4444-555555555555", "u$it", "Insert", "FX$it", "V") }
+        val section = DebugLogFormat.buildEffectsSection(many, null)
+        assertEquals(300, section.lines().count { it.contains(" | mode=") })
+        assertTrue(section.contains("(5 efek lain tak ditampilkan)"))
+    }
+
     @Test
     fun `lifecycle and spectrum gating lines are never noise`() {
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.500 I/MainActivity(16993): LIFECYCLE ui aktif=false"))

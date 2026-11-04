@@ -49,7 +49,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = readOwnLogcat(),
                 maxLines = MAX_LINES
-            ) + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -67,6 +67,26 @@ object DebugLogExporter {
             Log.e(TAG, "Ekspor log debug gagal", e)
             null
         }
+    }
+
+    /** Batch 266 (user: "Ada lagi gak konfigurasi audio yang mirip reverb namun belum kepasang?" -> "Mulai dari langkah yang konkrit!!"): daftar SEMUA
+     *  efek audio yang dilaporkan device lewat `AudioEffect.queryEffects()` (API publik, TANPA izin khusus, tanpa dump). Dump `audio_flinger` hanya
+     *  menampilkan efek yang SEDANG dipakai, jadi tak bisa menjawab apakah efek lain (mis. Environmental Reverb) tersedia di device ini. Gagal aman:
+     *  galat -> bagian berisi alasan, laporan tetap terbit. */
+    private fun readAvailableEffects(): String = try {
+        val infos = android.media.audiofx.AudioEffect.queryEffects()?.map { d ->
+            DebugLogFormat.EffectInfo(
+                typeUuid = d.type?.toString().orEmpty(),
+                uuid = d.uuid?.toString().orEmpty(),
+                connectMode = d.connectMode.orEmpty(),
+                name = d.name.orEmpty(),
+                implementor = d.implementor.orEmpty()
+            )
+        }
+        DebugLogFormat.buildEffectsSection(infos, null)
+    } catch (e: Exception) {
+        Log.w(TAG, "queryEffects gagal", e)
+        DebugLogFormat.buildEffectsSection(null, "${e.javaClass.simpleName}: ${e.message}")
     }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
@@ -197,6 +217,50 @@ internal object DebugLogFormat {
     fun buildAudioPathSection(title: String, lines: List<String>, readLines: Int): String = buildString {
         appendLine("---- jalur audio (dumpsys $title, ${lines.size} dari $readLines baris) ----")
         if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris)") else lines.forEach { appendLine(it) }
+    }
+
+    /** Batch 266: satu efek dari `AudioEffect.queryEffects()` (nilai sudah jadi teks supaya bisa dites di JVM). */
+    data class EffectInfo(val typeUuid: String, val uuid: String, val connectMode: String, val name: String, val implementor: String)
+
+    const val ENVIRONMENTAL_REVERB = "Environmental Reverb"
+    const val UNKNOWN_EFFECT_TYPE = "tipe tak dikenal"
+    private const val MAX_EFFECT_LINES = 300
+
+    /** UUID tipe efek publik AOSP (`AudioEffect.EFFECT_TYPE_*`) -> nama. Tipe lain (vendor, Spatializer, Haptic, dst.) TIDAK ditebak: dicetak
+     *  sebagai [UNKNOWN_EFFECT_TYPE] bersama UUID mentahnya, supaya log tetap lengkap tanpa label yang salah. */
+    private val KNOWN_EFFECT_TYPES: Map<String, String> = mapOf(
+        "0bed4300-ddd6-11db-8f34-0002a5d5c51b" to "Equalizer",
+        "0634f220-ddd4-11db-a0fc-0002a5d5c51b" to "Bass Boost",
+        "37cc2c00-dddd-11db-8577-0002a5d5c51b" to "Virtualizer",
+        "47382d60-ddd8-11db-bf3a-0002a5d5c51b" to "Preset Reverb",
+        "c2e5d5f0-94bd-4763-9cac-4e234d06839e" to ENVIRONMENTAL_REVERB,
+        "fe3199be-aed0-413f-87bb-11260eb63cf1" to "Loudness Enhancer",
+        "7261676f-6d75-7369-6364-28e2fd3ac39e" to "Dynamics Processing",
+        "e46b26a0-dddd-11db-8afd-0002a5d5c51b" to "Visualizer",
+        "7b491460-8d4d-11e0-bd61-0002a5d5c51b" to "Acoustic Echo Canceler",
+        "0a8abfe0-654c-11e0-ba26-0002a5d5c51b" to "Automatic Gain Control",
+        "58b4b260-8e06-11e0-aa8e-0002a5d5c51b" to "Noise Suppressor"
+    )
+
+    fun effectTypeLabel(typeUuid: String): String = KNOWN_EFFECT_TYPES[typeUuid.trim().lowercase(Locale.US)] ?: UNKNOWN_EFFECT_TYPE
+
+    /** Bagian laporan "efek audio tersedia". [effects] `null` = `queryEffects()` mengembalikan null atau gagal ([error] berisi alasan). */
+    fun buildEffectsSection(effects: List<EffectInfo>?, error: String?): String = buildString {
+        if (effects == null) {
+            appendLine("---- efek audio tersedia (AudioEffect.queryEffects) ----")
+            appendLine(if (error != null) "(gagal dibaca: $error)" else "(queryEffects mengembalikan null: device tak melaporkan daftar efek)")
+            return@buildString
+        }
+        val rows = effects.map { it to effectTypeLabel(it.typeUuid) }.sortedWith(compareBy({ it.second }, { it.first.name }))
+        appendLine("---- efek audio tersedia (AudioEffect.queryEffects, ${effects.size} efek) ----")
+        val counts = rows.groupingBy { it.second }.eachCount()
+        appendLine("ringkasan: " + if (counts.isEmpty()) "(kosong)" else counts.entries.joinToString(", ") { "${it.key} x${it.value}" })
+        val envCount = counts[ENVIRONMENTAL_REVERB] ?: 0
+        appendLine("$ENVIRONMENTAL_REVERB tersedia: " + if (envCount > 0) "ya ($envCount entri)" else "TIDAK (device tak melaporkan tipe ini)")
+        rows.take(MAX_EFFECT_LINES).forEach { (e, label) ->
+            appendLine("$label | ${e.name} | mode=${e.connectMode} | implementor=${e.implementor} | type=${e.typeUuid} | uuid=${e.uuid}")
+        }
+        if (rows.size > MAX_EFFECT_LINES) appendLine("(${rows.size - MAX_EFFECT_LINES} efek lain tak ditampilkan)")
     }
 
     /** `aep_debug_yyyyMMdd_HHmmss.txt` — mudah diurutkan dan dikenali di File Manager. */
