@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 265: Aturan PIN disinkron ke konstitusi terkini (M8b), log B262-B264 diringkas
+
+Permintaan "Lanjut kerjakan milestone lainnya": semua milestone M0 sampai M9 sudah selesai atau diblokir (M6 butuh keputusan kredensial dari pengguna), sehingga satu-satunya yang bisa dikerjakan adalah M8b. Teks aturan "Micro-Batch" dan "Format chat" di `PROJECT_STATE.md` kini mengikuti Konstitusi v5.3: 3 sampai 5 file per tugas (maksimal 8 hanya untuk perubahan interface, kontrak data, atau domain dengan satu kalimat pembenaran), dan urutan jawaban summary bullet tanpa backticks, lalu ZIP, lalu skrip Termux.
+
+Entri LOG BATCH dan Status Terkini untuk Batch 262 sampai 264 diringkas agar sesuai aturan "dokumentasi padat"; rincian root-cause dan angka model tetap ada di komentar kode dan entri CHANGELOG masing-masing.
+
+**Status.** Docs saja, 0 file kode, tidak ada perubahan perilaku aplikasi. Sisa pekerjaan non-kode: utang validasi device (Fase 1), commit `gradlew` (T1), dan upgrade AGP/Kotlin (di luar planning). Revert: `Boomly_v264.zip`.
+
 ## Batch 264: Limiter dan kompresor kembali aktif di device yang menolak DynamicsProcessing penuh
 
 Log Samsung SM-S711B (Android 14) menunjukkan `DynamicsProcessing` ditolak saat dibuat ("AudioEffect: bad parameter value" di `setEngineArchitecture`): rantai efek di device itu hanya berisi Reverb, Bass, Equalizer, Loudness, dan Virtualizer, jadi limiter dan kompresor tidak ada sama sekali (dan preset tanpa pengaman terasa terlalu keras). Percobaan yang sama diulang di setiap serah-terima efek: 109 galat dengan stack trace dalam 25 menit.
