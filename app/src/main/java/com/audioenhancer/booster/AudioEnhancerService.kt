@@ -314,10 +314,10 @@ class AudioEnhancerService : Service() {
     private var loudnessEnhancer: LoudnessEnhancer? = null
     private var equalizer: Equalizer? = null
 
-    // Batch 244 (request user: Reverb/Spatial): `PresetReverb` di session 0. SENGAJA di luar serah-terima efek
-    // (make-before-break B233-B238) dan Effect Guard: tanpa listener, tidak dibuat ulang saat pemutar berganti.
-    // Lihat `attachReverb()`, `enableReverb()`, `setReverbPreset()`.
-    private var presetReverb: PresetReverb? = null
+    // Batch 244 (request user: Reverb/Spatial) -> Batch 269: TIDAK ada lagi efek `PresetReverb` di session 0 (Auxiliary, tak
+    // terdengar, memakan jatah memori/CPU efek sistem). Hanya penanda dukungan dari `queryEffects()`; suara reverb HANYA dari
+    // Reverb per-sesi (B247+). Di luar serah-terima efek (B233-B238) dan Effect Guard. Lihat `attachReverb()`, `enableReverb()`.
+    @Volatile private var reverbCapable = false
 
     // Batch 84 (roadmap.md Fase 0 #5, "Gain staging + dynamics pipeline"): effect
     // TAMBAHAN, bukan pengganti 4 effect di atas — lihat komentar panjang di
@@ -824,24 +824,28 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    /** Batch 244 (request user: Reverb/Spatial): `PresetReverb` pada session 0 (mixer global). TERPISAH dari 5 efek
-     *  serah-terima B233-B238: tanpa listener control/enable (tes B233 menghitung tepat 5 `return@set...Listener`),
-     *  tidak dibuat ulang saat pemutar berganti, tidak masuk Effect Guard. Dibuat MATI; menyala lewat [enableReverb]
-     *  hanya bila preset tersimpan > 0. Gagal membuat = `UNAVAILABLE` (kartu UI: "tidak didukung"), BUKAN crash.
-     *
-     *  CATATAN fisik: `PresetReverb` di session 0 umumnya efek AUXILIARY (HAL hanya memprosesnya dari aux-send
-     *  pemutar), jadi bisa tak terdengar di aplikasi lain. Mode koneksi nyata + status dicatat di logcat (`Reverb:`)
-     *  supaya uji device membedakan "efek tidak ada" vs "efek ada tapi diabaikan sistem". */
+    /** Batch 244 -> Batch 269 (request user: "Disabled aja jika gak guna dan Menuhin memori"): TIDAK lagi membuat efek `PresetReverb`
+     *  di session 0. Efek itu berjenis Auxiliary dan tak terdengar (log HP B245); selama terdaftar/aktif ia menghabiskan jatah CPU +
+     *  memori efek sistem sehingga Reverb per-sesi (Insert) ditolak `INVALID_OPERATION(-5)` dan tercatat "Disabled" di dumpsys
+     *  audio_policy (log 5 Nov 06:51). Setelah dimatikan di B268, enable pertama langsung `SUCCESS(0)` dan "Enabled" (log 07:35).
+     *  Kini cukup `queryEffects()` (tanpa instance, tanpa memori terdaftar) untuk memutuskan apakah kartu Reverb ditampilkan.
+     *  Tetap tanpa listener control/enable (tes B233 menghitung tepat 5 `return@set...Listener`). */
     private fun attachReverb() {
-        try {
-            val reverb = PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)
-            presetReverb = reverb
-            reverbState = EffectState.AVAILABLE
-            android.util.Log.i(TAG, "Reverb: PresetReverb session 0 dibuat (${describeReverb(reverb)})")
-        } catch (e: Exception) {
-            presetReverb = null; reverbState = EffectState.UNAVAILABLE
-            android.util.Log.e(TAG, "PresetReverb tidak tersedia di device ini", e)
-        }
+        reverbCapable = queryReverbCapable()
+        reverbState = if (reverbCapable) EffectState.AVAILABLE else EffectState.UNAVAILABLE
+        android.util.Log.i(
+            TAG,
+            "Reverb: PresetReverb ${if (reverbCapable) "tersedia" else "TIDAK tersedia"} (queryEffects); efek session 0 TIDAK dibuat, suara hanya dari Reverb per-sesi"
+        )
+    }
+
+    private fun queryReverbCapable(): Boolean = try {
+        val effects = android.media.audiofx.AudioEffect.queryEffects()
+        // null = device tak melaporkan daftar efek: JANGAN menyembunyikan kartu (jalur per-sesi punya penanganan gagalnya sendiri)
+        effects == null || effects.any { it.type == android.media.audiofx.AudioEffect.EFFECT_TYPE_PRESET_REVERB }
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "queryEffects gagal; Reverb dianggap tersedia", e)
+        true
     }
 
     private fun describeReverb(reverb: PresetReverb): String = try {
@@ -851,28 +855,15 @@ class AudioEnhancerService : Service() {
         "descriptor tidak terbaca: ${e.javaClass.simpleName}"
     }
 
-    /** Batch 244: terapkan preset TERSIMPAN ke efek (`preset` lalu `enabled`). Dipanggil dari [enableEffects] (nyalakan,
-     *  perubahan rute, penyalaan ulang guard) dan [setReverbPreset] saat layanan menyala. Preset 0 = efek mati.
-     *
-     *  Batch 268: efek session 0 ini TIDAK PERNAH dinyalakan lagi (`enabled = false`). Log HP B245 membuktikan ia berjenis
-     *  Auxiliary dan tak terdengar (user: "gak kedengeran bedanya"); suara Reverb sekarang HANYA dari Reverb per-sesi
-     *  (B247+). Instance tetap dibuat sebagai penanda dukungan ([isReverbSupported]) dan penampung preset. Log HP 5 Nov
-     *  (dumpsys audio_policy): Aux Preset Reverb ini "Enabled" menghabiskan jatah CPU/memori efek sistem, sementara Insert
-     *  Preset Reverb per-sesi tercatat "Disabled" (4 efek lain di sesi yang sama "Enabled"); mematikan yang tak terdengar
-     *  adalah uji hipotesis berbiaya nol (bila terbukti tak berpengaruh, tak ada suara yang hilang). */
+    /** Batch 244 -> Batch 269: TIDAK ada efek session 0 lagi (lihat [attachReverb]); fungsi ini hanya mencatat pilihan preset TERSIMPAN
+     *  ke [reverbState] dan menjadwalkan penyegaran Reverb per-sesi (satu-satunya sumber suara reverb). Dipanggil dari [enableEffects]
+     *  (nyalakan, perubahan rute, penyalaan ulang guard) dan [setReverbPreset] saat layanan menyala. Preset 0 = mati. */
     private fun enableReverb(refreshSessions: Boolean = true) {
-        val reverb = presetReverb ?: return
+        if (!reverbCapable) return
         val index = ReverbPresets.clamp(PrefsHelper.getReverbPreset(this))
         val active = ReverbPresets.isActive(index)
-        try {
-            reverb.preset = ReverbPresets.platformPreset(index)
-            reverb.enabled = false // Batch 268: Auxiliary session 0 tak terdengar -> JANGAN dinyalakan (lihat KDoc)
-            reverbState = if (active) EffectState.ENABLED else EffectState.AVAILABLE
-            android.util.Log.i(TAG, "Reverb: preset=$index pilihan-aktif=$active session0=dimatikan (suara hanya dari Reverb per-sesi)")
-        } catch (e: Exception) {
-            reverbState = EffectState.FAILED
-            android.util.Log.e(TAG, "Gagal menerapkan Reverb preset=$index", e)
-        }
+        reverbState = if (active) EffectState.ENABLED else EffectState.AVAILABLE
+        android.util.Log.i(TAG, "Reverb: preset=$index pilihan-aktif=$active (tanpa efek session 0; suara hanya dari Reverb per-sesi)")
         // Batch 247: nyala/ubah rute -> pasang Reverb per-session bila izin DUMP ada. Batch 254 (hemat baterai): geser slider memanggil ini dengan
         // refreshSessions=false karena jalurnya sendiri (refreshSessionReverbAfterPreset, B253) sudah mengurus efek per-session; tanpa itu tiap geser
         // masih memicu satu dump 1,5 dtk kemudian (terlihat di log v253).
@@ -2236,8 +2227,7 @@ class AudioEnhancerService : Service() {
         bassBoost?.release(); virtualizer?.release()
         equalizer?.release(); loudnessEnhancer?.release()
         dynamicsProcessing?.release()
-        try { presetReverb?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release PresetReverb", e) } // Batch 244
-        presetReverb = null // Batch 244
+        reverbCapable = false // Batch 269: tak ada efek session 0 untuk dilepas (Reverb per-sesi dilepas di baris berikut)
         releaseSessionReverbs("service dihancurkan") // Batch 247
         try { visualizer?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release Visualizer", e) }
         visualizer = null
@@ -2269,9 +2259,8 @@ class AudioEnhancerService : Service() {
         // Batch 84: limiter ikut mati bareng — kalau booster "Matikan", tidak ada lagi
         // sinyal yang di-boost, jadi tidak ada lagi yang perlu di-limit.
         try { dynamicsProcessing?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable DynamicsProcessing", e) }
-        // Batch 244: Reverb ikut mati bareng; tanpa listener, jadi state dicatat langsung di sini.
-        try { presetReverb?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable PresetReverb", e) }
-        if (presetReverb != null) reverbState = EffectState.AVAILABLE
+        // Batch 244: Reverb ikut mati bareng; tanpa listener, jadi state dicatat langsung di sini. Batch 269: tak ada efek session 0.
+        if (reverbCapable) reverbState = EffectState.AVAILABLE
         releaseSessionReverbs("Matikan") // Batch 247
         // Batch 120: spectrum ikut berhenti saat "Matikan" — tidak ada gunanya capture
         // audio kalau booster sendiri lagi off, murni hemat CPU/baterai.
@@ -2320,7 +2309,7 @@ class AudioEnhancerService : Service() {
     // ---- Kontrol dari UI ----
     fun isBassSupported(): Boolean = bassBoost != null
     fun isVirtualizerSupported(): Boolean = virtualizer != null
-    fun isReverbSupported(): Boolean = presetReverb != null // Batch 244
+    fun isReverbSupported(): Boolean = reverbCapable // Batch 244; Batch 269: dari queryEffects(), bukan instance efek
     fun isLoudnessSupported(): Boolean = loudnessEnhancer != null
 
     /** Batch 121 (Fase 8 ROI #4 "Compressor"): band MBC kompresor hidup di objek

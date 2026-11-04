@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 269: Efek reverb session 0 dihapus total, jatah memori efek sistem dibebaskan
+
+Permintaan user: "Disabled aja jika gak guna dan Menuhin memori!!", bersama log debug 07:35 dari build B268.
+
+Log itu mengonfirmasi dugaan Batch 268. Sebelum efek session 0 dimatikan, panggilan enable pertama pada Insert Preset Reverb selalu ditolak sistem dan dumpsys mencatatnya Disabled. Setelah dimatikan, panggilan enable pertama langsung berhasil, tanpa percobaan ulang, dan dumpsys audio_policy mencatat Insert Preset Reverb Enabled sedangkan Auxiliary Preset Reverb Disabled. Ini baru satu sampel dari satu perangkat.
+
+Tetapi total memori efek yang terdaftar tidak turun (232 KB, puncak 464 KB), karena efek session 0 yang sudah dimatikan itu masih dibuat dan tetap terdaftar di sistem. Batch ini berhenti membuatnya sama sekali. Apakah perangkat mendukung reverb kini ditentukan dari daftar efek yang dilaporkan sistem (`queryEffects`), yang tidak memakai memori. Bila daftar itu tidak bisa dibaca, kartu Reverb tetap tampil, karena jalur per-sesi punya penanganan gagalnya sendiri. Suara reverb tetap hanya berasal dari jalur per-sesi, jadi tidak ada suara yang hilang.
+
+Tiga tes Reverb diganti dan satu tes sesi efek diubah agar menjaga aturan baru: tidak ada lagi efek reverb di session 0. Jumlah tes tidak berubah. Belum diuji di CI maupun HP; apakah reverb terdengar belum dilaporkan.
+
 ## Batch 268: Efek reverb session 0 yang tak terdengar dimatikan, uji dugaan jatah efek sistem
 
 Permintaan user: "Mulai opsi A", bersama laporan CI run 65 dan log debug 5 November. CI untuk v267 hijau penuh: 248 tes lulus, detekt, detekt typed, lint, SpotBugs, dan ArchUnit bersih.

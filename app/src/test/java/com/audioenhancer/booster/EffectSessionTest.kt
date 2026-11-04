@@ -70,14 +70,15 @@ class EffectSessionTest {
     // ---- tes teks sumber ----
 
     @Test
-    fun `main effects bind to effectSession while reverb aux and spectrum stay on session 0`() {
+    fun `main effects bind to effectSession while only the spectrum stays on session 0`() {
         val src = code(serviceSource)
         assertTrue(src.contains("BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, effectSession)"))
         assertTrue(src.contains("Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession)"))
         assertTrue(src.contains("Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession)"))
         assertTrue(src.contains("LoudnessEnhancer(effectSession)"))
         assertTrue(src.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config)"))
-        assertTrue("Reverb aux tetap di session 0", src.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
+        // Batch 269: Reverb Auxiliary session 0 DIHAPUS (tak terdengar + memakan jatah memori/CPU efek sistem); reverb hanya per-sesi.
+        assertFalse("tak ada lagi PresetReverb di session 0", src.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
         assertTrue("spektrum tetap di session 0", src.contains("Visualizer(0)"))
         assertFalse("tak ada lagi konstruktor efek utama yang terkunci ke 0", src.contains("BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
     }

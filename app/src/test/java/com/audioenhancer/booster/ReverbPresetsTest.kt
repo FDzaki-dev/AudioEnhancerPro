@@ -75,11 +75,13 @@ class ReverbPresetsTest {
     // ---- isolasi dari serah-terima efek & guard ----
 
     @Test
-    fun `attachReverb has no status listeners`() {
+    fun `attachReverb has no status listeners and creates no effect`() {
+        // Batch 269: efek session 0 tidak dibuat lagi (Auxiliary, tak terdengar, memakan jatah efek sistem).
         val body = bodyBetween(serviceSource(), "private fun attachReverb(", "private fun describeReverb(")
         assertFalse(body.contains("setControlStatusListener"))
         assertFalse(body.contains("setEnableStatusListener"))
-        assertTrue("efek dibuat di session 0", body.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
+        assertFalse("tak boleh membuat PresetReverb di session 0", body.contains("PresetReverb("))
+        assertTrue("dukungan ditentukan lewat queryEffects, tanpa instance", body.contains("queryEffects()"))
     }
 
     @Test
@@ -96,15 +98,17 @@ class ReverbPresetsTest {
     }
 
     @Test
-    fun `reverb is wired into start enable disable and release`() {
+    fun `reverb is wired into start enable disable and release without a session zero effect`() {
         val src = serviceSource()
         assertTrue(bodyBetween(src, "private fun attachEffects(", "private fun attachBass(").contains("attachReverb()"))
         assertTrue(bodyBetween(src, "private fun enableEffects(", "private fun enableMixEffects(").contains("enableReverb()"))
-        assertTrue(bodyBetween(src, "private fun disableEffects(", "private fun enableEffects(").contains("presetReverb?.enabled = false"))
+        assertTrue(bodyBetween(src, "private fun disableEffects(", "private fun enableEffects(").contains("releaseSessionReverbs(\"Matikan\")"))
         val release = bodyBetween(src, "private fun releaseEffects(", "private fun disableEffects(")
-        assertTrue(release.contains("presetReverb?.release()"))
-        assertTrue(release.contains("presetReverb = null"))
+        assertTrue(release.contains("reverbCapable = false"))
         assertTrue(release.contains("reverbState = EffectState.UNAVAILABLE"))
+        assertTrue(release.contains("releaseSessionReverbs("))
+        assertTrue(src.contains("fun isReverbSupported(): Boolean = reverbCapable"))
+        assertFalse("tak ada properti efek session 0 lagi", src.contains("presetReverb"))
     }
 
     @Test
@@ -117,16 +121,12 @@ class ReverbPresetsTest {
     }
 
     @Test
-    fun `session zero reverb keeps the saved preset but is never switched on`() {
-        // Batch 268: PresetReverb session 0 = Auxiliary (log HP B245: tak terdengar) -> tak pernah dinyalakan; suara hanya dari Reverb per-sesi.
+    fun `enableReverb only records the choice and schedules the per-session refresh`() {
         val body = bodyBetween(serviceSource(), "private fun enableReverb(", "private fun attachEqualizer(")
-        val preset = body.indexOf("reverb.preset = ReverbPresets.platformPreset(index)")
-        val off = body.indexOf("reverb.enabled = false")
-        assertTrue(preset >= 0)
-        assertTrue("preset ditulis, lalu efek DIPASTIKAN mati", off > preset)
-        assertFalse("efek session 0 tak boleh dinyalakan lagi", body.contains("reverb.enabled = active") || body.contains("reverb.enabled = true"))
-        assertFalse("tak boleh memanggil setEnabled(true) pada efek session 0", body.contains("setEnabled(true)"))
-        assertTrue("kegagalan menandai FAILED, bukan crash", body.contains("reverbState = EffectState.FAILED"))
+        assertTrue(body.contains("if (!reverbCapable) return"))
+        listOf("PresetReverb(", ".enabled", "setEnabled", ".preset").forEach { forbidden ->
+            assertFalse("enableReverb tak boleh menyentuh efek session 0: $forbidden", body.contains(forbidden))
+        }
         assertTrue("jalur per-sesi tetap dijadwalkan", body.contains("if (active && refreshSessions) scheduleSessionReverbRefresh()"))
     }
 
