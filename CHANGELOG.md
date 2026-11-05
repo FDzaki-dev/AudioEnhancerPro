@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 273: Triase CI run 69 (Batch 272 terverifikasi), tanpa perubahan kode
+
+Permintaan user: "Teruskan!!" dengan unggahan `Boomly_v272.zip` dan `AEP_laporan-untuk-claude_run69.zip`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=272, COMMIT=1e04dfb, RUN_ID=41948357907). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0 (temuan `UnusedImports` run 68 hilang), lint 0, peringatan kompilator 0, dan 218 tes lulus tanpa ada yang dilewati.
+
+Dengan itu Batch 272 naik dari NOT VERIFIED menjadi STATIC-VERIFIED (kompilasi, tes, dan analisis statis). Tidak ada temuan statis yang terbuka, jadi kode tidak diubah dan isinya sama dengan `Boomly_v272.zip`. Yang belum teruji hanyalah perilaku di HP untuk kartu izin DUMP (tombol belum diketuk karena izin sudah aktif).
+
+Karena "Teruskan" tidak menyebut fitur tertentu, tidak ada fitur yang dikarang; `PROJECT_STATE.md` mencatat dua kandidat yang bisa dipilih user berikutnya. Hanya dokumen yang berubah.
+
 ## Batch 272: Perbaikan temuan detekt typed run 68 (import tak terpakai)
 
 Permintaan user: unggahan laporan CI run 68 (commit Batch 271) dan log debug HP 09:20. CI hijau penuh: 218 tes lulus, ArchUnit (12 aturan), SpotBugs, detekt, lint, dan peringatan kompilator semuanya 0. Ini sekaligus pertama kalinya kompilasi dan tes Batch 270 (Reverb dicabut) serta Batch 271 (kartu izin DUMP) lolos di CI; jumlah tes turun dari 248 karena tes khusus Reverb dan SliderProbe dihapus di Batch 270.
