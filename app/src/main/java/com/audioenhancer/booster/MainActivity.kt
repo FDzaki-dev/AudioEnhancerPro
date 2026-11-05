@@ -244,6 +244,7 @@ class MainActivity : ComponentActivity() {
                             virtualizerEffectState = viewModel.virtualizerEffectState,
                             loudnessEffectState = viewModel.loudnessEffectState,
                             compressorEffectState = viewModel.compressorEffectState,
+                            compressorReach = viewModel.compressorReach, // Batch 276
                             equalizerEffectState = viewModel.equalizerEffectState,
                             // Batch 120 (Fase 8E, part 2/2): sama pola poll seperti 4 EffectState
                             // di atas, cuma sumbernya loop 50ms terpisah (lihat BoosterViewModel).

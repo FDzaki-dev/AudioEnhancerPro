@@ -45,6 +45,36 @@ class DynamicsProfilesTest {
     }
 
     @Test
+    fun `normal device shows no marker and limiter only device marks both sliders`() {
+        // Batch 276: profil pertama (device normal) TIDAK boleh memunculkan penanda; profil terakhir (limiter saja) menandai Compressor + Vocal Focus.
+        assertEquals(CompressorReach.FULL, DynamicsProfiles.reachOf(0))
+        assertEquals(CompressorReach.LIMITER_ONLY, DynamicsProfiles.reachOf(DynamicsProfiles.LAST_INDEX))
+    }
+
+    @Test
+    fun `profile without post-EQ keeps the compressor but marks the missing presence`() {
+        val index = DynamicsProfiles.ORDER.indexOfFirst { it.mbc && !it.postEq }
+        assertTrue(index >= 0)
+        assertEquals(CompressorReach.NO_PRESENCE, DynamicsProfiles.reachOf(index))
+    }
+
+    @Test
+    fun `reach is limiter only exactly for profiles without the compressor stage`() {
+        DynamicsProfiles.ORDER.forEachIndexed { index, p ->
+            assertEquals(!p.mbc, DynamicsProfiles.reachOf(index) == CompressorReach.LIMITER_ONLY)
+        }
+    }
+
+    @Test
+    fun `out of range index is clamped to the ends of the ladder`() {
+        assertEquals(DynamicsProfiles.reachOf(0), DynamicsProfiles.reachOf(-1))
+        assertEquals(
+            DynamicsProfiles.reachOf(DynamicsProfiles.LAST_INDEX),
+            DynamicsProfiles.reachOf(DynamicsProfiles.LAST_INDEX + 1)
+        )
+    }
+
+    @Test
     fun `only IllegalArgumentException counts as a deterministic rejection`() {
         assertTrue(DynamicsProfiles.isDeterministicRejection(IllegalArgumentException("AudioEffect: bad parameter value")))
         assertFalse(DynamicsProfiles.isDeterministicRejection(RuntimeException("sementara")))

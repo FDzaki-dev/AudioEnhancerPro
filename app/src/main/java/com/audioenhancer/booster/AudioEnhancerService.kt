@@ -2022,6 +2022,12 @@ class AudioEnhancerService : Service() {
      *  seperti `equalizerFallbackActive` berbagi `dynamicsState` di jalur fallback EQ. */
     val compressorState: EffectState get() = dynamicsState
 
+    /** Batch 276 (opsi B, lanjutan B264): jangkauan slider Compressor/Vocal Focus pada profil `DynamicsProcessing` yang sedang dipakai.
+     *  `FULL` bila belum ada penurunan profil ATAU semua profil ditolak (`dynamicsRejectedAll`: UI sudah menandai "tidak didukung" lewat
+     *  `isCompressorSupported()`, jadi jangan mengklaim "hanya limiter"). Dipoll UI tiap 1 detik; hanya membaca, tanpa efek samping. */
+    val compressorReach: CompressorReach
+        get() = if (dynamicsRejectedAll) CompressorReach.FULL else DynamicsProfiles.reachOf(dynamicsProfileIndex)
+
     /** Batch 120 (Fase 8E, part 1/2): dipakai UI (Part 2, belum dikerjakan) buat tahu
      *  apakah perlu munculkan tombol/dialog minta izin RECORD_AUDIO, TERPISAH dari
      *  `visualizerState` (yang UNAVAILABLE-nya overload 2 arti, lihat komentar field). */

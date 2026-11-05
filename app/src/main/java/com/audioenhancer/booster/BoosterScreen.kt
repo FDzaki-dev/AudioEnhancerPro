@@ -621,6 +621,8 @@ fun BoosterScreen(
     virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     compressorEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
+    // Batch 276: jangkauan slider Compressor/Vocal Focus (profil DynamicsProcessing cadangan, B264); default FULL = tanpa penanda.
+    compressorReach: CompressorReach = CompressorReach.FULL,
     equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): default UNAVAILABLE (bukan
     // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
@@ -1238,6 +1240,8 @@ fun BoosterScreen(
                             stringResource(R.string.feature_help_control_lost)
                         compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
                             stringResource(R.string.feature_help_failed)
+                        // Batch 276: device hanya menerima limiter -> slider ini tidak berefek (nilai tetap tersimpan).
+                        compressorReach == CompressorReach.LIMITER_ONLY -> stringResource(R.string.feature_compressor_help_limiter_only)
                         else -> stringResource(R.string.feature_compressor_help_normal)
                     },
                     value = compressorAmount,
@@ -1264,8 +1268,12 @@ fun BoosterScreen(
                             stringResource(R.string.feature_help_control_lost)
                         compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
                             stringResource(R.string.feature_help_failed)
+                        // Batch 276: tanpa MBC (limiter saja) Vocal Focus tidak berefek; didahulukan dari petunjuk "Compressor 0%".
+                        compressorReach == CompressorReach.LIMITER_ONLY -> stringResource(R.string.feature_compressor_help_limiter_only)
                         // Batch 211: Vocal Focus hanya berefek saat Compressor > 0 (nilai tetap tersimpan) -> beri petunjuk eksplisit.
                         compressorAmount <= 0f -> stringResource(R.string.feature_vocal_focus_help_inactive)
+                        // Batch 276: post-EQ presence ditolak device -> hanya penekanan bass/treble (MBC) yang bekerja.
+                        compressorReach == CompressorReach.NO_PRESENCE -> stringResource(R.string.feature_vocal_focus_help_no_presence)
                         else -> stringResource(R.string.feature_vocal_focus_help_normal)
                     },
                     value = vocalFocus,

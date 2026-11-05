@@ -92,6 +92,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     // `AudioEnhancerService.compressorState`) — dipoll di loop 1 detik yang SAMA seperti
     // 4 EffectState di atas, BUKAN loop terpisah.
     var compressorEffectState by mutableStateOf(AudioEnhancerService.EffectState.UNAVAILABLE); private set
+    // Batch 276: jangkauan slider Compressor/Vocal Focus di profil DynamicsProcessing aktif (tangga profil B264) — dipoll di loop 1 detik
+    // YANG SAMA. Default FULL = tanpa penanda, jadi device normal TIDAK berubah.
+    var compressorReach by mutableStateOf(CompressorReach.FULL); private set
     // Batch 120 (Fase 8E, spectrum visualizer, part 1/2 - lihat PROJECT_STATE.md RESUME
     // POINT): DIPOLL TERPISAH di init block (interval jauh lebih pendek dari loop
     // EffectState 1 detik di atas — lihat komentar loop-nya). `visualizerEffectState`
@@ -258,6 +261,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     loudnessEffectState = service?.loudnessState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     equalizerEffectState = service?.equalizerState ?: AudioEnhancerService.EffectState.UNAVAILABLE
                     compressorEffectState = service?.compressorState ?: AudioEnhancerService.EffectState.UNAVAILABLE
+                    compressorReach = service?.compressorReach ?: CompressorReach.FULL // Batch 276
                     // Fase 0 item #9: deteksi route BARU (beda dari deskripsi terakhir yang
                     // sudah ditampilkan) — reset dismiss supaya perpindahan route BERIKUTNYA
                     // tetap muncul lagi walau user sudah dismiss route sebelumnya.

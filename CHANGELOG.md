@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 276: Penanda UI untuk profil cadangan DynamicsProcessing (opsi B)
+
+Permintaan user: "Mulai dari opsi B!!". Sejak Batch 264, device yang menolak konfigurasi `DynamicsProcessing` lengkap (log Samsung SM-S711B) turun ke profil cadangan, dan di profil terakhir (limiter saja) slider Compressor dan Vocal Focus tidak berefek sama sekali, tetapi layar tetap menampilkan petunjuk normal. Sekarang layar jujur soal itu.
+
+Layanan menerbitkan `compressorReach` (enum `CompressorReach`: `FULL`, `NO_PRESENCE`, `LIMITER_ONLY`) yang diturunkan dari tahap yang dimiliki profil aktif (`DynamicsProfiles.reachOf`), dipoll ViewModel di loop 1 detik yang sudah ada, lalu dipakai `BoosterScreen` untuk teks bantuan: `LIMITER_ONLY` = petunjuk "Compressor dan Vocal Focus tidak berefek di HP ini" di kedua slider; `NO_PRESENCE` = petunjuk "Terbatas di HP ini" di Vocal Focus (penguat kejernihan vokal ditolak, hanya penekanan bass/treble yang bekerja). Teks ID dan EN ditambahkan; slider tidak dinonaktifkan dan nilainya tetap tersimpan.
+
+Device normal tidak berubah: profil pertama dan kasus semua-profil-ditolak menghasilkan `FULL` (tanpa penanda; kasus kedua sudah ditandai "tidak didukung"). Empat tes baru di `DynamicsProfilesTest` menjaga hal itu. Delapan file karena satu kontrak data baru melintasi layanan, ViewModel, MainActivity, layar, dua file string, dan tes. Belum dikompilasi dan belum dijalankan di CI. Revert: `Boomly_v275.zip`.
+
 ## Batch 275: Triase CI run 71 (Batch 274 terverifikasi), tanpa perubahan kode
 
 Permintaan user: "Next" dengan unggahan `AEP_laporan-untuk-claude_run71.zip`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=274, COMMIT=795f828, RUN_ID=41952581503). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 218 tes lulus tanpa ada yang dilewati.
