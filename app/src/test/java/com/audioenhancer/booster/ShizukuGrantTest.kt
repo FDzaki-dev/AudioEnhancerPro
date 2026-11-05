@@ -7,7 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 250 — penjaga akses Reverb lewat Shizuku (izin `DUMP` dengan satu tombol, tanpa komputer).
+ * Batch 250 — penjaga akses lewat Shizuku (izin `DUMP` dengan satu tombol, tanpa komputer).
+ * Batch 270: kartu Reverb (tempat tombolnya) DICABUT; kode Shizuku ini DORMAN (tanpa UI), jadi 3 tes yang menjaga kartu/teks/string-nya dihapus.
+ * Batch 271: tombol hidup lagi di kartu mandiri izin DUMP (`BoosterScreen.DumpAccessCard`); 4 tes baru menjaga pemetaan status -> tombol,
+ * pemasangan kartu, pasangan `start`/`stop`, dan string ID+EN kartu.
  *
  * JVM murni (tanpa Robolectric/Shizuku asli): (1) aturan murni `ReverbAccessPolicy` (urutan status, kriteria sukses `pm grant`),
  * (2) tes teks sumber untuk kontrak yang TIDAK terlihat kompiler: manifest (provider + queries), aturan R8 untuk layanan yang
@@ -24,6 +27,7 @@ class ShizukuGrantTest {
 
     private val grantSource: String by lazy { module("src/main/java/com/audioenhancer/booster/ShizukuGrant.kt") }
     private val manifest: String by lazy { module("src/main/AndroidManifest.xml") }
+    private val boosterSource: String by lazy { module("src/main/java/com/audioenhancer/booster/BoosterScreen.kt") }
 
     /** Sumber tanpa komentar `//` dan KDoc supaya tes menilai KODE, bukan catatan. */
     private fun code(source: String): String =
@@ -184,52 +188,58 @@ class ShizukuGrantTest {
         assertFalse(src.contains("runBlocking"))
     }
 
+    // ---- kartu izin DUMP (Batch 271) ----
+
+    @Test
+    fun `dump card button follows the access status`() {
+        assertEquals(DumpCardButton.NONE, DumpCardPolicy.button(ReverbAccess.GRANTED))
+        assertEquals(DumpCardButton.NONE, DumpCardPolicy.button(ReverbAccess.WORKING))
+        assertEquals(DumpCardButton.INSTALL, DumpCardPolicy.button(ReverbAccess.NOT_INSTALLED))
+        assertEquals(DumpCardButton.OPEN, DumpCardPolicy.button(ReverbAccess.NOT_RUNNING))
+        assertEquals(DumpCardButton.OPEN, DumpCardPolicy.button(ReverbAccess.DENIED))
+        assertEquals(DumpCardButton.ENABLE, DumpCardPolicy.button(ReverbAccess.READY))
+        assertEquals(DumpCardButton.RETRY, DumpCardPolicy.button(ReverbAccess.FAILED))
+    }
+
+    @Test
+    fun `dump card has a button exactly when the user can act`() {
+        for (status in ReverbAccess.values()) {
+            val idle = status == ReverbAccess.GRANTED || status == ReverbAccess.WORKING
+            assertTrue(status.name, idle == (DumpCardPolicy.button(status) == DumpCardButton.NONE))
+        }
+    }
+
+    @Test
+    fun `dump card is placed on the screen and pairs the controller lifecycle`() {
+        val src = code(boosterSource)
+        assertTrue("kartu harus dipanggil di layar", Regex("""\n\s*DumpAccessCard\(\)""").containsMatchIn(src))
+        val card = src.substring(src.indexOf("private fun DumpAccessCard()"), src.indexOf("private fun SpectrumBars("))
+        assertTrue(card.contains("ShizukuGrant.start(context)"))
+        assertTrue(card.contains("ShizukuGrant.stop()"))
+        assertTrue("status dibaca ulang tiap ON_RESUME", card.contains("Lifecycle.Event.ON_RESUME") && card.contains("ShizukuGrant.onResume(context)"))
+        assertTrue(card.contains("lifecycle?.removeObserver(observer)"))
+        assertFalse("kartu hanya MEMBERI izin (tanpa revoke)", card.contains("ShizukuGrant.revoke"))
+        assertFalse("kartu tak boleh menyentuh jalur service audio", card.contains("AudioEnhancerService"))
+    }
+
+    @Test
+    fun `dump card strings exist in both languages`() {
+        val id = module("src/main/res/values/strings.xml")
+        val en = module("src/main/res/values-en/strings.xml")
+        val used = Regex("""R\.string\.(dump_\w+)""").findAll(code(boosterSource)).map { it.groupValues[1] }.toSet()
+        assertEquals("judul + isi + 7 status + 4 tombol", 13, used.size)
+        for (key in used) {
+            assertTrue("$key hilang di values (ID)", id.contains("""name="$key""""))
+            assertTrue("$key hilang di values-en (EN)", en.contains("""name="$key""""))
+        }
+    }
+
     @Test
     fun `listeners are registered and removed in pairs`() {
         val src = code(grantSource)
         for (name in listOf("BinderReceivedListener", "BinderDeadListener", "RequestPermissionResultListener")) {
             assertTrue("add$name", src.contains("Shizuku.add$name") || src.contains("Shizuku.add${name}Sticky"))
             assertTrue("remove$name", src.contains("Shizuku.remove$name"))
-        }
-    }
-
-    @Test
-    fun `reverb card hosts the access block and pairs start with stop`() {
-        val screen = code(module("src/main/java/com/audioenhancer/booster/BoosterScreen.kt"))
-        assertTrue(screen.contains("ReverbAccessBlock(onPermissionChanged = { onReverb(reverbPreset.toInt()) })"))
-        val body = screen.substring(screen.indexOf("private fun ReverbAccessBlock"))
-        assertTrue(body.contains("ShizukuGrant.start(context)"))
-        assertTrue(body.contains("ShizukuGrant.stop()"))
-        assertTrue("segarkan status saat RESUME", body.contains("Lifecycle.Event.ON_RESUME"))
-        assertTrue("tombol uji ulang hanya saat Shizuku hidup", body.contains("if (ShizukuGrant.shizukuAlive)"))
-        assertTrue("izin diberikan ATAU dicabut harus menyegarkan service", body.contains("if (granted != lastGranted)"))
-        assertTrue("status WORKING tidak boleh memicu", body.contains("if (access == ReverbAccess.WORKING) return@LaunchedEffect"))
-        assertTrue(body.contains("ShizukuGrant.revoke(context)"))
-    }
-
-    @Test
-    fun `missing DUMP permission releases stale session reverbs`() {
-        val service = code(module("src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt"))
-        val start = service.indexOf("private fun refreshSessionReverb(")
-        val body = service.substring(start, service.indexOf("private fun readPlayerSessions("))
-        val denied = body.indexOf("PackageManager.PERMISSION_GRANTED) {")
-        val release = body.indexOf("releaseSessionReverbs(\"izin DUMP tidak ada")
-        val ret = body.indexOf("return", release)
-        assertTrue("pelepasan ada di cabang izin-tidak-ada", denied in 0 until release)
-        assertTrue("dan terjadi SEBELUM return cabang itu", release in 0 until ret)
-        assertTrue("penanda log direset saat izin ada", body.contains("dumpProbeDeniedLogged = false"))
-    }
-
-    @Test
-    fun `access strings exist in both languages`() {
-        val keys = listOf(
-            "reverb_access_granted", "reverb_access_need_install", "reverb_access_need_start", "reverb_access_ready",
-            "reverb_access_working", "reverb_access_denied", "reverb_access_failed",
-            "reverb_access_button_enable", "reverb_access_button_open", "reverb_access_button_get", "reverb_access_button_revoke"
-        )
-        for (file in listOf("src/main/res/values/strings.xml", "src/main/res/values-en/strings.xml")) {
-            val xml = module(file)
-            for (key in keys) assertTrue("$key hilang di $file", xml.contains("name=\"$key\""))
         }
     }
 }

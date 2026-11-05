@@ -19,9 +19,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.LifecycleOwner
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,7 +55,6 @@ import androidx.compose.material.icons.filled.Spa
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material.icons.filled.Waves
 import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -72,12 +68,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -463,6 +461,86 @@ private fun UpdateBanner(
     }
 }
 
+/** Batch 271 (request user: opsi 2 "kartu mandiri kecil", setelah Reverb dicabut B270): kartu izin `DUMP` lewat Shizuku. Izin ini masih
+ *  dipakai probe `dumpsys` untuk mengikat 5 efek utama ke sesi pemutar (B257), tetapi tombolnya ikut hilang bersama kartu Reverb.
+ *  Murni UI di atas pengendali `ShizukuGrant` (state `access` dibaca langsung; aksi = `enable`/`openShizukuOrDownload`), TANPA
+ *  parameter baru di `BoosterScreen`, tanpa menyentuh service/serah-terima/Effect Guard. Pendengar Shizuku dipasang selama kartu
+ *  tampil (`start`/`stop` berpasangan) dan status dibaca ulang tiap ON_RESUME (user baru kembali dari aplikasi Shizuku). */
+@Composable
+private fun DumpAccessCard() {
+    val context = LocalContext.current
+    val haptics = rememberAppHaptics()
+    val access = ShizukuGrant.access
+
+    DisposableEffect(context) {
+        ShizukuGrant.start(context)
+        val lifecycle = (context as? LifecycleOwner)?.lifecycle
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) ShizukuGrant.onResume(context)
+        }
+        lifecycle?.addObserver(observer)
+        onDispose {
+            lifecycle?.removeObserver(observer)
+            ShizukuGrant.stop()
+        }
+    }
+
+    val button = DumpCardPolicy.button(access)
+    val buttonLabel = when (button) {
+        DumpCardButton.INSTALL -> R.string.dump_button_install
+        DumpCardButton.OPEN -> R.string.dump_button_open
+        DumpCardButton.ENABLE -> R.string.dump_button_enable
+        DumpCardButton.RETRY -> R.string.dump_button_retry
+        DumpCardButton.NONE -> null
+    }
+    val statusText = when (access) {
+        ReverbAccess.GRANTED -> R.string.dump_status_granted
+        ReverbAccess.NOT_INSTALLED -> R.string.dump_status_not_installed
+        ReverbAccess.NOT_RUNNING -> R.string.dump_status_not_running
+        ReverbAccess.READY -> R.string.dump_status_ready
+        ReverbAccess.WORKING -> R.string.dump_status_working
+        ReverbAccess.DENIED -> R.string.dump_status_denied
+        ReverbAccess.FAILED -> R.string.dump_status_failed
+    }
+
+    SkeuCard {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Text(stringResource(R.string.dump_card_title), fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(stringResource(R.string.dump_card_body), style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(10.dp))
+            if (access == ReverbAccess.GRANTED) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Text(stringResource(statusText), style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                Text(stringResource(statusText), style = MaterialTheme.typography.bodySmall)
+                if (buttonLabel != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SkeuOutlinedButton(onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        when (button) {
+                            DumpCardButton.INSTALL, DumpCardButton.OPEN -> ShizukuGrant.openShizukuOrDownload(context)
+                            DumpCardButton.ENABLE, DumpCardButton.RETRY -> ShizukuGrant.enable(context)
+                            DumpCardButton.NONE -> Unit
+                        }
+                    }) {
+                        Text(stringResource(buttonLabel))
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): render [levels] (0f..1f per
  *  elemen, panjang = [AudioEnhancerService.SPECTRUM_BAND_COUNT]) sebagai bar vertikal
  *  rapat. BUKAN `animate*AsState` — [levels] sendiri sudah berubah ~20x/detik dari loop
@@ -528,15 +606,12 @@ fun BoosterScreen(
     onCompressor: (Int) -> Unit = {},
     // Batch 209: slider "Vocal Focus" (0..100) di bawah Compressor — keseimbangan vokal vs bass/treble.
     onVocalFocus: (Int) -> Unit = {},
-    // Batch 244 (request user: Reverb/Spatial): slider preset Reverb 0..6 (0 = Mati) di bawah Vocal Focus.
-    onReverb: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
     virtualizerSupported: Boolean = true,
     loudnessSupported: Boolean = true,
     compressorSupported: Boolean = true,
-    reverbSupported: Boolean = true,
     bassStrengthSupported: Boolean = true,
     virtualizerStrengthSupported: Boolean = true,
     // Batch 58: EffectState (Batch 57) di-poll ViewModel, dipass ke sini buat helpText
@@ -546,7 +621,6 @@ fun BoosterScreen(
     virtualizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     loudnessEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     compressorEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
-    reverbEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     equalizerEffectState: AudioEnhancerService.EffectState = AudioEnhancerService.EffectState.ENABLED,
     // Batch 120 (Fase 8E, part 2/2 - lihat PROJECT_STATE.md): default UNAVAILABLE (bukan
     // ENABLED seperti 4 EffectState di atas) — pemanggil lama tanpa parameter ini WAJIB
@@ -567,7 +641,6 @@ fun BoosterScreen(
     initialLoudness: Float = 0f,
     initialCompressorAmount: Float = 0f,
     initialVocalFocus: Float = 50f,
-    initialReverbPreset: Float = 0f,
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -683,9 +756,6 @@ fun BoosterScreen(
     var loudness by remember { mutableFloatStateOf(initialLoudness) }
     var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
     var vocalFocus by remember { mutableFloatStateOf(initialVocalFocus) }
-    // Batch 244: nama preset Reverb (7 item, urut = indeks 0..6 `ReverbPresets`); nilai awal dari prefs seperti slider lain.
-    var reverbPreset by remember { mutableFloatStateOf(initialReverbPreset) }
-    val reverbPresetNames = stringArrayResource(R.array.reverb_preset_names)
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -1206,39 +1276,6 @@ fun BoosterScreen(
                     enabled = compressorSupported,
                     wrapInCard = false
                 )
-
-                SkeuGroupDivider()
-
-                // Batch 244 (request user: Reverb/Spatial): preset ruang `PresetReverb` di mixer global. Seperti Compressor/
-                // Vocal Focus, SENGAJA tidak ikut preset (nilai tersimpan di PrefsHelper terpisah). Teks bantuan jujur soal
-                // batas efek ini (bisa diabaikan sebagian perangkat/aplikasi).
-                FeatureControl(
-                    title = stringResource(R.string.feature_reverb_title),
-                    icon = Icons.Filled.Waves,
-                    accentColor = VirtualizerAccent,
-                    accentColor2 = VirtualizerAccent2,
-                    helpText = when {
-                        !reverbSupported -> stringResource(R.string.feature_help_unsupported)
-                        reverbEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
-                            stringResource(R.string.feature_help_control_lost)
-                        reverbEffectState == AudioEnhancerService.EffectState.FAILED ->
-                            stringResource(R.string.feature_help_failed)
-                        else -> stringResource(R.string.feature_reverb_help_normal)
-                    },
-                    value = reverbPreset,
-                    valueLabel = reverbPresetNames.getOrElse(reverbPreset.toInt()) { reverbPreset.toInt().toString() },
-                    onValueChange = { reverbPreset = it; onReverb(it.toInt()) },
-                    valueRange = 0f..6f,
-                    step = 1f,
-                    enabled = reverbSupported,
-                    wrapInCard = false
-                )
-
-                // Batch 250 (request user: akses Reverb gampang): satu tombol Shizuku untuk izin DUMP (tanpa komputer). Setelah izin
-                // baru terbaca, preset yang sedang dipilih dikirim ulang supaya service langsung memasang Reverb per-session.
-                if (reverbSupported) {
-                    ReverbAccessBlock(onPermissionChanged = { onReverb(reverbPreset.toInt()) })
-                }
             }
         }
 
@@ -1544,6 +1581,9 @@ fun BoosterScreen(
                 Text(stringResource(R.string.battery_recents_note), style = MaterialTheme.typography.bodySmall)
             }
         }
+
+        // Batch 271: kartu mandiri izin DUMP (Shizuku) — lihat `DumpAccessCard`.
+        DumpAccessCard()
 
         // Batch 95 (screenshot ke-3 user: baris ini kepotong jadi "'n" doang di layar
         // sempit): SEBELUMNYA panah "→" nempel jadi 1 karakter di ekor string —
@@ -1987,93 +2027,6 @@ fun BoosterScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
         )
-    }
-}
-
-/** Batch 250: status + satu tombol untuk izin `DUMP` (Reverb per-session, B247) lewat Shizuku — lihat `ShizukuGrant.kt`. Pendengar Shizuku
- *  hidup selama blok ini tampil; status dibaca ulang tiap layar kembali RESUME (user mungkin baru memasang/menjalankan Shizuku).
- *  [onPermissionChanged] dipanggil SEKALI tiap izin DUMP berubah (diberikan ATAU dicabut, B252) selama blok tampil; status WORKING diabaikan
- *  dan keadaan awal tidak dihitung. Service lalu menyegarkan Reverb per-session: memasang saat izin ada, melepas saat izin tak ada. */
-@Composable
-private fun ReverbAccessBlock(onPermissionChanged: () -> Unit) {
-    val context = LocalContext.current
-    val owner = context as? LifecycleOwner
-    DisposableEffect(owner) {
-        ShizukuGrant.start(context)
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) ShizukuGrant.onResume(context)
-        }
-        owner?.lifecycle?.addObserver(observer)
-        onDispose {
-            owner?.lifecycle?.removeObserver(observer)
-            ShizukuGrant.stop()
-        }
-    }
-
-    val access = ShizukuGrant.access
-    val latestOnChanged = rememberUpdatedState(onPermissionChanged)
-    var lastGranted by remember { mutableStateOf(access == ReverbAccess.GRANTED) }
-    LaunchedEffect(access) {
-        if (access == ReverbAccess.WORKING) return@LaunchedEffect
-        val granted = access == ReverbAccess.GRANTED
-        if (granted != lastGranted) {
-            lastGranted = granted
-            latestOnChanged.value()
-        }
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-    if (access == ReverbAccess.GRANTED) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-            Text(stringResource(R.string.reverb_access_granted), style = MaterialTheme.typography.bodySmall)
-        }
-        // Batch 251: tombol uji ulang (cabut izin DUMP) hanya bila server Shizuku hidup; tanpa Shizuku tak ada yang bisa dicabut dari sini.
-        if (ShizukuGrant.shizukuAlive) {
-            Spacer(modifier = Modifier.height(6.dp))
-            SkeuOutlinedButton(onClick = { ShizukuGrant.revoke(context) }) {
-                Text(stringResource(R.string.reverb_access_button_revoke))
-            }
-        }
-        return
-    }
-
-    val message = when (access) {
-        ReverbAccess.NOT_INSTALLED -> stringResource(R.string.reverb_access_need_install)
-        ReverbAccess.NOT_RUNNING -> stringResource(R.string.reverb_access_need_start)
-        ReverbAccess.READY -> stringResource(R.string.reverb_access_ready)
-        ReverbAccess.WORKING -> stringResource(R.string.reverb_access_working)
-        ReverbAccess.DENIED -> stringResource(R.string.reverb_access_denied)
-        else -> stringResource(R.string.reverb_access_failed)
-    }
-    val isProblem = access == ReverbAccess.DENIED || access == ReverbAccess.FAILED
-    Text(
-        message,
-        style = MaterialTheme.typography.bodySmall,
-        color = if (isProblem) MaterialTheme.colorScheme.error else Color.Unspecified
-    )
-    if (access == ReverbAccess.WORKING) return
-
-    Spacer(modifier = Modifier.height(6.dp))
-    val label = when (access) {
-        ReverbAccess.NOT_INSTALLED -> stringResource(R.string.reverb_access_button_get)
-        ReverbAccess.NOT_RUNNING -> stringResource(R.string.reverb_access_button_open)
-        else -> stringResource(R.string.reverb_access_button_enable)
-    }
-    SkeuOutlinedButton(
-        onClick = {
-            if (access == ReverbAccess.NOT_INSTALLED || access == ReverbAccess.NOT_RUNNING) {
-                ShizukuGrant.openShizukuOrDownload(context)
-            } else {
-                ShizukuGrant.enable(context)
-            }
-        }
-    ) {
-        Text(label)
     }
 }
 

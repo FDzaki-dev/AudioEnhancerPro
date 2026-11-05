@@ -1,5 +1,25 @@
 # Changelog
 
+## Batch 271: Kartu mandiri izin DUMP (Shizuku) di layar utama
+
+Permintaan user: setelah Reverb dicabut (Batch 270), tombol izin DUMP via Shizuku ikut hilang padahal izin itu masih dipakai efek utama untuk mengikat diri ke sesi pemutar yang sedang main (Batch 257). Dari tiga pilihan (biarkan dorman, kartu mandiri kecil, hapus Shizuku), dipilih kartu mandiri kecil karena manfaatnya melebihi biayanya dan tidak mengubah fitur lain.
+
+Yang ditambahkan: satu kartu "Izin DUMP: efek ikut sesi pemutar" tepat di bawah kartu baterai (tab Bantuan pada Mode Tab Horizontal, atau satu scroll pada mode vertikal). Kartu menampilkan status dan SATU tombol sesuai keadaan: Pasang Shizuku, Buka Shizuku, Aktifkan izin DUMP, atau Coba lagi; saat izin sudah aktif tampil centang tanpa tombol. Pemberian izin memakai pengendali Shizuku yang sudah ada (`pm grant` untuk Boomly sendiri, sukses hanya bila izin terbaca ulang). Status dibaca ulang setiap layar kembali tampil, jadi cukup kembali dari aplikasi Shizuku.
+
+**Cakupan.** 5 file: `BoosterScreen.kt` (kartu), `ShizukuGrant.kt` (`DumpCardPolicy`: pemetaan status ke tombol, JVM murni), `values/strings.xml` dan `values-en/strings.xml` (13 string `dump_*`), `ShizukuGrantTest.kt` (4 tes baru: pemetaan tombol, pemasangan kartu + pasangan `start`/`stop`, paritas string ID+EN). Tidak ada parameter baru di `BoosterScreen`, tidak menyentuh `MainActivity`, layanan audio, serah-terima efek, atau Effect Guard. Tanpa tombol cabut izin (izin hanya diberikan; tanpa Shizuku jalur `adb shell pm grant` tetap sah dan tanpa izin perilaku efek tidak berubah).
+
+Belum dikompilasi, belum lewat CI, belum diuji di HP. Revert: `Boomly_v270.zip`.
+
+## Batch 270: Fitur Reverb dicabut total
+
+Permintaan user: Reverb tidak dibutuhkan karena hasilnya kurang berpengaruh dan tertutup suara lain. Dari dua pilihan yang diberikan (analisis statik lalu eksekusi tanpa uji, atau cabut total), dipilih cabut total dan fokus ke pengembangan lain; uji di HP tidak akan dilakukan.
+
+Yang dicabut: kartu Reverb di tab Kontrol (slider 7 posisi dan blok tombol akses Shizuku di dalamnya), seluruh efek Reverb per-sesi di layanan (pembuatan, penggantian preset, percobaan ulang enable/buat, pelepasan), pilihan tersimpan `reverb_preset`, string kartu dan nama preset (ID dan EN), kelas `ReverbPresets`, serta semua anggota `DumpProbe` yang hanya melayani Reverb. Dua tes khusus Reverb dihapus, tiga tes penjaga disesuaikan, dan satu tes baru menjaga agar kode Reverb tidak muncul lagi di layanan.
+
+Yang sengaja dipertahankan: pembacaan `dumpsys audio` lewat izin DUMP tetap berjalan karena dipakai efek utama untuk mengikuti sesi pemutar (Batch 257); sekarang hanya itu fungsinya. Baris log `DumpProbe[...]` kini mencatat `main=` (sesi yang sedang main) menggantikan `sesi=`. Tanpa izin DUMP perilaku efek utama sama seperti sebelumnya (session 0) dan hal itu dicatat sekali di log. Kode Shizuku dibiarkan dorman tanpa tampilan: tombol aktifkan/cabut izin ikut hilang bersama kartu Reverb, tetapi izin DUMP yang sudah diberikan lewat adb tetap berlaku selama aplikasi tidak di-uninstall. Diagnostik daftar efek di Ekspor Log Debug (Batch 266) tidak disentuh.
+
+Catatan: nilai lama `reverb_preset` tertinggal di penyimpanan HP dan tidak dibaca lagi (tidak berbahaya). Batch ini melampaui batas 8 file (12 file) karena mencabut satu fitur utuh; alasannya tercatat di PROJECT_STATE. Belum dikompilasi, belum lewat CI, belum diuji di HP.
+
 ## Batch 269: Efek reverb session 0 dihapus total, jatah memori efek sistem dibebaskan
 
 Permintaan user: "Disabled aja jika gak guna dan Menuhin memori!!", bersama log debug 07:35 dari build B268.

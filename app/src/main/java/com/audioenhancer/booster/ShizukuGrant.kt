@@ -30,6 +30,9 @@ import rikka.shizuku.Shizuku
  * memberikannya lewat Shizuku dengan SATU ketukan di kartu Reverb: minta izin Shizuku -> jalankan `pm grant` di proses
  * shell (UserService) -> baca ulang izin. Tanpa Shizuku = perilaku lama (nol perubahan).
  *
+ * Batch 271: kartu Reverb sudah dicabut (B270), tombolnya kini hidup lagi di kartu mandiri "izin DUMP" (`BoosterScreen.DumpAccessCard`)
+ * karena probe `dumpsys` masih dipakai efek utama untuk mengikuti sesi pemutar (B257). Nama `ReverbAccess*` dipertahankan (tanpa rename).
+ *
  * Tiga bagian: [ReverbAccess]/[ReverbAccessPolicy] (JVM murni, dites `ShizukuGrantTest`), [ShizukuGrantService] (jalan di
  * proses shell milik Shizuku, tanpa Context), dan [ShizukuGrant] (pengendali status yang dibaca UI).
  */
@@ -98,6 +101,20 @@ internal object ReverbAccessPolicy {
         exitCode == 0 && !output.contains("Exception", ignoreCase = true) && !output.contains("Error", ignoreCase = true)
 
     fun trimOutput(text: String): String = text.trim().take(OUTPUT_MAX_CHARS)
+}
+
+/** Batch 271: tombol tunggal kartu izin DUMP (`BoosterScreen.DumpAccessCard`); [NONE] = tanpa tombol. */
+internal enum class DumpCardButton { NONE, INSTALL, OPEN, ENABLE, RETRY }
+
+/** Batch 271: pemetaan status -> tombol kartu izin DUMP, JVM murni (dites `ShizukuGrantTest`). Tanpa revoke: kartu hanya MEMBERI izin. */
+internal object DumpCardPolicy {
+    fun button(access: ReverbAccess): DumpCardButton = when (access) {
+        ReverbAccess.GRANTED, ReverbAccess.WORKING -> DumpCardButton.NONE
+        ReverbAccess.NOT_INSTALLED -> DumpCardButton.INSTALL
+        ReverbAccess.NOT_RUNNING, ReverbAccess.DENIED -> DumpCardButton.OPEN
+        ReverbAccess.READY -> DumpCardButton.ENABLE
+        ReverbAccess.FAILED -> DumpCardButton.RETRY
+    }
 }
 
 /**

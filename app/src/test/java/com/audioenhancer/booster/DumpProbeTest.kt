@@ -7,11 +7,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 247 — penjaga pembacaan `dumpsys audio` (izin DUMP) dan Reverb per-session.
+ * Batch 247 — penjaga pembacaan `dumpsys audio` (izin DUMP). Batch 270: Reverb per-session DICABUT; probe hanya untuk mengikat efek utama
+ * ke sesi pemutar (B257).
  *
  * Bagian 1 (JVM murni): parser `DumpProbe` diuji dengan baris ASLI dari log device B246 (Infinix X6855, Android 16),
- * dipotong persis seperti tercatat di log. Bagian 2 (tes teks sumber): Reverb per-session hanya aktif bila slider > Mati dan
- * izin DUMP ada, tidak menyentuh efek session 0 / serah-terima efek / Effect Guard, dan selalu dilepas saat Matikan/destroy.
+ * dipotong persis seperti tercatat di log. Bagian 2 (tes teks sumber): probe hanya jalan bila layanan menyala, izin DUMP ada, dan jeda
+ * minimum terpenuhi; dijadwalkan dari perubahan pemutar; scope dibatalkan sebelum efek dilepas; tak ada kode Reverb tersisa.
  */
 class DumpProbeTest {
 
@@ -92,31 +93,23 @@ class DumpProbeTest {
     // ---- pemilihan session ----
 
     @Test
-    fun `pickSessions keeps media sessions with started first and drops system and sessionless players`() {
+    fun `startedSessions keeps only started foreign media sessions from the real dump`() {
         val players = DumpProbe.parsePlayers(realDump())
-        assertEquals(listOf(76081, 47009), DumpProbe.pickSessions(players, ownUid = 1, max = DumpProbe.MAX_SESSIONS))
+        assertEquals(listOf(76081), DumpProbe.startedSessions(players, ownUid = 1))
     }
 
     @Test
-    fun `pickSessions skips the players of the own uid`() {
+    fun `startedSessions skips the players of the own uid`() {
         val players = DumpProbe.parsePlayers(realDump())
-        assertEquals(listOf(47009), DumpProbe.pickSessions(players, ownUid = 10460, max = DumpProbe.MAX_SESSIONS))
+        assertTrue(DumpProbe.startedSessions(players, ownUid = 10460).isEmpty())
     }
 
     @Test
-    fun `pickSessions de-duplicates and caps the result`() {
-        val players = listOf(11, 12, 12, 13, 14).mapIndexed { i, session ->
-            DumpProbe.Player(piid = i, uid = 10001, state = "started", usage = "USAGE_MEDIA", sessionId = session)
+    fun `startedSessions de-duplicates and ignores paused idle stopped and released players`() {
+        val players = listOf("started" to 11, "started" to 11, "paused" to 12, "idle" to 13, "stopped" to 14, "released" to 15).mapIndexed { i, (state, session) ->
+            DumpProbe.Player(piid = i, uid = 10001, state = state, usage = "USAGE_MEDIA", sessionId = session)
         }
-        assertEquals(listOf(11, 12, 13), DumpProbe.pickSessions(players, ownUid = 1, max = 3))
-    }
-
-    @Test
-    fun `pickSessions ignores stopped and released players`() {
-        val players = listOf("stopped", "released").mapIndexed { i, state ->
-            DumpProbe.Player(piid = i, uid = 10001, state = state, usage = "USAGE_MEDIA", sessionId = 20 + i)
-        }
-        assertTrue(DumpProbe.pickSessions(players, ownUid = 1, max = 3).isEmpty())
+        assertEquals(listOf(11), DumpProbe.startedSessions(players, ownUid = 1))
     }
 
     // ---- aturan lain ----
@@ -137,90 +130,37 @@ class DumpProbeTest {
         )
     }
 
-    // ---- diagnostik B248 ----
-
-    @Test
-    fun `statusName maps the AudioEffect status codes`() {
-        assertEquals("SUCCESS", DumpProbe.statusName(0))
-        assertEquals("INVALID_OPERATION", DumpProbe.statusName(-5))
-        assertEquals("NO_MEMORY", DumpProbe.statusName(-6))
-        assertEquals("DEAD_OBJECT", DumpProbe.statusName(-7))
-        assertEquals("UNKNOWN", DumpProbe.statusName(-99))
-    }
-
-    @Test
-    fun `enable retries are bounded and quick`() {
-        assertTrue(DumpProbe.ENABLE_RETRIES in 1..10)
-        assertTrue(DumpProbe.ENABLE_RETRY_DELAY_MS in 100L..1_000L)
-    }
-
     // ---- tes teks sumber ----
 
     @Test
-    fun `refresh does nothing unless running, slider is above Off, permission is granted and interval allows`() {
-        val body = bodyBetween(serviceSource(), "private fun refreshSessionReverb(", "private fun readPlayerSessions(")
+    fun `refresh does nothing unless running, permission is granted and interval allows`() {
+        val body = bodyBetween(serviceSource(), "private fun refreshEffectSession(", "private fun readPlayerSessions(")
         val running = body.indexOf("if (!isRunning) return")
-        val slider = body.indexOf("if (!ReverbPresets.isActive(index))")
-        val release = body.indexOf("releaseSessionReverbs(")
         val permission = body.indexOf("ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED")
         val interval = body.indexOf("if (!force && !DumpProbe.shouldRun(lastDumpProbeAtMs, now)) return")
         val busy = body.indexOf("dumpProbeBusy.compareAndSet(false, true)")
-        assertTrue(running in 0 until slider)
-        assertTrue("slider Mati melepas dulu (B257: probe lanjut utk efek utama kecuali pemicu slider)", slider < release && release < permission)
+        assertTrue(running in 0 until permission)
         assertTrue("izin dicek sebelum jeda & proses", permission < interval && interval < busy)
         assertTrue("dump berjalan di IO, bukan main thread", serviceSource().contains("kotlinx.coroutines.Dispatchers.IO"))
     }
 
     @Test
-    fun `apply works only while running and active and never touches the session 0 effects`() {
-        val src = serviceSource()
-        val body = bodyBetween(src, "private fun applySessionReverbs(", "private fun createSessionReverb(")
-        assertTrue(body.contains("synchronized(sessionReverbLock)"))
-        assertTrue(body.contains("isRunning && dumpProbeScope.isActive && ReverbPresets.isActive(index)"))
-        val perSession = bodyBetween(src, "private fun applySessionReverbs(", "/** Lepas SEMUA Reverb per-session")
-        for (forbidden in listOf("presetReverb", "bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer", "setControlStatusListener", "setEnableStatusListener")) {
-            assertFalse("Reverb per-session tidak boleh menyentuh: $forbidden", perSession.contains(forbidden))
+    fun `probe only reads players and feeds the effect session follower`() {
+        val body = bodyBetween(serviceSource(), "private fun readPlayerSessions(", "private fun followEffectSession(")
+        assertTrue(body.contains("followEffectSession(started)"))
+        for (forbidden in listOf("bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer", "PresetReverb")) {
+            assertFalse("probe tidak boleh menyentuh: $forbidden", body.contains(forbidden))
         }
-        assertTrue("dibuat di session pemutar, BUKAN session 0", perSession.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, session)"))
     }
 
     @Test
-    fun `slider change saves first then refreshes while running`() {
-        val body = bodyBetween(serviceSource(), "fun setReverbPreset(", "private fun compressorMbcBand(")
-        val save = body.indexOf("PrefsHelper.setReverbPreset(this, clamped)")
-        val refresh = body.indexOf("if (isRunning) refreshSessionReverbAfterPreset(changed)")
-        assertTrue(save >= 0)
-        assertTrue("segar dipicu SESUDAH nilai disimpan", refresh > save)
-    }
-
-    @Test
-    fun `per-session reverbs are released on Matikan and on destroy and scheduled from player changes`() {
+    fun `probe is scheduled from player changes and cancelled before effects are released`() {
         val src = serviceSource()
-        assertTrue(bodyBetween(src, "private fun disableEffects(", "private fun enableEffects(").contains("releaseSessionReverbs("))
-        assertTrue(bodyBetween(src, "private fun releaseEffects(", "private fun disableEffects(").contains("releaseSessionReverbs("))
         val onDestroy = bodyBetween(src, "override fun onDestroy()", "/** Menempel ke audio session 0")
         assertTrue("scope dibatalkan SEBELUM efek dilepas", onDestroy.indexOf("dumpProbeScope.cancel()") in 0 until onDestroy.indexOf("releaseEffects()"))
         val callback = bodyBetween(src, "private fun onPlaybackConfigsChanged(", "// ---- Batch 247")
-        assertTrue(callback.contains("scheduleSessionReverbRefresh()"))
+        assertTrue(callback.contains("scheduleEffectSessionProbe()"))
         assertEquals("satu-satunya penjadwal runnable", 1, Regex("""postDelayed\(dumpProbeRunnable""").findAll(src).count())
-    }
-
-    @Test
-    fun `enable status is logged and a failed enable is retried under the lock`() {
-        val src = serviceSource()
-        val create = bodyBetween(src, "private fun createSessionReverb(", "private fun updateSessionReverb(")
-        assertTrue("status setEnabled dicatat", create.contains("created.setEnabled(true)") && create.contains("DumpProbe.statusName(status)"))
-        val apply = bodyBetween(src, "private fun applySessionReverbs(", "/** Batch 249")
-        assertTrue("jatah percobaan ulang di-reset tiap penyegaran", apply.contains("sessionReverbRetries = 0"))
-        assertTrue("percobaan ulang dijadwalkan bila ada yang belum menyala", apply.contains("if (hasDisabledSessionReverb()) {") && apply.contains("scheduleEnableRetry()"))
-        val retry = bodyBetween(src, "private fun scheduleEnableRetry(", "private fun createSessionReverb(")
-        assertTrue("jumlah percobaan dibatasi", retry.contains("sessionReverbRetries >= DumpProbe.ENABLE_RETRIES"))
-        assertTrue("jeda singkat sebelum mencoba lagi", retry.contains("kotlinx.coroutines.delay(DumpProbe.ENABLE_RETRY_DELAY_MS)"))
-        assertTrue("di bawah kunci", retry.contains("synchronized(sessionReverbLock)"))
-        assertTrue("hanya saat menyala dan scope hidup", retry.contains("if (!isRunning || !dumpProbeScope.isActive) return"))
-        for (forbidden in listOf("presetReverb", "bassBoost", "virtualizer", "equalizer", "dynamicsProcessing", "loudnessEnhancer")) {
-            assertFalse("percobaan ulang tidak boleh menyentuh: $forbidden", retry.contains(forbidden))
-        }
     }
 
     @Test

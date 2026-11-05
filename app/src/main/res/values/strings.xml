@@ -65,29 +65,6 @@
     <string name="feature_vocal_focus_title">Vocal Focus</string>
     <string name="feature_vocal_focus_help_normal">Menonjolkan suara vokal dari backsound/noise. Makin tinggi, bass dan treble makin ditekan dan noise pelannya diredam, sementara kejernihan vokal naik. Hanya berefek saat Compressor menyala.</string>
     <string name="feature_vocal_focus_help_inactive">Compressor masih 0% (mati), jadi Vocal Focus belum terdengar. Naikkan Compressor dulu; nilai Vocal Focus ini tetap tersimpan.</string>
-    <string name="feature_reverb_title">Reverb</string>
-    <string name="feature_reverb_help_normal">Menambah gema ruang pada suara; geser dari Mati sampai Plat. Efek ini dipasang di mixer global sistem, jadi sebagian perangkat atau aplikasi bisa mengabaikannya dan hasilnya belum tentu terdengar di semua aplikasi.</string>
-    <string-array name="reverb_preset_names">
-        <item>Mati</item>
-        <item>Ruang Kecil</item>
-        <item>Ruang Sedang</item>
-        <item>Ruang Besar</item>
-        <item>Aula Sedang</item>
-        <item>Aula Besar</item>
-        <item>Plat</item>
-    </string-array>
-    <!-- Batch 250: akses Reverb (izin DUMP) lewat Shizuku, satu tombol di kartu Reverb. -->
-    <string name="reverb_access_granted">Akses Reverb aktif — Reverb bisa dipasang di aplikasi pemutar.</string>
-    <string name="reverb_access_need_install">Reverb butuh izin sistem sekali saja. Pasang Shizuku dan jalankan sekali; setelah itu Boomly mengurus izinnya sendiri, tanpa komputer.</string>
-    <string name="reverb_access_need_start">Shizuku sudah terpasang tapi belum berjalan. Buka Shizuku, jalankan sekali, lalu kembali ke sini.</string>
-    <string name="reverb_access_ready">Cukup satu ketukan: Boomly meminta izin lewat Shizuku lalu mengaktifkan akses Reverb sendiri.</string>
-    <string name="reverb_access_working">Memproses akses Reverb…</string>
-    <string name="reverb_access_denied">Boomly belum diizinkan di Shizuku. Ketuk tombol, lalu pilih Izinkan.</string>
-    <string name="reverb_access_failed">Gagal mengaktifkan akses Reverb. Ketuk untuk coba lagi; rincian tercatat di Ekspor Log Debug.</string>
-    <string name="reverb_access_button_enable">Aktifkan Reverb</string>
-    <string name="reverb_access_button_open">Buka Shizuku</string>
-    <string name="reverb_access_button_revoke">Cabut izin (uji ulang)</string>
-    <string name="reverb_access_button_get">Pasang Shizuku</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —
@@ -136,6 +113,20 @@
     <string name="battery_restricted_notice">Android membatasi Boomly berjalan di latar belakang. Ini TERPISAH dari status baterai di atas dan bisa membuat Boomly mati atau gagal menyala sendiri. Ubah lewat Info Aplikasi &gt; Baterai.</string>
     <string name="battery_restricted_button">Buka Info Aplikasi Boomly</string>
     <string name="battery_recents_note">Saat Boomly menyala, app disembunyikan dari daftar aplikasi terbaru. Di sebagian HP, menggeser kartunya membuat sistem membunuh prosesnya. Buka lewat ikon, widget, tile, atau ketuk notifikasi.</string>
+    <!-- Batch 271: kartu mandiri izin DUMP (ikatan efek ke sesi pemutar, B257) lewat Shizuku -->
+    <string name="dump_card_title">Izin DUMP: efek ikut sesi pemutar</string>
+    <string name="dump_card_body">Izin khusus ini membuat efek utama Boomly mengikat ke sesi pemutar yang sedang main. Tanpa izin ini Boomly tetap bekerja seperti biasa. Izin ini tidak bisa diminta lewat dialog biasa; Shizuku bisa memberikannya dengan satu ketukan, tanpa komputer.</string>
+    <string name="dump_status_granted">Izin DUMP aktif untuk Boomly</string>
+    <string name="dump_status_not_installed">Shizuku belum terpasang. Pasang dan jalankan Shizuku, lalu kembali ke sini.</string>
+    <string name="dump_status_not_running">Shizuku terpasang tetapi belum berjalan. Buka Shizuku dan jalankan, lalu kembali ke sini.</string>
+    <string name="dump_status_ready">Shizuku siap. Ketuk tombol untuk memberi izin DUMP ke Boomly.</string>
+    <string name="dump_status_working">Sedang memberi izin…</string>
+    <string name="dump_status_denied">Boomly belum diizinkan di Shizuku. Buka Shizuku, izinkan Boomly, lalu kembali ke sini.</string>
+    <string name="dump_status_failed">Gagal memberi izin. Pastikan Shizuku masih berjalan, lalu coba lagi.</string>
+    <string name="dump_button_install">Pasang Shizuku</string>
+    <string name="dump_button_open">Buka Shizuku</string>
+    <string name="dump_button_enable">Aktifkan izin DUMP</string>
+    <string name="dump_button_retry">Coba lagi</string>
     <string name="see_full_explanation">Lihat penjelasan lengkap tiap fitur</string>
 
     <!-- Toggle tema -->

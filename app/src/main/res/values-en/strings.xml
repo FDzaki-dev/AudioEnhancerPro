@@ -65,29 +65,6 @@
     <string name="feature_vocal_focus_title">Vocal Focus</string>
     <string name="feature_vocal_focus_help_normal">Brings vocals forward over background noise. Higher pulls bass and treble back and quiets their low-level noise, while adding vocal clarity. Only works while Compressor is on.</string>
     <string name="feature_vocal_focus_help_inactive">Compressor is still at 0% (off), so Vocal Focus can\'t be heard yet. Raise Compressor first; this Vocal Focus value stays saved.</string>
-    <string name="feature_reverb_title">Reverb</string>
-    <string name="feature_reverb_help_normal">Adds room echo to the sound; slide from Off to Plate. This effect is attached to the system\'s global mixer, so some devices or apps may ignore it and it may not be audible in every app.</string>
-    <string-array name="reverb_preset_names">
-        <item>Off</item>
-        <item>Small Room</item>
-        <item>Medium Room</item>
-        <item>Large Room</item>
-        <item>Medium Hall</item>
-        <item>Large Hall</item>
-        <item>Plate</item>
-    </string-array>
-    <!-- Batch 250: Reverb access (DUMP permission) through Shizuku, one button on the Reverb card. -->
-    <string name="reverb_access_granted">Reverb access is on — Reverb can attach to player apps.</string>
-    <string name="reverb_access_need_install">Reverb needs a one-time system permission. Install Shizuku and start it once; after that Boomly sets the permission up by itself, no computer needed.</string>
-    <string name="reverb_access_need_start">Shizuku is installed but not running. Open Shizuku, start it once, then come back here.</string>
-    <string name="reverb_access_ready">One tap: Boomly asks for permission through Shizuku, then turns Reverb access on by itself.</string>
-    <string name="reverb_access_working">Working on Reverb access…</string>
-    <string name="reverb_access_denied">Boomly isn\'t allowed in Shizuku yet. Tap the button, then choose Allow.</string>
-    <string name="reverb_access_failed">Couldn\'t turn Reverb access on. Tap to try again; details are saved in Export Debug Log.</string>
-    <string name="reverb_access_button_enable">Enable Reverb</string>
-    <string name="reverb_access_button_open">Open Shizuku</string>
-    <string name="reverb_access_button_revoke">Revoke permission (retest)</string>
-    <string name="reverb_access_button_get">Get Shizuku</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —
@@ -136,6 +113,20 @@
     <string name="battery_restricted_notice">Android restricts Boomly from running in the background. This is SEPARATE from the battery status above and can make Boomly stop or fail to start by itself. Change it in App Info &gt; Battery.</string>
     <string name="battery_restricted_button">Open Boomly App Info</string>
     <string name="battery_recents_note">While Boomly is on, the app is hidden from the recent apps list. On some phones, swiping its card makes the system kill the process. Open it from the icon, widget, tile, or by tapping the notification.</string>
+    <!-- Batch 271: standalone DUMP permission card (effects bound to the player session, B257) via Shizuku -->
+    <string name="dump_card_title">DUMP permission: effects follow the player session</string>
+    <string name="dump_card_body">This special permission lets Boomly\'s main effects bind to the session of the player that is currently playing. Without it Boomly keeps working as usual. It cannot be requested through a normal dialog; Shizuku can grant it with a single tap, no computer needed.</string>
+    <string name="dump_status_granted">DUMP permission is active for Boomly</string>
+    <string name="dump_status_not_installed">Shizuku is not installed. Install and start Shizuku, then come back here.</string>
+    <string name="dump_status_not_running">Shizuku is installed but not running. Open Shizuku and start it, then come back here.</string>
+    <string name="dump_status_ready">Shizuku is ready. Tap the button to grant the DUMP permission to Boomly.</string>
+    <string name="dump_status_working">Granting permission…</string>
+    <string name="dump_status_denied">Boomly is not allowed in Shizuku yet. Open Shizuku, allow Boomly, then come back here.</string>
+    <string name="dump_status_failed">Could not grant the permission. Make sure Shizuku is still running, then try again.</string>
+    <string name="dump_button_install">Install Shizuku</string>
+    <string name="dump_button_open">Open Shizuku</string>
+    <string name="dump_button_enable">Enable DUMP permission</string>
+    <string name="dump_button_retry">Try again</string>
     <string name="see_full_explanation">See full explanation of each feature</string>
 
     <!-- Theme toggle -->

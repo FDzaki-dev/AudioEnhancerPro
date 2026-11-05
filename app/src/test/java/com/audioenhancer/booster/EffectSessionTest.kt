@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Batch 257 — 5 efek utama diikat ke sesi pemutar yang sedang main (bukan hanya session 0) supaya mengikuti track ke thread keluaran mana pun
+ * Batch 257 (Batch 270: Reverb dicabut, probe hanya untuk sesi efek utama) — 5 efek utama diikat ke sesi pemutar yang sedang main (bukan hanya session 0) supaya mengikuti track ke thread keluaran mana pun
  * (log v256: efek global hanya di satu thread, track YouTube selalu di deep_buffer; "mendem" = efek tertinggal di output lama).
  *
  * JVM murni: pemilihan sesi (`DumpProbe.chooseEffectSession`/`startedSessions`) + tes teks sumber untuk kontrak yang tak terlihat kompiler.
@@ -77,7 +77,7 @@ class EffectSessionTest {
         assertTrue(src.contains("Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession)"))
         assertTrue(src.contains("LoudnessEnhancer(effectSession)"))
         assertTrue(src.contains("DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config)"))
-        // Batch 269: Reverb Auxiliary session 0 DIHAPUS (tak terdengar + memakan jatah memori/CPU efek sistem); reverb hanya per-sesi.
+        // Batch 270: Reverb DICABUT total (session 0 sejak B269, per-sesi sejak B270); tak boleh muncul lagi.
         assertFalse("tak ada lagi PresetReverb di session 0", src.contains("PresetReverb(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
         assertTrue("spektrum tetap di session 0", src.contains("Visualizer(0)"))
         assertFalse("tak ada lagi konstruktor efek utama yang terkunci ke 0", src.contains("BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, 0)"))
@@ -112,14 +112,22 @@ class EffectSessionTest {
     }
 
     @Test
-    fun `probe feeds the follower and runs for main effects even when reverb is off except for slider`() {
+    fun `probe feeds the follower and has no reverb branch`() {
         val src = code(serviceSource)
         val read = between(src, "private fun readPlayerSessions(", "private fun followEffectSession(")
-        assertTrue(read.contains("followEffectSession(DumpProbe.startedSessions(players, android.os.Process.myUid()))"))
-        val refresh = between(src, "private fun refreshSessionReverb(", "private fun readPlayerSessions(")
-        assertTrue(refresh.contains("val reverbActive = ReverbPresets.isActive(index)"))
-        assertTrue("Mati dari geser slider tidak memicu dump", refresh.contains("if (reason == \"slider\") return"))
-        assertTrue("Reverb hanya dipasang bila aktif", refresh.contains("if (sessions != null && reverbActive) applySessionReverbs(reason, sessions)"))
-        assertTrue("pesan 'Reverb nonaktif' hanya bila Reverb memang aktif", refresh.contains("if (reverbActive && !dumpProbeDeniedLogged)"))
+        assertTrue(read.contains("followEffectSession(started)"))
+        assertTrue(read.contains("DumpProbe.startedSessions(players, android.os.Process.myUid())"))
+        val refresh = between(src, "private fun refreshEffectSession(", "private fun readPlayerSessions(")
+        assertFalse("probe tak lagi mengenal Reverb/slider", refresh.contains("reverb", ignoreCase = true) || refresh.contains("slider"))
+        assertTrue("pesan izin-tidak-ada dicatat sekali", refresh.contains("if (!dumpProbeDeniedLogged)"))
+        assertTrue("probe sesi dijadwalkan dari perubahan pemutar", code(serviceSource).contains("scheduleEffectSessionProbe()"))
+    }
+
+    @Test
+    fun `no reverb effect code is left in the service`() {
+        val src = code(serviceSource)
+        for (token in listOf("PresetReverb", "reverbState", "reverbCapable", "sessionReverb", "ReverbPresets", "setReverbPreset", "enableReverb", "attachReverb")) {
+            assertFalse("sisa kode Reverb: $token", src.contains(token))
+        }
     }
 }
