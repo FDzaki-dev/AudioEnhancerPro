@@ -1,5 +1,11 @@
 # Changelog
 
+## Batch 274: Hapus blok filter SpotBugs basi (`createSessionReverb`)
+
+Permintaan user: mengikuti saran (opsi A) setelah triase run 69. Batch 258 menambahkan satu blok filter sempit di `config/spotbugs/exclude.xml` untuk temuan `SA_LOCAL_SELF_ASSIGNMENT` yang berasal dari metode `createSessionReverb` (artefak slot lokal kompilator pada `try` sebagai ekspresi). Metode itu ikut dicabut bersama fitur Reverb di Batch 270, sehingga blok tersebut tidak cocok dengan kode apa pun lagi.
+
+Aman dihapus karena run 69 sudah melaporkan SpotBugs 0 sementara blok itu praktis tidak mengenai apa-apa. Yang berubah hanya blok itu beserta komentarnya; jumlah blok `<Match>` turun dari 22 menjadi 21, XML tetap valid, dan blok `ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD` (`AudioEnhancerService` dan `ShizukuGrant`) serta semua blok lain tidak disentuh. Tidak ada perubahan kode atau perilaku aplikasi. Belum dijalankan ulang di CI. Revert: `Boomly_v273.zip`.
+
 ## Batch 273: Triase CI run 69 (Batch 272 terverifikasi), tanpa perubahan kode
 
 Permintaan user: "Teruskan!!" dengan unggahan `Boomly_v272.zip` dan `AEP_laporan-untuk-claude_run69.zip`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=272, COMMIT=1e04dfb, RUN_ID=41948357907). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0 (temuan `UnusedImports` run 68 hilang), lint 0, peringatan kompilator 0, dan 218 tes lulus tanpa ada yang dilewati.

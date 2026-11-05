@@ -125,13 +125,4 @@
         <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
         <Class name="com.audioenhancer.booster.ShizukuGrant"/>
     </Match>
-
-    <!-- SA_LOCAL_SELF_ASSIGNMENT (1 temuan, AudioEnhancerService.kt baris 1528 = ekspresi hasil `created` di akhir blok `try` pada
-         `createSessionReverb`): sumber tak punya penugasan variabel ke dirinya sendiri (grep nihil); kompilator Kotlin menyimpan nilai `try`-sebagai-ekspresi
-         ke slot lokal sementara yang memakai ulang nomor slot `created` (ALOAD n; ASTORE n). Hanya pola ini di metode ini yang disaring. -->
-    <Match>
-        <Bug pattern="SA_LOCAL_SELF_ASSIGNMENT"/>
-        <Class name="com.audioenhancer.booster.AudioEnhancerService"/>
-        <Method name="createSessionReverb"/>
-    </Match>
 </FindBugsFilter>
