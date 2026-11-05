@@ -1,10 +1,18 @@
 # Changelog
 
+## Batch 278: Konfirmasi di HP untuk Batch 277 (tanpa perubahan perilaku)
+
+Laporan user: dengan versi terbaru tidak ada lagi lonjakan anomali sesudah update/reaktivasi. Log `aep_debug_20261106_061131.txt` cocok: proses baru (PID 32555, 06:02:55) tetap menjalani 3 serah-terima di pemutaran pertama (87 ms, 75 ms, 149 ms), tetapi serah-terima lintas sesi (sesi 0 -> 881) kini mencatat `tumpang-tindih 1 ms (lintas sesi, efek lama dimatikan dulu)`; pemutaran berikutnya melewati semuanya. Urutan yang sama muncul lagi di 06:10:55 (reaktivasi): tumpang-tindih 6 ms lintas sesi. Keberadaan baris `tumpang-tindih` di log juga membuktikan APK v277 (dan B276) berhasil dikompilasi dan berjalan; hasil tes/lint/detekt CI belum dilaporkan.
+
+Koreksi: taksiran saya di Batch 277 bahwa `release()` lima efek memakan 30-65 ms keliru. Serah-terima di sesi yang sama terukur 2-8 ms dari efek baru menyala sampai efek lama selesai dilepas. Jadi jendela pemrosesan ganda sebelum B277 kemungkinan hanya beberapa ms; hanya komentar kode dan catatan yang dikoreksi.
+
+Batas yang jujur: ini satu laporan user, dan log tidak punya pengukuran "sebelum" untuk tumpang-tindih lintas sesi, jadi kaitan sebab-akibat sangat masuk akal tetapi belum terbukti ketat. Bila lonjakan muncul lagi, kirim log baru. Kode tidak berubah selain satu komentar. Revert: `Boomly_v277.zip`.
+
 ## Batch 277: Serah-terima lintas sesi mematikan efek lama lebih dulu + diagnostik tumpang-tindih
 
 Laporan user: setiap habis update atau reaktivasi Boomly terjadi lonjakan suara tak terduga saat media pertama kali diputar (musik atau YouTube), lalu suara kembali sesuai setelan. Log `aep_debug_20261105_174720.txt` menunjukkan polanya: pada pemutaran PERTAMA sesudah proses baru (PID 13140, 17:46:35) terjadi tiga serah-terima efek dalam 1,7 detik (+0,29 dtk 88 ms, +0,77 dtk 72 ms, +1,74 dtk 182 ms sebagai perpindahan sesi 0 -> 9385); proses sebelumnya (PID 5249, 17:38:52) sama (98/86/201 ms), sedangkan pemutaran berikutnya di proses yang sama melewati semuanya karena efek sudah terikat sesi pemutar (B257). Dump AudioFlinger saat ekspor bersih: hanya 5 efek di sesi 9385, tidak ada efek lama yang tertinggal. Jadi lonjakan hanya terjadi di pemutaran pertama karena hanya di situ ada serah-terima di tengah lagu.
 
-Yang diubah: pada serah-terima LINTAS SESI (rantai efek lama dan baru berbeda, jadi lagu melewati dua rantai sekaligus) efek lama kini dimatikan segera setelah efek baru menyala dan sebelum dilepas satu per satu (release = 5 destruktor ±30-65 ms), mulai dari DynamicsProcessing (makeup kompresor terbesar). Tetap make-before-break. Serah-terima di sesi yang sama TIDAK diubah. Log `EffectRebind` sekarang mengakhiri baris dengan `tumpang-tindih N ms` supaya penyebab bisa dibuktikan dari log berikutnya.
+Yang diubah: pada serah-terima LINTAS SESI (rantai efek lama dan baru berbeda, jadi lagu melewati dua rantai sekaligus) efek lama kini dimatikan segera setelah efek baru menyala dan sebelum dilepas satu per satu (release = 5 destruktor; taksiran awal ±30-65 ms KELIRU, terukur 2-8 ms, lihat Batch 278), mulai dari DynamicsProcessing (makeup kompresor terbesar). Tetap make-before-break. Serah-terima di sesi yang sama TIDAK diubah. Log `EffectRebind` sekarang mengakhiri baris dengan `tumpang-tindih N ms` supaya penyebab bisa dibuktikan dari log berikutnya.
 
 Batas yang jujur: dari log hanya terlihat waktu, bukan tingkat suara, jadi ini mitigasi berdasarkan bukti pola, bukan bukti penyebab. Transien kompresor baru yang menyala di tengah lagu tidak diubah. Belum dikompilasi dan belum dijalankan di CI (ditumpuk di atas B276 yang juga belum diverifikasi). Satu tes sumber baru di `EffectGuardPolicyTest`. Revert: `Boomly_v276.zip`.
 

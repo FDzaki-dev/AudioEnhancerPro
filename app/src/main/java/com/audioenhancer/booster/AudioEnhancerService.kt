@@ -1488,7 +1488,7 @@ class AudioEnhancerService : Service() {
         val enableStartMs = SystemClock.elapsedRealtime()
         enableMixEffects()
         // Batch 277: tetap make-before-break (efek baru SUDAH menyala). Efek lama pada rantai sesi lain dimatikan lebih dulu dan terpisah dari
-        // `release()` (5 destruktor berurutan ±30-65 ms) supaya jendela pemrosesan ganda hanya selama 5 perintah matikan. DynamicsProcessing
+        // `release()` (5 destruktor berurutan; terukur di device 2-8 ms, bukan puluhan ms) supaya jendela pemrosesan ganda hanya selama 5 perintah matikan. DynamicsProcessing
         // (makeup kompresor terbesar) pertama, lalu Loudness, lalu sisanya. Efek yang dipertahankan (`old === current`) tak disentuh.
         if (crossSession) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) silenceReplacedDynamics(oldDynamics, dynamicsProcessing)
