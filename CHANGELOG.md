@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 272: Perbaikan temuan detekt typed run 68 (import tak terpakai)
+
+Permintaan user: unggahan laporan CI run 68 (commit Batch 271) dan log debug HP 09:20. CI hijau penuh: 218 tes lulus, ArchUnit (12 aturan), SpotBugs, detekt, lint, dan peringatan kompilator semuanya 0. Ini sekaligus pertama kalinya kompilasi dan tes Batch 270 (Reverb dicabut) serta Batch 271 (kartu izin DUMP) lolos di CI; jumlah tes turun dari 248 karena tes khusus Reverb dan SliderProbe dihapus di Batch 270.
+
+Satu-satunya temuan adalah detekt typed `UnusedImports`: import `kotlinx.coroutines.isActive` di `AudioEnhancerService.kt` tidak lagi dipakai sejak pemakainya ikut dicabut bersama Reverb. Import itu dihapus; tidak ada perubahan perilaku.
+
+**Log HP.** Probe DUMP berjalan (izin aktif), efek utama dipindah dari sesi 0 ke sesi pemutar 6209 lalu mengikuti track, 158 pemeriksaan Effect Guard semuanya sehat, dan tidak ada galat dari kode Boomly. Tombol kartu izin DUMP belum diketuk di log ini karena izin sudah aktif. Perbaikan ini belum dijalankan ulang di CI. Revert: `Boomly_v271.zip`.
+
 ## Batch 271: Kartu mandiri izin DUMP (Shizuku) di layar utama
 
 Permintaan user: setelah Reverb dicabut (Batch 270), tombol izin DUMP via Shizuku ikut hilang padahal izin itu masih dipakai efek utama untuk mengikat diri ke sesi pemutar yang sedang main (Batch 257). Dari tiga pilihan (biarkan dorman, kartu mandiri kecil, hapus Shizuku), dipilih kartu mandiri kecil karena manfaatnya melebihi biayanya dan tidak mengubah fitur lain.
