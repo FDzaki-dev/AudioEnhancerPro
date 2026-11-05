@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 275: Triase CI run 71 (Batch 274 terverifikasi), tanpa perubahan kode
+
+Permintaan user: "Next" dengan unggahan `AEP_laporan-untuk-claude_run71.zip`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=274, COMMIT=795f828, RUN_ID=41952581503). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 218 tes lulus tanpa ada yang dilewati.
+
+Hasil terpenting: SpotBugs tetap 0 setelah blok filter basi `createSessionReverb` dihapus, jadi dugaan Batch 274 (blok itu sudah tidak mengenai apa pun) terbukti. Batch 274 naik dari NOT VERIFIED menjadi STATIC-VERIFIED. Tidak ada temuan statis yang terbuka, jadi kode tidak diubah; hanya dokumen yang berubah.
+
+Karena "Next" tidak menyebut fitur tertentu, tidak ada fitur yang dikarang; `PROJECT_STATE.md` mencatat kandidat yang tersisa untuk dipilih user.
+
 ## Batch 274: Hapus blok filter SpotBugs basi (`createSessionReverb`)
 
 Permintaan user: mengikuti saran (opsi A) setelah triase run 69. Batch 258 menambahkan satu blok filter sempit di `config/spotbugs/exclude.xml` untuk temuan `SA_LOCAL_SELF_ASSIGNMENT` yang berasal dari metode `createSessionReverb` (artefak slot lokal kompilator pada `try` sebagai ekspresi). Metode itu ikut dicabut bersama fitur Reverb di Batch 270, sehingga blok tersebut tidak cocok dengan kode apa pun lagi.
