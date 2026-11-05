@@ -1462,6 +1462,10 @@ class AudioEnhancerService : Service() {
         val oldLoudness = loudnessEnhancer; val oldLoudnessState = loudnessState
         val oldDynamics = dynamicsProcessing; val oldDynamicsState = dynamicsState
         val oldFallbackActive = equalizerFallbackActive
+        // Batch 277: perpindahan SESI (mis. sesi 0 -> sesi pemutar) = efek baru berada di rantai/modul LAIN dari efek lama, jadi selama keduanya
+        // menyala track yang sama melewati dua rantai sekaligus (kompresor +16 dB dua kali) = lonjakan sesaat. Pada sesi yang sama modul dipakai
+        // bersama (satu rantai) sehingga tak ada pemrosesan ganda; kasus itu TIDAK diubah. Dihitung sebelum `boundEffectSession` diperbarui.
+        val crossSession = boundEffectSession != effectSession
         // Efek lama TETAP hidup dan menyala selama efek baru dibuat; efek baru dibuat tanpa menyala.
         attachBass(enableNow = false)
         if (shouldKeepOld("BassBoost", oldBass != null, bassBoost != null)) { bassBoost = oldBass; bassState = oldBassState }
@@ -1481,7 +1485,19 @@ class AudioEnhancerService : Service() {
         // Batch 234: lewat `applySavedToEffects()` (hanya menulis ke efek; bukan `restoreSavedSettings()` yang juga menulis
         // prefs + menandai "user menggeser" sehingga menunda pasang-ulang/guard berikutnya).
         applySavedToEffects()
+        val enableStartMs = SystemClock.elapsedRealtime()
         enableMixEffects()
+        // Batch 277: tetap make-before-break (efek baru SUDAH menyala). Efek lama pada rantai sesi lain dimatikan lebih dulu dan terpisah dari
+        // `release()` (5 destruktor berurutan ±30-65 ms) supaya jendela pemrosesan ganda hanya selama 5 perintah matikan. DynamicsProcessing
+        // (makeup kompresor terbesar) pertama, lalu Loudness, lalu sisanya. Efek yang dipertahankan (`old === current`) tak disentuh.
+        if (crossSession) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) silenceReplacedDynamics(oldDynamics, dynamicsProcessing)
+            silenceReplaced("LoudnessEnhancer", oldLoudness, loudnessEnhancer)
+            silenceReplaced("BassBoost", oldBass, bassBoost)
+            silenceReplaced("Virtualizer", oldVirtualizer, virtualizer)
+            silenceReplaced("Equalizer", oldEqualizer, equalizer)
+        }
+        val silencedAtMs = SystemClock.elapsedRealtime()
         // Efek lama dilepas PALING AKHIR (hanya yang benar-benar digantikan).
         releaseReplaced("BassBoost", oldBass, bassBoost)
         releaseReplaced("Virtualizer", oldVirtualizer, virtualizer)
@@ -1492,6 +1508,9 @@ class AudioEnhancerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) releaseReplacedDynamics(oldDynamics, dynamicsProcessing)
         val finishedAtMs = SystemClock.elapsedRealtime()
         lastBindAtMs = finishedAtMs
+        // Batch 277 (diagnostik): lama efek baru dan lama menyala bersamaan. Lintas sesi berakhir saat efek lama dimatikan; sesi sama berakhir
+        // saat efek lama selesai dilepas (modul bersama, jadi angka ini bukan pemrosesan ganda).
+        val overlapMs = (if (crossSession) silencedAtMs else finishedAtMs) - enableStartMs
         // Batch 257: semua efek yang ada benar-benar berpindah (efek lama null = tak didukung, tak dihitung)? Bila ada yang gagal dibuat di sesi
         // baru, objek lama dipertahankan (shouldKeepOld) = masih terikat sesi lama: kembalikan tujuan agar probe berikutnya mencoba lagi.
         val movedAll = (oldBass == null || bassBoost !== oldBass) && (oldVirtualizer == null || virtualizer !== oldVirtualizer) &&
@@ -1508,7 +1527,8 @@ class AudioEnhancerService : Service() {
         android.util.Log.w(
             TAG,
             "EffectRebind[$reason]: efek diserahterimakan tanpa celah; sebelum ($before) sesudah (${describeEffectStates()}); " +
-                "serah-terima ${finishedAtMs - now} ms, sejak perubahan pemutar $sincePlaybackChange"
+                "serah-terima ${finishedAtMs - now} ms, sejak perubahan pemutar $sincePlaybackChange; " +
+                "tumpang-tindih $overlapMs ms (${if (crossSession) "lintas sesi, efek lama dimatikan dulu" else "sesi sama"})"
         )
     }
 
@@ -1526,6 +1546,22 @@ class AudioEnhancerService : Service() {
     @android.annotation.SuppressLint("NewApi")
     private fun releaseReplacedDynamics(old: DynamicsProcessing?, current: DynamicsProcessing?) {
         releaseReplaced("DynamicsProcessing", old, current)
+    }
+
+    /** Batch 277: matikan efek LAMA yang sudah digantikan instance baru (`old !== current`) pada serah-terima LINTAS SESI, sebelum
+     *  dilepas. Gagal = dicatat saja (efek lama tetap akan dilepas sesudahnya); status efek baru tak disentuh. */
+    private fun silenceReplaced(name: String, old: android.media.audiofx.AudioEffect?, current: android.media.audiofx.AudioEffect?) {
+        if (old == null || old === current) return
+        try { old.enabled = false } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal mematikan $name lama sebelum dilepas", e)
+        }
+    }
+
+    /** Batch 277: pembungkus sempit untuk DynamicsProcessing (API 28+), sama seperti [releaseReplacedDynamics]: cast implisit ke
+     *  `AudioEffect` hanya di sini dan HANYA dipanggil di balik `SDK_INT >= P`. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun silenceReplacedDynamics(old: DynamicsProcessing?, current: DynamicsProcessing?) {
+        silenceReplaced("DynamicsProcessing", old, current)
     }
 
     /** Batch 233: true bila efek baru GAGAL dibuat padahal efek lama masih ada -> pertahankan yang lama (jangan kehilangan

@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 277: Serah-terima lintas sesi mematikan efek lama lebih dulu + diagnostik tumpang-tindih
+
+Laporan user: setiap habis update atau reaktivasi Boomly terjadi lonjakan suara tak terduga saat media pertama kali diputar (musik atau YouTube), lalu suara kembali sesuai setelan. Log `aep_debug_20261105_174720.txt` menunjukkan polanya: pada pemutaran PERTAMA sesudah proses baru (PID 13140, 17:46:35) terjadi tiga serah-terima efek dalam 1,7 detik (+0,29 dtk 88 ms, +0,77 dtk 72 ms, +1,74 dtk 182 ms sebagai perpindahan sesi 0 -> 9385); proses sebelumnya (PID 5249, 17:38:52) sama (98/86/201 ms), sedangkan pemutaran berikutnya di proses yang sama melewati semuanya karena efek sudah terikat sesi pemutar (B257). Dump AudioFlinger saat ekspor bersih: hanya 5 efek di sesi 9385, tidak ada efek lama yang tertinggal. Jadi lonjakan hanya terjadi di pemutaran pertama karena hanya di situ ada serah-terima di tengah lagu.
+
+Yang diubah: pada serah-terima LINTAS SESI (rantai efek lama dan baru berbeda, jadi lagu melewati dua rantai sekaligus) efek lama kini dimatikan segera setelah efek baru menyala dan sebelum dilepas satu per satu (release = 5 destruktor ±30-65 ms), mulai dari DynamicsProcessing (makeup kompresor terbesar). Tetap make-before-break. Serah-terima di sesi yang sama TIDAK diubah. Log `EffectRebind` sekarang mengakhiri baris dengan `tumpang-tindih N ms` supaya penyebab bisa dibuktikan dari log berikutnya.
+
+Batas yang jujur: dari log hanya terlihat waktu, bukan tingkat suara, jadi ini mitigasi berdasarkan bukti pola, bukan bukti penyebab. Transien kompresor baru yang menyala di tengah lagu tidak diubah. Belum dikompilasi dan belum dijalankan di CI (ditumpuk di atas B276 yang juga belum diverifikasi). Satu tes sumber baru di `EffectGuardPolicyTest`. Revert: `Boomly_v276.zip`.
+
 ## Batch 276: Penanda UI untuk profil cadangan DynamicsProcessing (opsi B)
 
 Permintaan user: "Mulai dari opsi B!!". Sejak Batch 264, device yang menolak konfigurasi `DynamicsProcessing` lengkap (log Samsung SM-S711B) turun ke profil cadangan, dan di profil terakhir (limiter saja) slider Compressor dan Vocal Focus tidak berefek sama sekali, tetapi layar tetap menampilkan petunjuk normal. Sekarang layar jujur soal itu.

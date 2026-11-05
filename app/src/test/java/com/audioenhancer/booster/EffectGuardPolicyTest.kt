@@ -353,6 +353,37 @@ class EffectGuardPolicyTest {
         assertFalse("efek lama tidak boleh dilepas langsung sebelum pembuatan efek baru", body.contains(".release()"))
     }
 
+    /** Batch 277: serah-terima LINTAS SESI mematikan efek lama (sesudah efek baru menyala, sebelum dilepas); sesi sama TIDAK diubah. */
+    @Test
+    fun `cross session handoff silences replaced effects between enabling the new ones and releasing the old ones`() {
+        val source = readServiceSource()
+        val start = source.indexOf("private fun runEffectRebind(")
+        val end = source.indexOf("private fun releaseReplaced(", start)
+        assertTrue(start >= 0 && end > start)
+        val body = withoutLineComments(source.substring(start, end))
+
+        val cross = body.indexOf("val crossSession = boundEffectSession != effectSession")
+        assertTrue("penanda lintas sesi dihitung sebelum efek baru dibuat", cross in 0 until body.indexOf("attachBass(enableNow = false)"))
+        val enable = body.indexOf("enableMixEffects()")
+        val silenceBlock = body.indexOf("if (crossSession) {")
+        val release = body.indexOf("releaseReplaced(")
+        assertTrue("urutan: enable < matikan lama (lintas sesi) < release (enable=$enable silence=$silenceBlock release=$release)",
+            enable in 0 until silenceBlock && silenceBlock < release)
+        val block = body.substring(silenceBlock, release)
+        listOf("LoudnessEnhancer", "BassBoost", "Virtualizer", "Equalizer").forEach {
+            assertTrue("$it lama harus dimatikan dulu", block.contains("silenceReplaced(\"$it\""))
+        }
+        assertTrue(
+            "DynamicsProcessing lama dimatikan di balik SDK_INT >= P lewat pembungkus sempit",
+            block.contains("Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) silenceReplacedDynamics(oldDynamics, dynamicsProcessing)")
+        )
+        assertFalse("efek lama tidak boleh dilepas di dalam blok matikan", block.contains("release"))
+        assertTrue("diagnostik tumpang-tindih tercatat di log serah-terima", body.contains("tumpang-tindih \$overlapMs ms"))
+        val silence = bodyBetween(source, "private fun silenceReplaced(", "private fun silenceReplacedDynamics(")
+        assertTrue("hanya efek yang benar-benar digantikan", silence.contains("if (old == null || old === current) return"))
+        assertTrue(silence.contains("old.enabled = false"))
+    }
+
     @Test
     fun `every effect listener ignores callbacks from stale instances`() {
         val source = readServiceSource()
