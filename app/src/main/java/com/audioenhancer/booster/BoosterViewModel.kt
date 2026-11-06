@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 
 // Batch 17 (audit High #2, lanjutan Batch 16): ekstraksi state + business logic seputar
 // koneksi ke AudioEnhancerService dari MainActivity.kt ke sini. Plain AndroidViewModel,
@@ -148,12 +149,49 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private val eqLatestMb = ConcurrentHashMap<Int, Short>()
     private val eqApplyKick = Channel<Unit>(Channel.CONFLATED)
 
+    // Batch 279 (request user "tetap urus slider nya!!"): pola B189 diperluas ke slider Bass/Virtualizer/Loudness/Compressor/Vocal Focus.
+    // SEBELUMNYA tiap notch drag memanggil service LANGSUNG di Main: Compressor/Vocal Focus = ±6 panggilan binder (3 band MBC + band presence)
+    // + tulis prefs per notch, Bass/Virtualizer/Loudness = 1 panggilan binder + prefs per notch. Sekarang nilai terbaru tiap slider ditaruh
+    // di slot (last-write-wins) dan worker tunggal yang SAMA dengan EQ (Dispatchers.IO) menerapkannya, jadi drag cepat hanya meng-apply nilai
+    // TERAKHIR dan Main tak lagi menunggu audioserver. Service tak berubah. Prefs tetap ditulis oleh setter service pada nilai yang di-apply
+    // (TIDAK ditunda sampai drag selesai: guard efek membandingkan efek dengan prefs, jadi prefs tertinggal bisa memicu pemulihan ke nilai lama).
+    private val latestBass = AtomicReference<Short?>(null)
+    private val latestVirtualizer = AtomicReference<Short?>(null)
+    private val latestLoudness = AtomicReference<Float?>(null)
+    private val latestCompressor = AtomicReference<Int?>(null)
+    private val latestVocalFocus = AtomicReference<Int?>(null)
+
     init {
         viewModelScope.launch(Dispatchers.IO) {
             while (true) {
                 if (eqApplyKick.receiveCatching().isClosed) break
                 applyLatestEqualizerBands()
+                applyLatestSliders()
             }
+        }
+    }
+
+    private fun hasLatestSliderValues(): Boolean =
+        latestBass.get() != null || latestVirtualizer.get() != null || latestLoudness.get() != null ||
+            latestCompressor.get() != null || latestVocalFocus.get() != null
+
+    /** Batch 279: terapkan nilai TERBARU tiap slider (urutan tetap). Service putus: slot dibiarkan terisi (tidak diambil) dan diterapkan
+     *  saat konek lagi (kick di `onServiceConnected`). Satu slider gagal tidak menghentikan yang lain. */
+    private fun applyLatestSliders() {
+        val svc = service ?: return
+        applyLatest(latestBass, "Bass") { svc.setBassStrength(it) }
+        applyLatest(latestVirtualizer, "Virtualizer") { svc.setVirtualizerStrength(it) }
+        applyLatest(latestLoudness, "Loudness") { svc.setLoudnessGain(it) }
+        applyLatest(latestCompressor, "Compressor") { svc.setCompressorAmount(it) }
+        applyLatest(latestVocalFocus, "Vocal Focus") { svc.setVocalFocus(it) }
+    }
+
+    private fun <T : Any> applyLatest(slot: AtomicReference<T?>, name: String, action: (T) -> Unit) {
+        val value = slot.getAndSet(null) ?: return
+        try {
+            action(value)
+        } catch (e: Exception) {
+            android.util.Log.e("BoosterViewModel", "Gagal apply slider $name", e)
         }
     }
 
@@ -221,7 +259,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
             // Batch 189: nilai yang sempat tertahan di `eqLatestMb` saat service putus.
-            if (eqLatestMb.isNotEmpty()) eqApplyKick.trySend(Unit)
+            if (eqLatestMb.isNotEmpty() || hasLatestSliderValues()) eqApplyKick.trySend(Unit)
         }
         override fun onServiceDisconnected(name: ComponentName?) {
             bound = false
@@ -331,23 +369,38 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setBass(value: Short) {
-        if (bound) service?.setBassStrength(value) else pendingBass = value
+        if (bound) {
+            latestBass.set(value) // Batch 279: last-write-wins, diterapkan worker (bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingBass = value
     }
 
     fun setVirtualizer(value: Short) {
-        if (bound) service?.setVirtualizerStrength(value) else pendingVirtualizer = value
+        if (bound) {
+            latestVirtualizer.set(value) // Batch 279: last-write-wins, diterapkan worker (bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingVirtualizer = value
     }
 
     fun setLoudness(value: Float) {
-        if (bound) service?.setLoudnessGain(value) else pendingLoudness = value
+        if (bound) {
+            latestLoudness.set(value) // Batch 279: last-write-wins, diterapkan worker (bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingLoudness = value
     }
 
     fun setCompressor(value: Int) {
-        if (bound) service?.setCompressorAmount(value) else pendingCompressor = value
+        if (bound) {
+            latestCompressor.set(value) // Batch 279: last-write-wins, diterapkan worker (bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingCompressor = value
     }
 
     fun setVocalFocus(value: Int) {
-        if (bound) service?.setVocalFocus(value) else pendingVocalFocus = value
+        if (bound) {
+            latestVocalFocus.set(value) // Batch 279: last-write-wins, diterapkan worker (bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingVocalFocus = value
     }
 
     fun setEqualizerBand(band: Int, level: Short) {
