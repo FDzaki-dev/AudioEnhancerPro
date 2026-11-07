@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 283: Triase CI run 79 (Batch 282 terverifikasi statis), tanpa perubahan kode
+
+Permintaan user: "Excellent. Lakukan tahap finishing jika belum!!" dengan unggahan `AEP_laporan-untuk-claude_run79.zip` dan `aep_debug_20261107_180115.txt`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=282, COMMIT=1c69f09, RUN_ID=42361203494). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 242 tes lulus tanpa dilewati, tepat sesuai harapan Batch 282 (229 tes lama ditambah 13 tes `ClarityCurveTest`).
+
+Dengan itu Batch 282 (slider dan chip cepat Clarity) naik menjadi STATIC-VERIFIED. Tidak ada temuan statis yang terbuka, jadi kode tidak diubah dan tahap penutupan ini hanya merapikan dokumen.
+
+Log HP (INFINIX X6855, Android 16) pukul 18:01 bersih: layanan efek aktif, tidak ada crash, ANR, atau galat, dan pengecualian dari Recents berjalan (`exclude=true appTasks=1`). Saat log diambil hanya Equalizer yang menyala dan log tidak memuat nilai slider, jadi Clarity belum teruji di telinga: yang masih menunggu uji HP adalah Clarity 35, 65, dan 100 dengan Compressor 0% lalu 100%, serta pindah video agar Clarity tidak hilang.
+
 ## Batch 282: Slider + chip cepat Clarity (kejernihan dan "udara" nada tinggi)
 
 Permintaan user: "Tambahkan slider/preset khusus clarity. Wajib yang ultra immersive!!" (unggahan `Boomly_v281.zip`, tanpa laporan CI baru).
