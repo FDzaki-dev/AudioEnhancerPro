@@ -1,5 +1,11 @@
 # Changelog
 
+## Batch 281: Triase CI run 77 (Batch 276-280 terverifikasi statis), tanpa perubahan kode
+
+Permintaan user: unggahan `AEP_laporan-untuk-claude_run77.zip` tanpa teks. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=280, COMMIT=fb3a0d0, RUN_ID=42317020062). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 229 tes lulus tanpa ada yang dilewati. Jumlah tes cocok dengan hitungan di catatan (dasar 218, B276 +4, B277 +1, B279 +3, B280 +3).
+
+Dengan itu Batch 276 sampai 280 naik menjadi STATIC-VERIFIED, termasuk tes slider B279 yang sebelumnya gagal kompilasi di run 76 dan kini lulus. Yang belum teruji di HP: slider digeser cepat (B279), penanda UI profil cadangan (B276, hanya muncul di HP yang menurunkan profil), dan pelepasan efek setengah jadi (B280, tidak terlihat). Lag tombol volume fisik dan jank saat UI dibuka masih menunggu uji dari user (lihat PROJECT_STATE). Tidak ada temuan statis terbuka, jadi kode tidak diubah; hanya dokumen yang berubah.
+
 ## Batch 280: Perbaikan CI run 76 (tes B279 gagal kompilasi) + kebocoran objek efek setengah jadi
 
 Permintaan user: "Lanjut ke kandidat memory leak lainnya!!" bersama laporan CI run 76 (Batch 279).
