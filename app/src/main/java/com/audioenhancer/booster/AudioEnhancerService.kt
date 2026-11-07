@@ -757,8 +757,9 @@ class AudioEnhancerService : Service() {
     }
 
     private fun attachBass(enableNow: Boolean = true) {
+        var created: BassBoost? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
-            bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
+            bassBoost = BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).also { created = it }.apply { // Batch 231: priority dinaikkan (lihat EffectGuardPolicy.EFFECT_PRIORITY)
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== bassBoost) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -775,14 +776,16 @@ class AudioEnhancerService : Service() {
             }
             bassState = EffectState.ENABLED
         } catch (e: Exception) {
+            releaseQuietly("BassBoost", created)
             bassBoost = null; bassState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "BassBoost tidak tersedia di device ini", e)
         }
     }
 
     private fun attachVirtualizer(enableNow: Boolean = true) {
+        var created: Virtualizer? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
-            virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231
+            virtualizer = Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).also { created = it }.apply { // Batch 231
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== virtualizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -799,14 +802,16 @@ class AudioEnhancerService : Service() {
             }
             virtualizerState = EffectState.ENABLED
         } catch (e: Exception) {
+            releaseQuietly("Virtualizer", created)
             virtualizer = null; virtualizerState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "Virtualizer tidak tersedia di device ini", e)
         }
     }
 
     private fun attachEqualizer(enableNow: Boolean = true) {
+        var created: Equalizer? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
-            equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).apply { // Batch 231
+            equalizer = Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, effectSession).also { created = it }.apply { // Batch 231
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== equalizer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -823,14 +828,16 @@ class AudioEnhancerService : Service() {
             }
             equalizerState = EffectState.ENABLED
         } catch (e: Exception) {
+            releaseQuietly("Equalizer", created)
             equalizer = null; equalizerState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "Equalizer tidak tersedia di device ini", e)
         }
     }
 
     private fun attachLoudness(enableNow: Boolean = true) {
+        var created: LoudnessEnhancer? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
-            loudnessEnhancer = LoudnessEnhancer(effectSession).apply {
+            loudnessEnhancer = LoudnessEnhancer(effectSession).also { created = it }.apply {
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 setControlStatusListener { fx, granted ->
                     if (fx !== loudnessEnhancer) return@setControlStatusListener // Batch 233: callback instance lama/usang diabaikan
@@ -847,6 +854,7 @@ class AudioEnhancerService : Service() {
             }
             loudnessState = EffectState.ENABLED
         } catch (e: Exception) {
+            releaseQuietly("LoudnessEnhancer", created)
             loudnessEnhancer = null; loudnessState = EffectState.UNAVAILABLE
             android.util.Log.e(TAG, "LoudnessEnhancer tidak tersedia di device ini", e)
         }
@@ -943,13 +951,14 @@ class AudioEnhancerService : Service() {
         // Batch 234: nilai tersimpan dibaca SEBELUM objek dibuat supaya bisa ditulis LANGSUNG begitu objek ada (lihat blok `apply`).
         val savedCompressor = PrefsHelper.getCompressorAmount(this)
         val savedVocalFocus = PrefsHelper.getVocalFocus(this)
+        var created: DynamicsProcessing? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
             // Batch 235: `Config` SUDAH berisi nilai tersimpan (MBC, presence, EQ cadangan, limiter) saat konstruktor menulisnya ke
             // mesin efek; sebelumnya (B234 ke bawah) konstruktor menulis isi bawaan `Config.Builder` dulu, nilai tersimpan baru
             // menyusul lewat blok `apply` di bawah. Isi `Config` & jalur cadangannya: lihat `buildDynamicsConfig`.
             val profile = DynamicsProfiles.ORDER[dynamicsProfileIndex] // Batch 264
             val config = buildDynamicsConfig(needsEqFallback, savedCompressor, savedVocalFocus, profile)
-            dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config).apply { // Batch 231
+            dynamicsProcessing = DynamicsProcessing(EffectGuardPolicy.EFFECT_PRIORITY, effectSession, config).also { created = it }.apply { // Batch 231
                 // Batch 235: penulisan di blok ini KINI penegasan idempoten (nilai SAMA dgn `config`) — dipertahankan karena
                 // (1) menjaga `dynamicsState = FAILED` tetap terlapor, (2) menjadi jaring bila `buildDynamicsConfig` jatuh ke
                 // `Config` bawaan (pembangunan Config terisi gagal).
@@ -1003,6 +1012,7 @@ class AudioEnhancerService : Service() {
             // menimpa status Equalizer legacy yang sudah sehat (jalur itu tidak lewat sini).
             if (needsEqFallback) equalizerState = EffectState.ENABLED
         } catch (e: Exception) {
+            releaseQuietlyDynamics(created) // Batch 280: tiap percobaan profil yang gagal SETELAH konstruktor melepas objeknya sendiri
             dynamicsProcessing = null; dynamicsState = EffectState.UNAVAILABLE
             equalizerFallbackActive = false
             if (DynamicsProfiles.isDeterministicRejection(e)) {
@@ -1564,6 +1574,30 @@ class AudioEnhancerService : Service() {
         silenceReplaced("DynamicsProcessing", old, current)
     }
 
+    /** Batch 280: lepas efek yang SUDAH dibuat tetapi gagal diselesaikan (exception di blok `apply`: enable, listener, parameter) atau
+     *  yang mau dibuang. Gagal melepas hanya dicatat; tak pernah melempar, jadi satu kegagalan tak menahan pelepasan efek lain. */
+    private fun releaseQuietly(name: String, effect: android.media.audiofx.AudioEffect?) {
+        if (effect == null) return
+        try { effect.release() } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal melepas $name", e)
+        }
+    }
+
+    /** Batch 280: `Visualizer` BUKAN subclass `AudioEffect` (kelas tersendiri), jadi tak bisa lewat [releaseQuietly]. */
+    private fun releaseQuietlyVisualizer(effect: Visualizer?) {
+        if (effect == null) return
+        try { effect.release() } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal melepas Visualizer", e)
+        }
+    }
+
+    /** Batch 280: pembungkus sempit untuk DynamicsProcessing (API 28+), sama seperti [releaseReplacedDynamics]: cast implisit ke
+     *  `AudioEffect` hanya di sini dan HANYA dipanggil di balik `SDK_INT >= P` (atau dari jalur yang sudah digerbang itu). */
+    @android.annotation.SuppressLint("NewApi")
+    private fun releaseQuietlyDynamics(effect: DynamicsProcessing?) {
+        releaseQuietly("DynamicsProcessing", effect)
+    }
+
     /** Batch 233: true bila efek baru GAGAL dibuat padahal efek lama masih ada -> pertahankan yang lama (jangan kehilangan
      *  efek hanya karena satu pembuatan ulang gagal). Keputusan ada di [EffectGuardPolicy.handoffOutcome] (ada tesnya). */
     private fun shouldKeepOld(name: String, hadOld: Boolean, hasNew: Boolean): Boolean {
@@ -1835,8 +1869,9 @@ class AudioEnhancerService : Service() {
             visualizerState = EffectState.UNAVAILABLE
             return
         }
+        var created: Visualizer? = null // Batch 280: dilepas bila exception terjadi SETELAH konstruktor sukses (sebelumnya objek native tertinggal di audioserver)
         try {
-            visualizer = Visualizer(0).apply {
+            visualizer = Visualizer(0).also { created = it }.apply {
                 captureSize = Visualizer.getCaptureSizeRange().getOrElse(1) { 1024 }
                 // Batch 120: setengah max capture rate SENGAJA (bukan max) — konsisten
                 // dengan filosofi hemat baterai project ini (lihat komentar `onCreate()`
@@ -1855,7 +1890,7 @@ class AudioEnhancerService : Service() {
             visualizerState = EffectState.ENABLED
             markSpectrumActive() // Batch 241
         } catch (e: Exception) {
-            try { visualizer?.release() } catch (_: Exception) { }
+            releaseQuietlyVisualizer(created) // Batch 280: `visualizer` masih null di titik ini, jadi `visualizer?.release()` lama tak pernah melepas apa pun
             visualizer = null
             visualizerState = EffectState.FAILED
             android.util.Log.e(TAG, "Gagal attach Visualizer (spectrum)", e)
@@ -1967,11 +2002,13 @@ class AudioEnhancerService : Service() {
     private fun releaseEffects() {
         effectSession = DumpProbe.GLOBAL_EFFECT_SESSION // Batch 257: ikatan sesi hanya berlaku selama objek efek yang sekarang
         boundEffectSession = DumpProbe.GLOBAL_EFFECT_SESSION
-        bassBoost?.release(); virtualizer?.release()
-        equalizer?.release(); loudnessEnhancer?.release()
-        dynamicsProcessing?.release()
-        try { visualizer?.release() } catch (e: Exception) { android.util.Log.e(TAG, "Gagal release Visualizer", e) }
-        visualizer = null
+        // Batch 280: tiap efek dilepas TERPISAH (satu exception tak boleh membiarkan efek lain tertinggal di audioserver) lalu referensinya
+        // dikosongkan. `releaseEffects()` hanya dipanggil dari `onDestroy()`, jadi tak ada pembaca field sesudahnya.
+        releaseQuietly("BassBoost", bassBoost); releaseQuietly("Virtualizer", virtualizer)
+        releaseQuietly("Equalizer", equalizer); releaseQuietly("LoudnessEnhancer", loudnessEnhancer)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) releaseQuietlyDynamics(dynamicsProcessing)
+        releaseQuietlyVisualizer(visualizer)
+        bassBoost = null; virtualizer = null; equalizer = null; loudnessEnhancer = null; dynamicsProcessing = null; visualizer = null
         // Batch 57: object sudah dilepas total, state HARUS balik UNAVAILABLE — kalau
         // dibiarkan ENABLED/CONTROL_LOST, pembaca state (ke depan: ViewModel/UI) bisa
         // salah kira effect masih hidup padahal Service ini sendiri sudah di-destroy.

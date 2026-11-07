@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 280: Perbaikan CI run 76 (tes B279 gagal kompilasi) + kebocoran objek efek setengah jadi
+
+Permintaan user: "Lanjut ke kandidat memory leak lainnya!!" bersama laporan CI run 76 (Batch 279).
+
+Triase run 76: kode utama B279 terkompilasi dan bersih (SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0), tetapi tes unit dan ArchUnit tidak jalan karena tes baru saya `SliderApplyCoalescingTest` memakai `file.lineSequence()` yang tidak ada untuk `java.io.File` (baris 28). Itu kesalahan saya (menulis tes tanpa kompilator); diganti `file.readLines()`. Pelajaran: tes yang ditulis tanpa kompilator hanya boleh memakai API yang sudah dipakai tes lain di proyek ini.
+
+Audit kebocoran memori (statis + log 6 November): (1) jatah memori efek sistem turun dari 232 KB (puncak 464 KB) sebelum B269 menjadi 50 KB (puncak 100 KB), jadi hipotesis B269 terbukti; puncak = 2x angka normal adalah tumpang-tindih sesaat serah-terima make-before-break, bukan kebocoran. (2) Dump AudioFlinger bersih: efek Boomly hanya satu rantai (enam efek di sesi 0 saat idle, 1 klien tiap efek), tidak ada instance ganda. Rantai sesi 1353 dengan efek 0 klien dan EqualizerBundle milik PID 7031 BUKAN milik Boomly (efek default sistem dan aplikasi lain). (3) Semua registrasi callback, handler, dan scope coroutine berpasangan dengan pelepasannya (device callback, playback callback, guardHandler, sleepHandler, dumpProbeScope, Shizuku listener berhitung referensi, penerima alarm memakai goAsync).
+
+Dua kebocoran nyata ditemukan dan diperbaiki, keduanya di `AudioEnhancerService.kt`: (a) tiap `attach*` mengisi field efek SESUDAH blok `apply`; bila ada exception di dalam `apply` setelah konstruktor sukses (enable, listener, parameter), objek native tertinggal di audioserver tanpa referensi dan tanpa `release()`. Pada device yang menolak profil DynamicsProcessing, tiap percobaan profil gagal bisa meninggalkan satu objek. Sekarang objek yang baru dibuat disimpan dan dilepas di `catch`. (b) `attachVisualizer` memanggil `visualizer?.release()` di `catch`, tetapi field itu masih null di titik tersebut sehingga tidak pernah melepas apa pun; kini melepas objek yang benar. Selain itu `releaseEffects()` melepas tiap efek terpisah dan mengosongkan referensinya (sebelumnya satu exception bisa menghentikan pelepasan efek sisanya, dan hanya Visualizer yang dikosongkan).
+
+Tiga tes sumber baru di `EffectReleaseGuardTest`. Perilaku normal tidak berubah (jalur sukses sama persis). Belum dikompilasi dan belum dijalankan di CI. Revert: `Boomly_v279.zip`.
+
 ## Batch 279: Slider tidak lagi memanggil layanan langsung di thread UI
 
 Permintaan user: "tetap urus slider nya!!" (di samping keluhan lag saat video berjalan dan tombol volume fisik ditekan). Sebelumnya tiap notch drag slider Bass, Virtualizer, Loudness, Compressor, dan Vocal Focus memanggil layanan LANGSUNG di thread utama: Compressor/Vocal Focus sekitar 6 panggilan binder per notch (3 band MBC + band presence), sisanya 1 panggilan binder, ditambah tulis preferensi per notch. Sekarang pola Batch 189 (yang sudah dipakai slider Equalizer) diperluas: nilai terbaru tiap slider ditaruh di slot (last-write-wins) dan worker tunggal yang sama di Dispatchers.IO menerapkannya, jadi drag cepat hanya meng-apply nilai TERAKHIR dan thread utama tidak lagi menunggu audioserver. Nilai yang diubah saat layanan belum/sedang tidak terhubung tetap diterapkan begitu terhubung. Hanya `BoosterViewModel.kt` yang berubah; layanan dan alur penyimpanan tidak diubah.

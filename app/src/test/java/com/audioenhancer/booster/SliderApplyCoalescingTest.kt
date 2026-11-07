@@ -25,7 +25,7 @@ class SliderApplyCoalescingTest {
         val file = checkNotNull(candidates.firstOrNull { it.isFile }) {
             "Berkas tidak ditemukan: $relative (dicari di ${candidates.map { it.absolutePath }})"
         }
-        return file.lineSequence().joinToString("\n") { it.substringBefore("//") }
+        return file.readLines().joinToString("\n") { it.substringBefore("//") }
     }
 
     private fun bodyOf(source: String, marker: String, end: String): String {
