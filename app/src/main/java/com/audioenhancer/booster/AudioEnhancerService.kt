@@ -2223,6 +2223,34 @@ class AudioEnhancerService : Service() {
         applyCompressorBands(PrefsHelper.getCompressorAmount(this), clamped)
     }
 
+    /** Batch 282 (request user: slider/preset khusus Clarity, "wajib ultra immersive"): kejernihan + "udara" nada tinggi, 0..100
+     *  (0 = mati/bypass, perilaku persis sebelum fitur ini). Memakai tahap post-EQ 3 band yang SUDAH ada (lihat [ClarityCurve]):
+     *  hanya band post-EQ yang ditulis ulang, band kompresor (MBC) TIDAK disentuh. Berefek tanpa Compressor. Nilai TETAP
+     *  disimpan tanpa syarat (pola Batch 57); profil DynamicsProcessing tanpa post-EQ (cadangan B264) atau `dynamicsProcessing`
+     *  null = tak berefek, no-op aman. Nilai tersimpan ini juga yang dibaca [presenceEqBand] oleh semua jalur tulis lain
+     *  (konstruktor `Config`, serah-terima efek, setter Compressor/Vocal Focus), jadi Clarity tidak hilang di serah-terima. */
+    fun setClarity(amount: Int) {
+        val clamped = amount.coerceIn(0, 100)
+        PrefsHelper.setClarity(this, clamped)
+        applyClarityBands()
+    }
+
+    // Batch 282: tulis ULANG band post-EQ saja (3 band) untuk Clarity; Compressor/Vocal Focus tidak ikut ditulis ulang.
+    @android.annotation.SuppressLint("NewApi")
+    private fun applyClarityBands(target: DynamicsProcessing? = dynamicsProcessing) {
+        if (!DynamicsProfiles.ORDER[dynamicsProfileIndex].postEq) return // Batch 264: profil tanpa post-EQ = tak ada tahapnya
+        val amount = PrefsHelper.getCompressorAmount(this)
+        val fraction = amount.coerceIn(0, 100) / 100f
+        val focus = PrefsHelper.getVocalFocus(this).coerceIn(0, 100) / 100f
+        try {
+            for (presenceIndex in 0 until CompressorCurve.PRESENCE_BAND_COUNT) {
+                target?.setPostEqBandAllChannelsTo(presenceIndex, presenceEqBand(presenceIndex, amount, fraction, focus))
+            }
+        } catch (e: Exception) {
+            dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Clarity (post-EQ band)", e)
+        }
+    }
+
     // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
     // sudah ada) dan `buildDynamicsConfig` (mengisi `Config` sebelum objek dibuat). Dua salinan angka bisa berselisih diam-diam.
     // `amount` DIPAKAI MENTAH (bukan yang sudah di-clamp) untuk `enabled`, sama dgn perilaku B234; `fraction`/`focus` 0..1.
@@ -2245,13 +2273,18 @@ class AudioEnhancerService : Service() {
     }
 
     // Batch 210: presence vokal (post-EQ 3 band: netral / +gain 2-4,5 kHz / netral), ikut Compressor & Vocal Focus.
+    // Batch 282: band yang sama juga dipakai slider Clarity (`ClarityCurve`). Clarity dibaca dari nilai TERSIMPAN (pola B234: yang
+    // ditulis ke efek selalu nilai tersimpan), jadi SEMUA jalur tulis (konstruktor `Config`, `applyCompressorBands`, `setClarity`)
+    // menghasilkan band identik. Band menyala bila Compressor ATAU Clarity > 0; Clarity 0 = persis perilaku B210.
     @android.annotation.SuppressLint("NewApi")
-    private fun presenceEqBand(presenceIndex: Int, amount: Int, fraction: Float, focus: Float): DynamicsProcessing.EqBand =
-        DynamicsProcessing.EqBand(
-            amount > 0,
+    private fun presenceEqBand(presenceIndex: Int, amount: Int, fraction: Float, focus: Float): DynamicsProcessing.EqBand {
+        val clarity = PrefsHelper.getClarity(this).coerceIn(0, 100) / 100f
+        return DynamicsProcessing.EqBand(
+            amount > 0 || clarity > 0f,
             CompressorCurve.presenceCutoffHz(presenceIndex),
-            CompressorCurve.presenceGainDb(presenceIndex, fraction, focus)
+            ClarityCurve.combinedDb(CompressorCurve.presenceGainDb(presenceIndex, fraction, focus), presenceIndex, clarity)
         )
+    }
 
     // Batch 84 limiter utama (angka dipindah dari `attachDynamicsProcessing()` di Batch 235, nilai TIDAK berubah).
     @android.annotation.SuppressLint("NewApi")
@@ -2704,6 +2737,51 @@ internal object CompressorCurve {
             expanderRatio = 1f + f * g * EXPANDER_EXTRA[index]
         )
     }
+}
+
+/**
+ * Batch 282 (request user: "Tambahkan slider/preset khusus clarity. Wajib yang ultra immersive!!"): kurva slider Clarity 0..100.
+ *
+ * Mekanisme: tahap post-EQ DynamicsProcessing yang SUDAH ada (3 band, batas 2000 / 4500 / 20000 Hz = `CompressorCurve.PRESENCE_*`,
+ * dipakai presence vokal B210). Jumlah band + batasnya TIDAK diubah (kontrak mesin yang sudah diterima device; mengubahnya berisiko
+ * ditolak device lalu menurunkan profil, lihat B264) dan angka band kompresor (setelan AKHIR B262) TIDAK disentuh. Clarity hanya
+ * MENAMBAH gain pada band post-EQ:
+ *  - band 0 (<= 2 kHz: bass + badan suara): TIDAK PERNAH diubah, jadi tenaga bass Boomly utuh;
+ *  - band 1 (2-4,5 kHz: artikulasi, detail, serangan): +[DEFINITION_MAX_DB] dB di 100%;
+ *  - band 2 (> 4,5 kHz: "udara", kilau, ruang): +[AIR_MAX_DB] dB di 100%.
+ * Interpolasi linear 0 -> ujung. 0 = semua tambahan 0 dB = persis perilaku sebelum fitur ini. Berefek TANPA Compressor.
+ *
+ * Gain band 1 gabungan (presence vokal + Clarity) dijepit [TOTAL_CAP_DB] supaya tumpukan ekstrem (Compressor 100%, Vocal Focus 100%,
+ * Clarity 100%) tidak melewati batas wajar desis; dengan Clarity 0 jepitan tak pernah aktif (presence vokal maks 4 dB).
+ *
+ * "Ultra Immersive" = ujung slider (100%): paling lapang/terang. Rasa imersif spasial tetap dari slider Virtualizer (terpisah, tak
+ * dikopel di sini supaya nilai Virtualizer pilihan user tak berubah diam-diam). Limiter -1 dB di ujung DynamicsProcessing menahan
+ * puncak tambahan. Tuning (ubah HANYA angka ini, bukan logika): [DEFINITION_MAX_DB], [AIR_MAX_DB], tangga [PRESET_NATURAL] /
+ * [PRESET_CRYSTAL] / [PRESET_ULTRA]. NOT VERIFIED di telinga/HP (batas band post-EQ diasumsikan seperti B210).
+ */
+internal object ClarityCurve {
+    /** Tangga chip cepat di bawah slider (kelipatan 5 = langkah slider): Natural / Crystal / Ultra Immersive. */
+    const val PRESET_NATURAL = 35
+    const val PRESET_CRYSTAL = 65
+    const val PRESET_ULTRA = 100
+
+    /** Tambahan gain (dB) per band post-EQ di Clarity 100%: [0] = bass/badan (tak diubah), [1] = artikulasi, [2] = udara. */
+    private const val DEFINITION_MAX_DB = 3f
+    private const val AIR_MAX_DB = 5f
+    private val GAIN_MAX_DB = floatArrayOf(0f, DEFINITION_MAX_DB, AIR_MAX_DB)
+
+    /** Batas atas gain GABUNGAN band post-EQ (presence vokal + Clarity). */
+    const val TOTAL_CAP_DB = 6f
+
+    /** Tambahan gain dB Clarity untuk band post-EQ [index] (0 until `CompressorCurve.PRESENCE_BAND_COUNT`) pada slider [clarity] 0..1. */
+    fun gainDb(index: Int, clarity: Float): Float {
+        require(index in 0 until CompressorCurve.PRESENCE_BAND_COUNT) { "band clarity $index di luar 0..${CompressorCurve.PRESENCE_BAND_COUNT - 1}" }
+        return clarity.coerceIn(0f, 1f) * GAIN_MAX_DB[index]
+    }
+
+    /** Gain akhir band post-EQ [index]: presence vokal [presenceDb] + Clarity, dijepit [TOTAL_CAP_DB]. Clarity 0 = [presenceDb] apa adanya. */
+    fun combinedDb(presenceDb: Float, index: Int, clarity: Float): Float =
+        (presenceDb + gainDb(index, clarity)).coerceAtMost(TOTAL_CAP_DB)
 }
 
 /**

@@ -67,6 +67,14 @@
     <string name="feature_vocal_focus_help_inactive">Compressor masih 0% (mati), jadi Vocal Focus belum terdengar. Naikkan Compressor dulu; nilai Vocal Focus ini tetap tersimpan.</string>
     <string name="feature_compressor_help_limiter_only">Compressor dan Vocal Focus tidak berefek di HP ini: perangkat hanya menerima limiter, bukan kompresor. Nilai ini tetap tersimpan.</string>
     <string name="feature_vocal_focus_help_no_presence">Terbatas di HP ini: perangkat menolak penguat kejernihan vokal, jadi hanya penekanan bass dan treble yang bekerja.</string>
+    <!-- Batch 282: slider Clarity + chip cepat -->
+    <string name="feature_clarity_title">Clarity</string>
+    <string name="feature_clarity_help_normal">Menjernihkan detail dan membuka \'udara\' di nada tinggi supaya suara terasa lebih lega dan imersif. Bekerja sendiri tanpa Compressor; paling lapang bila dipadukan dengan Virtualizer. 0 = mati.</string>
+    <string name="feature_clarity_help_no_posteq">Tidak berefek di HP ini: perangkat menolak tahap penjernih (post-EQ). Nilai ini tetap tersimpan.</string>
+    <string name="clarity_preset_off">Mati</string>
+    <string name="clarity_preset_natural">Natural</string>
+    <string name="clarity_preset_crystal">Crystal</string>
+    <string name="clarity_preset_ultra">Ultra Immersive</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —

@@ -594,6 +594,53 @@ private fun tabSwipeDelta(totalDragPx: Float, thresholdPx: Float): Int = when {
     else -> 0
 }
 
+/** Batch 282: chip cepat di bawah slider Clarity (Mati / Natural / Crystal / Ultra Immersive). Murni pintasan nilai slider
+ *  (`ClarityCurve.PRESET_*`): terpilih = nilai slider PERSIS sama dengan tangga itu; geser slider ke nilai lain = tak ada chip terpilih.
+ *  Pola tampilan sama dengan pil Preset Cepat (`SkeuPresetPill` + FilterChip untuk tema tanpa kedalaman). */
+@Composable
+private fun ClarityPresetRow(clarity: Float, onSelect: (Int) -> Unit) {
+    val haptics = rememberAppHaptics()
+    val tiers = listOf(
+        stringResource(R.string.clarity_preset_off) to 0,
+        stringResource(R.string.clarity_preset_natural) to ClarityCurve.PRESET_NATURAL,
+        stringResource(R.string.clarity_preset_crystal) to ClarityCurve.PRESET_CRYSTAL,
+        stringResource(R.string.clarity_preset_ultra) to ClarityCurve.PRESET_ULTRA
+    )
+    Row(
+        modifier = Modifier
+            .horizontalScroll(rememberScrollState())
+            .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        CompositionLocalProvider(LocalIndication provides NoRippleIndication) {
+            tiers.forEach { (label, level) ->
+                val selected = clarity.toInt() == level
+                val pick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onSelect(level)
+                }
+                SkeuPresetPill(selected = selected, onClick = pick, label = label) {
+                    Box(modifier = Modifier.then(if (selected) Modifier.skeuGlow(LocalSkeuTokens.current.primaryGlow, spread = 8.dp) else Modifier)) {
+                        FilterChip(
+                            selected = selected,
+                            onClick = pick,
+                            label = { Text(label) },
+                            shape = RoundedCornerShape(50),
+                            border = if (selected) null else BorderStroke(1.dp, LocalSkeuTokens.current.mutedText.copy(alpha = 0.35f)),
+                            colors = FilterChipDefaults.filterChipColors(
+                                containerColor = Color.Transparent,
+                                labelColor = LocalSkeuTokens.current.mutedText,
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = Color.White
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun BoosterScreen(
     onBass: (Short) -> Unit,
@@ -606,6 +653,8 @@ fun BoosterScreen(
     onCompressor: (Int) -> Unit = {},
     // Batch 209: slider "Vocal Focus" (0..100) di bawah Compressor — keseimbangan vokal vs bass/treble.
     onVocalFocus: (Int) -> Unit = {},
+    // Batch 282: slider Clarity (0..100) + chip cepat Natural/Crystal/Ultra Immersive — kejernihan & "udara" nada tinggi.
+    onClarity: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
@@ -643,6 +692,7 @@ fun BoosterScreen(
     initialLoudness: Float = 0f,
     initialCompressorAmount: Float = 0f,
     initialVocalFocus: Float = 50f,
+    initialClarity: Float = 0f,
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -758,6 +808,7 @@ fun BoosterScreen(
     var loudness by remember { mutableFloatStateOf(initialLoudness) }
     var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
     var vocalFocus by remember { mutableFloatStateOf(initialVocalFocus) }
+    var clarity by remember { mutableFloatStateOf(initialClarity) } // Batch 282
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -1284,6 +1335,39 @@ fun BoosterScreen(
                     enabled = compressorSupported,
                     wrapInCard = false
                 )
+
+                SkeuGroupDivider()
+
+                // Batch 282 (request user: slider/preset khusus Clarity, "ultra immersive"): kejernihan + udara nada tinggi lewat tahap post-EQ
+                // DynamicsProcessing (lihat `ClarityCurve`). Sama seperti Compressor/Vocal Focus: SENGAJA tidak ikut preset built-in/custom
+                // (nilai tersimpan terpisah di PrefsHelper) dan tidak butuh Compressor menyala.
+                FeatureControl(
+                    title = stringResource(R.string.feature_clarity_title),
+                    icon = Icons.Filled.GraphicEq,
+                    accentColor = CompressorAccent,
+                    accentColor2 = CompressorAccent2,
+                    helpText = when {
+                        !compressorSupported -> stringResource(R.string.feature_help_unsupported)
+                        compressorEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        // Clarity memakai tahap post-EQ: profil cadangan tanpa post-EQ (NO_PRESENCE) atau tanpa MBC (LIMITER_ONLY) = tak berefek.
+                        compressorReach != CompressorReach.FULL -> stringResource(R.string.feature_clarity_help_no_posteq)
+                        else -> stringResource(R.string.feature_clarity_help_normal)
+                    },
+                    value = clarity,
+                    valueLabel = "${clarity.toInt()}%",
+                    onValueChange = { clarity = it; onClarity(it.toInt()) },
+                    valueRange = 0f..100f,
+                    step = 5f,
+                    enabled = compressorSupported,
+                    wrapInCard = false
+                )
+                if (compressorSupported && compressorReach == CompressorReach.FULL) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    ClarityPresetRow(clarity = clarity, onSelect = { level -> clarity = level.toFloat(); onClarity(level) })
+                }
             }
         }
 

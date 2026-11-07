@@ -12,6 +12,8 @@ object PrefsHelper {
     private const val KEY_COMPRESSOR_AMOUNT = "compressor_amount" // Batch 121, Fase 8 ROI #4
     private const val KEY_VOCAL_FOCUS = "vocal_focus" // Batch 209
     const val VOCAL_FOCUS_DEFAULT = 50 // Batch 209
+    private const val KEY_CLARITY = "clarity" // Batch 282
+    const val CLARITY_DEFAULT = 0 // Batch 282
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
     // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
@@ -118,6 +120,15 @@ object PrefsHelper {
 
     fun setVocalFocus(context: Context, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_VOCAL_FOCUS, value).apply()
+    }
+
+    // Batch 282 (request user: slider/preset khusus Clarity): 0..100, default 0 = mati/bypass. Berefek TANPA Compressor
+    // (lihat AudioEnhancerService.setClarity() & ClarityCurve).
+    fun getClarity(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_CLARITY, CLARITY_DEFAULT)
+
+    fun setClarity(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_CLARITY, value).apply()
     }
 
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): opt-in, default MATI —

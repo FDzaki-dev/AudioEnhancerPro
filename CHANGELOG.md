@@ -1,5 +1,39 @@
 # Changelog
 
+## Batch 282: Slider + chip cepat Clarity (kejernihan dan "udara" nada tinggi)
+
+Permintaan user: "Tambahkan slider/preset khusus clarity. Wajib yang ultra immersive!!" (unggahan `Boomly_v281.zip`, tanpa laporan CI baru).
+
+Hasil: kontrol baru **Clarity** di kartu kontrol layar utama, di bawah Vocal Focus. Slider 0 sampai 100% (langkah 5, default 0 = mati) plus empat chip cepat di bawahnya: Mati (0), Natural (35), Crystal (65), Ultra Immersive (100). Chip hanya pintasan nilai slider: terpilih bila nilai slider persis sama dengan tangga itu. Sama seperti Compressor dan Vocal Focus, Clarity sengaja tidak ikut preset bawaan/custom (nilainya tersimpan sendiri di pref `clarity`).
+
+Mekanisme: tahap post-EQ DynamicsProcessing yang SUDAH ada (3 band, batas 2000 / 4500 / 20000 Hz, dipakai presence vokal sejak B210). Jumlah band dan batasnya tidak diubah, dan angka band kompresor (setelan akhir B262) tidak disentuh. Clarity hanya menambah gain per band (`ClarityCurve`, linear dari 0 ke ujung):
+
+- band 0 (sampai 2 kHz, bass dan badan suara): tidak pernah berubah, jadi tenaga bass utuh;
+- band 1 (2 sampai 4,5 kHz, artikulasi dan detail): hingga +3 dB;
+- band 2 (di atas 4,5 kHz, "udara" dan kilau): hingga +5 dB.
+
+Natural 35% = +1,05 / +1,75 dB, Crystal 65% = +1,95 / +3,25 dB, Ultra Immersive 100% = +3,0 / +5,0 dB (band 1 / band 2). Gain gabungan band 1 (presence vokal + Clarity) dijepit 6 dB; dengan Clarity 0 jepitan tidak pernah aktif (presence vokal maksimum 4 dB), jadi perilaku sebelum fitur ini identik. Clarity bekerja tanpa Compressor: band post-EQ menyala bila Compressor ATAU Clarity di atas 0.
+
+Jalur kode:
+- `AudioEnhancerService.kt`: `ClarityCurve` (objek murni, ada tesnya); `presenceEqBand` kini membaca Clarity TERSIMPAN lewat `PrefsHelper.getClarity` (pola B234: yang ditulis ke efek selalu nilai tersimpan) sehingga semua jalur tulis menghasilkan band identik: konstruktor `Config` (`buildDynamicsConfig`), `applyCompressorBands` (juga dipakai serah-terima efek dan setter Compressor/Vocal Focus), dan `setClarity`. `setClarity` menyimpan nilai lalu `applyClarityBands` menulis ulang HANYA 3 band post-EQ (band kompresor tidak ikut ditulis ulang). Profil cadangan B264 tanpa post-EQ dilewati.
+- `PrefsHelper.kt`: `getClarity`/`setClarity`, `CLARITY_DEFAULT = 0`.
+- `BoosterViewModel.kt`: `setClarity` memakai pola B279 (slot `latestClarity` last-write-wins, worker `Dispatchers.IO` yang sama, `pendingClarity` bila service belum konek).
+- `MainActivity.kt`: `onClarity` + `initialClarity`.
+- `BoosterScreen.kt`: `FeatureControl` Clarity (ikon `GraphicEq`, aksen ungu Compressor karena sama-sama berbasis DynamicsProcessing) + `ClarityPresetRow` (`SkeuPresetPill` + `FilterChip` untuk tema tanpa kedalaman, haptic saat dipilih). Teks bantuan mengikuti pola Vocal Focus: tidak didukung / kontrol direbut / gagal; bila profil DynamicsProcessing cadangan tidak punya post-EQ (`CompressorReach` bukan FULL) slider memberi teks "tidak berefek di HP ini", chip disembunyikan, nilai tetap tersimpan.
+- `values/strings.xml` dan `values-en/strings.xml`: 7 string baru (judul, 2 teks bantuan, 4 label chip).
+
+Kenapa begini dan bukan yang lain:
+1. Instance DynamicsProcessing atau efek kedua DITOLAK: anggaran efek sistem sudah ketat (jatah memori efek 50 KB sejak B269) dan serah-terima/Effect Guard/ikatan sesi (B229-B280) akan ikut berubah.
+2. Menambah band post-EQ (kurva lebih halus) DITOLAK: mengubah arsitektur mesin berisiko ditolak device dan menurunkan profil (B264), yang akan menghilangkan presence vokal juga.
+3. Clarity tidak dikopel ke Virtualizer: kopling akan mengubah nilai Virtualizer pilihan user diam-diam dan bentrok dengan Effect Guard (membandingkan efek vs prefs). Rasa imersif spasial tetap dari slider Virtualizer; teks bantuan menyarankan memadukannya.
+4. Band 0 tidak pernah dipotong: aplikasi ini berorientasi bass, jadi kejernihan dicapai dengan MENAMBAH di atas 2 kHz, bukan menipiskan badan suara.
+
+Keterbatasan jujur: (a) "Ultra Immersive" = ujung slider (paling lapang dan terang), bukan efek spasial; (b) band 2 satu gain untuk 4,5 sampai 20 kHz, jadi desis 5 sampai 8 kHz ikut naik; bila terdengar tajam turunkan `AIR_MAX_DB` (5 -> 4) dan/atau `DEFINITION_MAX_DB` (3 -> 2) di `ClarityCurve`, hanya angka; (c) limiter -1 dB di ujung DynamicsProcessing menahan puncak tambahan, pada materi sangat keras Clarity 100% membuat limiter bekerja lebih keras; (d) batas band post-EQ diasumsikan bekerja seperti B210 (2 / 4,5 / 20 kHz), belum diukur di HP.
+
+Tes: 13 tes baru di `ClarityCurveTest.kt` (JVM murni): Clarity 0 = 0 dB di semua band, band 0 tak pernah berubah, ujung +3/+5 dB, linear dan monoton, input di luar rentang dijepit, indeks band tak valid ditolak, Clarity 0 meninggalkan presence vokal persis seperti sebelumnya (semua kombinasi kompresor x fokus), gain gabungan tak melewati jepitan 6 dB, tangga chip menaik/berakhir 100/kelipatan 5, dan 3 penjaga teks sumber (`presenceEqBand` membaca nilai tersimpan; `setClarity` tidak menulis ulang band kompresor dan hanya menulis post-EQ; ViewModel lewat jalur nilai-terbaru). Total tes 229 -> 242. Penjaga lama (`EffectGuardPolicyTest`: tanda tangan `applyCompressorBands`/`buildDynamicsConfig`/`presenceEqBand`) tetap utuh.
+
+Validasi: NOT VERIFIED (sandbox tanpa kompiler Kotlin/Gradle; kurung seimbang di semua file yang diubah, XML string di-parse dan kunci ID = EN, semua penjaga sumber lama dan baru disimulasikan terhadap kode nyata dan lulus; belum CI, belum HP). Jumlah file 8 (batas 5) dibenarkan di `PROJECT_STATE.md`: satu kontrak data baru melintasi layanan, ViewModel, MainActivity, layar, dua file string, dan satu tes.
+
 ## Batch 281: Triase CI run 77 (Batch 276-280 terverifikasi statis), tanpa perubahan kode
 
 Permintaan user: unggahan `AEP_laporan-untuk-claude_run77.zip` tanpa teks. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=280, COMMIT=fb3a0d0, RUN_ID=42317020062). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 229 tes lulus tanpa ada yang dilewati. Jumlah tes cocok dengan hitungan di catatan (dasar 218, B276 +4, B277 +1, B279 +3, B280 +3).

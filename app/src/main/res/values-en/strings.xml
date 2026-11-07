@@ -67,6 +67,14 @@
     <string name="feature_vocal_focus_help_inactive">Compressor is still at 0% (off), so Vocal Focus can\'t be heard yet. Raise Compressor first; this Vocal Focus value stays saved.</string>
     <string name="feature_compressor_help_limiter_only">Compressor and Vocal Focus have no effect on this device: it only accepts the limiter, not the compressor. These values stay saved.</string>
     <string name="feature_vocal_focus_help_no_presence">Limited on this device: it rejects the vocal clarity boost, so only the bass and treble reduction works.</string>
+    <!-- Batch 282: Clarity slider + quick chips -->
+    <string name="feature_clarity_title">Clarity</string>
+    <string name="feature_clarity_help_normal">Sharpens detail and opens up the high-frequency \'air\' so sound feels wider and more immersive. Works on its own, no Compressor needed; most spacious paired with Virtualizer. 0 = off.</string>
+    <string name="feature_clarity_help_no_posteq">No effect on this device: it rejects the clarity stage (post-EQ). This value stays saved.</string>
+    <string name="clarity_preset_off">Off</string>
+    <string name="clarity_preset_natural">Natural</string>
+    <string name="clarity_preset_crystal">Crystal</string>
+    <string name="clarity_preset_ultra">Ultra Immersive</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —
