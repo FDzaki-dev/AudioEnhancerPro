@@ -1762,9 +1762,11 @@ class AudioEnhancerService : Service() {
     private fun onOutputRouteChanged(devices: Array<AudioDeviceInfo>, added: Boolean) {
         val outputDevices = devices.filter { it.isSink }
         if (outputDevices.isEmpty()) return // semua device di batch callback ini INPUT, bukan urusan fungsi ini
-        val label = outputDevices.joinToString { describeOutputDeviceType(it.type) }
+        val label = outputDevices.joinToString { describeOutputDeviceType(it.type) } // mentah: HANYA untuk Log
         val suffix = if (added) "terhubung" else "terputus"
-        lastOutputRouteDescription = "$label ($suffix)"
+        // Batch 290: banner memakai nama ramah saja (tanpa "device tipe N"); batch yang hanya berisi sink non-pengguna
+        // (earpiece/telephony/FM) tidak menimpa deskripsi terakhir. Log di bawah tetap mencatat label mentah.
+        OutputRouteLabel.describe(outputDevices.map { it.type })?.let { lastOutputRouteDescription = "$it ($suffix)" }
         android.util.Log.i(TAG, "Output route berubah: $label $suffix")
         if (isRunning) {
             enableEffects()
@@ -1819,26 +1821,11 @@ class AudioEnhancerService : Service() {
         }
     }
 
-    /** Nama ringkas tipe sink output buat Log/`lastOutputRouteDescription` — HANYA cover
-     *  tipe yang relevan skenario audit (speaker, Bluetooth klasik+BLE, wired, USB DAC),
-     *  bukan daftar lengkap seluruh `AudioDeviceInfo.TYPE_*` (banyak yang tipe INPUT atau
-     *  tidak relevan konteks booster audio ini). Tipe di luar daftar tetap tercatat
-     *  (fallback `"device tipe $type"`), bukan hilang diam-diam. */
-    private fun describeOutputDeviceType(type: Int): String = when (type) {
-        AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker internal"
-        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
-        AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
-        AudioDeviceInfo.TYPE_BLE_HEADSET -> "Bluetooth LE headset"
-        AudioDeviceInfo.TYPE_BLE_SPEAKER -> "Bluetooth LE speaker"
-        AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Headset kabel"
-        AudioDeviceInfo.TYPE_WIRED_HEADPHONES -> "Headphone kabel"
-        AudioDeviceInfo.TYPE_USB_DEVICE -> "USB DAC/device"
-        AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
-        AudioDeviceInfo.TYPE_USB_ACCESSORY -> "USB accessory"
-        AudioDeviceInfo.TYPE_HDMI -> "HDMI"
-        AudioDeviceInfo.TYPE_DOCK -> "Dock"
-        else -> "device tipe $type"
-    }
+    /** Nama tipe sink output buat Log. Nama ramah ada di [OutputRouteLabel.userFacingName] (satu sumber kebenaran,
+     *  juga dipakai banner lewat `lastOutputRouteDescription`); tipe di luar daftar tetap tercatat di Log sebagai
+     *  `"device tipe $type"` (bukan hilang diam-diam) tapi TIDAK ditampilkan ke banner (Batch 290). */
+    private fun describeOutputDeviceType(type: Int): String =
+        OutputRouteLabel.userFacingName(type) ?: "device tipe $type"
 
     /** Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): reduksi tipe device
      *  MENTAH (banyak varian, lihat `describeOutputDeviceType()` di atas) jadi 4 bucket

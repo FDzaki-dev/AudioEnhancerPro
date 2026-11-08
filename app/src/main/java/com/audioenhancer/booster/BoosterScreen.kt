@@ -1282,7 +1282,9 @@ fun BoosterScreen(
                         else -> stringResource(R.string.feature_bass_help_normal)
                     },
                     value = bass,
-                    valueLabel = bass.toInt().toString(),
+                    // Batch 290: tampil persen (0..1000 -> 0..100%) seperti Compressor/Vocal Focus/Clarity; nilai tersimpan,
+                    // preset, dan efek TETAP 0..1000 (hanya teks). +5 = pembulatan, jaga nilai preset yang bukan kelipatan 10.
+                    valueLabel = "${(bass.toInt() + 5) / 10}%",
                     onValueChange = { bass = it; onBass(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
                     valueRange = 0f..1000f,
                     step = 50f,
@@ -1307,7 +1309,7 @@ fun BoosterScreen(
                         else -> stringResource(R.string.feature_virtualizer_help_normal)
                     },
                     value = virtualizer,
-                    valueLabel = virtualizer.toInt().toString(),
+                    valueLabel = "${(virtualizer.toInt() + 5) / 10}%", // Batch 290: persen (lihat Bass Boost)
                     onValueChange = { virtualizer = it; onVirtualizer(it.toInt().toShort()); activePreset = null; onActivePresetChange(null) },
                     valueRange = 0f..1000f,
                     step = 50f,

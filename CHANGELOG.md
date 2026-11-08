@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 290: Nama output ramah di banner dan nilai slider seragam (persen)
+
+Permintaan user: "lanjut 1 dan 2" (dua keputusan sisa audit layar utama B289), dengan unggahan `AEP_laporan-untuk-claude_run86.zip`.
+
+Triase CI run 86: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=289, COMMIT=56ef96b, RUN_ID=42454435940). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, 248 tes lulus. Batch 289 STATIC-VERIFIED (kompilasi bersih; pengecekan visual di HP belum dilaporkan).
+
+Item 1, label rute mentah. Banner "Output audio berubah" menampilkan "device tipe 1, Speaker internal, device tipe 18, device tipe 14 (terhubung)". Penyebab ganda: (a) `onOutputRouteChanged` menulis SEMUA sink yang dilaporkan callback ke banner dengan fallback "device tipe N", padahal earpiece (1), telephony (18) dan FM (14) bukan tujuan audio yang bisa dipilih pengguna; (b) `registerAudioDeviceCallback` langsung memutar ulang seluruh perangkat yang sedang tersambung lewat `onAudioDevicesAdded`, jadi daftar sebanyak itu muncul saat service mulai, bukan karena rute berubah. Perbaikan (hanya teks banner): objek murni baru `OutputRouteLabel` (`OutputRouteLabel.kt`) memberi nama pada tipe yang bermakna bagi pengguna (speaker internal/aman, Bluetooth A2DP/SCO/LE, headset/headphone kabel, USB, HDMI/ARC/eARC, dock, line out, aux, alat bantu dengar) dan `null` untuk sisanya; banner hanya memakai nama-nama itu (tanpa duplikat), dan batch yang seluruhnya non-pengguna tidak menimpa deskripsi terakhir. `describeOutputDeviceType` kini memanggil objek yang sama (satu sumber kebenaran) dan Log tetap mencatat label mentah termasuk "device tipe N". Jalur auto-profile (`routeCategoryOf`, pemilihan preset, `enableEffects`, guard) tidak disentuh. 5 tes baru (`OutputRouteLabelTest`).
+
+Item 2, satuan slider. Bass Boost dan Virtualizer kini tampil persen (nilai 0..1000 dibagi 10, dibulatkan; contoh "1000" menjadi "100%", "150" menjadi "15%"), seragam dengan Compressor, Vocal Focus dan Clarity. Hanya teks: nilai tersimpan, preset dan efek tetap 0..1000. Label aksesibilitas (judul + nilai) ikut. Loudness dan Equalizer tetap mB.
+
+Tidak diubah, dicatat sebagai keputusan terbuka: (1) banner masih tampil saat service mulai ("Output audio berubah: Speaker internal (terhubung)") karena pemutaran ulang callback di atas; menahannya = mengabaikan `onAudioDevicesAdded` pertama setelah registrasi untuk deskripsi banner (perubahan perilaku banner, perlu keputusan); (2) pada pemutaran ulang itu auto-profile memilih kategori dari `outputDevices.first()` (urutan daftar sistem), yang bisa earpiece (kategori "other") walau Bluetooth tersambung; ini perilaku B122/B123, perlu laporan nyata sebelum diubah; (3) sufiks "(terhubung)/(terputus)" dan nama perangkat di service berbahasa Indonesia tetap, sehingga di UI bahasa Inggris kalimat banner bercampur; (4) isian slider band Equalizer dari titik nol (usulan sebelumnya, belum dikerjakan).
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v289.zip`.
+
 ## Batch 289: Snackbar bertema dan audit layar utama
 
 Permintaan user: "Lanjutkan audit layar utama" dan "Snackbar sudah mengikuti kecepatan pergantian tema. Namun tampilan snackbar yang putih polos sama sekali tidak mencerminkan tema yang dipilih", dengan unggahan `Boomly_v288.zip`, `AEP_laporan-untuk-claude_run85.zip`, dan 3 screenshot (layar utama bagian atas, kartu Equalizer Manual, daftar gaya tema di Pengaturan).
