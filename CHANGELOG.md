@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 294: Banner "Service tidak berjalan" tidak lagi terperas
+
+Permintaan user: dua screenshot HP tanpa teks (layar utama saat efek Nonaktif dan service mati, serta kartu Equalizer Manual terbuka), dibaca sebagai lanjutan audit layar utama.
+
+Terkonfirmasi di HP dari screenshot v293: jarak label "PRESET CEPAT" dan "KONTROL" kini lebih dekat ke isinya; jarak label-slider band EQ tetap baik; panah kartu EQ sejajar judul; chip meluap ke tepi. Perilaku banner rute pada pemutaran ulang awal belum bisa dinilai dari screenshot ini karena service sedang mati.
+
+Temuan baru: banner status saat service mati ("Service tidak berjalan — mungkin dimatikan lewat notifikasi") patah menjadi 5 baris sempit karena tombol "Nyalakan Lagi" (label panjang) berbagi satu baris dengan teks dan memakan sekitar separuh lebar, sehingga teks hanya kebagian kolom sempit (sekitar 150 px dari 470 px). Perbaikan: tombol dipindah ke baris di bawah teks, rata kanan (`Column` berisi baris titik+teks dan tombol). Saat service berjalan tidak ada tombol, jadi tata letaknya sama persis; aksi, haptik, dan teks tidak berubah. Pada keadaan mati, banner bertambah tinggi sekitar satu baris tombol namun teks kini 2 baris, bukan 5.
+
+Tidak diubah (keputusan terbuka): isian slider band EQ dari titik nol; `outputDevices.first()` untuk kategori auto-profile pada pemutaran ulang (perilaku B122/B123); sufiks bahasa Indonesia di UI Inggris.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v293.zip`.
+
 ## Batch 293: Banner rute tidak lagi muncul palsu saat service mulai, dan jarak label section
 
 Permintaan user: "Bantu Pilihkan untukku" (memilih dari keputusan terbuka dan temuan kecil setelah screenshot v292). Pilihan: (1) banner rute palsu saat service mulai, (2) jarak label "PRESET CEPAT" dan "KONTROL". Isian slider band EQ dari titik nol sengaja ditunda ke batch sendiri (menyentuh mesin track slider 6 tema).

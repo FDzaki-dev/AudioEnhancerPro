@@ -98,26 +98,36 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
 
     val statusTint = if (isRunning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
     SkeuTintedCard(tint = statusTint) {
-        Row(
+        // Batch 294: tombol "Nyalakan Lagi" dipindah ke BARIS DI BAWAH teks (rata kanan). Sebelumnya satu Row dgn teks
+        // `weight(1f)`: tombol berlabel panjang memakan ~separuh lebar sehingga teks status terperas ke kolom sempit
+        // dan patah 5 baris ("Service tidak / berjalan — / mungkin / dimatikan lewat / notifikasi", screenshot v293).
+        // Saat service jalan tidak ada tombol, jadi tata letak sama persis seperti sebelumnya.
+        Column(
             modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(10.dp)
-                    .clip(CircleShape)
-                    .background(if (isRunning) Color(0xFF30D158) else Color(0xFFFF453A))
-            )
-            Text(
-                if (isRunning) stringResource(R.string.status_running)
-                else stringResource(R.string.status_not_running),
-                style = MaterialTheme.typography.bodySmall,
-                // Batch 289: teks = `onSurface`, BUKAN `statusTint` (warna utama tema di atas pelat yang sudah
-                // di-tint warna yang sama = kontras rendah, ~2,5:1). Status tetap terbaca dari titik hijau/merah + tint pelat.
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(if (isRunning) Color(0xFF30D158) else Color(0xFFFF453A))
+                )
+                Text(
+                    if (isRunning) stringResource(R.string.status_running)
+                    else stringResource(R.string.status_not_running),
+                    style = MaterialTheme.typography.bodySmall,
+                    // Batch 289: teks = `onSurface`, BUKAN `statusTint` (warna utama tema di atas pelat yang sudah
+                    // di-tint warna yang sama = kontras rendah, ~2,5:1). Status tetap terbaca dari titik hijau/merah + tint pelat.
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             if (!isRunning) {
                 // Batch 24: ripple Material3 default dimatikan, konsisten sama
                 // SkeuPowerButton (Batch 15) — feedback tekan sekarang murni dari
