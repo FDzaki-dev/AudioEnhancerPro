@@ -1278,11 +1278,20 @@ internal fun SkeuOutlinedButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    // Batch 288: bawaan = nilai lama (24dp/8dp, sama dgn `ButtonDefaults.ContentPadding`); tombol sempit
+    // berlabel pendek (mis. "15 mnt" dalam grid 3 kolom) boleh memperkecil agar label tidak terpecah.
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
     content: @Composable RowScope.() -> Unit
 ) {
     val depth = LocalSkeuTokens.current.depth
     if (depth == null) {
-        OutlinedButton(onClick = onClick, modifier = modifier, enabled = enabled, content = content)
+        OutlinedButton(
+            onClick = onClick,
+            modifier = modifier,
+            enabled = enabled,
+            contentPadding = contentPadding,
+            content = content
+        )
         return
     }
     DepthKeyBox(
@@ -1298,7 +1307,7 @@ internal fun SkeuOutlinedButton(
         contentColor = lerp(MaterialTheme.colorScheme.primary, depth.rimLight, 0.30f),
         minWidth = 58.dp,
         minHeight = 40.dp,
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 8.dp),
+        contentPadding = contentPadding,
         touchPad = PaddingValues(vertical = 4.dp),
         spacing = 0.dp,
         content = content

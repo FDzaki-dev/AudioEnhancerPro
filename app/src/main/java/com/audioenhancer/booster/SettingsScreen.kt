@@ -22,6 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -126,7 +127,8 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        SectionLabel(text = stringResource(R.string.settings_title))
+        // Batch 288: label seksi tak lagi sama dgn judul layar ("Pengaturan" dua kali berurutan).
+        SectionLabel(text = stringResource(R.string.settings_app_section_title))
         // Batch 91 (roadmap.md Fase 7 Fase 2 opsi A, "Grouped-list SettingsScreen.kt"):
         // diaudit dulu sebelum ubah apa pun (bukan langsung refactor) — screen ini
         // SEBELUMNYA render versi-app sebagai 1 baris teks gabung ("Versi aplikasi: X")
@@ -797,7 +799,11 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 StatsRow(stringResource(R.string.settings_stats_starts_label), formatUsageTimes(context, statsStartCount))
                 Spacer(modifier = Modifier.height(8.dp))
-                StatsRow(stringResource(R.string.settings_stats_top_label), formatTopPreset(context, statsTopPreset))
+                StatsRow(
+                    stringResource(R.string.settings_stats_top_label),
+                    statsTopPreset?.first ?: stringResource(R.string.settings_stats_none),
+                    statsTopPreset?.let { formatUsageTimes(context, it.second) }
+                )
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     stringResource(R.string.settings_stats_note),
@@ -823,9 +829,11 @@ fun SettingsScreen(
     }
 }
 
-/** Batch 154: 1 baris statistik — label (redup) kiri, nilai (tebal) kanan. */
+/** Batch 154: 1 baris statistik — label (redup) kiri, nilai (tebal) kanan. Batch 288: [detail] opsional =
+ *  baris kedua redup di bawah nilai (jumlah pemakaian preset), supaya "N kali" tidak terpisah sendirian
+ *  ke baris berikutnya saat nilai panjang dibungkus. */
 @Composable
-private fun StatsRow(label: String, value: String) {
+private fun StatsRow(label: String, value: String, detail: String? = null) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(
             label,
@@ -833,14 +841,25 @@ private fun StatsRow(label: String, value: String) {
             color = LocalSkeuTokens.current.mutedText,
             modifier = Modifier.weight(1f)
         )
-        Text(
-            value,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            textAlign = TextAlign.End,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.End,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (detail != null) {
+                Text(
+                    detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalSkeuTokens.current.mutedText,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
     }
 }
 
@@ -863,11 +882,6 @@ private fun formatUsageDuration(context: Context, durationMs: Long): String {
 /** Batch 154: "N kali" / "N time(s)" lewat plurals. */
 private fun formatUsageTimes(context: Context, count: Int): String =
     context.resources.getQuantityString(R.plurals.settings_stats_times, count, count)
-
-/** Batch 154: "Nama · N kali"; null = belum ada data. */
-private fun formatTopPreset(context: Context, top: Pair<String, Int>?): String =
-    if (top == null) context.getString(R.string.settings_stats_none)
-    else "${top.first} · ${formatUsageTimes(context, top.second)}"
 
 /** Batch 122: 1 baris kategori route — chip "Tidak ada" + 1 chip per preset custom,
  *  scroll horizontal (bisa banyak preset). Styling FilterChip disamakan persis dengan
@@ -938,9 +952,15 @@ private fun SleepTimerDurationRow(minutes: List<Int>, enabled: Boolean, onPick: 
             SkeuOutlinedButton(
                 onClick = { onPick(m) },
                 enabled = enabled,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                // Batch 288: padding horizontal 24dp (bawaan) menyisakan ~50dp utk label di grid 3 kolom ->
+                // "15 mnt" terpecah jadi 2 baris rata kiri. 8dp + rata tengah = 1 baris.
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Text(stringResource(R.string.settings_sleep_timer_minutes_short, m))
+                Text(
+                    stringResource(R.string.settings_sleep_timer_minutes_short, m),
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }

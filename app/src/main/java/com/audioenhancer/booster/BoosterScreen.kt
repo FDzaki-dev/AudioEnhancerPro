@@ -862,7 +862,13 @@ fun BoosterScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
     fun showSnackbar(message: String) {
-        coroutineScope.launch { snackbarHostState.showSnackbar(message) }
+        coroutineScope.launch {
+            // Batch 288: `showSnackbar` ANTRE (mutex) di belakang snackbar yang masih tampil (Short =
+            // 4 dtk), sehingga konfirmasi ganti tema yang kedua/ketiga muncul belakangan walau tema
+            // sudah berganti seketika. Tutup yang lama dulu: pesan terbaru langsung tampil.
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message)
+        }
     }
 
     fun applyCustomPreset(preset: PrefsHelper.CustomPreset) {
@@ -2209,7 +2215,8 @@ fun BoosterScreen(
         }
         SnackbarHost(
             hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+            // Batch 288: + navigationBarsPadding (edge-to-edge) supaya snackbar tidak tertutup bilah navigasi.
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp)
         )
     }
 }

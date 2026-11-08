@@ -1,5 +1,24 @@
 # Changelog
 
+## Batch 288: Snackbar tidak lagi antre dan audit hierarki/spacing Pengaturan
+
+Permintaan user: "Pop-up/snackbar mengalami delay walaupun tema berganti secara instant. Setelah kamu atasi, langsung lanjut audit hierarki dan spacing!!" dengan unggahan `Boomly_v287.zip`, `AEP_laporan-untuk-claude_run84.zip`, dan screenshot panjang Pengaturan (versi aplikasi 322).
+
+Triase CI run 84: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=287, COMMIT=2b4e2c1, RUN_ID=42451015303). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0 (warning `UseOfNonLambdaOffsetOverload` hilang), peringatan kompilator 0, dan 244 tes lulus. Batch 287 STATIC-VERIFIED.
+
+Snackbar delay. Semua konfirmasi (ganti tema, simpan/hapus preset, dan lainnya) lewat satu fungsi `showSnackbar` di `BoosterScreen.kt` yang memanggil `SnackbarHostState.showSnackbar`. Fungsi itu antre: pesan baru menunggu pesan sebelumnya selesai (durasi Short sekitar 4 detik). Saat tema dimatikan lalu tema lain dinyalakan berurutan, konfirmasi kedua baru muncul setelah yang pertama habis, padahal tema sudah berganti seketika. Perbaikan: sebelum menampilkan pesan baru, snackbar yang sedang tampil ditutup (`currentSnackbarData?.dismiss()`), sehingga pesan terbaru langsung tampil. Ini diagnosis dari kode dan belum dibuktikan di HP. Bila snackbar masih telat padahal hanya satu kali toggle, penyebabnya lain (misalnya kerja berat di frame pertama setelah ganti tema) dan butuh log atau rekaman layar.
+
+Audit hierarki dan spacing dari screenshot Pengaturan (empat perbaikan, semuanya tampilan):
+
+- Timer Tidur: label "15 mnt" terpecah jadi dua baris rata kiri di keenam chip. Penyebab: padding horizontal bawaan 24dp pada `SkeuOutlinedButton` menyisakan sekitar 50dp untuk label di grid tiga kolom. `SkeuOutlinedButton` mendapat parameter `contentPadding` (bawaan sama dengan nilai lama, jadi semua pemakai lain tidak berubah); chip Timer Tidur memakai 8dp dan label rata tengah.
+- Statistik Pemakaian: nilai "Vocal Boost · 22 kali" membungkus dan menyisakan kata "kali" sendirian. `StatsRow` mendapat parameter `detail` opsional: nama preset (tebal) di baris pertama, jumlah pemakaian (redup, lebih kecil) di baris kedua. `formatTopPreset` dihapus karena tidak terpakai lagi.
+- Label seksi pertama Pengaturan sama dengan judul layar ("Pengaturan" dua kali berurutan). Diganti string baru `settings_app_section_title` ("Aplikasi" / "App"); judul layar tetap memakai `settings_title`.
+- Snackbar tidak memperhitungkan inset bilah navigasi padahal aplikasi edge-to-edge (kolom isi sudah memakainya). `SnackbarHost` kini memakai `navigationBarsPadding()` sebelum margin 16dp.
+
+Tidak diubah, dicatat: (1) label rute output mentah "device tipe 1 / 18 / 14" pada banner "Output audio berubah" adalah fallback sengaja `describeOutputDeviceType` di `AudioEnhancerService.kt`, di luar lingkup hierarki dan spacing; (2) layar utama: screenshot hanya selebar 245 px sehingga tidak ada outlier yang bisa dipastikan, screenshot beresolusi lebih besar dapat membuka audit tambahan.
+
+Tidak ada tes baru karena perubahannya tampilan. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v287.zip`.
+
 ## Batch 287: Perbaikan lint thumb switch dan triase CI run 83
 
 Permintaan user: "Lanjutkan progress yang tertunda!!" dengan unggahan `Boomly_v286.zip`, `AEP_laporan-untuk-claude_run83.zip`, dan screenshot panjang layar utama. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=286, COMMIT=4f1febe, RUN_ID=42450058836). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, peringatan kompilator 0, dan 244 tes lulus. Artinya Compose 1.7.0 dari upgrade BOM Batch 286 terkompilasi bersih bersama Kotlin 1.9.24 dan AGP 8.5.2, termasuk migrasi `NoRippleIndication`. Tiga skenario gagal yang dicatat di RESUME POINT B286 (galat metadata Kotlin, `checkAarMetadata` minta compileSdk 35, kompilasi `NoRippleIndication`) tidak terjadi.
