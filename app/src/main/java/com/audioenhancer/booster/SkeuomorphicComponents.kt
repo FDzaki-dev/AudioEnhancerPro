@@ -2293,7 +2293,10 @@ internal fun FeatureControl(
     icon: ImageVector? = null,
     accentColor: Color = MaterialTheme.colorScheme.primary,
     accentColor2: Color = accentColor,
-    wrapInCard: Boolean = true
+    wrapInCard: Boolean = true,
+    // Batch 292: jarak judul -> slider. Bawaan 8dp (TIDAK berubah untuk pemakai lama); slider band Equalizer memakai
+    // 0dp supaya tiap label lebih dekat ke slidernya sendiri daripada ke slider band di atasnya.
+    sliderTopGap: Dp = 8.dp
 ) {
     val haptics = rememberAppHaptics()
     // Batch 172: nilai terkini untuk gate sentuh (dibaca di dalam pointerInput(Unit), tanpa restart).
@@ -2365,7 +2368,7 @@ internal fun FeatureControl(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp)
+                .padding(top = sliderTopGap)
                 .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )

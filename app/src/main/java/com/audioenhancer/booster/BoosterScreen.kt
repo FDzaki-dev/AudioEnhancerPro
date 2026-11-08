@@ -2305,7 +2305,9 @@ private fun EqualizerSection(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     },
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                // Batch 292: panah buka/tutup sejajar BARIS JUDUL (Top), sama seperti ikon di kiri; sebelumnya
+                // CenterVertically menaruhnya di tengah blok 3 baris (tampak sejajar baris subjudul, screenshot v290).
+                verticalAlignment = Alignment.Top
             ) {
                 // Batch 289: blok judul diberi `weight(1f)` + ikon sejajar BARIS JUDUL (bukan tengah blok). Sebelumnya Row ini
                 // tanpa weight diukur lebih dulu selebar penuh sehingga panah buka/tutup di kanan tak kebagian ruang (tidak
@@ -2410,8 +2412,12 @@ private fun EqBandSlider(
     val level = levels[band]
     // Batch 189: `graphicsLayer()` = layer render per band — geser 1 slider hanya me-rekam ulang band itu,
     // bukan seluruh kartu EQ (kurva + 5 slider + permukaan pelat).
-    Box(modifier = Modifier.graphicsLayer()) {
+    // Batch 292: jarak antar band 16dp (di LUAR layer) + jarak label->slider 0dp. Terukur dari screenshot v290: label
+    // band berjarak ~127px ke slidernya sendiri tapi ~102px ke slider band di atasnya (label lebih dekat ke slider
+    // yang SALAH). Kini kira-kira 105px (label->slider sendiri) vs 145px (slider -> label band berikutnya).
+    Box(modifier = Modifier.padding(top = if (band > 0) 16.dp else 0.dp).graphicsLayer()) {
         FeatureControl(
+            sliderTopGap = 0.dp,
             title = formatFreqLabel(freqHz),
             helpText = "",
             value = level.toFloat(),

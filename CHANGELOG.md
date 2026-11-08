@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 292: Jarak label-slider band Equalizer dan posisi panah kartu EQ
+
+Permintaan user: dua screenshot HP tanpa teks (layar utama bagian atas hingga kartu Equalizer yang tertutup, dan kartu Equalizer Manual terbuka), dibaca sebagai lanjutan audit layar utama.
+
+Terkonfirmasi di HP dari screenshot: subjudul header satu baris; teks banner status terbaca; banner rute hanya "Speaker internal (terhubung)"; nilai Bass/Virtualizer tampil persen (50% dan 100%); chip Clarity dan Preset Cepat meluap sampai tepi (chip ke-4 Preset Cepat dan "Ulti" tampak sebagian); label sumbu EQ utuh ("60 Hz" sampai "14 kHz"); panah buka/tutup kartu EQ tampak. Jadi perubahan B289 dan B290 berjalan di HP; laporan CI untuk B290/B291 belum diterima.
+
+Temuan baru (terukur dari screenshot kartu EQ, lebar 1080 px): label band berjarak sekitar 127 px ke slidernya sendiri, tetapi hanya sekitar 102 px ke slider band di atasnya, sehingga tiap label tampak lebih dekat ke slider yang salah. Perbaikan: `FeatureControl` mendapat parameter `sliderTopGap` (bawaan 8dp, pemakai lain tidak berubah); `EqBandSlider` memakai 0dp dan memberi jarak 16dp antarband (di luar layer grafis per band). Perkiraan hasil: sekitar 105 px (label ke slider sendiri) berbanding 145 px (slider ke label band berikutnya). Panah buka/tutup kartu EQ kini sejajar baris judul (Alignment.Top), konsisten dengan ikon di kiri; sebelumnya di tengah blok tiga baris sehingga tampak sejajar subjudul. Kartu EQ bertambah tinggi sekitar 24dp.
+
+Tidak diubah (keputusan terbuka tetap berlaku): isian slider band EQ dari titik nol; menahan banner rute pada pemutaran ulang callback awal (banner "Output audio berubah" masih tampil saat service mulai, terlihat di screenshot); sufiks bahasa Indonesia di UI Inggris.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v291.zip`.
+
 ## Batch 291: Bootstrap wrapper Gradle dicoba ulang (CI)
 
 Permintaan user: unggahan `log_fail_v325-debug-run325.zip` (artefak kegagalan `build.yml`, versionName = nomor run 325), tanpa instruksi tambahan.
