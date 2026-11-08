@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 286: Upgrade Compose BOM ke 2024.09.00 agar long screenshot bisa dipakai
+
+Permintaan user: "Upgrade BOM", setelah user melaporkan aplikasi tidak bisa menangkap long screenshot. Catatan rilis Compose UI menunjukkan dukungan long screenshot untuk container yang bisa digulir pertama kali muncul di versi 1.7.0-alpha06 dan baru stabil di Compose 1.7.0, sedangkan BOM 2024.06.00 yang dipakai sebelumnya berisi Compose 1.6.8.
+
+Perubahan dibuat sekecil mungkin. `compose-bom` naik dari 2024.06.00 ke 2024.09.00 (Compose 1.7.0 dan Material3 1.3.0). Kotlin 1.9.24, AGP 8.5.2, compileSdk 34, dan versi Compose compiler 1.5.14 tidak diubah. Satu-satunya perubahan kode: `NoRippleIndication`, indication kustom untuk mematikan ripple, dipindah dari API lama `rememberUpdatedInstance` dan `IndicationInstance` yang di-deprecate di foundation 1.7 ke `IndicationNodeFactory` dengan node kosong. Tampilannya tetap tanpa ripple.
+
+Pencarian API lain yang di-deprecate di Compose 1.7 dan Material3 1.3 (ripple, divider, menu anchor, animasi item daftar, lifecycle owner) tidak menemukan pemakaian lain di kode.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Kecocokan Compose 1.7.0 dengan Kotlin 1.9.24 dan AGP 8.5.2 hanya didukung bukti tidak langsung, sehingga CI berikutnya yang menentukan. Long screenshot butuh Android 12 atau lebih baru. Revert: `Boomly_v285.zip`.
+
 ## Batch 285: Penutup Fase 3 (audit polish) dan triase CI run 81
 
 Permintaan user: "Lanjut tuntaskan fase 3. Segera!!" dengan unggahan `AEP_laporan-untuk-claude_run81.zip`. Penanda laporan cocok dengan proyek (BATCH_PROJECT_STATE=284, COMMIT=fd21cbd, RUN_ID=42428202185). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 244 tes lulus. Dengan itu Batch 284 (umpan balik gagal simpan preset dan konfirmasi ganti tema) naik menjadi STATIC-VERIFIED.

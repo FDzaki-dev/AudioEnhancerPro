@@ -60,8 +60,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Indication
-import androidx.compose.foundation.IndicationInstance
+import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -113,7 +112,6 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
@@ -126,6 +124,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -152,19 +151,19 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.launch
 
-/** compose-bom 2024.06.00 -> `LocalIndication` non-null, jadi indication ripple
- *  dimatikan lewat no-op instance ini (bukan `provides null`). Dipertahankan dari
- *  struktur lama — bukan neumorphism-specific, murni utilitas UI generik. */
-internal object NoRippleIndication : Indication {
-    private object NoRippleIndicationInstance : IndicationInstance {
-        override fun ContentDrawScope.drawIndication() {
-            drawContent()
-        }
-    }
+/** `LocalIndication` non-null (bukan `provides null`), jadi ripple dimatikan lewat indication no-op ini. Batch 286
+ *  (compose-bom 2024.09.00 / foundation 1.7): `Indication.rememberUpdatedInstance` + `IndicationInstance` deprecated ->
+ *  diganti `IndicationNodeFactory` dengan node kosong. Satu node BARU per `create` karena `Modifier.Node` hanya boleh
+ *  terpasang pada satu modifier. Dipertahankan dari struktur lama — murni utilitas UI generik. */
+internal object NoRippleIndication : IndicationNodeFactory {
+    private class NoRippleNode : Modifier.Node()
 
-    @Composable
-    override fun rememberUpdatedInstance(interactionSource: InteractionSource): IndicationInstance =
-        NoRippleIndicationInstance
+    override fun create(interactionSource: InteractionSource): DelegatableNode = NoRippleNode()
+
+    // Kontrak IndicationNodeFactory: equals/hashCode stabil supaya modifier tak dibuat ulang tiap rekomposisi.
+    override fun hashCode(): Int = -1
+
+    override fun equals(other: Any?): Boolean = other === this
 }
 
 /** Batch 47: falloff di-ubah dari 2-stop hard cutoff (`[color, Transparent]`) ke

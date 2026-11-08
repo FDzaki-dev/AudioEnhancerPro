@@ -165,7 +165,10 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.1")
-    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
+    // Batch 286 (request user: "Upgrade BOM"): 2024.06.00 (Compose 1.6.8) -> 2024.09.00 (Compose 1.7.0 / Material3 1.3.0) = lompatan
+    // MINIMAL yang memuat dukungan long screenshot Compose (scroll capture, API 31+). Kotlin 1.9.24 / AGP 8.5.2 / compileSdk 34 /
+    // compiler ext 1.5.14 TIDAK diubah. Revert = Boomly_v285.zip.
+    implementation(platform("androidx.compose:compose-bom:2024.09.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.material3:material3")
