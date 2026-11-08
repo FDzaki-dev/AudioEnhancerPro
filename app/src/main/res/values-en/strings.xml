@@ -296,6 +296,7 @@
     <string name="settings_schedule_start_label">Turn on at</string>
     <string name="settings_schedule_stop_label">Turn off at</string>
     <string name="settings_schedule_preset_label">Preset when the schedule turns on</string>
+    <string name="settings_schedule_need_preset">No custom presets yet — save one on the main screen, then pick it here to use when the schedule turns on.</string>
     <string name="settings_schedule_same_time">On and off times must be different.</string>
     <string name="settings_schedule_days_label">Active days (by the day of the on time)</string>
     <string name="settings_schedule_days_min_one">At least one day must stay active.</string>

@@ -17,6 +17,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -399,7 +400,7 @@ fun SettingsScreen(
         val schedulePresetNames = remember { PrefsHelper.getCustomPresets(context).map { it.name } }
         var schedulePreset by remember { mutableStateOf(PrefsHelper.getSchedulePreset(context)) }
         SkeuCard {
-            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Column(modifier = Modifier.animateContentSize().padding(16.dp).fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -477,6 +478,15 @@ fun SettingsScreen(
                             PrefsHelper.setSchedulePreset(context, picked)
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
+                    } else {
+                        // Batch 285 (Fase 3, empty state): dulu baris pilih preset HILANG tanpa penjelasan bila belum ada
+                        // preset custom (beda dari Profil Otomatis di bawah yang sudah punya petunjuk).
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            stringResource(R.string.settings_schedule_need_preset),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = LocalSkeuTokens.current.mutedText
+                        )
                     }
                     if (scheduleTimeConflict) {
                         Spacer(modifier = Modifier.height(8.dp))
@@ -529,7 +539,7 @@ fun SettingsScreen(
         var autoProfileBluetooth by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_BLUETOOTH)) }
         var autoProfileUsb by remember { mutableStateOf(PrefsHelper.getAutoProfileForRoute(context, AudioEnhancerService.ROUTE_CATEGORY_USB)) }
         SkeuCard {
-            Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+            Column(modifier = Modifier.animateContentSize().padding(16.dp).fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

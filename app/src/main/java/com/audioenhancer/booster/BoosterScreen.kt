@@ -585,6 +585,9 @@ private const val HORIZONTAL_TAB_LAST_INDEX = 2
 // Batch 158: default `spectrumLevels` BoosterScreen — 1 instance dipakai ulang, bukan array baru per frame.
 private val NO_SPECTRUM_LEVELS = FloatArray(AudioEnhancerService.SPECTRUM_BAND_COUNT)
 
+// Batch 285: tinggi batang motif waveform header, dulu `listOf(...)` baru di tiap rekomposisi header.
+private val HEADER_WAVE_HEIGHTS = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
+
 // Batch 141: murni (tanpa state/Compose) — +1 = tab berikutnya (geser ke KIRI), -1 = tab
 // sebelumnya (geser ke KANAN), 0 = belum melewati ambang. Batas ujung (tab pertama/terakhir)
 // ditangani pemanggil lewat `coerceIn`, tanpa wrap-around.
@@ -733,7 +736,30 @@ fun BoosterScreen(
     outputRouteInfoDismissed: Boolean = false,
     onDismissOutputRouteInfo: () -> Unit = {}
 ) {
-    val presets = listOf(
+    // Batch 285 (Fase 3, review rekomposisi): daftar 9 preset bawaan dulu DIBANGUN ULANG di tiap rekomposisi layar utama
+    // (9 objek Preset + list EQ, tiap geser slider). Kini dibangun sekali lewat remember; label tetap dari stringResource
+    // (di luar remember karena @Composable) dan jadi kunci supaya ganti bahasa tetap membangun ulang. Isi/nilai preset TIDAK berubah.
+    val presetLabelFlat = stringResource(R.string.preset_flat)
+    val presetLabelBassHeavy = stringResource(R.string.preset_bass_heavy)
+    val presetLabelVocalBoost = stringResource(R.string.preset_vocal_boost)
+    val presetLabelTrebleBoost = stringResource(R.string.preset_treble_boost)
+    val presetLabelGaming = stringResource(R.string.preset_gaming)
+    val presetLabelCinema = stringResource(R.string.preset_cinema)
+    val presetLabelEdm = stringResource(R.string.preset_edm)
+    val presetLabelPodcast = stringResource(R.string.preset_podcast)
+    val presetLabelAcoustic = stringResource(R.string.preset_acoustic)
+    val presets = remember(
+        presetLabelFlat,
+        presetLabelBassHeavy,
+        presetLabelVocalBoost,
+        presetLabelTrebleBoost,
+        presetLabelGaming,
+        presetLabelCinema,
+        presetLabelEdm,
+        presetLabelPodcast,
+        presetLabelAcoustic
+    ) {
+    listOf(
         // Batch 64: nilai 3 preset non-flat DINAIKKAN ("perkuat efek preset", user eksplisit) —
         // Flat SENGAJA TIDAK disentuh (definisinya memang netral/nol, menaikkan nilainya
         // kontradiksi sama namanya sendiri). Bass/Virtualizer tetap dalam batas kontrak
@@ -761,19 +787,19 @@ fun BoosterScreen(
         // Bass Heavy/EDM: BassBoost 1000→700 + EQ 60/230 Hz dipangkas. Virtualizer TIDAK diubah (bukan stage gain; efek level di vendor tertentu NOT VERIFIED).
         // Naik/turun level semua preset = slider Loudness (100 mB = +1 dB), bukan angka preset.
         Preset(
-            stringResource(R.string.preset_flat), bass = 0f, virtualizer = 0f, loudness = 0f,
+            presetLabelFlat, bass = 0f, virtualizer = 0f, loudness = 0f,
             eqBands = listOf(0, 0, 0, 0, 0)
         ),
         Preset( // Bass Heavy: low-end tebal (60/230Hz naik), mid netral, treble sedikit dijinakkan
-            stringResource(R.string.preset_bass_heavy), bass = 700f, virtualizer = 400f, loudness = 50f,
+            presetLabelBassHeavy, bass = 700f, virtualizer = 400f, loudness = 50f,
             eqBands = listOf(500, 300, 0, -100, 0)
         ),
         Preset( // Vocal Boost: rumble dipangkas, 910Hz/3.6kHz (badan+presence vokal) naik, sedikit udara
-            stringResource(R.string.preset_vocal_boost), bass = 300f, virtualizer = 750f, loudness = 0f,
+            presetLabelVocalBoost, bass = 300f, virtualizer = 750f, loudness = 0f,
             eqBands = listOf(-200, -50, 350, 450, 100)
         ),
         Preset( // Treble Boost: low-end dikurangi, hi-mid naik bertahap, 14kHz paling tinggi (detail/udara)
-            stringResource(R.string.preset_treble_boost), bass = 150f, virtualizer = 950f, loudness = 0f,
+            presetLabelTrebleBoost, bass = 150f, virtualizer = 950f, loudness = 0f,
             eqBands = listOf(-250, -150, 100, 400, 750)
         ),
         // Batch 136 (merge dari sesi paralel, aslinya "Batch 128" cabang lain — request
@@ -783,26 +809,27 @@ fun BoosterScreen(
         // 1 knob didorong) supaya benar-benar "powerful" buat skenario itu. eqBands index =
         // [60Hz, 230Hz, 910Hz, 3600Hz, 14000Hz].
         Preset( // Gaming: deteksi arah (virtualizer MAX) + detail langkah kaki/tembakan (boost hi-mid/treble)
-            stringResource(R.string.preset_gaming), bass = 400f, virtualizer = 1000f, loudness = 0f,
+            presetLabelGaming, bass = 400f, virtualizer = 1000f, loudness = 0f,
             eqBands = listOf(-100, -300, -50, 550, 600)
         ),
         Preset( // Cinema: dialog jernih (boost 910Hz) + rumble low-end + surround virtualizer tinggi
-            stringResource(R.string.preset_cinema), bass = 550f, virtualizer = 900f, loudness = 0f,
+            presetLabelCinema, bass = 550f, virtualizer = 900f, loudness = 0f,
             eqBands = listOf(150, -150, 500, 200, 0)
         ),
         Preset( // EDM: signature V-shape (sub+bass+treble naik, mid di-scoop), bass 700 (Batch 263; dulu platform MAX)
-            stringResource(R.string.preset_edm), bass = 700f, virtualizer = 750f, loudness = 0f,
+            presetLabelEdm, bass = 700f, virtualizer = 750f, loudness = 0f,
             eqBands = listOf(500, 200, -400, 200, 600)
         ),
         Preset( // Podcast: kejernihan bicara — bass/virtualizer diminimalkan, mid presence suara dinaikkan
-            stringResource(R.string.preset_podcast), bass = 100f, virtualizer = 150f, loudness = 0f,
+            presetLabelPodcast, bass = 100f, virtualizer = 150f, loudness = 0f,
             eqBands = listOf(-350, -150, 600, 350, -250)
         ),
         Preset( // Acoustic: hangat & natural, semua parameter halus (bukan ekstrem kayak 5 preset lain)
-            stringResource(R.string.preset_acoustic), bass = 300f, virtualizer = 400f, loudness = 100f,
+            presetLabelAcoustic, bass = 300f, virtualizer = 400f, loudness = 100f,
             eqBands = listOf(150, 100, 250, 150, 50)
         )
     )
+    }
     var bass by remember { mutableFloatStateOf(initialBass) }
     var virtualizer by remember { mutableFloatStateOf(initialVirtualizer) }
     var loudness by remember { mutableFloatStateOf(initialLoudness) }
@@ -1887,8 +1914,7 @@ fun BoosterScreen(
             verticalAlignment = Alignment.Bottom,
             horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
-            val waveHeights = listOf(0.4f, 0.7f, 1f, 0.55f, 0.85f, 0.35f, 0.65f, 0.45f)
-            waveHeights.forEach { h ->
+            HEADER_WAVE_HEIGHTS.forEach { h ->
                 Box(
                     modifier = Modifier
                         .width(4.dp)

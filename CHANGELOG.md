@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 285: Penutup Fase 3 (audit polish) dan triase CI run 81
+
+Permintaan user: "Lanjut tuntaskan fase 3. Segera!!" dengan unggahan `AEP_laporan-untuk-claude_run81.zip`. Penanda laporan cocok dengan proyek (BATCH_PROJECT_STATE=284, COMMIT=fd21cbd, RUN_ID=42428202185). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 244 tes lulus. Dengan itu Batch 284 (umpan balik gagal simpan preset dan konfirmasi ganti tema) naik menjadi STATIC-VERIFIED.
+
+Sisa Fase 3 diaudit lewat pencarian kode, lalu yang nyata dikerjakan:
+
+- Rekomposisi: sembilan preset bawaan di layar utama dulu dibangun ulang setiap layar tergambar ulang (setiap slider digeser). Kini dibangun sekali dan hanya dibangun ulang saat bahasa berganti. Nilai preset tidak berubah. Tinggi batang waveform di header juga dijadikan konstanta.
+- Empty state: kartu Jadwal di Pengaturan dulu menyembunyikan baris pilih preset tanpa penjelasan bila belum ada preset custom. Kini muncul petunjuk untuk menyimpan preset di layar utama lebih dulu (ID dan EN).
+- Micro-animation: kartu Jadwal dan Profil Otomatis mengembang halus saat switch dinyalakan.
+- Tooltip: tidak diperlukan, karena setiap fitur sudah punya teks bantuan di tempat dan tombol Bantuan.
+- Hierarki visual dan spacing: tidak dikerjakan. Tidak ada outlier yang bisa ditemukan lewat kode, dan penilaiannya butuh screenshot dari user.
+
+Tidak ada tes baru karena perubahannya murni tampilan. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v284.zip`.
+
 ## Batch 284: Umpan balik gagal simpan preset dan konfirmasi ganti tema
 
 Permintaan user: "Lanjut ke A. Segera!!", yaitu polish umpan balik gagal dari daftar Fase 3.

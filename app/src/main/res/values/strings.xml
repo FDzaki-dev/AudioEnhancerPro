@@ -297,6 +297,7 @@
     <string name="settings_schedule_start_label">Nyalakan jam</string>
     <string name="settings_schedule_stop_label">Matikan jam</string>
     <string name="settings_schedule_preset_label">Preset saat jadwal menyalakan</string>
+    <string name="settings_schedule_need_preset">Belum ada preset custom — simpan preset di layar utama, lalu pilih di sini preset yang dipakai saat jadwal menyalakan.</string>
     <string name="settings_schedule_same_time">Jam nyala dan jam mati tidak boleh sama.</string>
     <string name="settings_schedule_days_label">Hari aktif (menurut hari jam nyala)</string>
     <string name="settings_schedule_days_min_one">Minimal satu hari harus aktif.</string>
