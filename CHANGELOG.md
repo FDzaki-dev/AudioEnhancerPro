@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 291: Bootstrap wrapper Gradle dicoba ulang (CI)
+
+Permintaan user: unggahan `log_fail_v325-debug-run325.zip` (artefak kegagalan `build.yml`, versionName = nomor run 325), tanpa instruksi tambahan.
+
+Isi log: hanya `gradle-wrapper-bootstrap.log`. Langkah "Bootstrap Gradle Wrapper (isolated dir)" gagal pada tugas `:wrapper` dengan pesan "Test of distribution url https://services.gradle.org/distributions/gradle-8.7-bin.zip failed" (Gradle bawaan runner 9.8.2, build gagal dalam 21 detik). Tugas itu memvalidasi URL distribusi lewat jaringan; kegagalannya terjadi SEBELUM kompilasi atau tes apa pun jalan, jadi log ini tidak mengatakan apa-apa tentang kode proyek (tidak ada `gradle-build-debug.log`, tidak ada penanda proyek/commit di log). Penyebab pasti (timeout, 429, atau 5xx dari services.gradle.org) tidak terbaca dari log karena Gradle tidak mencatat status HTTP-nya; langkah yang sama sebelumnya lulus (run laporan 85 dan 86), sehingga gangguan jaringan sesaat adalah dugaan terkuat, bukan kepastian.
+
+Perbaikan (hanya workflow, kode aplikasi tidak berubah): `build.yml` dan `android-artifact.yml` (salinan langkah yang sama) kini mencoba `gradle wrapper --gradle-version 8.7` sampai 3 kali dengan jeda 15 dan 30 detik; tiap gagal mencatat peringatan berisi status HTTP URL distribusi (`curl -I`) ke `gradle-wrapper-bootstrap.log` agar penyebab berikutnya terbaca; gagal 3 kali tetap menggagalkan langkah (tidak ada kegagalan yang disembunyikan). Divalidasi: YAML terurai, `bash -n` bersih, dan simulasi dengan `gradle` tiruan (sukses di percobaan ke-3 = exit 0 dan gradlew tersalin; gagal 3 kali = exit 1). Tidak divalidasi di runner GitHub sungguhan, jadi NOT VERIFIED di CI.
+
+Untuk commit yang gagal itu: cukup "Re-run failed jobs" di GitHub Actions, tanpa perubahan kode. Status B290 tetap NOT VERIFIED (belum ada laporan CI yang berhasil untuk B290).
+
+Revert: `Boomly_v290.zip`.
+
 ## Batch 290: Nama output ramah di banner dan nilai slider seragam (persen)
 
 Permintaan user: "lanjut 1 dan 2" (dua keputusan sisa audit layar utama B289), dengan unggahan `AEP_laporan-untuk-claude_run86.zip`.

@@ -71,7 +71,17 @@ jobs:
             if [ ! -f gradlew ]; then
               BOOTSTRAP_DIR=$(mktemp -d)
               echo "// scratch, cuma buat bootstrap wrapper generik" > "$BOOTSTRAP_DIR/settings.gradle.kts"
-              ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 )
+              # Batch 291: percobaan ulang (3x, jeda 15/30 dtk). Tugas `wrapper` memvalidasi URL distribusi ke
+              # services.gradle.org; gangguan jaringan/CDN sesaat menggagalkannya ("Test of distribution url ...
+              # failed", run325) padahal tak ada hubungannya dengan kode proyek. Status HTTP dicatat tiap gagal
+              # supaya penyebab (timeout/429/5xx) terbaca di gradle-wrapper-bootstrap.log. Gagal 3x = tetap gagal.
+              WRAPPER_OK=0
+              for ATTEMPT in 1 2 3; do
+                if ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 ); then WRAPPER_OK=1; break; fi
+                echo "::warning::Bootstrap wrapper gagal (percobaan $ATTEMPT/3); cek URL: $(curl -sS -I -L -o /dev/null --max-time 20 -w 'HTTP %{http_code}' https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1)"
+                [ "$ATTEMPT" -lt 3 ] && sleep $((ATTEMPT * 15))
+              done
+              [ "$WRAPPER_OK" = 1 ] || exit 1
               cp "$BOOTSTRAP_DIR/gradlew" .
               cp "$BOOTSTRAP_DIR/gradlew.bat" .
               mkdir -p gradle/wrapper
