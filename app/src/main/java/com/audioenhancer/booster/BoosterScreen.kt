@@ -1003,7 +1003,9 @@ fun BoosterScreen(
         when (page) {
         0 -> {
         Column {
-            SectionLabel(stringResource(R.string.presets_title))
+            // Batch 293: +8dp di atas label (atas ~24dp vs bawah ~12dp) — sebelumnya label hampir sama jauh ke bilah tab di
+            // atasnya dan ke chip yang dilabelinya (screenshot v292), jadi kelompoknya ambigu.
+            SectionLabel(stringResource(R.string.presets_title), modifier = Modifier.padding(top = 8.dp))
             Spacer(modifier = Modifier.height(8.dp))
             Row(
                 // Batch 183: ruang vertikal utk bayangan jatuh pil timbul (horizontalScroll meng-clip
@@ -1251,7 +1253,8 @@ fun BoosterScreen(
 
         // Batch 13: label section "Kontrol" — porting dari docs/preview/current.html,
         // sebelumnya kartu Bass/Virtualizer/Loudness langsung tampil tanpa header section.
-        SectionLabel(stringResource(R.string.controls_title))
+        // Batch 293: +16dp di atas label (atas ~32dp vs bawah ~20dp), alasan sama dengan "Preset Cepat".
+        SectionLabel(stringResource(R.string.controls_title), modifier = Modifier.padding(top = 16.dp))
 
         // Batch 88 (rombak iOS look, Fase 1, hybrid — lihat komentar panjang
         // `SkeuGroupDivider` di SkeuomorphicComponents.kt): SEBELUMNYA Bass/Virtualizer/

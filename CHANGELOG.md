@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 293: Banner rute tidak lagi muncul palsu saat service mulai, dan jarak label section
+
+Permintaan user: "Bantu Pilihkan untukku" (memilih dari keputusan terbuka dan temuan kecil setelah screenshot v292). Pilihan: (1) banner rute palsu saat service mulai, (2) jarak label "PRESET CEPAT" dan "KONTROL". Isian slider band EQ dari titik nol sengaja ditunda ke batch sendiri (menyentuh mesin track slider 6 tema).
+
+Konfirmasi HP untuk B292 (screenshot v292): label band EQ kini sekitar 35 px ke slidernya sendiri berbanding 48 px ke slider band di atasnya, dan panah kartu EQ sejajar judul. B292 terkonfirmasi visual di HP.
+
+Banner rute palsu. `registerAudioDeviceCallback` langsung memutar ulang semua perangkat yang tersambung lewat `onAudioDevicesAdded` (gambaran awal, bukan perubahan rute), sehingga banner "Output audio berubah: Speaker internal (terhubung)" tampil di setiap sesi walau tidak ada yang berubah (terlihat di semua screenshot). Perbaikan: `routeReplayPending` di `AudioEnhancerService`; panggilan `onAudioDevicesAdded` pertama setelah registrasi memanggil `onOutputRouteChanged(..., announce = false)`, yang hanya melewati pengisian deskripsi banner. Pengaktifan efek, `requestEffectGuard`, dan auto-profile berjalan SAMA PERSIS (tidak diubah). Perubahan rute sungguhan setelahnya (sambung/cabut Bluetooth, headset, USB) tetap memunculkan banner. Dampak: banner tidak lagi muncul sendiri saat aplikasi dibuka tanpa perubahan rute.
+
+Jarak label section. Label "PRESET CEPAT" dan "KONTROL" berjarak hampir sama ke elemen di atasnya dan ke isi yang dilabelinya (sekitar 22dp berbanding 26dp), jadi kelompoknya ambigu. `SectionLabel` mendapat parameter `modifier` (bawaan kosong, 9 pemakai lain tidak berubah); layar utama menambah 8dp di atas "PRESET CEPAT" (atas sekitar 24dp berbanding bawah 12dp) dan 16dp di atas "KONTROL" (atas sekitar 32dp berbanding bawah 20dp). Halaman Kontrol bertambah tinggi sekitar 24dp.
+
+Tidak diubah (keputusan terbuka): isian slider band EQ dari titik nol; `outputDevices.first()` untuk kategori auto-profile pada pemutaran ulang (perilaku B122/B123); sufiks bahasa Indonesia di UI Inggris.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v292.zip`.
+
 ## Batch 292: Jarak label-slider band Equalizer dan posisi panah kartu EQ
 
 Permintaan user: dua screenshot HP tanpa teks (layar utama bagian atas hingga kartu Equalizer yang tertutup, dan kartu Equalizer Manual terbuka), dibaca sebagai lanjutan audit layar utama.

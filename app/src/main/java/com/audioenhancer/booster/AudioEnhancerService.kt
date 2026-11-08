@@ -496,9 +496,17 @@ class AudioEnhancerService : Service() {
     // dst) TANPA perlu polling. Kelas anonim (bukan fungsi top-level) supaya bisa
     // unregister persis instance yang sama di `onDestroy()` (API `unregisterAudioDeviceCallback`
     // butuh reference objek yang SAMA persis dengan yang di-register, bukan instance baru).
+    // Batch 293: `registerAudioDeviceCallback` LANGSUNG memutar ulang semua perangkat yang sedang tersambung lewat
+    // `onAudioDevicesAdded` (cuma gambaran awal, BUKAN perubahan rute). Panggilan pertama itu tidak diumumkan ke banner
+    // "Output audio berubah" (`announce = false`); efek, guard, dan auto-profile di `onOutputRouteChanged` jalan
+    // SAMA PERSIS seperti sebelumnya. Dipasang `true` lagi tepat sebelum registrasi.
+    @Volatile private var routeReplayPending = true
+
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<AudioDeviceInfo>) {
-            onOutputRouteChanged(addedDevices, added = true)
+            val announce = !routeReplayPending
+            routeReplayPending = false
+            onOutputRouteChanged(addedDevices, added = true, announce = announce)
         }
         override fun onAudioDevicesRemoved(removedDevices: Array<AudioDeviceInfo>) {
             onOutputRouteChanged(removedDevices, added = false)
@@ -569,6 +577,7 @@ class AudioEnhancerService : Service() {
         // daripada crash Service ini seluruhnya cuma gara-gara 1 listener opsional.
         try {
             audioManager = getSystemService(AudioManager::class.java)
+            routeReplayPending = true // Batch 293: panggilan `onAudioDevicesAdded` pertama = gambaran awal
             audioManager?.registerAudioDeviceCallback(audioDeviceCallback, null)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
@@ -1759,14 +1768,17 @@ class AudioEnhancerService : Service() {
      *  ada snapshot aktif — mencegah setting preset kategori SEBELUMNYA "nempel" ke
      *  kategori yang tidak diatur (root cause laporan user: speaker internal ikut pakai
      *  preset Kustom padahal tidak pernah diatur ke situ). */
-    private fun onOutputRouteChanged(devices: Array<AudioDeviceInfo>, added: Boolean) {
+    private fun onOutputRouteChanged(devices: Array<AudioDeviceInfo>, added: Boolean, announce: Boolean = true) {
         val outputDevices = devices.filter { it.isSink }
         if (outputDevices.isEmpty()) return // semua device di batch callback ini INPUT, bukan urusan fungsi ini
         val label = outputDevices.joinToString { describeOutputDeviceType(it.type) } // mentah: HANYA untuk Log
         val suffix = if (added) "terhubung" else "terputus"
         // Batch 290: banner memakai nama ramah saja (tanpa "device tipe N"); batch yang hanya berisi sink non-pengguna
         // (earpiece/telephony/FM) tidak menimpa deskripsi terakhir. Log di bawah tetap mencatat label mentah.
-        OutputRouteLabel.describe(outputDevices.map { it.type })?.let { lastOutputRouteDescription = "$it ($suffix)" }
+        // Batch 293: `announce = false` (gambaran awal saat registrasi callback) tidak mengisi deskripsi banner.
+        if (announce) {
+            OutputRouteLabel.describe(outputDevices.map { it.type })?.let { lastOutputRouteDescription = "$it ($suffix)" }
+        }
         android.util.Log.i(TAG, "Output route berubah: $label $suffix")
         if (isRunning) {
             enableEffects()
