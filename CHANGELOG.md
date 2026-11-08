@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 287: Perbaikan lint thumb switch dan triase CI run 83
+
+Permintaan user: "Lanjutkan progress yang tertunda!!" dengan unggahan `Boomly_v286.zip`, `AEP_laporan-untuk-claude_run83.zip`, dan screenshot panjang layar utama. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=286, COMMIT=4f1febe, RUN_ID=42450058836). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, peringatan kompilator 0, dan 244 tes lulus. Artinya Compose 1.7.0 dari upgrade BOM Batch 286 terkompilasi bersih bersama Kotlin 1.9.24 dan AGP 8.5.2, termasuk migrasi `NoRippleIndication`. Tiga skenario gagal yang dicatat di RESUME POINT B286 (galat metadata Kotlin, `checkAarMetadata` minta compileSdk 35, kompilasi `NoRippleIndication`) tidak terjadi.
+
+Satu-satunya temuan: lint 1 warning (0 error), `UseOfNonLambdaOffsetOverload` di `SkeuomorphicComponents.kt:2468`. Aturan lint ini baru muncul bersama Compose 1.7. Thumb `SkeuSwitch` memakai `Modifier.offset(x = thumbOffset)` dengan `thumbOffset` hasil `animateDpAsState`, sehingga tiap frame animasi merekomposisi. Perbaikan: `Modifier.offset { IntOffset(thumbOffset.roundToPx(), 0) }`, nilai dibaca di fase layout. Posisi akhir thumb tidak berubah. Tidak ada pemakaian `offset` lain yang bergantung pada nilai animasi di kode.
+
+Screenshot panjang layar utama diterima dan tertangkap utuh dari header sampai tombol "Lihat penjelasan lengkap tiap fitur". Itu indikasi bahwa tujuan upgrade BOM tercapai, tetapi build yang dipakai tidak tertera di screenshot. Audit hierarki dan spacing dari screenshot tidak dikerjakan karena tidak diminta.
+
+Belum dikompilasi dan belum diuji di HP untuk B287, jadi NOT VERIFIED. Revert: `Boomly_v286.zip`.
+
 ## Batch 286: Upgrade Compose BOM ke 2024.09.00 agar long screenshot bisa dipakai
 
 Permintaan user: "Upgrade BOM", setelah user melaporkan aplikasi tidak bisa menangkap long screenshot. Catatan rilis Compose UI menunjukkan dukungan long screenshot untuk container yang bisa digulir pertama kali muncul di versi 1.7.0-alpha06 dan baru stabil di Compose 1.7.0, sedangkan BOM 2024.06.00 yang dipakai sebelumnya berisi Compose 1.6.8.

@@ -2465,7 +2465,10 @@ internal fun SkeuSwitch(
         val thumbShape: Shape = depth?.knobShape ?: CircleShape
         Box(
             modifier = Modifier
-                .offset(x = thumbOffset)
+                // Batch 287: overload lambda (dibaca di fase layout) — `thumbOffset` adalah nilai
+                // animasi (State), jadi overload non-lambda merekomposisi tiap frame (lint
+                // UseOfNonLambdaOffsetOverload, Compose 1.7). Posisi akhir identik.
+                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                 .size(20.dp)
                 .scale(thumbScale)
                 .then(
