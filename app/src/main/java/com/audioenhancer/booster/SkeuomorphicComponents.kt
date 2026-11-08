@@ -1954,10 +1954,12 @@ internal fun SkeuSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
 @Composable
 internal fun SectionLabel(
     text: String,
-    accentColor: Color = MaterialTheme.colorScheme.primary,
     // Batch 293: opsional (bawaan = tanpa tambahan, pemakai lain tidak berubah); dipakai layar utama untuk memberi
     // jarak ekstra di ATAS label supaya label lebih dekat ke isinya daripada ke elemen sebelumnya.
-    modifier: Modifier = Modifier
+    // Batch 295: dipindah ke posisi parameter opsional PERTAMA (lint `ModifierParameter`, run 91). Aman: tak satu pun
+    // pemanggil memberi `accentColor` (semua hanya `text`, layar utama + `modifier` bernama).
+    modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Text(
         text.uppercase(),

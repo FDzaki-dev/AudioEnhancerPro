@@ -1,5 +1,21 @@
 # Changelog
 
+## Batch 295: Lint ModifierParameter dan jarak label "PRESET CEPAT"
+
+Permintaan user: unggahan `AEP_laporan-untuk-claude_run91.zip` tanpa instruksi tambahan.
+
+Triase CI run 91: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=294, COMMIT=4befbdc, RUN_ID=42536789194). Gradle exit semua 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, peringatan kompilator 0, 253 tes lulus. lintDebug: 1 warning (0 error): `ModifierParameter` di `SkeuomorphicComponents.kt:1960` (Modifier harus parameter opsional pertama). Batch 294 STATIC-VERIFIED kecuali warning itu; kompilasi B290-B294 bersih, jadi B290-B294 ikut terkompilasi dan lolos 253 tes.
+
+Penyebab warning: `SectionLabel` (B293) menaruh `modifier` setelah `accentColor`. Perbaikan: urutan menjadi `text, modifier, accentColor`. Aman karena tak satu pun dari 10 pemanggil memberi `accentColor` (semua hanya `text`; layar utama memakai `modifier` bernama). Tanpa perubahan perilaku.
+
+Jarak label "PRESET CEPAT" (disinggung di jawaban sebelumnya): terukur di HP (screenshot v294) hanya sekitar 33dp di atas berbanding 29dp di bawah, karena bayangan chip 7dp dan leading teks ikut menambah jarak bawah. Penambahan atas 8dp di B293 ternyata kurang. Kini jarak atas 16dp dan Spacer bawah 4dp (sasaran sekitar 41dp berbanding 25dp). Label "KONTROL" sudah cukup (sekitar 49dp berbanding 34dp), tidak diubah.
+
+Konfirmasi HP: B294 (banner "Service tidak berjalan" 2 baris, tombol di bawah rata kanan) terkonfirmasi lewat screenshot v294.
+
+Tidak diubah (keputusan terbuka): isian slider band EQ dari titik nol; `outputDevices.first()` untuk kategori auto-profile pada pemutaran ulang (perilaku B122/B123); sufiks bahasa Indonesia di UI Inggris; verifikasi HP B293 untuk banner rute saat service JALAN (screenshot sebelumnya service mati).
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v294.zip`.
+
 ## Batch 294: Banner "Service tidak berjalan" tidak lagi terperas
 
 Permintaan user: dua screenshot HP tanpa teks (layar utama saat efek Nonaktif dan service mati, serta kartu Equalizer Manual terbuka), dibaca sebagai lanjutan audit layar utama.

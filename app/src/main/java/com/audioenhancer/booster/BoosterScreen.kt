@@ -1013,10 +1013,12 @@ fun BoosterScreen(
         when (page) {
         0 -> {
         Column {
-            // Batch 293: +8dp di atas label (atas ~24dp vs bawah ~12dp) — sebelumnya label hampir sama jauh ke bilah tab di
-            // atasnya dan ke chip yang dilabelinya (screenshot v292), jadi kelompoknya ambigu.
-            SectionLabel(stringResource(R.string.presets_title), modifier = Modifier.padding(top = 8.dp))
-            Spacer(modifier = Modifier.height(8.dp))
+            // Batch 293: +8dp di atas label — sebelumnya label hampir sama jauh ke bilah tab di atasnya dan ke chip yang
+            // dilabelinya (screenshot v292), jadi kelompoknya ambigu. Batch 295: terukur di HP (v294) cuma ~33dp di atas vs
+            // ~29dp di bawah (bayangan chip 7dp + leading teks ikut menambah jarak bawah) -> atas 16dp, Spacer bawah 8dp -> 4dp
+            // (sasaran ~41dp vs ~25dp).
+            SectionLabel(stringResource(R.string.presets_title), modifier = Modifier.padding(top = 16.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 // Batch 183: ruang vertikal utk bayangan jatuh pil timbul (horizontalScroll meng-clip
                 // ke batas Row) — hanya tema berkedalaman fisik (Old Money); tema lain 0 berubah.
