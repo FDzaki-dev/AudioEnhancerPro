@@ -1138,14 +1138,24 @@ fun BoosterScreen(
                             val newPreset = PrefsHelper.CustomPreset(
                                 trimmedPresetName, bass, virtualizer, loudness, eqBands
                             )
-                            PrefsHelper.addCustomPreset(context, newPreset)
-                            customPresets = PrefsHelper.getCustomPresets(context)
-                            ShortcutHelper.refreshCustomPresetShortcuts(context)
-                            activePreset = newPreset.name
-                            onActivePresetChange(newPreset.name)
+                            // Batch 284 (Fase 3 polish): tulis di Dispatchers.IO dan laporkan HASIL-nya — gagal simpan
+                            // (mis. penyimpanan HP penuh) kini muncul sebagai snackbar, bukan "disimpan" palsu.
                             showSavePresetDialog = false
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            showSnackbar(context.getString(R.string.preset_saved_message, newPreset.name))
+                            coroutineScope.launch {
+                                val saved = withContext(Dispatchers.IO) {
+                                    PrefsHelper.addCustomPreset(context, newPreset)
+                                }
+                                if (saved) {
+                                    customPresets = PrefsHelper.getCustomPresets(context)
+                                    ShortcutHelper.refreshCustomPresetShortcuts(context)
+                                    activePreset = newPreset.name
+                                    onActivePresetChange(newPreset.name)
+                                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    showSnackbar(context.getString(R.string.preset_saved_message, newPreset.name))
+                                } else {
+                                    showSnackbar(context.getString(R.string.preset_save_failed_message, newPreset.name))
+                                }
+                            }
                         }
                     ) { Text(stringResource(R.string.preset_save_confirm)) }
                 },
@@ -1412,6 +1422,12 @@ fun BoosterScreen(
                             onValueChange = {
                                 onUseDynamicColorChange(it)
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                val messageRes = if (it) {
+                                    R.string.dynamic_color_on_message
+                                } else {
+                                    R.string.dynamic_color_off_message
+                                }
+                                showSnackbar(context.getString(messageRes))
                             },
                             role = Role.Switch
                         )
@@ -1453,6 +1469,16 @@ fun BoosterScreen(
                                 if (isOn) PrefsHelper.APP_THEME_RADICAL_SKEUO else PrefsHelper.APP_THEME_AMOLED_GLASS
                             )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
                         },
                         role = Role.Switch
                     )
@@ -1490,6 +1516,16 @@ fun BoosterScreen(
                                 if (isOn) PrefsHelper.APP_THEME_SKEUOMORPHISM else PrefsHelper.APP_THEME_AMOLED_GLASS
                             )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_skeuo_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
                         },
                         role = Role.Switch
                     )
@@ -1526,6 +1562,16 @@ fun BoosterScreen(
                                 if (isOn) PrefsHelper.APP_THEME_STUDIO_EQ else PrefsHelper.APP_THEME_AMOLED_GLASS
                             )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_studioeq_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
                         },
                         role = Role.Switch
                     )
@@ -1560,6 +1606,16 @@ fun BoosterScreen(
                                 if (isOn) PrefsHelper.APP_THEME_SERENE_M3 else PrefsHelper.APP_THEME_AMOLED_GLASS
                             )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_serene_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
                         },
                         role = Role.Switch
                     )
@@ -1593,6 +1649,16 @@ fun BoosterScreen(
                                 if (isOn) PrefsHelper.APP_THEME_OLD_MONEY else PrefsHelper.APP_THEME_AMOLED_GLASS
                             )
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_oldmoney_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
                         },
                         role = Role.Switch
                     )

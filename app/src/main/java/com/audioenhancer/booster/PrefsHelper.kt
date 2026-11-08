@@ -406,18 +406,26 @@ object PrefsHelper {
         }
     }
 
-    fun addCustomPreset(context: Context, preset: CustomPreset) {
-        val current = getCustomPresets(context).toMutableList()
-        current.removeAll { it.name == preset.name } // nama sama -> timpa, bukan duplikat
-        current.add(preset)
-        saveCustomPresets(context, current)
+    /** Batch 284 (Fase 3 polish): mengembalikan `true` bila preset benar-benar tertulis ke penyimpanan, `false` bila gagal
+     *  (mis. penyimpanan HP penuh) agar UI bisa memberi tahu user. Sebelumnya tulis `apply()` (async) gagal tanpa jejak
+     *  dan UI tetap menampilkan "disimpan". Gagal tulis di SharedPreferences tetap mengubah salinan di memori, jadi
+     *  daftar lama ditulis ulang (best-effort) supaya memori tidak menyimpan preset yang tak pernah sampai ke disk. */
+    fun addCustomPreset(context: Context, preset: CustomPreset): Boolean {
+        val previous = getCustomPresets(context)
+        // nama sama -> timpa, bukan duplikat
+        val saved = saveCustomPresets(context, previous.filterNot { it.name == preset.name } + preset)
+        if (!saved) saveCustomPresets(context, previous)
+        return saved
     }
 
     fun deleteCustomPreset(context: Context, name: String) {
         saveCustomPresets(context, getCustomPresets(context).filterNot { it.name == name })
     }
 
-    private fun saveCustomPresets(context: Context, list: List<CustomPreset>) {
+    // Batch 284: commit() SENGAJA sinkron — hanya nilai kembaliannya yang memberi tahu apakah tulis ke disk berhasil
+    // (apply() tak punya hasil). Berkas kecil; pemanggil UI menjalankannya di Dispatchers.IO.
+    @Suppress("ApplySharedPref")
+    private fun saveCustomPresets(context: Context, list: List<CustomPreset>): Boolean {
         val arr = org.json.JSONArray()
         list.forEach { p ->
             val obj = org.json.JSONObject()
@@ -434,8 +442,8 @@ object PrefsHelper {
             obj.put("eqBands", eqArr)
             arr.put(obj)
         }
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-            .putString(KEY_CUSTOM_PRESETS, arr.toString()).apply()
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putString(KEY_CUSTOM_PRESETS, arr.toString()).commit()
     }
 
     /** Batch 114 (Fase 8 roadmap item D — Export/Import preset): hasil operasi impor,

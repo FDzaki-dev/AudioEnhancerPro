@@ -99,6 +99,10 @@
     <!-- Dynamic color -->
     <string name="dynamic_color_title">Match wallpaper colors</string>
     <string name="dynamic_color_desc">Use Material You colors from your wallpaper, replacing this app\'s signature blue theme.</string>
+    <string name="dynamic_color_on_message">Wallpaper colors turned on</string>
+    <string name="dynamic_color_off_message">Wallpaper colors turned off, back to the default palette</string>
+    <string name="theme_style_applied_message">%1$s style applied</string>
+    <string name="theme_style_default_message">Back to the Midnight Glass style (default)</string>
 
     <!-- Batch 36: theme style switch -->
     <string name="theme_style_title">Aurora Glass Style</string>
@@ -192,6 +196,7 @@
     <string name="preset_save_name_collision_error">This name is already used by another preset, pick another one</string>
     <string name="preset_save_char_count" tools:ignore="PluralsCandidate">%1$d/%2$d characters</string>
     <string name="preset_saved_message">Preset \"%1$s\" saved</string>
+    <string name="preset_save_failed_message">Couldn\'t save preset \"%1$s\". Phone storage may be full, free up some space and try again</string>
     <string name="preset_delete_dialog_title">Delete Preset?</string>
     <string name="preset_delete_dialog_body">Preset \"%1$s\" will be permanently deleted.</string>
     <string name="preset_delete_confirm">Delete</string>

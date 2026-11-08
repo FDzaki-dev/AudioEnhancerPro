@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 284: Umpan balik gagal simpan preset dan konfirmasi ganti tema
+
+Permintaan user: "Lanjut ke A. Segera!!", yaitu polish umpan balik gagal dari daftar Fase 3.
+
+Simpan preset: sebelumnya penulisan memakai `apply()` yang gagal tanpa jejak, sehingga bila penyimpanan HP penuh aplikasi tetap menampilkan "Preset disimpan" padahal tidak tersimpan. Kini penyimpanan memakai tulis sinkron di thread IO dan hasilnya dilaporkan: berhasil tetap seperti biasa (preset aktif, pintasan diperbarui, getar, snackbar "disimpan"), gagal menampilkan snackbar "gagal disimpan, penyimpanan HP mungkin penuh, kosongkan ruang lalu coba lagi" dan preset aktif tidak berubah. Daftar lama ditulis ulang bila simpan gagal supaya memori tidak menyimpan preset yang tidak pernah sampai ke disk.
+
+Ganti tema dan Material You: lima toggle gaya tampilan (Aurora Glass, Neumorphism, Studio Equalizer, Serene M3, Old Money) kini memunculkan snackbar "Gaya X diterapkan" atau "Kembali ke gaya Midnight Glass (bawaan)", dan toggle "Warna ikut wallpaper" memunculkan "aktif" atau "dimatikan". Sebelumnya perubahan ini hanya getar tanpa konfirmasi. Teks tersedia dalam bahasa Indonesia dan Inggris.
+
+2 tes baru di `PrefsHelperTest`: simpan berhasil mengembalikan true, dan saat tulis gagal (SharedPreferences palsu) hasilnya false dengan preset lama tetap utuh. Impor dan hapus preset tidak diubah. Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v283.zip`.
+
 ## Batch 283: Triase CI run 79 (Batch 282 terverifikasi statis), tanpa perubahan kode
 
 Permintaan user: "Excellent. Lakukan tahap finishing jika belum!!" dengan unggahan `AEP_laporan-untuk-claude_run79.zip` dan `aep_debug_20261107_180115.txt`. Penanda laporan cocok dengan proyek (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=282, COMMIT=1c69f09, RUN_ID=42361203494). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, dan 242 tes lulus tanpa dilewati, tepat sesuai harapan Batch 282 (229 tes lama ditambah 13 tes `ClarityCurveTest`).

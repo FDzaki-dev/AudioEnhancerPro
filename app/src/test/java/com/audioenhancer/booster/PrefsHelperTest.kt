@@ -3,7 +3,9 @@ package com.audioenhancer.booster
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -103,6 +105,44 @@ class PrefsHelperTest {
 
         PrefsHelper.setUseDynamicColor(context, false)
         assertEquals(false, PrefsHelper.getUseDynamicColor(context))
+    }
+
+    // Batch 284: SharedPreferences palsu yang commit()-nya selalu gagal (meniru penyimpanan HP penuh).
+    private class FailingEditor(private val real: android.content.SharedPreferences.Editor) :
+        android.content.SharedPreferences.Editor by real {
+        override fun putString(key: String?, value: String?): android.content.SharedPreferences.Editor {
+            real.putString(key, value)
+            return this
+        }
+
+        override fun commit(): Boolean = false
+    }
+
+    private class FailingPrefs(private val real: android.content.SharedPreferences) :
+        android.content.SharedPreferences by real {
+        override fun edit(): android.content.SharedPreferences.Editor = FailingEditor(real.edit())
+    }
+
+    private fun storageFullContext() = object : android.content.ContextWrapper(context) {
+        override fun getSharedPreferences(name: String?, mode: Int): android.content.SharedPreferences =
+            FailingPrefs(super.getSharedPreferences(name, mode))
+    }
+
+    @Test
+    fun `adding a custom preset reports success`() {
+        val ok = PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Ok", 1f, 2f, 3f))
+        assertTrue(ok)
+        assertEquals(listOf("Ok"), PrefsHelper.getCustomPresets(context).map { it.name })
+    }
+
+    @Test
+    fun `adding a custom preset reports failure when storage write fails and keeps old presets`() {
+        PrefsHelper.addCustomPreset(context, PrefsHelper.CustomPreset("Lama", 1f, 2f, 3f))
+
+        val ok = PrefsHelper.addCustomPreset(storageFullContext(), PrefsHelper.CustomPreset("Baru", 4f, 5f, 6f))
+
+        assertFalse(ok)
+        assertEquals(listOf("Lama"), PrefsHelper.getCustomPresets(context).map { it.name })
     }
 
     @Test
