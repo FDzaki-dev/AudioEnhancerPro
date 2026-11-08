@@ -1,5 +1,25 @@
 # Changelog
 
+## Batch 289: Snackbar bertema dan audit layar utama
+
+Permintaan user: "Lanjutkan audit layar utama" dan "Snackbar sudah mengikuti kecepatan pergantian tema. Namun tampilan snackbar yang putih polos sama sekali tidak mencerminkan tema yang dipilih", dengan unggahan `Boomly_v288.zip`, `AEP_laporan-untuk-claude_run85.zip`, dan 3 screenshot (layar utama bagian atas, kartu Equalizer Manual, daftar gaya tema di Pengaturan).
+
+Triase CI run 85: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=288, COMMIT=a864293, RUN_ID=42452601488). Semua exit Gradle 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, 244 tes lulus. Batch 288 STATIC-VERIFIED. User melaporkan snackbar kini mengikuti kecepatan ganti tema (perbaikan antrean B288 terkonfirmasi di HP).
+
+Snackbar bertema. `SnackbarHost` memakai `Snackbar` Material bawaan yang permukaannya `inverseSurface` (putih polos di tema gelap). Komponen baru `SkeuSnackbar` (`SkeuomorphicComponents.kt`) dibangun di atas `SkeuTintedCard`, jadi otomatis memakai pelat tema aktif (bentuk sudut, bevel/bayangan kedalaman, tint warna utama), teks `onSurface` dan tipografi tema; aksi (bila ada) memakai `SkeuTextButton`. Tidak ada percabangan per tema. Durasi, antrean, dan aksesibilitas tetap diurus `SnackbarHost`.
+
+Audit layar utama dari screenshot (lima perbaikan, semuanya tampilan):
+
+- Banner "Service berjalan di background": teks memakai warna utama tema di atas pelat yang sudah di-tint warna yang sama (kontras sekitar 2,5:1, di bawah 4,5:1). Teks kini `onSurface`; status tetap terbaca dari titik hijau/merah dan tint pelat.
+- Subjudul header "Efek berlaku ke seluruh audio / sistem": kata "sistem" yatim di baris kedua karena subjudul berbagi lebar dengan dua tombol ikon. Subjudul dipindah ke bawah baris judul+ikon dengan lebar penuh (judul tetap 1 baris + elipsis, subjudul maks 2 baris).
+- Label sumbu kurva Equalizer: label pita pertama/terakhir berpusat di tepi kanvas sehingga separuhnya terpotong tepi kartu ("14 kHz" terbaca "14 kH:"). Fungsi murni baru `clampLabelCenter` menjepit pusat label (juga label nilai "mB" saat drag) agar seluruh teks di dalam kanvas; titik dan kurva tidak bergeser. 4 tes baru (`ClampLabelCenterTest`).
+- Header kartu Equalizer Manual: panah buka/tutup tidak tampak karena blok judul tanpa `weight` memakan seluruh lebar, dan ikon tampak sejajar baris ke-2 (blok 3 baris). Blok judul kini `weight(1f)` dengan ikon sejajar baris judul.
+- Baris chip yang bisa digeser (Clarity: Mati / Natural / Crystal / Ultra Immersive; Preset Cepat): isi yang meluap terpotong keras di tepi padding ("Ul" setengah tampak) dan chip ke-4 Preset Cepat jatuh tepat di balik garis potong sehingga tidak ada petunjuk bahwa ada 9 preset. Modifier privat baru `bleedHorizontally` melebarkan area geser sebesar padding induk (16dp kartu, 22dp layar) sehingga chip meluap sampai tepi kartu/layar; padding isi menjaga chip pertama tetap sejajar. Keterbatasan: bagian chip yang masuk ke margin itu di luar batas layout induk sehingga tidak menerima sentuhan (area yang sebelumnya kosong dan inert).
+
+Tidak diubah, dicatat: (1) label rute mentah "device tipe 1 / 18 / 14" pada banner "Output audio berubah" (fallback sengaja `describeOutputDeviceType`; tipe 1 = earpiece, 18 = telephony, 14 = FM bukan sink yang relevan bagi pengguna; perbaikan = nama ramah atau penyaringan di `AudioEnhancerService.kt`, menunggu keputusan user); (2) nilai slider tidak seragam: Bass Boost "1000" dan Virtualizer "150" tanpa satuan, Loudness "3000 mB", sisanya persen; (3) slider band Equalizer berisi dari kiri padahal nilainya bipolar (-/+ mB), isian dari titik nol akan lebih akurat. Ketiganya keputusan desain, bukan cacat yang pasti.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Revert: `Boomly_v288.zip`.
+
 ## Batch 288: Snackbar tidak lagi antre dan audit hierarki/spacing Pengaturan
 
 Permintaan user: "Pop-up/snackbar mengalami delay walaupun tema berganti secara instant. Setelah kamu atasi, langsung lanjut audit hierarki dan spacing!!" dengan unggahan `Boomly_v287.zip`, `AEP_laporan-untuk-claude_run84.zip`, dan screenshot panjang Pengaturan (versi aplikasi 322).

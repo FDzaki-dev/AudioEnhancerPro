@@ -1922,6 +1922,35 @@ internal fun SkeuTintedCard(
     }
 }
 
+/** Batch 289: snackbar bertema. Sebelumnya `SnackbarHost` memakai `Snackbar` Material bawaan (permukaan
+ *  `inverseSurface` = putih polos di tema gelap) yang sama sekali tidak mencerminkan tema terpilih.
+ *  Kini = [SkeuTintedCard] (pelat tema: bentuk sudut, kedalaman/bevel/bayangan, tint warna utama tema) dengan
+ *  teks `onSurface` + tipografi tema; aksi (bila ada) = [SkeuTextButton]. Tanpa logika per-tema di sini — semua
+ *  datang dari `LocalSkeuTokens`/`MaterialTheme`, jadi 6 tema otomatis ikut. Durasi, antrean, a11y (live region +
+ *  dismiss) tetap diurus `SnackbarHost`. */
+@Composable
+internal fun SkeuSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
+    // Lebar maks 600dp (sama dgn batas kolom isi layar) supaya di tablet/lanskap tidak melebar seluruh layar.
+    SkeuTintedCard(modifier = modifier.widthIn(max = 600.dp).fillMaxWidth(), tint = MaterialTheme.colorScheme.primary) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = data.visuals.message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            val actionLabel = data.visuals.actionLabel
+            if (actionLabel != null) {
+                SkeuTextButton(onClick = { data.performAction() }) { Text(actionLabel) }
+            }
+        }
+    }
+}
+
 @Composable
 internal fun SectionLabel(text: String, accentColor: Color = MaterialTheme.colorScheme.primary) {
     Text(

@@ -72,6 +72,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -111,7 +113,9 @@ private fun ServiceStatusBadge(onRestartService: () -> Unit = {}) {
                 if (isRunning) stringResource(R.string.status_running)
                 else stringResource(R.string.status_not_running),
                 style = MaterialTheme.typography.bodySmall,
-                color = statusTint,
+                // Batch 289: teks = `onSurface`, BUKAN `statusTint` (warna utama tema di atas pelat yang sudah
+                // di-tint warna yang sama = kontras rendah, ~2,5:1). Status tetap terbaca dari titik hijau/merah + tint pelat.
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.weight(1f)
             )
             if (!isRunning) {
@@ -597,6 +601,21 @@ private fun tabSwipeDelta(totalDragPx: Float, thresholdPx: Float): Int = when {
     else -> 0
 }
 
+/** Batch 289: melebarkan area baris geser sebesar [bleed] di KIRI & KANAN induk (tepat selebar padding induk), sambil
+ *  melapor lebar asli induk ke layout di sekitarnya. Dipakai baris chip yang `horizontalScroll`: tanpa ini isi yang
+ *  meluap terpotong keras di tepi padding (mis. chip "Ultra Immersive" terbaca "Ul" dan 9 Preset Cepat tak punya
+ *  petunjuk sama sekali karena chip ke-4 jatuh tepat di balik garis potong). Dgn bleed, chip meluap sampai tepi
+ *  kartu/layar = petunjuk geser alami. Pemanggil WAJIB menambah `padding(horizontal = bleed)` SETELAH `horizontalScroll`
+ *  (padding isi) agar chip pertama tetap sejajar dgn konten lain. Lebar tak terbatas = tidak melebar (aman). */
+private fun Modifier.bleedHorizontally(bleed: Dp): Modifier = this.layout { measurable, constraints ->
+    val extra = if (constraints.hasBoundedWidth) bleed.roundToPx() else 0
+    val placeable = measurable.measure(
+        constraints.copy(minWidth = 0, maxWidth = if (extra > 0) constraints.maxWidth + extra * 2 else constraints.maxWidth)
+    )
+    val width = (placeable.width - extra * 2).coerceAtLeast(0)
+    layout(width, placeable.height) { placeable.placeRelative(-extra, 0) }
+}
+
 /** Batch 282: chip cepat di bawah slider Clarity (Mati / Natural / Crystal / Ultra Immersive). Murni pintasan nilai slider
  *  (`ClarityCurve.PRESET_*`): terpilih = nilai slider PERSIS sama dengan tangga itu; geser slider ke nilai lain = tak ada chip terpilih.
  *  Pola tampilan sama dengan pil Preset Cepat (`SkeuPresetPill` + FilterChip untuk tema tanpa kedalaman). */
@@ -611,7 +630,10 @@ private fun ClarityPresetRow(clarity: Float, onSelect: (Int) -> Unit) {
     )
     Row(
         modifier = Modifier
+            // Batch 289: bleed sebesar padding kartu kontrol (16dp) — lihat `bleedHorizontally`.
+            .bleedHorizontally(16.dp)
             .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
             .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -987,7 +1009,10 @@ fun BoosterScreen(
                 // Batch 183: ruang vertikal utk bayangan jatuh pil timbul (horizontalScroll meng-clip
                 // ke batas Row) — hanya tema berkedalaman fisik (Old Money); tema lain 0 berubah.
                 modifier = Modifier
+                    // Batch 289: bleed sebesar padding layar (22dp) — lihat `bleedHorizontally`.
+                    .bleedHorizontally(22.dp)
                     .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp)
                     .then(if (LocalSkeuTokens.current.depth != null) Modifier.padding(vertical = 7.dp) else Modifier),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -1878,12 +1903,16 @@ fun BoosterScreen(
         // lebih dulu dgn lebar penuh, jadi subjudul panjang (ID: "Efek berlaku ke seluruh audio sistem", apalagi
         // font besar) menyisakan ruang sempit untuk 2 tombol ikon -> terjepit/terpotong. Dgn weight, tombol ikon
         // (anak non-weight) diukur DULU selebar aslinya; judul 1 baris, subjudul maks 2 baris lalu elipsis.
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
+        // Batch 289: subjudul dipindah ke BAWAH baris judul+ikon (lebar penuh). Sebelumnya subjudul ikut kolom
+        // `weight(1f)` di samping 2 tombol ikon -> "Efek berlaku ke seluruh audio / sistem" patah dengan 1 kata
+        // yatim di baris ke-2 (screenshot). Judul tetap 1 baris + elipsis (aman di font besar), tombol ikon
+        // tetap diukur dulu selebar aslinya, subjudul maks 2 baris.
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 // Batch 12: judul warna SOLID onBackground (bukan gradient-clip lagi) —
                 // kontras maksimum, konsisten di dark & light theme.
                 Text(
@@ -1891,23 +1920,24 @@ fun BoosterScreen(
                     style = MaterialTheme.typography.headlineMedium,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
-                Text(
-                    stringResource(R.string.app_subtitle),
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SkeuIconButton(onClick = onOpenSettings) {
-                    Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
-                }
-                SkeuIconButton(onClick = onOpenHelp) {
-                    Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SkeuIconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.cd_settings))
+                    }
+                    SkeuIconButton(onClick = onOpenHelp) {
+                        Icon(Icons.AutoMirrored.Filled.HelpOutline, contentDescription = stringResource(R.string.cd_help))
+                    }
                 }
             }
+            Text(
+                stringResource(R.string.app_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
         // Batch 13: power toggle "Aktif/Nonaktif". Ditaruh persis di posisi yang sama
@@ -2216,7 +2246,9 @@ fun BoosterScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             // Batch 288: + navigationBarsPadding (edge-to-edge) supaya snackbar tidak tertutup bilah navigasi.
-            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
+            // Batch 289: snackbar bertema (pelat tema), bukan `Snackbar` Material bawaan yang putih polos.
+            snackbar = { data -> SkeuSnackbar(data) }
         )
     }
 }
@@ -2273,9 +2305,21 @@ private fun EqualizerSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Icon(Icons.Filled.GraphicEq, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    Column {
+                // Batch 289: blok judul diberi `weight(1f)` + ikon sejajar BARIS JUDUL (bukan tengah blok). Sebelumnya Row ini
+                // tanpa weight diukur lebih dulu selebar penuh sehingga panah buka/tutup di kanan tak kebagian ruang (tidak
+                // tampak di screenshot), dan ikon di tengah blok 3 baris tampak sejajar baris ke-2 (bukan judul).
+                Row(
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.GraphicEq,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 2.dp).size(20.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(stringResource(R.string.eq_title), fontWeight = FontWeight.Bold)
                         Text(
                             subtitleText,

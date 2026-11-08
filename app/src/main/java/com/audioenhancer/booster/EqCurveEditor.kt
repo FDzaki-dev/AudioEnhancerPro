@@ -62,6 +62,14 @@ private fun eqYToLevel(y: Float, lvMin: Short, lvMax: Short, topPad: Float, bott
     return snapped.coerceIn(lvMin.toInt(), lvMax.toInt()).toShort()
 }
 
+/** Batch 289: pusat label teks dijepit supaya seluruh teks (lebar [textWidth]) tetap di dalam kanvas selebar
+ *  [canvasWidth]. Label pita pertama/terakhir berpusat di x=0 / x=canvasWidth, jadi tanpa jepit separuhnya keluar
+ *  kanvas dan terpotong tepi kartu. Teks lebih lebar dari kanvas = dibiarkan di [center] (tak ada ruang yang benar). */
+internal fun clampLabelCenter(center: Float, textWidth: Float, canvasWidth: Float): Float {
+    val half = textWidth / 2f
+    return if (canvasWidth > textWidth) center.coerceIn(half, canvasWidth - half) else center
+}
+
 /**
  * Kurva EQ drag-point. Titik per band cuma bisa digeser VERTIKAL (gain) — posisi
  * horizontal tetap sesuai urutan band (frekuensi TIDAK bisa diubah user, sama seperti
@@ -239,13 +247,18 @@ internal fun EqCurveEditor(
             drawCircle(color = Color.White, radius = radius + 1.dp.toPx(), center = p)
             drawCircle(color = if (isActive) accent else accent2, radius = radius, center = p)
 
-            drawContext.canvas.nativeCanvas.drawText(freqLabels[i], p.x, h - 4.dp.toPx(), labelPaint)
+            // Batch 289: pusat label dijepit ke [setengah lebar teks, w - setengah lebar teks]. Sebelumnya label pita
+            // pertama/terakhir dipusatkan di titik x=0 / x=w sehingga separuhnya keluar kanvas dan terpotong tepi kartu
+            // ("60 Hz" -> "0 Hz", "14 kHz" -> "14 kH:"). Titik & kurva TIDAK bergeser, hanya letak teks.
+            val labelX = clampLabelCenter(p.x, labelPaint.measureText(freqLabels[i]), w)
+            drawContext.canvas.nativeCanvas.drawText(freqLabels[i], labelX, h - 4.dp.toPx(), labelPaint)
             if (isActive) {
                 val mb = lv.getOrElse(i) { 0 }
                 val sign = if (mb > 0) "+" else ""
+                val valueText = "$sign$mb mB"
                 drawContext.canvas.nativeCanvas.drawText(
-                    "$sign$mb mB",
-                    p.x,
+                    valueText,
+                    clampLabelCenter(p.x, valuePaint.measureText(valueText), w),
                     (p.y - radius - 10.dp.toPx()).coerceAtLeast(12.dp.toPx()),
                     valuePaint
                 )
