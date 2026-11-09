@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 300: Triase CI run 96, satu temuan SpotBugs di cek update dibersihkan
+
+Permintaan user: unggahan `AEP_laporan-untuk-claude_run96.zip` dan catatan "Belum dapat dibuktikan. Karena belum ada tinjauan langsung" (perilaku B299 di HP memang belum dibuktikan; lihat bawah).
+
+Triase CI run 96: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=299, COMMIT=5c0d743, RUN_ID=42589013805). Gradle exit semua 0: ArchUnit lulus (12 aturan), detekt 0, detekt typed 0 (classpathEntries=61), lint 0, peringatan kompilator 0, 264 tes lulus (= harapan B299: 253 + 11). Batch 299 STATIC-VERIFIED kecuali 1 temuan SpotBugs.
+
+Temuan: `UCF_USELESS_CONTROL_FLOW` di `BoosterViewModel.kt:323` = cabang kosong `Failed -> Unit` pada `when` di `recordUpdateCheck` (B299; kode saya). Perbaikan: `recordUpdateCheck` tanpa `when`: `failed` dihitung dulu, lalu `if (!failed) adoptUpdateResult((result as? Available)?.info)` (Available -> info baru, UpToDate -> null, Failed -> state tidak berubah; perilaku identik). Penjaga sumber di `UpdateCheckPolicyTest` disesuaikan (jumlah tes tetap 264).
+
+Status HP: perilaku B299 (banner konsisten + "Yang baru:" di banner + ikon panah) BELUM dibuktikan; akar masalah banner didiagnosis dari kode, bukan direproduksi, dan belum ada tinjauan langsung/screenshot HP sesudah update. Perlu uji user (lihat RESUME POINT).
+
+Revert: `Boomly_v299.zip`.
+
 ## Batch 299: Banner update konsisten dengan snapshot changelog, panah versi tanpa glyph font
 
 Permintaan user (2 screenshot HP: banner update di tab Kontrol dan kartu Versi Aplikasi di Pengaturan): (1) banner update di tab Kontrol muncul kurang konsisten tiap ada pembaruan dan tidak memiliki snapshot changelog seperti di Pengaturan; (2) panah pada "Update ditemukan: v332 -> v333" tampil sebagai glyph aneh.

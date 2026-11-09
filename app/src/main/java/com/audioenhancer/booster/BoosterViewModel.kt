@@ -315,14 +315,11 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     /** Batch 299: terapkan hasil cek (otomatis maupun manual) + catat waktu/status untuk `UpdateCheckPolicy`.
      *  `Available` -> banner; `UpToDate` -> banner dikosongkan; `Failed` -> state TIDAK berubah. Mengembalikan
-     *  true bila gagal. */
+     *  true bila gagal. Batch 300: tanpa cabang `when` kosong (`Failed -> Unit` ditandai SpotBugs
+     *  `UCF_USELESS_CONTROL_FLOW` di CI run 96); perilaku sama persis. */
     private fun recordUpdateCheck(result: UpdateManager.CheckResult): Boolean {
-        when (result) {
-            is UpdateManager.CheckResult.Available -> adoptUpdateResult(result.info)
-            UpdateManager.CheckResult.UpToDate -> adoptUpdateResult(null)
-            UpdateManager.CheckResult.Failed -> Unit
-        }
         val failed = result is UpdateManager.CheckResult.Failed
+        if (!failed) adoptUpdateResult((result as? UpdateManager.CheckResult.Available)?.info)
         lastUpdateCheckFailed = failed
         lastUpdateCheckAtMs = SystemClock.elapsedRealtime()
         return failed

@@ -95,7 +95,9 @@ class UpdateCheckPolicyTest {
             vm.contains("updateInfo = UpdateManager.checkForUpdate(")
         )
         val record = vm.substringAfter("private fun recordUpdateCheck(").substringBefore("\n    }\n")
-        assertTrue("Failed tidak boleh mengubah state", record.contains("UpdateManager.CheckResult.Failed -> Unit"))
+        assertTrue("Failed tidak boleh mengubah state", record.contains("if (!failed) adoptUpdateResult("))
+        assertTrue("Available -> info baru, UpToDate -> null", record.contains("(result as? UpdateManager.CheckResult.Available)?.info"))
+        assertFalse("tanpa cabang when kosong (SpotBugs UCF_USELESS_CONTROL_FLOW)", record.contains("-> Unit"))
     }
 
     @Test
