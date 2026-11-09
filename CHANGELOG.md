@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 298: Penutupan audit layar utama (hanya docs, tanpa perubahan kode)
+
+Permintaan user: 6 screenshot kartu Equalizer Manual (satu per tema) dan keterangan bahwa HP-nya tidak pernah diset ke bahasa Inggris (UI Indonesia). Sebelumnya user juga menyatakan tidak pernah menyentuh toggle "Auto-Profil per Output".
+
+Konfirmasi HP untuk B297 pada 6 tema (Midnight Glass, tema berpelat bulat dengan thumb setengah kubah, tema thumb daun, Studio Equalizer, tema pinus bersudut potong, Old Money): isian band EQ dari titik 0 mB ke thumb tampil benar; negatif mengisi ke kiri, positif ke kanan; takik penanda 0 mB tidak lagi ada. Ujung isian mengikuti bentuk trek tiap tema: bulat penuh (Midnight Glass), asimetris mengikuti trek di tema bersudut organik dan Studio Equalizer (ujung kiri datar, kanan bulat), dan sudut potong di dua tema bersudut tegas. Tidak ada artefak. Catatan gaya, bukan cacat: pada tema asimetris, ujung isian di titik asal ikut gaya sudut trek sehingga tampak seperti "kepala" pil; diputuskan dibiarkan.
+
+Keputusan terbuka ditutup tanpa perubahan kode: (1) auto-profile pada pemutaran ulang callback awal dan `outputDevices.first()`: toggle bawaan MATI dan user tidak pernah menyentuhnya, jadi jalur itu tak pernah jalan di HP-nya; (2) sufiks bahasa Indonesia di UI Inggris: HP user selalu UI Indonesia. Kedua hal ditinggalkan apa adanya (perilaku B122/B123 tidak diubah).
+
+Status: audit layar utama selesai (B289-B297). B297 terkompilasi dan berjalan di HP; laporan CI khusus B297 belum diterima.
+
+Revert: `Boomly_v297.zip`.
+
 ## Batch 297: Penanda 0 mB pada slider band EQ dihapus
 
 Permintaan user: unggahan `AEP_laporan-untuk-claude_run93.zip` dan 1 screenshot HP (kartu Equalizer Manual, tema Midnight Glass) tanpa instruksi tambahan.
