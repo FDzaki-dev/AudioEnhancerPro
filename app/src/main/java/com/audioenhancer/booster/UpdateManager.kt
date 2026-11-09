@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.content.FileProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.Buffer
@@ -173,15 +174,22 @@ object UpdateManager {
         }
     }
 
-    /** Dipanggil OTOMATIS diam-diam tiap app dibuka (`BoosterViewModel.init`) — SEMUA
-     *  exception (network/parsing) SENGAJA ditelan jadi `null` di sini (bukan
-     *  dilempar), karena gagalnya TIDAK seharusnya mengganggu user dengan pesan error
-     *  di luar aksi eksplisit apapun. WAJIB dipanggil dari coroutine (viewModelScope),
-     *  bukan main thread langsung. */
-    suspend fun checkForUpdate(context: Context): UpdateInfo? =
+    /** Dipanggil OTOMATIS diam-diam (`BoosterViewModel.autoCheckForUpdate`: saat app dibuka + tiap UI
+     *  terlihat lagi, dibatasi `UpdateCheckPolicy`) — SEMUA exception (network/parsing) SENGAJA ditelan di
+     *  sini (bukan dilempar), karena gagalnya TIDAK seharusnya mengganggu user dengan pesan error di luar
+     *  aksi eksplisit apapun. Batch 299: dulu mengembalikan `UpdateInfo?` sehingga "gagal cek" tak bisa
+     *  dibedakan dari "sudah terbaru" — pemanggil menimpa `updateInfo` dengan null (banner hilang) dan
+     *  tak pernah mencoba ulang. Kini `CheckResult` (`Failed` = ditelan jadi hasil, bukan exception);
+     *  `CancellationException` SENGAJA dilempar ulang (coroutine yang dibatalkan harus berhenti). WAJIB
+     *  dipanggil dari coroutine (viewModelScope), bukan main thread langsung. */
+    suspend fun checkForUpdate(context: Context): CheckResult =
         try {
-            (fetchLatestRelease(context) as? CheckResult.Available)?.info
-        } catch (_: Exception) { null }
+            fetchLatestRelease(context)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            CheckResult.Failed
+        }
 
     /** Batch 73: dipicu EKSPLISIT oleh tombol "Cek Update Sekarang" (section Settings
      *  baru) — user tegur eksplisit tidak ada entry point manual sama sekali sebelum
@@ -268,4 +276,42 @@ object UpdateManager {
         }
         context.startActivity(intent)
     }
+
+    /** Batch 299: penanda panah di string `settings_update_found` (ID+EN). Glyph panah Unicode TIDAK dipakai
+     *  lagi karena font sistem sebagian HP (font pilihan user) tak memilikinya dan menggambar karakter
+     *  rusak. Layar mengganti penanda ini dengan ikon vektor (`Icons.AutoMirrored.Filled.ArrowForward`). */
+    const val ARROW_MARKER = "{arrow}"
+
+    /** Pecah `text` di penanda panah PERTAMA -> (sebelum, sesudah); null bila penanda tidak ada
+     *  (pemanggil menampilkan teks apa adanya). */
+    fun splitAtArrow(text: String): Pair<String, String>? {
+        val index = text.indexOf(ARROW_MARKER)
+        if (index < 0) return null
+        return text.substring(0, index) to text.substring(index + ARROW_MARKER.length)
+    }
+}
+
+/** Batch 299: kebijakan pengecekan update OTOMATIS (murni, bisa diuji JVM; dipakai `BoosterViewModel`).
+ *  Akar masalah banner update "muncul tak konsisten": cek otomatis cuma jalan SEKALI saat ViewModel dibuat
+ *  dan gagalnya ditelan -> (1) jaringan/rate-limit GitHub saat app dibuka = tak ada banner sampai app
+ *  dibuka ulang dari nol, (2) rilis baru yang terbit saat app/Service masih hidup tak pernah terdeteksi.
+ *  Sekarang: cek tiap UI terlihat lagi bila jeda sejak cek terakhir cukup (sukses = 15 menit — sekitar 4
+ *  panggilan/jam, jauh di bawah batas 60/jam API GitHub tanpa token; gagal = 60 detik), dan gagal dicoba
+ *  ulang di sesi yang sama (maks [MAX_ATTEMPTS] kali, jeda bertambah). Tak ada pekerjaan di latar belakang:
+ *  semua hanya selagi UI terlihat. */
+internal object UpdateCheckPolicy {
+    const val RECHECK_INTERVAL_MS = 15L * 60_000L
+    const val RETRY_AFTER_FAILURE_MS = 60_000L
+    const val MAX_ATTEMPTS = 3
+    private const val RETRY_DELAY_STEP_MS = 20_000L
+
+    /** `lastCheckAtMs` null = belum pernah dicek. Jam monoton (`SystemClock.elapsedRealtime`) dari pemanggil. */
+    fun shouldCheck(lastCheckAtMs: Long?, lastFailed: Boolean, nowMs: Long): Boolean {
+        if (lastCheckAtMs == null) return true
+        val minGap = if (lastFailed) RETRY_AFTER_FAILURE_MS else RECHECK_INTERVAL_MS
+        return nowMs - lastCheckAtMs >= minGap
+    }
+
+    /** Jeda sebelum percobaan ulang setelah percobaan ke-[attempt] (mulai 1) gagal: 20 dtk, 40 dtk, ... */
+    fun retryDelayMs(attempt: Int): Long = RETRY_DELAY_STEP_MS * attempt.coerceAtLeast(1)
 }

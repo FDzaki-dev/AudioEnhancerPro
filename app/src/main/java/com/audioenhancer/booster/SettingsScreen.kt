@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,9 +35,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
@@ -62,9 +66,13 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -209,7 +217,13 @@ fun SettingsScreen(
                         BoosterViewModel.ManualUpdateCheckState.UP_TO_DATE -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
-                    Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+                    // Batch 299: status FOUND memuat penanda panah (`UpdateManager.ARROW_MARKER`) yang digambar sebagai
+                    // ikon vektor — glyph panah Unicode dirender rusak oleh font sistem sebagian HP.
+                    if (manualUpdateCheckState == BoosterViewModel.ManualUpdateCheckState.FOUND) {
+                        VersionArrowText(statusText, statusColor)
+                    } else {
+                        Text(statusText, style = MaterialTheme.typography.bodySmall, color = statusColor)
+                    }
                 }
 
                 // Batch 81 (diminta user — feedback "ketemu update" sebelumnya cuma
@@ -832,6 +846,42 @@ fun SettingsScreen(
 /** Batch 154: 1 baris statistik — label (redup) kiri, nilai (tebal) kanan. Batch 288: [detail] opsional =
  *  baris kedua redup di bawah nilai (jumlah pemakaian preset), supaya "N kali" tidak terpisah sendirian
  *  ke baris berikutnya saat nilai panjang dibungkus. */
+private const val VERSION_ARROW_ID = "versionArrow"
+
+/** Batch 299 (laporan user: panah di "Update ditemukan: v332 -> v333" tampil sebagai glyph aneh): panah Unicode di
+ *  string TIDAK ada di font sistem sebagian HP. String kini memuat penanda `UpdateManager.ARROW_MARKER`; di sini
+ *  penanda itu diganti ikon vektor sebaris (`Icons.AutoMirrored.Filled.ArrowForward`, ikut arah RTL, warna = warna
+ *  teks), jadi tampilannya tak bergantung pada font. Tanpa penanda = teks apa adanya. */
+@Composable
+private fun VersionArrowText(text: String, color: Color) {
+    val style = MaterialTheme.typography.bodySmall
+    val parts = UpdateManager.splitAtArrow(text)
+    if (parts == null) {
+        Text(text, style = style, color = color)
+        return
+    }
+    val annotated = buildAnnotatedString {
+        append(parts.first)
+        appendInlineContent(VERSION_ARROW_ID, "\u2192") // teks alternatif untuk pembaca layar; yang digambar = ikon
+        append(parts.second)
+    }
+    val inlineContent = remember(color) {
+        mapOf(
+            VERSION_ARROW_ID to InlineTextContent(
+                Placeholder(width = 1.2.em, height = 1.em, placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter)
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = color,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        )
+    }
+    Text(annotated, style = style, color = color, inlineContent = inlineContent)
+}
+
 @Composable
 private fun StatsRow(label: String, value: String, detail: String? = null) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

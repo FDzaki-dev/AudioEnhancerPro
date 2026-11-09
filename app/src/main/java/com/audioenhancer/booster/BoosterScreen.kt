@@ -421,7 +421,8 @@ private fun OutputRouteBanner(
  *  "Unduh & Pasang", disembunyikan SELAGI `downloadProgress` != null (progress bar
  *  tampil sebagai gantinya — guard dobel-tap juga sudah ada di ViewModel); (2) sudah
  *  pernah selesai diunduh (`hasDownloadedUpdate`, mis. installer sistem sempat
- *  di-dismiss user) -> tombol jadi "Pasang Sekarang", TANPA unduh ulang. */
+ *  di-dismiss user) -> tombol jadi "Pasang Sekarang", TANPA unduh ulang. Batch 299: di bawah baris utama
+ *  tampil snapshot changelog (`UpdateInfo.releaseNotes`) seperti kartu Pengaturan. */
 @Composable
 private fun UpdateBanner(
     updateInfo: UpdateManager.UpdateInfo?,
@@ -461,6 +462,18 @@ private fun UpdateBanner(
                         }
                     }
                 }
+            }
+            // Batch 299: snapshot changelog di banner (sebelumnya hanya kartu Pengaturan yang menampilkannya) —
+            // label + ringkasan 1-baris yang SAMA (`UpdateInfo.releaseNotes`, string `settings_whats_new_label`).
+            // Kosong (body Release kosong/format tak terduga) = baris disembunyikan, banner seperti semula.
+            if (info.releaseNotes.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    stringResource(R.string.settings_whats_new_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(info.releaseNotes, style = MaterialTheme.typography.bodySmall)
             }
             if (downloadProgress != null) {
                 Spacer(modifier = Modifier.height(8.dp))

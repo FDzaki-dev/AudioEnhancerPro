@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -13,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -231,6 +233,12 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     enum class ManualUpdateCheckState { IDLE, CHECKING, UP_TO_DATE, FOUND, ERROR }
     var manualUpdateCheckState by mutableStateOf(ManualUpdateCheckState.IDLE); private set
 
+    // Batch 299: bookkeeping cek update OTOMATIS (kebijakan: `UpdateCheckPolicy`). WAJIB dideklarasi SEBELUM
+    // `init` yang memanggil `autoCheckForUpdate()` (viewModelScope = Main.immediate jalan langsung di init).
+    private var updateCheckJob: Job? = null
+    private var lastUpdateCheckAtMs: Long? = null
+    private var lastUpdateCheckFailed = false
+
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
             service = (binder as AudioEnhancerService.LocalBinder).getService()
@@ -279,6 +287,54 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun setUiActive(active: Boolean) {
         uiActive.value = active
+        // Batch 299: UI terlihat lagi -> cek update bila jeda sejak cek terakhir cukup (rilis baru yang terbit
+        // saat app/Service tetap hidup di latar belakang kini ikut terdeteksi, bukan hanya saat app dibuka dari nol).
+        if (active) autoCheckForUpdate()
+    }
+
+    /** Batch 299: cek update OTOMATIS. Satu job pada satu waktu; dibatasi `UpdateCheckPolicy`; berjalan hanya
+     *  selagi UI terlihat (`awaitUiActive`). Gagal dicoba ulang (maks `UpdateCheckPolicy.MAX_ATTEMPTS`, jeda
+     *  bertambah) dan TIDAK PERNAH mengosongkan banner yang sudah tampil — hanya hasil "sudah terbaru" yang
+     *  mengosongkannya (dulu `updateInfo = hasilCek` menimpa dengan null saat gagal, termasuk menimpa hasil
+     *  cek manual yang kebetulan selesai lebih dulu). */
+    private fun autoCheckForUpdate() {
+        if (updateCheckJob?.isActive == true) return
+        if (manualUpdateCheckState == ManualUpdateCheckState.CHECKING) return
+        if (!UpdateCheckPolicy.shouldCheck(lastUpdateCheckAtMs, lastUpdateCheckFailed, SystemClock.elapsedRealtime())) return
+        updateCheckJob = viewModelScope.launch {
+            var attempt = 0
+            while (true) {
+                awaitUiActive()
+                attempt++
+                val failed = recordUpdateCheck(UpdateManager.checkForUpdate(getApplication()))
+                if (!failed || attempt >= UpdateCheckPolicy.MAX_ATTEMPTS) break
+                delay(UpdateCheckPolicy.retryDelayMs(attempt))
+            }
+        }
+    }
+
+    /** Batch 299: terapkan hasil cek (otomatis maupun manual) + catat waktu/status untuk `UpdateCheckPolicy`.
+     *  `Available` -> banner; `UpToDate` -> banner dikosongkan; `Failed` -> state TIDAK berubah. Mengembalikan
+     *  true bila gagal. */
+    private fun recordUpdateCheck(result: UpdateManager.CheckResult): Boolean {
+        when (result) {
+            is UpdateManager.CheckResult.Available -> adoptUpdateResult(result.info)
+            UpdateManager.CheckResult.UpToDate -> adoptUpdateResult(null)
+            UpdateManager.CheckResult.Failed -> Unit
+        }
+        val failed = result is UpdateManager.CheckResult.Failed
+        lastUpdateCheckFailed = failed
+        lastUpdateCheckAtMs = SystemClock.elapsedRealtime()
+        return failed
+    }
+
+    /** Batch 299: ganti `updateInfo` hanya bila TIDAK sedang mengunduh (info yang dipakai unduhan jangan
+     *  berubah di tengah jalan). APK yang sudah terunduh milik rilis LAIN dibuang supaya tombol "Pasang
+     *  Sekarang" tak memasang versi basi. */
+    private fun adoptUpdateResult(info: UpdateManager.UpdateInfo?) {
+        if (updateDownloadProgress != null) return
+        if (info?.runNumber != updateInfo?.runNumber) downloadedApkFile = null
+        updateInfo = info
     }
 
     /** Batch 162: dua loop polling di bawah dulu terus bangun (20x & 1x/detik) walau app sudah di
@@ -316,9 +372,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                 delay(1000)
             }
         }
-        // Cek update sekali tiap ViewModel ini dibuat (~sekali per sesi app dibuka) —
-        // diam-diam, lihat komentar checkForUpdate() soal kenapa gagalnya ditelan.
-        viewModelScope.launch { updateInfo = UpdateManager.checkForUpdate(getApplication()) }
+        // Cek update saat ViewModel ini dibuat; diulang tiap UI terlihat lagi (`setUiActive`) dan dicoba ulang
+        // bila gagal — diam-diam, lihat `autoCheckForUpdate` (Batch 299) dan `UpdateCheckPolicy`.
+        autoCheckForUpdate()
 
         // Batch 120: loop KEDUA, TERPISAH dari loop EffectState 1000ms di atas — delay
         // 1 detik terlalu lambat buat animasi bar spectrum yang butuh terlihat halus.
@@ -489,19 +545,17 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                 // dkk) balik null dari UpdateManager PERSIS SAMA kayak "sudah terbaru",
                 // jadi user lihat "Sudah versi terbaru" walau ceknya sendiri gagal total.
                 // Sekarang 3 kondisi dibedakan eksplisit lewat UpdateManager.CheckResult.
-                when (val result = UpdateManager.checkForUpdateManual(getApplication())) {
-                    is UpdateManager.CheckResult.Available -> {
-                        updateInfo = result.info
-                        manualUpdateCheckState = ManualUpdateCheckState.FOUND
-                    }
-                    UpdateManager.CheckResult.UpToDate -> {
-                        manualUpdateCheckState = ManualUpdateCheckState.UP_TO_DATE
-                    }
-                    UpdateManager.CheckResult.Failed -> {
-                        manualUpdateCheckState = ManualUpdateCheckState.ERROR
-                    }
+                // Batch 299: hasil diterapkan lewat `recordUpdateCheck` (sama dengan cek otomatis).
+                val result = UpdateManager.checkForUpdateManual(getApplication())
+                recordUpdateCheck(result)
+                manualUpdateCheckState = when (result) {
+                    is UpdateManager.CheckResult.Available -> ManualUpdateCheckState.FOUND
+                    UpdateManager.CheckResult.UpToDate -> ManualUpdateCheckState.UP_TO_DATE
+                    UpdateManager.CheckResult.Failed -> ManualUpdateCheckState.ERROR
                 }
             } catch (_: Exception) {
+                lastUpdateCheckFailed = true
+                lastUpdateCheckAtMs = SystemClock.elapsedRealtime()
                 manualUpdateCheckState = ManualUpdateCheckState.ERROR
             }
         }

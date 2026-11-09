@@ -1,5 +1,21 @@
 # Changelog
 
+## Batch 299: Banner update konsisten dengan snapshot changelog, panah versi tanpa glyph font
+
+Permintaan user (2 screenshot HP: banner update di tab Kontrol dan kartu Versi Aplikasi di Pengaturan): (1) banner update di tab Kontrol muncul kurang konsisten tiap ada pembaruan dan tidak memiliki snapshot changelog seperti di Pengaturan; (2) panah pada "Update ditemukan: v332 -> v333" tampil sebagai glyph aneh.
+
+Akar masalah banner tidak konsisten (dari kode, belum direproduksi di HP): (a) cek otomatis hanya berjalan SEKALI saat ViewModel dibuat; bila jaringan sedang buruk atau API GitHub tanpa token menolak (batas 60 permintaan/jam per IP, mudah kena di jaringan seluler ber-NAT), kegagalan ditelan diam-diam dan banner tak muncul sampai app dibuka ulang dari nol; (b) rilis yang terbit saat app/Service masih hidup di latar belakang tak pernah terdeteksi, karena ViewModel bertahan selama proses hidup dan tak ada cek ulang saat layar dibuka kembali; (c) hasil cek ditulis langsung ke `updateInfo`, sehingga hasil gagal atau "sudah terbaru" (null) bisa menimpa banner yang sudah tampil, termasuk hasil cek manual yang kebetulan selesai lebih dulu.
+
+Perbaikan: `UpdateManager.checkForUpdate` kini mengembalikan `CheckResult` (Available/UpToDate/Failed; `CancellationException` dilempar ulang) sehingga gagal bisa dibedakan dari "sudah terbaru". Kebijakan baru `UpdateCheckPolicy` (murni, diuji): cek saat app dibuka dan tiap UI terlihat lagi (`setUiActive(true)`), jeda minimal 15 menit setelah cek sukses (sekitar 4 panggilan/jam), 60 detik setelah gagal, dan gagal dicoba ulang di sesi yang sama maksimal 3 kali (jeda 20 dtk lalu 40 dtk). Semua hanya selagi UI terlihat (tanpa pekerjaan latar belakang). Hasil gagal tidak pernah mengosongkan banner; hanya hasil "sudah terbaru" yang mengosongkannya. Info yang dipakai unduhan yang sedang berjalan tidak diganti di tengah jalan, dan APK terunduh milik rilis lain dibuang. Cek manual memakai jalur pencatatan hasil yang sama.
+
+Snapshot changelog di banner: `UpdateBanner` (`BoosterScreen.kt`) menampilkan label "Yang baru:" dan ringkasan rilis yang SAMA dengan kartu Pengaturan (`UpdateInfo.releaseNotes`, string `settings_whats_new_label`); bila ringkasan kosong, banner tampil seperti semula.
+
+Panah: byte string sudah benar (U+2192); font sistem HP user tidak memiliki glyph itu sehingga digambar rusak. String `settings_update_found` (ID+EN) kini memuat penanda `{arrow}` dan layar menggantinya dengan ikon vektor sebaris (`Icons.AutoMirrored.Filled.ArrowForward`, warna mengikuti teks) lewat `VersionArrowText` di `SettingsScreen.kt`. Tak ada glyph panah Unicode lagi di `strings.xml` (dijaga tes).
+
+11 tes baru `UpdateCheckPolicyTest` (253 -> 264 diharapkan): kebijakan jeda/coba-ulang, pemecah penanda panah, string ID+EN tanpa glyph panah, penjaga sumber ViewModel (UI terlihat memicu cek; hasil tak menimpa banner) dan banner (memuat `releaseNotes`). Tidak dikerjakan (sengaja): ETag/permintaan bersyarat GitHub, cache hasil cek lintas proses, cek di latar belakang.
+
+Belum dikompilasi dan belum diuji di HP (sandbox tanpa kompiler Kotlin/Gradle; kurung seimbang, XML parse OK, asersi tes penjaga disimulasikan terhadap sumber), jadi NOT VERIFIED. Revert: `Boomly_v298.zip`.
+
 ## Batch 298: Penutupan audit layar utama (hanya docs, tanpa perubahan kode)
 
 Permintaan user: 6 screenshot kartu Equalizer Manual (satu per tema) dan keterangan bahwa HP-nya tidak pernah diset ke bahasa Inggris (UI Indonesia). Sebelumnya user juga menyatakan tidak pernah menyentuh toggle "Auto-Profil per Output".
