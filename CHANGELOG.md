@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 297: Penanda 0 mB pada slider band EQ dihapus
+
+Permintaan user: unggahan `AEP_laporan-untuk-claude_run93.zip` dan 1 screenshot HP (kartu Equalizer Manual, tema Midnight Glass) tanpa instruksi tambahan.
+
+Triase CI run 93: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=296, COMMIT=73c56ea, RUN_ID=42555326125). Gradle exit semua 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, 253 tes lulus. Batch 296 STATIC-VERIFIED penuh.
+
+Konfirmasi HP untuk B296 (screenshot, Midnight Glass): isian band EQ kini dari titik 0 mB. -200 mB mengisi dari thumb ke tengah, +350 dan +450 mB mengisi dari tengah ke thumb; nilai kecil (-50 dan +100 mB) tertutup thumb sehingga isian hampir tak tampak (wajar). Slider lain belum diperiksa di screenshot ini; hanya tema Midnight Glass yang terlihat (bentuk trek 5dp), tema dengan bentuk trek khas (jalur path) belum terlihat.
+
+Temuan dari zoom screenshot: garis penanda 0 mB yang kutambahkan di B296 tampak sebagai "takik" lurus di samping ujung isian yang bulat, dan tidak pernah informatif: bila ada isian, ujung isian sudah menandai titik asal; bila nilai 0, thumb menutupinya. Perbaikan: garis penanda dihapus (hanya blok `drawLine` di jalur kedalaman `SkeuSliderTrack`); isian dari titik asal dipertahankan. Tidak ada perubahan lain.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED. Yang perlu dicek: ujung isian bersih di Midnight Glass; dan di 5 tema lain (khususnya yang bentuk trek-nya khas) isian dari tengah tampil dengan bentuk trek yang benar tanpa artefak. Revert: `Boomly_v296.zip`.
+
 ## Batch 296: Isian slider band Equalizer dari titik nol
 
 Permintaan user: unggahan `AEP_laporan-untuk-claude_run92.zip` dan 1 screenshot HP (layar utama, service jalan), lalu "Segera!!"; item terakhir audit layar utama yang sengaja ditunda kini dikerjakan.

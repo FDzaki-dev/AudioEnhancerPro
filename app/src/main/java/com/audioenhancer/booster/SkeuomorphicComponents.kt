@@ -2088,7 +2088,7 @@ private fun SkeuSliderTrack(
     inactiveColor: Color,
     enabled: Boolean,
     // Batch 296: titik asal isian (satuan nilai slider). `null` (bawaan) = isian dari tepi kiri SEPERTI SEBELUMNYA.
-    // Non-null = isian dari titik itu ke thumb (+ garis tipis penanda titik asal), untuk nilai plus-minus (band EQ, 0 mB).
+    // Non-null = isian dari titik itu ke thumb (B297: tanpa garis penanda), untuk nilai plus-minus (band EQ, 0 mB).
     fillOrigin: Float? = null
 ) {
     val tokens = LocalSkeuTokens.current
@@ -2163,16 +2163,9 @@ private fun SkeuSliderTrack(
                             drawPath(edge, color = fillEdge, style = Stroke(width = 1.dp.toPx()))
                         }
                     }
-                    if (fillOrigin != null) {
-                        // B296: penanda titik asal (mis. 0 mB) — garis tipis di atas lantai & isian.
-                        val ox = size.width * origin
-                        drawLine(
-                            color = depth.rimLight.copy(alpha = 0.55f),
-                            start = Offset(ox, 2.dp.toPx()),
-                            end = Offset(ox, size.height - 2.dp.toPx()),
-                            strokeWidth = 1.5.dp.toPx()
-                        )
-                    }
+                    // B297: penanda garis titik asal (B296) DIHAPUS. Di HP (screenshot v296) garis itu tampak menonjol di
+                    // sebelah ujung isian bulat sebagai "takik", dan tak pernah informatif: ada isian = ujung isian sudah
+                    // menandai titik asal; tak ada isian (nilai 0) = thumb menutupinya.
                 }
             )
         }
