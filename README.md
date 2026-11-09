@@ -52,7 +52,7 @@ Render langsung `docs/preview/current.html` lewat [htmlpreview.github.io](https:
   baterai — lihat "Batasan jujur".)
 - Jadwal Otomatis (Pengaturan) — nyalakan/matikan Boomly otomatis di hari dan jam pilihanmu (default semua hari), dengan pilihan preset saat menyala. Default mati. Lihat "Batasan jujur" soal ketepatan jam & Android 12+.
 - Statistik Pemakaian (Pengaturan) — total waktu Boomly aktif, jumlah dinyalakan, dan preset terpopuler; 100% di perangkat, bisa direset. Lihat "Batasan jujur".
-- Update langsung dari dalam app — dicek otomatis saat app dibuka dan tiap layar terlihat lagi (jeda minimal 15 menit; gagal dicoba ulang), muncul banner "Unduh & Pasang" beserta ringkasan "Yang baru" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
+- Update langsung dari dalam app — dicek otomatis saat app dibuka dan tiap layar terlihat lagi (jeda minimal 30 detik; gagal dicoba ulang; ditahan otomatis bila kena batas API GitHub), muncul banner "Unduh & Pasang" beserta ringkasan "Yang baru" kalau ada versi baru. Tombol "Cek Update Sekarang" di Pengaturan (ikon ⚙️) untuk trigger manual — hasilnya selalu ditampilkan (sudah terbaru / ketemu update dengan komparasi versi + ringkasan rilis + tombol unduh / gagal), beda dari cek otomatis yang diam-diam kalau gagal.
 
 ## Batasan jujur
 - Timer Tidur memakai timer di dalam service (bukan alarm exact): kalau CPU HP sempat deep-sleep, berhenti bisa tertunda sampai CPU bangun; kalau service dibunuh OS sebelum waktunya habis, timer hilang. Belum ada fade-out volume.

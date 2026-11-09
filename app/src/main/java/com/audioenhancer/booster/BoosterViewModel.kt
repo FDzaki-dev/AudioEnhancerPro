@@ -238,6 +238,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var updateCheckJob: Job? = null
     private var lastUpdateCheckAtMs: Long? = null
     private var lastUpdateCheckFailed = false
+    private var updateBackoffUntilMs = 0L // Batch 301: cek otomatis ditahan sampai jam monoton ini (rate-limit GitHub)
 
     private val connection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
@@ -289,40 +290,67 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         uiActive.value = active
         // Batch 299: UI terlihat lagi -> cek update bila jeda sejak cek terakhir cukup (rilis baru yang terbit
         // saat app/Service tetap hidup di latar belakang kini ikut terdeteksi, bukan hanya saat app dibuka dari nol).
-        if (active) autoCheckForUpdate()
+        if (active) autoCheckForUpdate("ui-aktif")
     }
 
     /** Batch 299: cek update OTOMATIS. Satu job pada satu waktu; dibatasi `UpdateCheckPolicy`; berjalan hanya
      *  selagi UI terlihat (`awaitUiActive`). Gagal dicoba ulang (maks `UpdateCheckPolicy.MAX_ATTEMPTS`, jeda
      *  bertambah) dan TIDAK PERNAH mengosongkan banner yang sudah tampil — hanya hasil "sudah terbaru" yang
      *  mengosongkannya (dulu `updateInfo = hasilCek` menimpa dengan null saat gagal, termasuk menimpa hasil
-     *  cek manual yang kebetulan selesai lebih dulu). */
-    private fun autoCheckForUpdate() {
-        if (updateCheckJob?.isActive == true) return
+     *  cek manual yang kebetulan selesai lebih dulu). Batch 301: `reason` (init / ui-aktif) + alasan dilewati dan
+     *  hasil tiap cek dicatat di logcat (tag `UpdateCheck`), jeda minimal diperpendek (30 dtk), dan respons
+     *  rate-limit GitHub menahan cek otomatis sampai waktunya. */
+    private fun autoCheckForUpdate(reason: String) {
+        if (updateCheckJob?.isActive == true) {
+            android.util.Log.i(UpdateCheckPolicy.LOG_TAG, "auto[$reason]: dilewati (cek sebelumnya masih berjalan)")
+            return
+        }
         if (manualUpdateCheckState == ManualUpdateCheckState.CHECKING) return
-        if (!UpdateCheckPolicy.shouldCheck(lastUpdateCheckAtMs, lastUpdateCheckFailed, SystemClock.elapsedRealtime())) return
+        val now = SystemClock.elapsedRealtime()
+        if (!UpdateCheckPolicy.shouldCheck(lastUpdateCheckAtMs, lastUpdateCheckFailed, now, updateBackoffUntilMs)) {
+            val ageSec = lastUpdateCheckAtMs?.let { (now - it) / 1000L } ?: -1L
+            val backoffSec = (updateBackoffUntilMs - now).coerceAtLeast(0L) / 1000L
+            android.util.Log.i(
+                UpdateCheckPolicy.LOG_TAG,
+                "auto[$reason]: dilewati (cek terakhir $ageSec dtk lalu, gagal=$lastUpdateCheckFailed, tahan rate-limit $backoffSec dtk)"
+            )
+            return
+        }
+        android.util.Log.i(UpdateCheckPolicy.LOG_TAG, "auto[$reason]: mulai cek")
         updateCheckJob = viewModelScope.launch {
             var attempt = 0
             while (true) {
                 awaitUiActive()
                 attempt++
-                val failed = recordUpdateCheck(UpdateManager.checkForUpdate(getApplication()))
-                if (!failed || attempt >= UpdateCheckPolicy.MAX_ATTEMPTS) break
+                val result = UpdateManager.checkForUpdate(getApplication())
+                val failed = recordUpdateCheck(result)
+                val rateLimited = result is UpdateManager.CheckResult.RateLimited
+                if (!failed || rateLimited || attempt >= UpdateCheckPolicy.MAX_ATTEMPTS) break
                 delay(UpdateCheckPolicy.retryDelayMs(attempt))
             }
         }
     }
 
     /** Batch 299: terapkan hasil cek (otomatis maupun manual) + catat waktu/status untuk `UpdateCheckPolicy`.
-     *  `Available` -> banner; `UpToDate` -> banner dikosongkan; `Failed` -> state TIDAK berubah. Mengembalikan
-     *  true bila gagal. Batch 300: tanpa cabang `when` kosong (`Failed -> Unit` ditandai SpotBugs
-     *  `UCF_USELESS_CONTROL_FLOW` di CI run 96); perilaku sama persis. */
+     *  `Available` -> banner; `UpToDate` -> banner dikosongkan; `Failed`/`RateLimited` -> state banner TIDAK
+     *  berubah. Mengembalikan true bila gagal. Batch 300: tanpa cabang `when` kosong (SpotBugs
+     *  `UCF_USELESS_CONTROL_FLOW`). Batch 301: `RateLimited` menetapkan `updateBackoffUntilMs`; hasil dicatat di logcat. */
     private fun recordUpdateCheck(result: UpdateManager.CheckResult): Boolean {
-        val failed = result is UpdateManager.CheckResult.Failed
+        val now = SystemClock.elapsedRealtime()
+        val failed = result is UpdateManager.CheckResult.Failed || result is UpdateManager.CheckResult.RateLimited
         if (!failed) adoptUpdateResult((result as? UpdateManager.CheckResult.Available)?.info)
+        if (result is UpdateManager.CheckResult.RateLimited) updateBackoffUntilMs = now + result.waitMs
         lastUpdateCheckFailed = failed
-        lastUpdateCheckAtMs = SystemClock.elapsedRealtime()
+        lastUpdateCheckAtMs = now
+        android.util.Log.i(UpdateCheckPolicy.LOG_TAG, "hasil: ${describeUpdateResult(result)}")
         return failed
+    }
+
+    private fun describeUpdateResult(result: UpdateManager.CheckResult): String = when (result) {
+        is UpdateManager.CheckResult.Available -> "update tersedia (run ${result.info.runNumber}, banner ${if (updateDownloadProgress != null) "tetap, sedang mengunduh" else "diperbarui"})"
+        UpdateManager.CheckResult.UpToDate -> "sudah versi terbaru"
+        UpdateManager.CheckResult.Failed -> "gagal (alasan: lihat baris 'Cek update' sebelumnya)"
+        is UpdateManager.CheckResult.RateLimited -> "dibatasi GitHub, cek otomatis ditahan ${result.waitMs / 1000L} dtk"
     }
 
     /** Batch 299: ganti `updateInfo` hanya bila TIDAK sedang mengunduh (info yang dipakai unduhan jangan
@@ -371,7 +399,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         }
         // Cek update saat ViewModel ini dibuat; diulang tiap UI terlihat lagi (`setUiActive`) dan dicoba ulang
         // bila gagal — diam-diam, lihat `autoCheckForUpdate` (Batch 299) dan `UpdateCheckPolicy`.
-        autoCheckForUpdate()
+        autoCheckForUpdate("init")
 
         // Batch 120: loop KEDUA, TERPISAH dari loop EffectState 1000ms di atas — delay
         // 1 detik terlalu lambat buat animasi bar spectrum yang butuh terlihat halus.
@@ -548,7 +576,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                 manualUpdateCheckState = when (result) {
                     is UpdateManager.CheckResult.Available -> ManualUpdateCheckState.FOUND
                     UpdateManager.CheckResult.UpToDate -> ManualUpdateCheckState.UP_TO_DATE
-                    UpdateManager.CheckResult.Failed -> ManualUpdateCheckState.ERROR
+                    UpdateManager.CheckResult.Failed, is UpdateManager.CheckResult.RateLimited -> ManualUpdateCheckState.ERROR
                 }
             } catch (_: Exception) {
                 lastUpdateCheckFailed = true

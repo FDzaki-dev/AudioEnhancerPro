@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 301: Banner update muncul tanpa harus menekan Cek Update, jeda cek 30 detik, log diagnostik
+
+Triase CI run 97 (BATCH_PROJECT_STATE=300, COMMIT=3bf6f6e, RUN_ID=42590064111): semua hijau, Gradle exit 0, ArchUnit 12/0, SpotBugs 0 (temuan B299 hilang), detekt 0, typed 0, lint 0, kompilator 0, 264 tes lulus. Batch 300 STATIC-VERIFIED.
+
+Bukti HP (2 screenshot v334 -> v335): ikon panah di Pengaturan tampil benar, dan "Yang baru:" + ringkasan rilis tampil di banner tab Kontrol maupun di Pengaturan, jadi dua perbaikan B299 itu terbukti di HP. Keluhan baru user: banner di tab Kontrol tidak muncul instan, baru muncul setelah menekan Cek Update di Pengaturan.
+
+Penyebab paling mungkin (dari kode + pola pakai; belum ada log HP untuk membuktikan): jeda cek minimal B299 = 15 menit setelah cek sukses. Pola user: pasang versi baru (cek otomatis -> sudah terbaru), langsung dorong batch berikutnya, rilis terbit beberapa menit kemudian; membuka app saat itu masih DI DALAM jeda, jadi cek otomatis dilewati diam-diam. Cek manual tidak punya jeda, makanya langsung menemukan. Kegagalan jaringan/rate-limit bisa menambah, tapi tidak dibutuhkan untuk menjelaskan gejala ini.
+
+Perbaikan: jeda minimal `UpdateCheckPolicy` 15 menit -> 30 detik (sukses) dan 60 -> 15 detik (gagal); cukup untuk menyaring onStart beruntun (rotasi, bolak-balik cepat). Pengaman kuota API GitHub tanpa token (60/jam per IP; permintaan bersyarat/ETag TIDAK dipakai karena dokumentasi GitHub saat ini hanya membebaskan 304 dari kuota bila disertai Authorization): hasil baru `CheckResult.RateLimited(waitMs)` untuk HTTP 403/429 bertanda rate-limit (`Retry-After` > `X-RateLimit-Reset` > bawaan 60 dtk, dijepit 30 dtk..1 jam); cek otomatis berhenti meminta (dan tidak mencoba ulang) sampai waktunya, cek manual tidak pernah diblokir. Log diagnostik di logcat tag `UpdateCheck` (ikut Ekspor Log Debug): pemicu (init / ui-aktif), alasan cek dilewati (umur cek terakhir, status gagal, sisa tahan rate-limit), kode HTTP, alasan gagal (judul Release tanpa Run #, asset APK belum ada, exception), versi terpasang vs rilis terbaru, dan hasil tiap cek.
+
+18 tes di `UpdateCheckPolicyTest` (11 -> 18; total 271 diharapkan): jeda 30/15 dtk, skenario rilis 8 menit setelah cek terakhir, penahan rate-limit, `rateLimitWaitMs` (bukan rate-limit, urutan sumber waktu, penjepitan), dan penjaga sumber (log, tidak retry saat rate-limit, cek manual tak diblokir).
+
+Belum dikompilasi dan belum diuji di HP (sandbox tanpa kompiler Kotlin/Gradle), jadi NOT VERIFIED. Tidak dikerjakan (sengaja): cek berkala saat app terus terbuka di layar, ETag, cek latar belakang. Bila banner masih tak muncul instan, Ekspor Log Debug dan cari tag UpdateCheck. Revert: `Boomly_v300.zip`.
+
 ## Batch 300: Triase CI run 96, satu temuan SpotBugs di cek update dibersihkan
 
 Permintaan user: unggahan `AEP_laporan-untuk-claude_run96.zip` dan catatan "Belum dapat dibuktikan. Karena belum ada tinjauan langsung" (perilaku B299 di HP memang belum dibuktikan; lihat bawah).

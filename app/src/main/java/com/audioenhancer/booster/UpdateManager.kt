@@ -3,6 +3,7 @@ package com.audioenhancer.booster
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -96,6 +97,11 @@ object UpdateManager {
         data class Available(val info: UpdateInfo) : CheckResult()
         data object UpToDate : CheckResult()
         data object Failed : CheckResult()
+
+        /** Batch 301: GitHub menolak karena batas permintaan (HTTP 403/429 + header rate-limit). `waitMs` = berapa lama
+         *  sebaiknya tidak meminta lagi (dari `Retry-After`/`X-RateLimit-Reset`, dijepit `UpdateCheckPolicy`). Dihitung
+         *  sebagai GAGAL oleh semua pemanggil; bedanya hanya pemanggil otomatis berhenti meminta sampai waktunya. */
+        data class RateLimited(val waitMs: Long) : CheckResult()
     }
 
     private fun currentVersionCode(context: Context): Int {
@@ -106,6 +112,13 @@ object UpdateManager {
             @Suppress("DEPRECATION")
             info.versionCode
         }
+    }
+
+    /** Batch 301: `Failed` + alasan tercatat di logcat (tag `UpdateCheck`; ikut Ekspor Log Debug), supaya "banner tak
+     *  muncul" bisa dibuktikan dari log, bukan ditebak. */
+    private fun failedCheck(reason: String): CheckResult {
+        Log.w(UpdateCheckPolicy.LOG_TAG, "Cek update gagal: $reason")
+        return CheckResult.Failed
     }
 
     /** Inti logic cek Release GitHub terbaru — DIPAKAI ULANG oleh 2 fungsi publik di
@@ -132,21 +145,36 @@ object UpdateManager {
             }
             // Batch 74: non-200 (mis. 403 rate-limit GitHub API unauthenticated, 404, 5xx)
             // BUKAN "sudah terbaru" — itu gagal cek. Lihat komentar CheckResult di atas.
-            if (connection.responseCode != HttpURLConnection.HTTP_OK) return@withContext CheckResult.Failed
+            // Batch 301: 403/429 bertanda rate-limit dipisah jadi `RateLimited` (pemanggil otomatis berhenti meminta
+            // sampai waktunya, sesuai saran dokumentasi GitHub); kode lain tetap `Failed`. Kode HTTP selalu dicatat.
+            val code = connection.responseCode
+            if (code != HttpURLConnection.HTTP_OK) {
+                val waitMs = UpdateCheckPolicy.rateLimitWaitMs(
+                    status = code,
+                    remaining = connection.getHeaderField("X-RateLimit-Remaining"),
+                    resetEpochSec = connection.getHeaderField("X-RateLimit-Reset"),
+                    retryAfterSec = connection.getHeaderField("Retry-After"),
+                    nowEpochSec = System.currentTimeMillis() / 1000L
+                )
+                Log.w(UpdateCheckPolicy.LOG_TAG, "Cek update: HTTP $code, rate-limit tunggu ${waitMs / 1000} dtk")
+                return@withContext if (waitMs > 0L) CheckResult.RateLimited(waitMs) else CheckResult.Failed
+            }
 
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(body)
 
             // Judul Release gagal match regex = anomali/gagal parse, BUKAN "sudah terbaru".
             val runNumber = RUN_NUMBER_REGEX.find(json.optString("name"))
-                ?.groupValues?.getOrNull(1)?.toIntOrNull() ?: return@withContext CheckResult.Failed
-            if (runNumber <= currentVersionCode(context)) return@withContext CheckResult.UpToDate
+                ?.groupValues?.getOrNull(1)?.toIntOrNull() ?: return@withContext failedCheck("judul Release tanpa pola 'Run #N'")
+            val installedCode = currentVersionCode(context)
+            Log.i(UpdateCheckPolicy.LOG_TAG, "Cek update: release terbaru run $runNumber, terpasang $installedCode")
+            if (runNumber <= installedCode) return@withContext CheckResult.UpToDate
 
             val versionName = json.optString("tag_name").removePrefix("v").substringBefore("-run")
 
             // Release ketemu & lebih baru, tapi asset APK tidak ada = release rusak/belum
             // lengkap ter-upload — gagal cek, BUKAN "sudah terbaru".
-            val assets = json.optJSONArray("assets") ?: return@withContext CheckResult.Failed
+            val assets = json.optJSONArray("assets") ?: return@withContext failedCheck("Release tanpa daftar asset")
             var apkUrl: String? = null
             var apkName: String? = null
             for (i in 0 until assets.length()) {
@@ -158,7 +186,7 @@ object UpdateManager {
                     break
                 }
             }
-            if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext CheckResult.Failed
+            if (apkUrl.isNullOrEmpty() || apkName == null) return@withContext failedCheck("asset APK belum ada di Release run $runNumber")
 
             CheckResult.Available(
                 UpdateInfo(
@@ -187,7 +215,8 @@ object UpdateManager {
             fetchLatestRelease(context)
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(UpdateCheckPolicy.LOG_TAG, "Cek update otomatis gagal (exception)", e)
             CheckResult.Failed
         }
 
@@ -295,18 +324,27 @@ object UpdateManager {
  *  Akar masalah banner update "muncul tak konsisten": cek otomatis cuma jalan SEKALI saat ViewModel dibuat
  *  dan gagalnya ditelan -> (1) jaringan/rate-limit GitHub saat app dibuka = tak ada banner sampai app
  *  dibuka ulang dari nol, (2) rilis baru yang terbit saat app/Service masih hidup tak pernah terdeteksi.
- *  Sekarang: cek tiap UI terlihat lagi bila jeda sejak cek terakhir cukup (sukses = 15 menit — sekitar 4
- *  panggilan/jam, jauh di bawah batas 60/jam API GitHub tanpa token; gagal = 60 detik), dan gagal dicoba
- *  ulang di sesi yang sama (maks [MAX_ATTEMPTS] kali, jeda bertambah). Tak ada pekerjaan di latar belakang:
- *  semua hanya selagi UI terlihat. */
+ *  Batch 301: jeda B299 (15 menit) terlalu panjang untuk pola user (unduh -> langsung dorong batch berikutnya ->
+ *  rilis terbit beberapa menit kemudian, DI DALAM jeda): kini jeda minimal hanya 30 dtk (sukses) / 15 dtk (gagal),
+ *  cukup untuk menyaring onStart beruntun (rotasi, bolak-balik cepat). Pengaman kuota API GitHub tanpa token
+ *  (60/jam per IP): respons rate-limit (403/429 + header) menunda cek otomatis sampai `Retry-After`/
+ *  `X-RateLimit-Reset` (dijepit 30 dtk..1 jam), sesuai saran dokumentasi GitHub. Cek ulang tetap hanya selagi UI
+ *  terlihat (tanpa pekerjaan latar belakang); gagal dicoba ulang di sesi yang sama (maks [MAX_ATTEMPTS] kali). */
 internal object UpdateCheckPolicy {
-    const val RECHECK_INTERVAL_MS = 15L * 60_000L
-    const val RETRY_AFTER_FAILURE_MS = 60_000L
+    /** Tag logcat semua baris cek update (ikut Ekspor Log Debug). */
+    const val LOG_TAG = "UpdateCheck"
+    const val RECHECK_INTERVAL_MS = 30_000L
+    const val RETRY_AFTER_FAILURE_MS = 15_000L
     const val MAX_ATTEMPTS = 3
+    const val MIN_BACKOFF_SEC = 30L
+    const val MAX_BACKOFF_SEC = 3_600L
+    const val DEFAULT_BACKOFF_SEC = 60L
     private const val RETRY_DELAY_STEP_MS = 20_000L
 
-    /** `lastCheckAtMs` null = belum pernah dicek. Jam monoton (`SystemClock.elapsedRealtime`) dari pemanggil. */
-    fun shouldCheck(lastCheckAtMs: Long?, lastFailed: Boolean, nowMs: Long): Boolean {
+    /** `lastCheckAtMs` null = belum pernah dicek. Jam monoton (`SystemClock.elapsedRealtime`) dari pemanggil.
+     *  `backoffUntilMs` = batas jam monoton yang sama sampai cek ditahan karena rate-limit (0 = tidak ditahan). */
+    fun shouldCheck(lastCheckAtMs: Long?, lastFailed: Boolean, nowMs: Long, backoffUntilMs: Long = 0L): Boolean {
+        if (nowMs < backoffUntilMs) return false
         if (lastCheckAtMs == null) return true
         val minGap = if (lastFailed) RETRY_AFTER_FAILURE_MS else RECHECK_INTERVAL_MS
         return nowMs - lastCheckAtMs >= minGap
@@ -314,4 +352,18 @@ internal object UpdateCheckPolicy {
 
     /** Jeda sebelum percobaan ulang setelah percobaan ke-[attempt] (mulai 1) gagal: 20 dtk, 40 dtk, ... */
     fun retryDelayMs(attempt: Int): Long = RETRY_DELAY_STEP_MS * attempt.coerceAtLeast(1)
+
+    /** Berapa ms harus menunggu sebelum meminta lagi setelah respons `status`; 0 = BUKAN rate-limit. 429 selalu
+     *  rate-limit; 403 hanya bila ada `Retry-After` atau `X-RateLimit-Remaining: 0` (403 biasa = bukan). Urutan
+     *  sumber waktu: `Retry-After` (detik) > `X-RateLimit-Reset` (epoch detik) > bawaan; hasil dijepit
+     *  [MIN_BACKOFF_SEC]..[MAX_BACKOFF_SEC]. Header tak terbaca/sampah = dianggap tak ada. */
+    fun rateLimitWaitMs(status: Int, remaining: String?, resetEpochSec: String?, retryAfterSec: String?, nowEpochSec: Long): Long {
+        if (status != 403 && status != 429) return 0L
+        val retryAfter = retryAfterSec?.trim()?.toLongOrNull()
+        val untilReset = resetEpochSec?.trim()?.toLongOrNull()?.minus(nowEpochSec)
+        val limited = status == 429 || retryAfter != null || remaining?.trim() == "0"
+        if (!limited) return 0L
+        val waitSec = retryAfter ?: untilReset ?: DEFAULT_BACKOFF_SEC
+        return waitSec.coerceIn(MIN_BACKOFF_SEC, MAX_BACKOFF_SEC) * 1000L
+    }
 }

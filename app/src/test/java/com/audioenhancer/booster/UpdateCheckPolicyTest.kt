@@ -10,6 +10,8 @@ import org.junit.Test
 /**
  * Batch 299 — kebijakan cek update otomatis (`UpdateCheckPolicy`), pemecah penanda panah (`UpdateManager.splitAtArrow`)
  * dan penjaga sumber untuk dua perbaikan: banner update tak konsisten + glyph panah rusak. JVM murni, tanpa Robolectric.
+ * Batch 301 — jeda cek diperpendek (banner tak muncul instan karena jeda 15 menit), penahan rate-limit GitHub
+ * (`rateLimitWaitMs`) dan penjaga log diagnostik.
  */
 class UpdateCheckPolicyTest {
 
@@ -22,18 +24,34 @@ class UpdateCheckPolicyTest {
     }
 
     @Test
-    fun `setelah cek sukses tunggu sampai jeda 15 menit`() {
+    fun `setelah cek sukses tunggu sampai jeda 30 detik`() {
         val last = 1_000_000L
         assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last))
-        assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last + 15 * minute - 1))
-        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last + 15 * minute))
+        assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last + 30_000L - 1))
+        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last + 30_000L))
     }
 
     @Test
-    fun `setelah cek gagal boleh coba lagi dalam 60 detik`() {
+    fun `setelah cek gagal boleh coba lagi dalam 15 detik`() {
         val last = 1_000_000L
-        assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = true, nowMs = last + 59_999L))
-        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = true, nowMs = last + 60_000L))
+        assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = true, nowMs = last + 14_999L))
+        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = true, nowMs = last + 15_000L))
+    }
+
+    @Test
+    fun `rilis yang terbit beberapa menit setelah cek terakhir terdeteksi saat app dibuka lagi`() {
+        // Pola user: cek terakhir (UpToDate) lalu rilis baru terbit ~8 menit kemudian. Dulu (jeda 15 menit) dilewati.
+        val last = 5_000_000L
+        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = last + 8 * minute))
+    }
+
+    @Test
+    fun `selama ditahan rate-limit tidak boleh cek walau jeda biasa sudah lewat`() {
+        val last = 1_000_000L
+        val now = last + 10 * minute
+        assertFalse(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = now, backoffUntilMs = now + 1))
+        assertTrue(UpdateCheckPolicy.shouldCheck(last, lastFailed = false, nowMs = now, backoffUntilMs = now))
+        assertFalse(UpdateCheckPolicy.shouldCheck(lastCheckAtMs = null, lastFailed = false, nowMs = 100L, backoffUntilMs = 101L))
     }
 
     @Test
@@ -45,9 +63,36 @@ class UpdateCheckPolicyTest {
     }
 
     @Test
-    fun `frekuensi cek sukses jauh di bawah batas API GitHub tanpa token`() {
-        val perHour = 60L * minute / UpdateCheckPolicy.RECHECK_INTERVAL_MS
-        assertTrue("maks cek sukses per jam harus jauh di bawah 60", perHour <= 4L)
+    fun `respons selain 403 dan 429 bukan rate-limit`() {
+        listOf(200, 304, 404, 500, 503).forEach { code ->
+            assertEquals("HTTP $code", 0L, UpdateCheckPolicy.rateLimitWaitMs(code, "0", "9999999999", "10", 1_000L))
+        }
+    }
+
+    @Test
+    fun `403 biasa tanpa tanda rate-limit tidak ditahan`() {
+        assertEquals(0L, UpdateCheckPolicy.rateLimitWaitMs(403, remaining = "42", resetEpochSec = "2000", retryAfterSec = null, nowEpochSec = 1_000L))
+        assertEquals(0L, UpdateCheckPolicy.rateLimitWaitMs(403, remaining = null, resetEpochSec = null, retryAfterSec = null, nowEpochSec = 1_000L))
+        assertEquals(0L, UpdateCheckPolicy.rateLimitWaitMs(403, remaining = "abc", resetEpochSec = "2000", retryAfterSec = "xyz", nowEpochSec = 1_000L))
+    }
+
+    @Test
+    fun `rate-limit dihitung dari Retry-After lalu X-RateLimit-Reset lalu bawaan`() {
+        // Retry-After menang atas Reset.
+        assertEquals(120_000L, UpdateCheckPolicy.rateLimitWaitMs(403, "0", "1500", "120", 1_000L))
+        // Hanya Reset: (2_000 - 1_000) detik = 1000 dtk.
+        assertEquals(1_000_000L, UpdateCheckPolicy.rateLimitWaitMs(403, "0", "2000", null, 1_000L))
+        // 429 tanpa header apa pun = bawaan 60 dtk; remaining 0 tanpa Reset = bawaan juga.
+        assertEquals(60_000L, UpdateCheckPolicy.rateLimitWaitMs(429, null, null, null, 1_000L))
+        assertEquals(60_000L, UpdateCheckPolicy.rateLimitWaitMs(403, "0", null, null, 1_000L))
+    }
+
+    @Test
+    fun `waktu tahan rate-limit dijepit 30 detik sampai 1 jam`() {
+        assertEquals(30_000L, UpdateCheckPolicy.rateLimitWaitMs(429, null, null, "1", 1_000L))
+        assertEquals(30_000L, UpdateCheckPolicy.rateLimitWaitMs(403, "0", "500", null, 1_000L)) // Reset sudah lewat
+        assertEquals(3_600_000L, UpdateCheckPolicy.rateLimitWaitMs(403, "0", "99999999", null, 1_000L))
+        assertEquals(3_600_000L, UpdateCheckPolicy.rateLimitWaitMs(429, null, null, "86400", 1_000L))
     }
 
     @Test
@@ -88,16 +133,39 @@ class UpdateCheckPolicyTest {
         val vm = readFile("src/main/java/com/audioenhancer/booster/BoosterViewModel.kt")
             .lines().joinToString("\n") { it.substringBefore("//") }
         val setUiActive = vm.substringAfter("fun setUiActive(").substringBefore("\n    }\n")
-        assertTrue("UI terlihat lagi harus memicu cek update", setUiActive.contains("autoCheckForUpdate()"))
+        assertTrue("UI terlihat lagi harus memicu cek update", setUiActive.contains("autoCheckForUpdate("))
+        assertTrue("cek awal saat ViewModel dibuat", vm.contains("autoCheckForUpdate(\"init\")"))
         assertTrue("ViewModel memakai kebijakan UpdateCheckPolicy", vm.contains("UpdateCheckPolicy.shouldCheck("))
         assertFalse(
             "hasil cek tak boleh langsung menimpa updateInfo (gagal = null = banner hilang)",
             vm.contains("updateInfo = UpdateManager.checkForUpdate(")
         )
         val record = vm.substringAfter("private fun recordUpdateCheck(").substringBefore("\n    }\n")
-        assertTrue("Failed tidak boleh mengubah state", record.contains("if (!failed) adoptUpdateResult("))
+        assertTrue("Failed/RateLimited tidak boleh mengubah state banner", record.contains("if (!failed) adoptUpdateResult("))
+        assertTrue("RateLimited menahan cek otomatis", record.contains("updateBackoffUntilMs = now + result.waitMs"))
+        assertTrue("hasil tiap cek dicatat di logcat", record.contains("UpdateCheckPolicy.LOG_TAG"))
         assertTrue("Available -> info baru, UpToDate -> null", record.contains("(result as? UpdateManager.CheckResult.Available)?.info"))
         assertFalse("tanpa cabang when kosong (SpotBugs UCF_USELESS_CONTROL_FLOW)", record.contains("-> Unit"))
+    }
+
+    @Test
+    fun `cek otomatis berhenti mencoba ulang saat rate-limit dan mencatat alasan dilewati`() {
+        val vm = readFile("src/main/java/com/audioenhancer/booster/BoosterViewModel.kt")
+            .lines().joinToString("\n") { it.substringBefore("//") }
+        val auto = vm.substringAfter("private fun autoCheckForUpdate(").substringBefore("\n    }\n")
+        assertTrue("rate-limit tidak dicoba ulang", auto.contains("rateLimited"))
+        assertTrue("alasan dilewati dicatat", auto.contains("dilewati (cek terakhir"))
+        assertTrue("kebijakan menerima batas penahan", auto.contains("updateBackoffUntilMs)"))
+        val manual = vm.substringAfter("fun checkForUpdateManually(").substringBefore("\n    }\n")
+        assertFalse("cek manual tidak boleh diblokir penahan rate-limit", manual.contains("shouldCheck("))
+    }
+
+    @Test
+    fun `UpdateManager mencatat kode HTTP dan alasan gagal di logcat`() {
+        val src = readFile("src/main/java/com/audioenhancer/booster/UpdateManager.kt")
+        assertTrue(src.contains("Log.w(UpdateCheckPolicy.LOG_TAG, \"Cek update: HTTP \$code"))
+        assertTrue(src.contains("failedCheck("))
+        assertTrue("hasil perbandingan versi dicatat", src.contains("release terbaru run \$runNumber, terpasang \$installedCode"))
     }
 
     @Test
