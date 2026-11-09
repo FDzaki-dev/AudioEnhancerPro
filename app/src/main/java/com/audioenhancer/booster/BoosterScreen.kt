@@ -2433,6 +2433,8 @@ private fun EqBandSlider(
     Box(modifier = Modifier.padding(top = if (band > 0) 16.dp else 0.dp).graphicsLayer()) {
         FeatureControl(
             sliderTopGap = 0.dp,
+            // Batch 296: nilai band plus-minus -> isian dari 0 mB (bukan dari kiri); 0 mB ditandai garis tipis.
+            fillOrigin = 0f,
             title = formatFreqLabel(freqHz),
             helpText = "",
             value = level.toFloat(),

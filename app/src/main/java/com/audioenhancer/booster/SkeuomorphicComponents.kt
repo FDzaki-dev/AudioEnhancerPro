@@ -2065,6 +2065,15 @@ private fun sliderFraction(state: SliderState): Float {
     return if (range != 0f) ((state.value - state.valueRange.start) / range).coerceIn(0f, 1f) else 0f
 }
 
+/** Batch 296: fraksi 0..1 dari titik asal isian [origin] (satuan nilai slider, mis. 0 mB pada slider band Equalizer);
+ *  `null` = 0f (isian dari tepi kiri, perilaku lama semua slider). */
+@OptIn(ExperimentalMaterial3Api::class)
+private fun fillOriginFraction(state: SliderState, origin: Float?): Float {
+    if (origin == null) return 0f
+    val range = state.valueRange.endInclusive - state.valueRange.start
+    return if (range != 0f) ((origin - state.valueRange.start) / range).coerceIn(0f, 1f) else 0f
+}
+
 /** Track slider flat/minimal buat 3 varian (guide poin 3), TAPI Batch 52: track
  *  yang belum terisi (`bgColor`) sekarang dapat inset shadow cekung KHUSUS
  *  Neumorphism (`SkeuDualDirectionalShadow(invert=true)`, 0 efek 3 varian lain)
@@ -2077,7 +2086,10 @@ private fun SkeuSliderTrack(
     sliderState: SliderState,
     activeColor: Color,
     inactiveColor: Color,
-    enabled: Boolean
+    enabled: Boolean,
+    // Batch 296: titik asal isian (satuan nilai slider). `null` (bawaan) = isian dari tepi kiri SEPERTI SEBELUMNYA.
+    // Non-null = isian dari titik itu ke thumb (+ garis tipis penanda titik asal), untuk nilai plus-minus (band EQ, 0 mB).
+    fillOrigin: Float? = null
 ) {
     val tokens = LocalSkeuTokens.current
     val trackColor = if (enabled) activeColor else activeColor.copy(alpha = 0.35f)
@@ -2115,18 +2127,25 @@ private fun SkeuSliderTrack(
                 .depthWellLip(shape, depth)
                 .background(floor, shape)
                 .drawBehind {
-                    val fillW = size.width * sliderFraction(sliderState)
+                    // B296: isian dari [asal] ke thumb. `fillOrigin == null` -> x0 = 0 dan fillW = lebar*fraksi = PERSIS
+                    // perilaku lama (translate 0 = no-op).
+                    val frac = sliderFraction(sliderState)
+                    val origin = fillOriginFraction(sliderState, fillOrigin)
+                    val x0 = size.width * min(origin, frac)
+                    val fillW = size.width * max(origin, frac) - x0
                     if (fillW > 0f) {
-                        if (depth.trackShape != null) {
-                            // B225: isian mengikuti bentuk trek (pojok kiri sama, ujung kanan = pojok kanan trek).
-                            val fillPath = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
-                            drawPath(fillPath, brush = fillBrush)
-                        } else {
-                            drawRoundRect(
-                                brush = fillBrush,
-                                size = Size(fillW, size.height),
-                                cornerRadius = CornerRadius(5.dp.toPx())
-                            )
+                        translate(left = x0) {
+                            if (depth.trackShape != null) {
+                                // B225: isian mengikuti bentuk trek (pojok kiri sama, ujung kanan = pojok kanan trek).
+                                val fillPath = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
+                                drawPath(fillPath, brush = fillBrush)
+                            } else {
+                                drawRoundRect(
+                                    brush = fillBrush,
+                                    size = Size(fillW, size.height),
+                                    cornerRadius = CornerRadius(5.dp.toPx())
+                                )
+                            }
                         }
                     }
                 }
@@ -2134,10 +2153,25 @@ private fun SkeuSliderTrack(
             Box(Modifier.matchParentSize().depthWellInner(shape, depth))
             Box(
                 Modifier.matchParentSize().drawBehind {
-                    val fillW = size.width * sliderFraction(sliderState)
+                    val frac = sliderFraction(sliderState)
+                    val origin = fillOriginFraction(sliderState, fillOrigin)
+                    val x0 = size.width * min(origin, frac)
+                    val fillW = size.width * max(origin, frac) - x0
                     if (fillW > 0f) {
-                        val edge = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
-                        drawPath(edge, color = fillEdge, style = Stroke(width = 1.dp.toPx()))
+                        translate(left = x0) {
+                            val edge = shape.createOutline(Size(fillW, size.height), layoutDirection, this).toDepthPath()
+                            drawPath(edge, color = fillEdge, style = Stroke(width = 1.dp.toPx()))
+                        }
+                    }
+                    if (fillOrigin != null) {
+                        // B296: penanda titik asal (mis. 0 mB) — garis tipis di atas lantai & isian.
+                        val ox = size.width * origin
+                        drawLine(
+                            color = depth.rimLight.copy(alpha = 0.55f),
+                            start = Offset(ox, 2.dp.toPx()),
+                            end = Offset(ox, size.height - 2.dp.toPx()),
+                            strokeWidth = 1.5.dp.toPx()
+                        )
                     }
                 }
             )
@@ -2153,13 +2187,25 @@ private fun SkeuSliderTrack(
             .background(bgColor)
     ) {
         SkeuDualDirectionalShadow(tokens, shape, depth = 4.5.dp, invert = true, steps = 4)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth(fraction)
-                .fillMaxHeight()
-                .clip(shape)
-                .background(trackColor)
-        )
+        if (fillOrigin == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(fraction)
+                    .fillMaxHeight()
+                    .clip(shape)
+                    .background(trackColor)
+            )
+        } else {
+            // B296: isian dari titik asal (jalur tanpa kedalaman): persegi di antara asal dan thumb, terpotong bentuk trek.
+            Box(
+                modifier = Modifier.fillMaxSize().drawBehind {
+                    val origin = fillOriginFraction(sliderState, fillOrigin)
+                    val x0 = size.width * min(origin, fraction)
+                    val x1 = size.width * max(origin, fraction)
+                    if (x1 > x0) drawRect(color = trackColor, topLeft = Offset(x0, 0f), size = Size(x1 - x0, size.height))
+                }
+            )
+        }
     }
 }
 
@@ -2304,7 +2350,9 @@ internal fun FeatureControl(
     wrapInCard: Boolean = true,
     // Batch 292: jarak judul -> slider. Bawaan 8dp (TIDAK berubah untuk pemakai lama); slider band Equalizer memakai
     // 0dp supaya tiap label lebih dekat ke slidernya sendiri daripada ke slider band di atasnya.
-    sliderTopGap: Dp = 8.dp
+    sliderTopGap: Dp = 8.dp,
+    // Batch 296: titik asal isian slider (satuan nilai). `null` = dari kiri (bawaan, semua slider lain tak berubah).
+    fillOrigin: Float? = null
 ) {
     val haptics = rememberAppHaptics()
     // Batch 172: nilai terkini untuk gate sentuh (dibaca di dalam pointerInput(Unit), tanpa restart).
@@ -2371,7 +2419,8 @@ internal fun FeatureControl(
                     sliderState = sliderState,
                     activeColor = accentColor,
                     inactiveColor = accentColor.copy(alpha = 0.18f),
-                    enabled = enabled
+                    enabled = enabled,
+                    fillOrigin = fillOrigin
                 )
             },
             modifier = Modifier

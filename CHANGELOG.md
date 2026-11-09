@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 296: Isian slider band Equalizer dari titik nol
+
+Permintaan user: unggahan `AEP_laporan-untuk-claude_run92.zip` dan 1 screenshot HP (layar utama, service jalan), lalu "Segera!!"; item terakhir audit layar utama yang sengaja ditunda kini dikerjakan.
+
+Triase CI run 92: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=295, COMMIT=5d65e36, RUN_ID=42537591953). Gradle exit semua 0: ArchUnit lulus (12 aturan), SpotBugs 0, detekt 0, detekt typed 0, lint 0 (warning `ModifierParameter` hilang), peringatan kompilator 0, 253 tes lulus. Batch 295 STATIC-VERIFIED penuh.
+
+Konfirmasi HP (screenshot, service jalan): banner "Output audio berubah" TIDAK muncul saat aplikasi dibuka tanpa ganti output (B293 terkonfirmasi); label "PRESET CEPAT" kini jelas lebih dekat ke chip (sekitar 65 px) daripada ke bilah tab (sekitar 110 px) (B295 terkonfirmasi).
+
+Isian slider band Equalizer. Nilai band bersifat plus-minus (mB) tetapi isian slider selalu dari tepi kiri, sehingga -200 mB tampak "setengah penuh". Kini isian membentang dari 0 mB ke thumb, dengan garis tipis penanda 0 mB. Mesin track dipakai bersama semua slider, jadi perubahan dibuat opt-in: `SkeuSliderTrack` dan `FeatureControl` mendapat `fillOrigin: Float? = null`; `null` (bawaan) menghasilkan gambar PERSIS seperti sebelumnya (x0 = 0, `translate(0)` no-op, jalur tanpa kedalaman tidak tersentuh); hanya `EqBandSlider` memberi `fillOrigin = 0f`. Jalur kedalaman (6 tema): isian digambar dari x0 = lebar*min(asal, posisi) selebar selisih, bentuk trek tiap tema dipertahankan (translate), tepi isian ikut, ditambah garis penanda asal (`rimLight` alpha 0,55). Jalur tanpa kedalaman: persegi antara asal dan thumb. Asal dihitung dari rentang slider (aman bila rentang perangkat asimetris; dijepit 0..1). Tidak ada tes baru (fungsi gambar privat bergantung `SliderState`).
+
+Tidak diubah (keputusan terbuka): `outputDevices.first()` untuk kategori auto-profile pada pemutaran ulang (perilaku B122/B123); sufiks bahasa Indonesia di UI Inggris.
+
+Belum dikompilasi dan belum diuji di HP, jadi NOT VERIFIED; periksa di 6 tema: isian dari tengah, penanda 0 mB tampak, nilai 0 = tanpa isian, drag halus, slider lain tak berubah. Revert: `Boomly_v295.zip`.
+
 ## Batch 295: Lint ModifierParameter dan jarak label "PRESET CEPAT"
 
 Permintaan user: unggahan `AEP_laporan-untuk-claude_run91.zip` tanpa instruksi tambahan.
