@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 302: Penutupan triase CI run 98 (hanya docs, tanpa perubahan kode)
+
+Kode TIDAK berubah (identik dengan `Boomly_v301.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`.
+
+Triase CI run 98 (BATCH_PROJECT_STATE=301, COMMIT=5649b7f, RUN_ID=42629205575): semua hijau, Gradle exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, 271 tes lulus (= harapan B301: 253 + 18). Batch 301 STATIC-VERIFIED.
+
+Log crash `crash_20261009_044251_*.txt` (user mengunggah tanpa keterangan): bertanda Version 224 dan tanggal 9 Okt 2026, `ClassCastException: E1.i1 cannot be cast to S1.c` di main thread saat composition. Polanya sama dengan crash v224 yang sudah tercatat dan diperbaiki di Batch 185/186 (slot `remember(*keys)` bentrok di `composed` bersama `depthDraw`); tidak ada bukti kejadian di versi yang lebih baru (versi terpasang sekarang jauh di atas 224). Bukan temuan baru; tidak ada tindakan kode.
+
+Yang masih BELUM terbukti di HP: banner update muncul instan tanpa menekan Cek Update (B301); menunggu uji user saat rilis berikutnya terbit, atau Ekspor Log Debug (tag `UpdateCheck`) bila masih gagal.
+
 ## Batch 301: Banner update muncul tanpa harus menekan Cek Update, jeda cek 30 detik, log diagnostik
 
 Triase CI run 97 (BATCH_PROJECT_STATE=300, COMMIT=3bf6f6e, RUN_ID=42590064111): semua hijau, Gradle exit 0, ArchUnit 12/0, SpotBugs 0 (temuan B299 hilang), detekt 0, typed 0, lint 0, kompilator 0, 264 tes lulus. Batch 300 STATIC-VERIFIED.
