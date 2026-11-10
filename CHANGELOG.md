@@ -1,5 +1,15 @@
 # Changelog
 
+## Batch 303: Slider tidak lagi terhempas ke 0% saat jari menjauh dari lintasan (pengaman berlapis, penyebab belum terbukti)
+
+Laporan user: regresi pada slider; bila digeser lalu jari menjauh dari lintasan, nilai langsung terhempas ke 0%.
+
+Penyebab pasti BELUM terbukti (tak ada log atau reproduksi). Dari kode, `thumbOnlyDrag` (B172-B174) hanya bisa menghasilkan 0% bila geseran horizontal terhitung sangat negatif, dan penghitungannya memakai `posisi - posisi-down` yang ikut berubah bila node bergeser di antara event. Jalur kedua: handler internal `Slider` M3 menulis nilai lewat `rawOffset` miliknya sendiri yang basi (nilai digerakkan dari luar), dan callback-nya sebelumnya langsung diteruskan ke nilai aplikasi, jadi bila handler itu sempat aktif (mis. gesture mulai dominan vertikal sehingga tidak dikonsumsi) nilai bisa terlempar ke 0%. Kedua jalur ditutup; jalur lain yang belum terpikirkan tetap mungkin.
+
+Perbaikan di `SkeuomorphicComponents.kt`: (1) geseran jari dijumlahkan dari perubahan posisi per event (`positionChangeIgnoreConsumed`), tak lagi bergantung pada posisi-down; (2) bendera `touching` (true dari sentuh sampai lepas, dibersihkan di `finally`): selagi jari menyentuh, `onValueChange` internal M3 diabaikan, sehingga nilai hanya berubah lewat `thumbOnlyDrag`; aksi non-sentuh (TalkBack, papan tombol) tetap diteruskan; haptic akhir drag kini hanya dari `thumbOnlyDrag` (callback selesai milik M3 dilepas); (3) lonjakan nilai lebih dari 50% rentang dalam satu event dicatat di logcat tag `SliderDrag` (awal, terakhir, sekarang, geseran, posisi, ukuran) sebagai bukti bila gejala masih ada. Perilaku drag normal tak berubah: mulai dekat thumb, relatif, dibatasi 0..1, tap tak mengubah nilai.
+
+5 tes baru `SliderDragGuardTest` (penjaga sumber; 271 -> 276 diharapkan). Belum dikompilasi dan belum diuji di HP (sandbox tanpa kompiler Kotlin/Gradle), jadi NOT VERIFIED. Bila gejala masih muncul: Ekspor Log Debug, cari tag `SliderDrag`, dan catat PERSIS slider mana, tema, mode tab horizontal/vertikal, serta arah jari. Revert: `Boomly_v302.zip`.
+
 ## Batch 302: Penutupan triase CI run 98 (hanya docs, tanpa perubahan kode)
 
 Kode TIDAK berubah (identik dengan `Boomly_v301.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`.

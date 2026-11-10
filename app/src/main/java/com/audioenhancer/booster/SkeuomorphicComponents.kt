@@ -123,6 +123,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChangeIgnoreConsumed
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.platform.LocalContext
@@ -2261,7 +2262,13 @@ private val SliderGrabRadius = 32.dp
  *  diblok (event dikonsumsi); dominan vertikal = scroll → TIDAK dikonsumsi, halaman tetap scroll.
  *  Akhir drag memanggil [onDragEnd] (haptic). Beda dari Batch 138 (di-revert B140): key `Unit`
  *  TANPA `value` (tak ada restart paksa), nilai terkini lewat [State] (`rememberUpdatedState`),
- *  dedupe emisi pakai variabel lokal gesture (bukan `value` yang bisa basi antar-rekomposisi). */
+ *  dedupe emisi pakai variabel lokal gesture (bukan `value` yang bisa basi antar-rekomposisi).
+ *  Batch 303 (laporan user: "slider digeser lalu jari menjauh dari lintasan langsung terhempas ke 0%"; penyebab
+ *  pasti BELUM terbukti): (1) geseran jari dijumlahkan dari perubahan posisi PER EVENT
+ *  (`positionChangeIgnoreConsumed`), bukan `posisi - posisi-down` yang ikut berubah bila node bergeser di antara
+ *  event; (2) [touching] true selama sentuhan, supaya `onValueChange` internal `Slider` M3 (yang memakai
+ *  `rawOffset` miliknya sendiri yang basi karena nilai digerakkan dari luar) diabaikan selagi jari menyentuh;
+ *  (3) lonjakan nilai > 50% rentang dalam SATU event dicatat di logcat (tag `SliderDrag`) sebagai bukti. */
 private fun Modifier.thumbOnlyDrag(
     enabled: State<Boolean>,
     value: State<Float>,
@@ -2269,7 +2276,8 @@ private fun Modifier.thumbOnlyDrag(
     step: State<Float>,
     isRtl: State<Boolean>,
     onDrag: State<(Float) -> Unit>,
-    onDragEnd: State<() -> Unit>
+    onDragEnd: State<() -> Unit>,
+    touching: MutableState<Boolean>
 ): Modifier = pointerInput(Unit) {
     val thumbWidthPx = SkeuSliderThumbSize.toPx()
     val grabRadiusPx = SliderGrabRadius.toPx()
@@ -2290,28 +2298,44 @@ private fun Modifier.thumbOnlyDrag(
         var decided = false
         var horizontal = false
         var dragging = false
-        while (true) {
-            val change = awaitPointerEvent(PointerEventPass.Initial)
-                .changes.firstOrNull { it.id == down.id }
-            if (change == null || !change.pressed) {
-                if (dragging) onDragEnd.value.invoke()
-                return@awaitEachGesture
-            }
-            val delta = change.position - down.position
-            if (!decided && delta.getDistance() >= viewConfiguration.touchSlop) {
-                decided = true
-                horizontal = abs(delta.x) > abs(delta.y)
-                dragging = horizontal && nearThumb
-            }
-            if (horizontal) change.consume()
-            if (dragging) {
-                val fraction = (startFraction + sign * delta.x / trackWidthPx).coerceIn(0f, 1f)
-                val snapped = snapToStep(r.start + fraction * span, step.value, r)
-                if (snapped != lastEmitted) {
-                    lastEmitted = snapped
-                    onDrag.value.invoke(snapped)
+        var totalX = 0f
+        var totalY = 0f
+        touching.value = true
+        try {
+            while (true) {
+                val change = awaitPointerEvent(PointerEventPass.Initial)
+                    .changes.firstOrNull { it.id == down.id }
+                if (change == null || !change.pressed) {
+                    if (dragging) onDragEnd.value.invoke()
+                    return@awaitEachGesture
+                }
+                val moved = change.positionChangeIgnoreConsumed()
+                totalX += moved.x
+                totalY += moved.y
+                if (!decided && kotlin.math.hypot(totalX, totalY) >= viewConfiguration.touchSlop) {
+                    decided = true
+                    horizontal = abs(totalX) > abs(totalY)
+                    dragging = horizontal && nearThumb
+                }
+                if (horizontal) change.consume()
+                if (dragging) {
+                    val fraction = (startFraction + sign * totalX / trackWidthPx).coerceIn(0f, 1f)
+                    val snapped = snapToStep(r.start + fraction * span, step.value, r)
+                    if (snapped != lastEmitted) {
+                        if (abs(snapped - lastEmitted) > span * 0.5f) {
+                            android.util.Log.w(
+                                "SliderDrag",
+                                "lonjakan >50% dalam 1 event: awal=$startValue terakhir=$lastEmitted sekarang=$snapped " +
+                                    "geser=($totalX,$totalY) posisi=${change.position} ukuran=${size.width}x${size.height}"
+                            )
+                        }
+                        lastEmitted = snapped
+                        onDrag.value.invoke(snapped)
+                    }
                 }
             }
+        } finally {
+            touching.value = false
         }
     }
 }
@@ -2359,6 +2383,8 @@ internal fun FeatureControl(
     val latestOnDrag = rememberUpdatedState(onValueChange)
     val dragEndHandler: () -> Unit = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) }
     val latestOnDragEnd = rememberUpdatedState(dragEndHandler)
+    // Batch 303: true selama jari menyentuh slider (diisi `thumbOnlyDrag`); dibaca HANYA di callback, tanpa rekomposisi.
+    val touching = remember { mutableStateOf(false) }
     val innerContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2398,12 +2424,16 @@ internal fun FeatureControl(
         Slider(
             value = value,
             onValueChange = { raw ->
-                val snapped = snapToStep(raw, step, valueRange)
-                // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
-                // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
-                if (step <= 0f || snapped != value) onValueChange(snapped)
+                // Batch 303: selagi jari menyentuh, nilai HANYA boleh berubah lewat `thumbOnlyDrag`; callback internal
+                // `Slider` M3 diabaikan (rawOffset M3 basi -> bisa melempar nilai ke 0%). Yang lolos hanya aksi
+                // non-sentuh (aksesibilitas/TalkBack, papan tombol). Haptic akhir drag datang dari `thumbOnlyDrag`.
+                if (!touching.value) {
+                    val snapped = snapToStep(raw, step, valueRange)
+                    // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
+                    // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
+                    if (step <= 0f || snapped != value) onValueChange(snapped)
+                }
             },
-            onValueChangeFinished = { haptics.performHapticFeedback(HapticFeedbackType.LongPress) },
             valueRange = valueRange,
             enabled = enabled,
             thumb = { SkeuSliderThumb(accentColor = accentColor2, enabled = enabled) },
@@ -2419,7 +2449,7 @@ internal fun FeatureControl(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = sliderTopGap)
-                .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd)
+                .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd, touching)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
     }
