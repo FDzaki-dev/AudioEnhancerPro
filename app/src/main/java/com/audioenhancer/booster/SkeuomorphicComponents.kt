@@ -2268,7 +2268,11 @@ private val SliderGrabRadius = 32.dp
  *  (`positionChangeIgnoreConsumed`), bukan `posisi - posisi-down` yang ikut berubah bila node bergeser di antara
  *  event; (2) [touching] true selama sentuhan, supaya `onValueChange` internal `Slider` M3 (yang memakai
  *  `rawOffset` miliknya sendiri yang basi karena nilai digerakkan dari luar) diabaikan selagi jari menyentuh;
- *  (3) lonjakan nilai > 50% rentang dalam SATU event dicatat di logcat (tag `SliderDrag`) sebagai bukti. */
+ *  (3) lonjakan nilai > 50% rentang dalam SATU event dicatat di logcat (tag `SliderDrag`) sebagai bukti.
+ *  Batch 304 (B303 belum menyembuhkan; log debug user tak memuat baris `SliderDrag` apa pun): event geser janggal
+ *  (bukan angka / melompat > 60% lebar lintasan dalam satu event) DIABAIKAN, dan tiap drag dirangkum 1 baris log
+ *  (`drag selesai [label]`: awal, akhir, jumlah emisi, geseran, alasan berhenti, apakah event dikonsumsi induk)
+ *  supaya penyebab "terhempas ke 0%" bisa dibuktikan, bukan ditebak. */
 private fun Modifier.thumbOnlyDrag(
     enabled: State<Boolean>,
     value: State<Float>,
@@ -2277,7 +2281,8 @@ private fun Modifier.thumbOnlyDrag(
     isRtl: State<Boolean>,
     onDrag: State<(Float) -> Unit>,
     onDragEnd: State<() -> Unit>,
-    touching: MutableState<Boolean>
+    touching: MutableState<Boolean>,
+    label: String
 ): Modifier = pointerInput(Unit) {
     val thumbWidthPx = SkeuSliderThumbSize.toPx()
     val grabRadiusPx = SliderGrabRadius.toPx()
@@ -2300,16 +2305,29 @@ private fun Modifier.thumbOnlyDrag(
         var dragging = false
         var totalX = 0f
         var totalY = 0f
+        var emissions = 0
+        var endReason = "batal"
+        var consumedByParent = false
         touching.value = true
         try {
             while (true) {
                 val change = awaitPointerEvent(PointerEventPass.Initial)
                     .changes.firstOrNull { it.id == down.id }
                 if (change == null || !change.pressed) {
+                    endReason = if (change == null) "pointer-hilang" else "lepas"
                     if (dragging) onDragEnd.value.invoke()
                     return@awaitEachGesture
                 }
+                if (change.isConsumed) consumedByParent = true
                 val moved = change.positionChangeIgnoreConsumed()
+                if (!moved.x.isFinite() || !moved.y.isFinite() || abs(moved.x) > trackWidthPx * 0.6f) {
+                    android.util.Log.w(
+                        "SliderDrag",
+                        "[$label] event geser janggal diabaikan: geser=(${moved.x},${moved.y}) posisi=${change.position} " +
+                            "ukuran=${size.width}x${size.height}"
+                    )
+                    continue
+                }
                 totalX += moved.x
                 totalY += moved.y
                 if (!decided && kotlin.math.hypot(totalX, totalY) >= viewConfiguration.touchSlop) {
@@ -2325,17 +2343,25 @@ private fun Modifier.thumbOnlyDrag(
                         if (abs(snapped - lastEmitted) > span * 0.5f) {
                             android.util.Log.w(
                                 "SliderDrag",
-                                "lonjakan >50% dalam 1 event: awal=$startValue terakhir=$lastEmitted sekarang=$snapped " +
+                                "[$label] lonjakan >50% dalam 1 event: awal=$startValue terakhir=$lastEmitted sekarang=$snapped " +
                                     "geser=($totalX,$totalY) posisi=${change.position} ukuran=${size.width}x${size.height}"
                             )
                         }
                         lastEmitted = snapped
+                        emissions++
                         onDrag.value.invoke(snapped)
                     }
                 }
             }
         } finally {
             touching.value = false
+            if (dragging) {
+                android.util.Log.i(
+                    "SliderDrag",
+                    "drag selesai [$label]: awal=$startValue akhir=$lastEmitted emisi=$emissions geser=($totalX,$totalY) " +
+                        "alasan=$endReason dikonsumsiInduk=$consumedByParent ukuran=${size.width}x${size.height}"
+                )
+            }
         }
     }
 }
@@ -2385,6 +2411,20 @@ internal fun FeatureControl(
     val latestOnDragEnd = rememberUpdatedState(dragEndHandler)
     // Batch 303: true selama jari menyentuh slider (diisi `thumbOnlyDrag`); dibaca HANYA di callback, tanpa rekomposisi.
     val touching = remember { mutableStateOf(false) }
+    // Batch 304: bukti untuk "terhempas ke 0%": nilai yang turun ke awal rentang dari > 25% rentang dicatat bersama
+    // status sentuh, siapa pun penulisnya (drag, preset, efek lain). Hanya membaca; tanpa mengubah perilaku.
+    val lastSeenValue = remember { floatArrayOf(value) }
+    val lastBlockedLogAt = remember { longArrayOf(0L) }
+    SideEffect {
+        val prev = lastSeenValue[0]
+        if (value != prev) {
+            val rangeSpan = valueRange.endInclusive - valueRange.start
+            if (rangeSpan > 0f && value <= valueRange.start && prev - valueRange.start > rangeSpan * 0.25f) {
+                android.util.Log.w("SliderDrag", "nilai turun ke awal rentang: [$title] $prev -> $value, menyentuh=${touching.value}")
+            }
+            lastSeenValue[0] = value
+        }
+    }
     val innerContent: @Composable ColumnScope.() -> Unit = {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -2427,7 +2467,13 @@ internal fun FeatureControl(
                 // Batch 303: selagi jari menyentuh, nilai HANYA boleh berubah lewat `thumbOnlyDrag`; callback internal
                 // `Slider` M3 diabaikan (rawOffset M3 basi -> bisa melempar nilai ke 0%). Yang lolos hanya aksi
                 // non-sentuh (aksesibilitas/TalkBack, papan tombol). Haptic akhir drag datang dari `thumbOnlyDrag`.
-                if (!touching.value) {
+                if (touching.value) {
+                    val nowMs = SystemClock.elapsedRealtime()
+                    if (nowMs - lastBlockedLogAt[0] > 250L) {
+                        lastBlockedLogAt[0] = nowMs
+                        android.util.Log.w("SliderDrag", "[$title] onValueChange internal M3 diabaikan selagi menyentuh: raw=$raw nilai=$value")
+                    }
+                } else {
                     val snapped = snapToStep(raw, step, valueRange)
                     // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
                     // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
@@ -2449,7 +2495,7 @@ internal fun FeatureControl(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = sliderTopGap)
-                .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd, touching)
+                .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd, touching, title)
                 .semantics { contentDescription = "$title, $valueLabel" }
         )
     }

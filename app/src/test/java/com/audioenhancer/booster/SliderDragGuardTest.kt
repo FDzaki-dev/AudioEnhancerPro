@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
+ * Batch 304 menambah penjaga untuk event janggal, ringkasan log per drag, dan pendeteksi nilai turun ke awal rentang.
  * Batch 303 — penjaga sumber untuk laporan "slider digeser lalu jari menjauh dari lintasan langsung terhempas ke 0%".
  * Penyebab pasti belum terbukti; tes ini mengunci tiga pengaman (geseran per-event, bendera `touching`, log lonjakan)
  * supaya tidak hilang diam-diam. JVM murni (membaca sumber), pola sama dengan penjaga sumber lain di proyek ini.
@@ -45,7 +46,7 @@ class SliderDragGuardTest {
         assertTrue(slider.contains("if (!touching.value)"))
         assertTrue("onValueChange luar hanya dipanggil dalam penjaga touching", slider.indexOf("onValueChange(snapped)") > slider.indexOf("if (!touching.value)"))
         assertFalse("haptic akhir drag hanya dari thumbOnlyDrag", slider.contains("onValueChangeFinished"))
-        assertTrue(featureBody.contains("latestOnDragEnd, touching)"))
+        assertTrue(featureBody.contains("latestOnDragEnd, touching, title)"))
     }
 
     @Test
@@ -53,6 +54,23 @@ class SliderDragGuardTest {
         assertTrue(dragBody.contains("android.util.Log.w("))
         assertTrue(dragBody.contains("\"SliderDrag\""))
         assertTrue(dragBody.contains("span * 0.5f"))
+    }
+
+    @Test
+    fun `event geser janggal diabaikan dan tiap drag dirangkum di logcat`() {
+        assertTrue(dragBody.contains("!moved.x.isFinite()"))
+        assertTrue(dragBody.contains("trackWidthPx * 0.6f"))
+        assertTrue("event janggal dilewati dengan continue sebelum menambah geseran", dragBody.indexOf("continue") < dragBody.indexOf("totalX += moved.x"))
+        assertTrue(dragBody.contains("drag selesai [\$label]"))
+        assertTrue(dragBody.contains("dikonsumsiInduk=\$consumedByParent"))
+        assertTrue("ringkasan dicatat di finally", dragBody.substringAfter("} finally {").contains("drag selesai"))
+    }
+
+    @Test
+    fun `nilai turun ke awal rentang dan callback M3 yang diabaikan dicatat sebagai bukti`() {
+        assertTrue(featureBody.contains("SideEffect {"))
+        assertTrue(featureBody.contains("nilai turun ke awal rentang"))
+        assertTrue(featureBody.contains("onValueChange internal M3 diabaikan selagi menyentuh"))
     }
 
     @Test

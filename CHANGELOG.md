@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 304: Slider terhempas ke 0%: event janggal diabaikan dan bukti log per drag
+
+Triase CI run 100 (BATCH_PROJECT_STATE=303, COMMIT=99c80fd): semua hijau, Gradle exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, 276 tes lulus (= harapan B303). Batch 303 STATIC-VERIFIED.
+
+Log debug user (`aep_debug_20261110_211141.txt`, perangkat INFINIX X6855, Android 16): (1) tag `UpdateCheck` membuktikan banner B301 jalan di HP: app versi 337 dibuka 21:11:13, cek otomatis mulai dan menemukan run 338 dalam sekitar 1 detik ("update tersedia, banner diperbarui"), tanpa menekan Cek Update; setelah dipasang, app versi 338 mencatat "sudah versi terbaru". (2) TIDAK ada satu pun baris `SliderDrag` pada rentang log (proses versi 338 dari 21:11:27 sampai ekspor 21:11:41; hanya `ScrollIdentify on fling` berulang), jadi tidak ada bukti lonjakan >50% rentang dari `thumbOnlyDrag` dalam jendela itu. Keluhan user "Belum teratasi!!" tetap dicatat: penyebab "terhempas ke 0%" masih BELUM terbukti.
+
+Perubahan (`SkeuomorphicComponents.kt`): (1) `thumbOnlyDrag` mengabaikan event geser janggal (bukan angka, atau melompat > 60% lebar lintasan dalam satu event) dengan catatan log; (2) tiap drag (jari mulai dekat thumb dan horizontal) dirangkum 1 baris log di akhir: `drag selesai [judul]: awal, akhir, emisi, geser(x,y), alasan (lepas / pointer-hilang / batal), dikonsumsiInduk, ukuran`; (3) `FeatureControl` mencatat bila nilai turun ke awal rentang dari > 25% rentang (siapa pun penulisnya: drag, preset, efek lain) bersama status `menyentuh`, dan mencatat callback internal Slider M3 yang diabaikan selagi menyentuh (dibatasi 1 baris per 250 ms). Semua log bertag `SliderDrag`, ikut Ekspor Log Debug. Perilaku drag normal tidak berubah.
+
+Cara membuktikan: pasang v304, ulangi gejala (geser slider lalu jauhkan jari dari lintasan), LANGSUNG Ekspor Log Debug; baris `SliderDrag` menunjukkan penulis nilai 0%: ringkasan "drag selesai" dengan akhir=0 berarti dari drag; "nilai turun ke awal rentang" tanpa ringkasan senilai berarti penulis lain (preset/efek/VM); "diabaikan selagi menyentuh" berarti jalur M3. Catat juga slider mana, tema, mode tab, dan arah jari.
+
+2 tes penjaga baru di `SliderDragGuardTest` (276 -> 278 diharapkan). Belum dikompilasi dan belum diuji di HP (sandbox tanpa kompiler Kotlin/Gradle), jadi NOT VERIFIED. Revert: `Boomly_v303.zip`.
+
 ## Batch 303: Slider tidak lagi terhempas ke 0% saat jari menjauh dari lintasan (pengaman berlapis, penyebab belum terbukti)
 
 Laporan user: regresi pada slider; bila digeser lalu jari menjauh dari lintasan, nilai langsung terhempas ke 0%.
