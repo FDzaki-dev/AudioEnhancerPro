@@ -1,5 +1,11 @@
 # Changelog
 
+## Batch 307: Aturan baru: berkas hanya-docs tidak boleh dilampirkan, user ditawari pilihan tahap lanjutan (hanya docs, tanpa perubahan kode)
+
+Kode TIDAK berubah (identik dengan `Boomly_v305.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`. Dikirim atas permintaan eksplisit user untuk menyematkan aturan ini.
+
+Aturan (PIN di `PROJECT_STATE.md`, ATURAN PERMANEN, setelah butir "Format chat"): ZIP `Boomly_v<N>.zip` dan skrip Termux hanya dikirim bila minimal 1 file kode/resource/konfigurasi/tes berubah. Hasil kerja yang hanya mengubah dokumen (triase laporan CI/log, catatan konfirmasi device, sinkron dokumen) tidak dikemas: balasan berisi ringkasan hasil dan pilihan tahap lanjutan, lalu menunggu pilihan user. Catatan dokumen yang tertahan dibawa ke batch kode berikutnya. Pengecualian tunggal: user meminta eksplisit mengubah dokumen itu sendiri (seperti permintaan ini).
+
 ## Batch 306: B305 terkonfirmasi di HP, slider tidak lagi terhempas ke 0% (hanya docs, tanpa perubahan kode)
 
 Kode TIDAK berubah (identik dengan `Boomly_v305.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`.
