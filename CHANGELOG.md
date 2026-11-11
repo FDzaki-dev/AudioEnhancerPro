@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 305: Slider terhempas ke 0%: penyebab terbukti dari log, sentuhan kini ditangkap lapisan di atas Slider
+
+Log debug user (`aep_debug_20261111_070849.txt`, build v339, INFINIX X6855, Android 16) akhirnya memuat baris `SliderDrag` dan membuktikan gejalanya: 3 kejadian dalam sekitar 4 detik (Loudness Gain 1200 -> 0 pada 07:08:42.368, Virtualizer 800 -> 0 pada 07:08:44.279, Bass Boost 350 -> 0 pada 07:08:46.575). Pola identik tiap kali: (1) `onValueChange internal M3 diabaikan selagi menyentuh: raw=0.0` (callback yang dibungkam B303); (2) 34-52 ms kemudian `nilai turun ke awal rentang ... menyentuh=false`, TANPA baris `drag selesai` (jadi bukan drag dari `thumbOnlyDrag`), dengan `ScrollIdentify on fling` di antaranya (= gesture vertikal / scroll halaman yang mendarat di slider). Drag normal tidak bermasalah: 7 baris `drag selesai` bersih (tanpa lonjakan, tanpa event janggal).
+
+Penyebab (paling konsisten dengan log): gesture dominan vertikal/diagonal sengaja tidak dikonsumsi `thumbOnlyDrag` supaya halaman tetap scroll, tetapi `draggable` milik `Slider` M3 menghitung slop hanya di sumbu x, ikut mulai menyeret, lalu menulis nilai dari `rawOffset` M3 yang basi (nilai digerakkan dari luar) = 0.0. Callback itu juga sampai SETELAH jari lepas, saat bendera `touching` (B303) sudah false, sehingga lolos penjaga dan nilai aplikasi ditulis 0%. Itu sebabnya B303 tidak menyembuhkan.
+
+Perbaikan (`SkeuomorphicComponents.kt`, `FeatureControl`): `Slider` dibungkus `Box`; `thumbOnlyDrag` dipindah dari modifier `Slider` ke `Box(Modifier.matchParentSize())` saudara DI ATAS `Slider`. Hit-test Compose hanya memberi event ke saudara paling atas, jadi `draggable`/tap M3 tidak pernah menerima sentuhan lagi. Tidak berubah: drag relatif dari thumb, snap, haptic, tap tak mengubah nilai, scroll halaman (event vertikal tidak dikonsumsi dan induk tetap melihatnya), semantik/TalkBack/papan tombol M3, ukuran dan posisi slider. Penjaga `touching` dan log `SliderDrag` (B303/B304) tetap sebagai lapis kedua dan bukti.
+
+Tes (`SliderDragGuardTest`): tes penjaga B303 `onValueChange internal Slider M3 diabaikan selagi jari menyentuh` ternyata basi sejak B304 (mencari `if (!touching.value)` padahal B304 mengubahnya menjadi if/else), jadi pasti merah di CI B304 (laporan CI B304 belum diterima); disesuaikan. Tes baru `sentuhan ditangkap lapisan saudara di atas Slider...` (urutan z, `matchParentSize`, `thumbOnlyDrag` tidak lagi di modifier `Slider`). Total 279 diharapkan (276 + 2 B304 + 1). Delapan penjaga disimulasikan lulus lewat Python terhadap sumber baru.
+
+Belum dikompilasi dan belum diuji di HP (sandbox tanpa kompiler Kotlin/Gradle), jadi NOT VERIFIED. Bila gejala masih muncul: Ekspor Log Debug langsung setelah kejadian, baca tag `SliderDrag`; "nilai turun ke awal rentang" tanpa baris "diabaikan selagi menyentuh" berarti penulisnya di luar `Slider` (preset/ViewModel). Revert: `Boomly_v304.zip`.
+
 ## Batch 304: Slider terhempas ke 0%: event janggal diabaikan dan bukti log per drag
 
 Triase CI run 100 (BATCH_PROJECT_STATE=303, COMMIT=99c80fd): semua hijau, Gradle exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, 276 tes lulus (= harapan B303). Batch 303 STATIC-VERIFIED.

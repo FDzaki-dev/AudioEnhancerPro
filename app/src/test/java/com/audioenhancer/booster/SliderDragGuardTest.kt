@@ -6,6 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
+ * Batch 305 (bukti log 11 Nov: M3 `Slider` memproses sentuhan vertikal/diagonal dan menulis 0% setelah jari lepas, melewati
+ * bendera `touching`) memindahkan penangkap sentuh ke lapisan saudara di atas `Slider`; tes ikut disesuaikan.
  * Batch 304 menambah penjaga untuk event janggal, ringkasan log per drag, dan pendeteksi nilai turun ke awal rentang.
  * Batch 303 — penjaga sumber untuk laporan "slider digeser lalu jari menjauh dari lintasan langsung terhempas ke 0%".
  * Penyebab pasti belum terbukti; tes ini mengunci tiga pengaman (geseran per-event, bendera `touching`, log lonjakan)
@@ -43,10 +45,23 @@ class SliderDragGuardTest {
     @Test
     fun `onValueChange internal Slider M3 diabaikan selagi jari menyentuh`() {
         val slider = featureBody.substringAfter("Slider(").substringBefore("valueRange = valueRange")
-        assertTrue(slider.contains("if (!touching.value)"))
-        assertTrue("onValueChange luar hanya dipanggil dalam penjaga touching", slider.indexOf("onValueChange(snapped)") > slider.indexOf("if (!touching.value)"))
+        assertTrue(slider.contains("if (touching.value)"))
+        assertTrue("onValueChange luar hanya dipanggil di cabang else dari penjaga touching", slider.indexOf("onValueChange(snapped)") > slider.indexOf("} else {"))
         assertFalse("haptic akhir drag hanya dari thumbOnlyDrag", slider.contains("onValueChangeFinished"))
         assertTrue(featureBody.contains("latestOnDragEnd, touching, title)"))
+    }
+
+    @Test
+    fun `sentuhan ditangkap lapisan saudara di atas Slider sehingga M3 tak pernah menerima event`() {
+        val sliderStart = featureBody.indexOf("Slider(")
+        val overlayStart = featureBody.indexOf(".matchParentSize()")
+        val gestureStart = featureBody.indexOf(".thumbOnlyDrag(")
+        assertTrue("lapisan sentuh memakai matchParentSize", overlayStart > 0)
+        assertTrue("lapisan sentuh digambar SETELAH Slider (z-order paling atas)", overlayStart > sliderStart)
+        assertTrue("thumbOnlyDrag dipasang di lapisan itu, bukan di Slider", gestureStart > overlayStart)
+        val sliderModifier = featureBody.substring(sliderStart, overlayStart).substringAfter("modifier = Modifier")
+        assertFalse("modifier Slider tak boleh lagi memuat thumbOnlyDrag", sliderModifier.contains("thumbOnlyDrag"))
+        assertTrue("padding atas pindah ke Box pembungkus", featureBody.contains("Box(modifier = Modifier.fillMaxWidth().padding(top = sliderTopGap))"))
     }
 
     @Test

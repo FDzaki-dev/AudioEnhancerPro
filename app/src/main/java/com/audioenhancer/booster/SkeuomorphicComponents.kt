@@ -2461,43 +2461,52 @@ internal fun FeatureControl(
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
-        Slider(
-            value = value,
-            onValueChange = { raw ->
-                // Batch 303: selagi jari menyentuh, nilai HANYA boleh berubah lewat `thumbOnlyDrag`; callback internal
-                // `Slider` M3 diabaikan (rawOffset M3 basi -> bisa melempar nilai ke 0%). Yang lolos hanya aksi
-                // non-sentuh (aksesibilitas/TalkBack, papan tombol). Haptic akhir drag datang dari `thumbOnlyDrag`.
-                if (touching.value) {
-                    val nowMs = SystemClock.elapsedRealtime()
-                    if (nowMs - lastBlockedLogAt[0] > 250L) {
-                        lastBlockedLogAt[0] = nowMs
-                        android.util.Log.w("SliderDrag", "[$title] onValueChange internal M3 diabaikan selagi menyentuh: raw=$raw nilai=$value")
+        // Batch 305 (bukti log 11 Nov: M3 `Slider` tetap memproses sentuhan vertikal/diagonal di atasnya dan menulis nilai
+        // dari `rawOffset` basi = 0% SETELAH jari lepas, melewati bendera `touching`): semua sentuhan ditangkap lapisan
+        // saudara DI ATAS `Slider` (hit-test Compose hanya memberi event ke saudara paling atas), sehingga `draggable`/tap
+        // M3 tak pernah menerima event. Scroll halaman tetap jalan (event vertikal tidak dikonsumsi, induk tetap melihatnya).
+        Box(modifier = Modifier.fillMaxWidth().padding(top = sliderTopGap)) {
+            Slider(
+                value = value,
+                onValueChange = { raw ->
+                    // Batch 303: selagi jari menyentuh, nilai HANYA boleh berubah lewat `thumbOnlyDrag`; callback internal
+                    // `Slider` M3 diabaikan (rawOffset M3 basi -> bisa melempar nilai ke 0%). Yang lolos hanya aksi
+                    // non-sentuh (aksesibilitas/TalkBack, papan tombol). Haptic akhir drag datang dari `thumbOnlyDrag`.
+                    if (touching.value) {
+                        val nowMs = SystemClock.elapsedRealtime()
+                        if (nowMs - lastBlockedLogAt[0] > 250L) {
+                            lastBlockedLogAt[0] = nowMs
+                            android.util.Log.w("SliderDrag", "[$title] onValueChange internal M3 diabaikan selagi menyentuh: raw=$raw nilai=$value")
+                        }
+                    } else {
+                        val snapped = snapToStep(raw, step, valueRange)
+                        // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
+                        // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
+                        if (step <= 0f || snapped != value) onValueChange(snapped)
                     }
-                } else {
-                    val snapped = snapToStep(raw, step, valueRange)
-                    // Dengan snap, lewati callback kalau tetap di kelipatan yang sama (jari bergerak
-                    // di dalam 1 notch) → tak ada tulis/apply efek berulang untuk nilai identik.
-                    if (step <= 0f || snapped != value) onValueChange(snapped)
-                }
-            },
-            valueRange = valueRange,
-            enabled = enabled,
-            thumb = { SkeuSliderThumb(accentColor = accentColor2, enabled = enabled) },
-            track = { sliderState ->
-                SkeuSliderTrack(
-                    sliderState = sliderState,
-                    activeColor = accentColor,
-                    inactiveColor = accentColor.copy(alpha = 0.18f),
-                    enabled = enabled,
-                    fillOrigin = fillOrigin
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = sliderTopGap)
-                .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd, touching, title)
-                .semantics { contentDescription = "$title, $valueLabel" }
-        )
+                },
+                valueRange = valueRange,
+                enabled = enabled,
+                thumb = { SkeuSliderThumb(accentColor = accentColor2, enabled = enabled) },
+                track = { sliderState ->
+                    SkeuSliderTrack(
+                        sliderState = sliderState,
+                        activeColor = accentColor,
+                        inactiveColor = accentColor.copy(alpha = 0.18f),
+                        enabled = enabled,
+                        fillOrigin = fillOrigin
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "$title, $valueLabel" }
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .thumbOnlyDrag(latestEnabled, latestValue, latestRange, latestStep, isRtl, latestOnDrag, latestOnDragEnd, touching, title)
+            )
+        }
     }
 
     if (wrapInCard) {
