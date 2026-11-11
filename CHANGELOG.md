@@ -1,5 +1,13 @@
 # Changelog
 
+## Batch 306: B305 terkonfirmasi di HP, slider tidak lagi terhempas ke 0% (hanya docs, tanpa perubahan kode)
+
+Kode TIDAK berubah (identik dengan `Boomly_v305.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`.
+
+Log debug user (`aep_debug_20261111_082552.txt`, build v340 = B305, INFINIX X6855, Android 16, sesi 08:24:13-08:25:47): 67 baris `drag selesai` pada Bass Boost, Virtualizer, Loudness Gain, Compressor, Vocal Focus, dan Clarity; semuanya `alasan=lepas`, `dikonsumsiInduk=false`. NOL baris `nilai turun ke awal rentang`, NOL `onValueChange internal M3 diabaikan selagi menyentuh`, NOL event janggal, NOL lonjakan. Banyak drag berakhir dengan jari bergeser vertikal jauh dari lintasan (mis. `geser=(-129.25,123.75)`, `(-220.0,246.0)`, `(-98.25,370.25)`) = skenario gejala asli (log B304 v339 memuat 3 kejadian dalam sekitar 4 detik pada pola yang sama), dan tidak ada satu pun penulisan 0%. Satu-satunya nilai 0 di log = drag sah (Clarity 10 -> 0 pada 08:25:25.443). Layanan efek sehat (`EffectGuard[route]`: 5 efek ENABLED), tanpa crash/ANR, `writeErrors=0`.
+
+Kesimpulan: perbaikan B305 (sentuhan ditangkap lapisan saudara di atas `Slider`) TERKONFIRMASI di HP. Catatan jujur: 67 drag tanpa kejadian bukan bukti kambuh mustahil, hanya bukti bahwa jalur penyebab (callback M3 basi setelah jari lepas) sudah tertutup secara struktural; log `SliderDrag` tetap aktif sebagai bukti bila gejala muncul lagi. Laporan CI B304/B305 belum diterima, jadi 279 tes belum terkonfirmasi.
+
 ## Batch 305: Slider terhempas ke 0%: penyebab terbukti dari log, sentuhan kini ditangkap lapisan di atas Slider
 
 Log debug user (`aep_debug_20261111_070849.txt`, build v339, INFINIX X6855, Android 16) akhirnya memuat baris `SliderDrag` dan membuktikan gejalanya: 3 kejadian dalam sekitar 4 detik (Loudness Gain 1200 -> 0 pada 07:08:42.368, Virtualizer 800 -> 0 pada 07:08:44.279, Bass Boost 350 -> 0 pada 07:08:46.575). Pola identik tiap kali: (1) `onValueChange internal M3 diabaikan selagi menyentuh: raw=0.0` (callback yang dibungkam B303); (2) 34-52 ms kemudian `nilai turun ke awal rentang ... menyentuh=false`, TANPA baris `drag selesai` (jadi bukan drag dari `thumbOnlyDrag`), dengan `ScrollIdentify on fling` di antaranya (= gesture vertikal / scroll halaman yang mendarat di slider). Drag normal tidak bermasalah: 7 baris `drag selesai` bersih (tanpa lonjakan, tanpa event janggal).
