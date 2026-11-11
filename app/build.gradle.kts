@@ -189,6 +189,12 @@ dependencies {
     // Hanya berjalan bila user sendiri memasang & menjalankan Shizuku; tanpa Shizuku = perilaku lama (nol perubahan).
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
+    // Batch 308 (request user: jank buka UI; uji B307 `cmd package compile -m speed` = skipped frames 43 -> 35, terasa satset):
+    // Baseline Profile = `src/main/baseline-prof.txt` (wildcard seluruh paket app, sintaks sesuai dokumentasi Android). APK
+    // di-sideload (tanpa Play), jadi ProfileInstaller WAJIB: ia memasang profil ke ART saat app dibuka, lalu bg-dexopt sistem
+    // mengompilasinya saat idle/mengisi daya (TIDAK seketika setelah update). Versi >= 1.4.0 WAJIB (dukungan API 35+; HP user
+    // Android 16). Dijaga `BaselineProfileGuardTest`. Revert = Boomly_v307.zip.
+    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.robolectric:robolectric:4.13")

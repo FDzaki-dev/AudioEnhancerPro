@@ -9,6 +9,7 @@ app/build.gradle.kts
 app/lint.xml
 app/proguard-rules.pro
 app/src/main/AndroidManifest.xml
+app/src/main/baseline-prof.txt
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerApp.kt
 app/src/main/java/com/audioenhancer/booster/AudioEnhancerService.kt
 app/src/main/java/com/audioenhancer/booster/BoosterScreen.kt
@@ -72,6 +73,7 @@ app/src/main/res/xml/widget_booster_info.xml
 app/src/test/java/com/audioenhancer/booster/ArchitectureTest.kt
 app/src/test/java/com/audioenhancer/booster/AudioEnhancerServiceStateTest.kt
 app/src/test/java/com/audioenhancer/booster/AudioPathSnapshotTest.kt
+app/src/test/java/com/audioenhancer/booster/BaselineProfileGuardTest.kt
 app/src/test/java/com/audioenhancer/booster/ClampLabelCenterTest.kt
 app/src/test/java/com/audioenhancer/booster/ClarityCurveTest.kt
 app/src/test/java/com/audioenhancer/booster/CompressorCurveTest.kt

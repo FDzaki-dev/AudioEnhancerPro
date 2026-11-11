@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 308: Baseline Profile: buka dingin lebih ringan tanpa perintah compile manual (ProfileInstaller + aturan wildcard paket app)
+
+Uji user (Batch 307): `cmd package compile -m speed` menurunkan skipped frames buka dingin dari 43 menjadi 35 (0,44 menjadi 0,37 dtk sampai frame pertama; satu sampel per kondisi) dan terasa satset di HP; baris JIT `Missing inline cache` hilang setelah kompilasi. Kompilasi manual itu hilang tiap update APK karena APK di-sideload.
+
+Perubahan: `app/src/main/baseline-prof.txt` (satu aturan wildcard untuk seluruh paket app) dan dependensi `androidx.profileinstaller:profileinstaller:1.4.1` di `app/build.gradle.kts` (versi 1.4.0+ mendukung API 35+). ProfileInstaller memasang profil saat app dibuka; bg-dexopt sistem mengompilasinya saat idle atau mengisi daya, jadi efeknya tidak seketika setelah update.
+
+**Tes**: 3 tes penjaga baru di `BaselineProfileGuardTest` (versi ProfileInstaller >= 1.4.0, aturan wildcard paket app ada, tiap baris aturan berbentuk sintaks profil); 279 diharapkan menjadi 282.
+
+**Status**: tes penjaga dikompilasi dan lulus lokal (3 tes, Kotlin 2.0.21); build release, CI, dan HP NOT VERIFIED (sandbox tanpa Android SDK dan jaringan). Risiko yang perlu dibaca dari CI: `checkReleaseAarMetadata` (compileSdk 34 vs AAR ProfileInstaller) dan task profil (`expandReleaseArtProfileWildcards`, `compileReleaseArtProfile`). Dukungan ProfileInstaller di API 36 (Android 16) belum terbukti; catatan rilisnya hanya menyebut API 35 dan seterusnya.
+
+**Uji di HP**: pasang, buka app sekali, tunggu bg-dexopt atau paksa `adb shell cmd package compile -f -m speed-profile com.audioenhancer.booster`, cek `adb shell dumpsys package dexopt | grep -A 1 com.audioenhancer.booster` = `speed-profile`, lalu buka dingin dan bandingkan `Skipped N frames` di Log Debug (acuan: 43 tanpa kompilasi, 35 dengan compile speed manual).
+
+Revert: `Boomly_v307.zip`.
+
 ## Batch 307: Aturan baru: berkas hanya-docs tidak boleh dilampirkan, user ditawari pilihan tahap lanjutan (hanya docs, tanpa perubahan kode)
 
 Kode TIDAK berubah (identik dengan `Boomly_v305.zip`); hanya `PROJECT_STATE.md` dan `CHANGELOG.md`. Dikirim atas permintaan eksplisit user untuk menyematkan aturan ini.
