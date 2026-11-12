@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 311: Rincian waktu komposisi pertama per bagian layar (penanda sementara, tanpa perubahan perilaku)
+
+Log v310 menunjukkan jendela jank buka dingin 46 frame (±383 ms): ±78% di frame UI pertama (komposisi, tata letak, gambar) dan ±21% di layanan; pembuatan efek audio di thread utama hanya 49 ms, jadi bukan penyebab utama. Log aplikasi kini memuat penanda waktu per fase dan per bagian layar utama (tag `StartupTrace`, ikut Ekspor Log Debug) supaya bagian yang paling mahal terbukti sebelum ada yang diubah.
+
+Penanda: komposisi (tema, layar utama, tiap tab, kartu Kontrol, Equalizer), komposisi selesai diterapkan, tata letak selesai, awal gambar, akhir perekaman gambar konten, dan awal frame berikutnya. Hanya `Log.i` dan dua modifier pasif di Surface akar; tidak ada perubahan perilaku audio atau UI.
+
+**Temuan kode**: mode tata letak bawaan vertikal menyusun ketiga tab (Kontrol, Tampilan, Bantuan) sekaligus pada komposisi pertama.
+
+**Status**: bagian murni dan tes lulus lokal; `MainActivity.kt` dan `BoosterScreen.kt` hanya dicek sintaks; API Compose baru belum dicek tipe; build release, CI, dan HP NOT VERIFIED.
+
+Revert: `Boomly_v310.zip`.
+
 ## Batch 310: Penanda waktu startup di Log Debug untuk mengukur sisa jank buka dingin
 
 Baseline Profile terbukti terpasang di Android 16 (kode ProfileVerifier 2 menjadi 1) dan jank turun dari 43-44 menjadi 36 frame, setara kompilasi `speed` manual; sisa ±0,4 dtk bukan lagi JIT. Agar penyebabnya terbukti sebelum ada yang diubah, log aplikasi kini memuat penanda waktu mentah (tag `StartupTrace`) yang ikut Ekspor Log Debug.

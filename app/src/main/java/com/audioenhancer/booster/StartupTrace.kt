@@ -3,6 +3,7 @@ package com.audioenhancer.booster
 import android.os.Process
 import android.os.SystemClock
 import android.util.Log
+import android.view.Choreographer
 import android.view.View
 import android.view.ViewTreeObserver
 import java.util.concurrent.ConcurrentHashMap
@@ -45,7 +46,7 @@ internal object StartupTrace {
         }
     }
 
-    /** Catat awal `onDraw` PERTAMA pada [view] (sekali), lalu lepas listenernya. */
+    /** Catat awal `onDraw` PERTAMA pada [view] (sekali) dan awal doFrame sesudahnya, lalu lepas listenernya. */
     fun markFirstDraw(view: View) {
         view.viewTreeObserver.addOnDrawListener(object : ViewTreeObserver.OnDrawListener {
             private var done = false
@@ -54,6 +55,8 @@ internal object StartupTrace {
                 if (done) return
                 done = true
                 mark("frame-pertama-onDraw")
+                // Batch 311: saat thread utama bebas lagi sesudah frame pertama (= akhir jendela jank).
+                Choreographer.getInstance().postFrameCallback { mark("doFrame-berikutnya-mulai") }
                 view.post { if (view.viewTreeObserver.isAlive) view.viewTreeObserver.removeOnDrawListener(this) }
             }
         })
