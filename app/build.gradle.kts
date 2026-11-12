@@ -3,7 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     // Batch 142: detekt (analisis statis terfokus, NON-BLOCKING — lihat blok `detekt {}` di bawah &
     // config/detekt/detekt.yml). Versi dipasang di sini (bukan root build.gradle.kts) biar cuma 1
-    // file build yang disentuh; Kotlin 1.9.24 sepaket dengan detekt 1.23.x (dibangun di atas Kotlin 1.9).
+    // file build yang disentuh; Kotlin 1.9.x sepaket dengan detekt 1.23.x (dibangun di atas Kotlin 1.9).
     id("io.gitlab.arturbosch.detekt") version "1.23.6"
     // Batch 49: kapt + Hilt (Batch 18) DICABUT — lihat CHANGELOG.md v1.86.0. kapt
     // (annotation processing) adalah kontributor waktu compile TERBESAR di project
@@ -92,7 +92,8 @@ android {
         buildConfig = false
     }
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
+        // Batch 315: 1.5.14 -> 1.5.15, pasangan resmi Kotlin 1.9.25 (versi tak cocok = galat kompilasi eksplisit dari plugin Compose).
+        kotlinCompilerExtensionVersion = "1.5.15"
     }
     // Batch 142: Android Lint NON-BLOCKING (`./gradlew lintDebug`). abortOnError=false → temuan
     // TIDAK menggagalkan build manapun (termasuk lintVitalRelease di assembleRelease); severity per

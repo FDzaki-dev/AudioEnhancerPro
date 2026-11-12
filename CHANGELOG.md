@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 315: Kotlin naik 1.9.24 ke 1.9.25 bersama compose compiler 1.5.15 (tiga baris versi)
+
+Atas pilihanmu, lanjutan evaluasi upgrade: Kotlin 1.9.24 menjadi 1.9.25 dan compose compiler 1.5.14 menjadi 1.5.15, pasangan resmi menurut peta kompatibilitas Compose-Kotlin. AGP 8.6.1, Gradle 8.7, JDK 17, compileSdk 34, dan workflow tidak diubah.
+
+**Hasil B314 (AGP 8.6.1)**: CI bersih (ArchUnit 12 aturan, SpotBugs, detekt, Lint 0 temuan, 286 tes lulus, peringatan kompilator 0) dan APK release berjalan di HP tanpa crash; jank pada kode belum terkompilasi sebanding sebelumnya (tanpa regresi).
+
+**Tes**: tetap 286.
+
+**Status**: build, CI, dan HP NOT VERIFIED; perhatikan peringatan Kotlin/detekt.
+
+Revert: `Boomly_v314.zip`.
+
 ## Batch 314: Android Gradle Plugin naik 8.5.2 ke 8.6.1 (satu perubahan versi)
 
 Atas pilihanmu (evaluasi upgrade AGP/Kotlin): hanya AGP yang naik, dari 8.5.2 ke 8.6.1. Gradle 8.7, JDK 17, Kotlin 1.9.24, compose compiler 1.5.14, compileSdk 34, dan workflow tidak diubah. AGP 8.6 meminta Gradle 8.7 sebagai minimum, dan 8.6.1 memperbaiki tiga regresi R8 dari seri 8.5.x.
