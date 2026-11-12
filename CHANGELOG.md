@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 314: Android Gradle Plugin naik 8.5.2 ke 8.6.1 (satu perubahan versi)
+
+Atas pilihanmu (evaluasi upgrade AGP/Kotlin): hanya AGP yang naik, dari 8.5.2 ke 8.6.1. Gradle 8.7, JDK 17, Kotlin 1.9.24, compose compiler 1.5.14, compileSdk 34, dan workflow tidak diubah. AGP 8.6 meminta Gradle 8.7 sebagai minimum, dan 8.6.1 memperbaiki tiga regresi R8 dari seri 8.5.x.
+
+**Kenapa hanya AGP**: satu variabel risiko per batch (tanpa compiler lokal, CI yang menguji). Kotlin 1.9.25 harus berpasangan dengan compose compiler 1.5.15 dan jadi kandidat batch berikutnya.
+
+**Tes**: tetap 286 (CI B313 bersih: ArchUnit, SpotBugs, detekt, Lint, 286 tes lulus, peringatan kompilator 0).
+
+**Status**: build, CI, dan HP NOT VERIFIED; perhatikan perilaku R8 dan Lint baru.
+
+Revert: `Boomly_v313.zip` (satu baris).
+
 ## Batch 313: Penanda startup dicabut, jank buka dingin ditutup (penyebab: kode belum terkompilasi)
 
 Uji di HP membuktikan sisa jank buka dingin adalah biaya kode yang belum terkompilasi, bukan struktur UI: setelah kompilasi speed-profile tidak ada lagi peringatan Skipped frames dan gambar pertama muncul +201 ms (tanpa kompilasi +366 ms). Penanda waktu sementara (StartupTrace, B310-B312) dicabut; Baseline Profile, diagnostik profil di Log Debug, dan penundaan layanan sampai sesudah frame pertama tetap.
