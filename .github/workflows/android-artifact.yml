@@ -16,7 +16,7 @@ name: Android CI Artifact for Claude
 # Gerbang validasi proyek tetap lintDebug + detekt; baris ArchUnit/SpotBugs/tes unit/peringatan kompilator = informasi.
 #
 # Beda dari berkas contoh (alasan):
-#  - Gradle Wrapper di-bootstrap dgn langkah yang SAMA seperti `build.yml` (`gradle wrapper --gradle-version 8.7`,
+#  - Gradle Wrapper di-bootstrap dgn langkah yang SAMA seperti `build.yml` (`gradle wrapper --gradle-version 8.9`,
 #    repo tak menyimpan `gradlew`), BUKAN `setup-gradle` 8.14.3 (mengganti versi Gradle = di luar planning).
 #  - Varian DEBUG semua (ArchUnit, SpotBugs, detekt, `detektDebug` typed, lintDebug, tes, kompilasi Kotlin); template
 #    memakai release utk ArchUnit/SpotBugs, di sini debug supaya TIDAK perlu keystore/secret dan kompilasi dipakai bersama.
@@ -77,8 +77,8 @@ jobs:
               # supaya penyebab (timeout/429/5xx) terbaca di gradle-wrapper-bootstrap.log. Gagal 3x = tetap gagal.
               WRAPPER_OK=0
               for ATTEMPT in 1 2 3; do
-                if ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 ); then WRAPPER_OK=1; break; fi
-                echo "::warning::Bootstrap wrapper gagal (percobaan $ATTEMPT/3); cek URL: $(curl -sS -I -L -o /dev/null --max-time 20 -w 'HTTP %{http_code}' https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1)"
+                if ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.9 ); then WRAPPER_OK=1; break; fi
+                echo "::warning::Bootstrap wrapper gagal (percobaan $ATTEMPT/3); cek URL: $(curl -sS -I -L -o /dev/null --max-time 20 -w 'HTTP %{http_code}' https://services.gradle.org/distributions/gradle-8.9-bin.zip 2>&1)"
                 [ "$ATTEMPT" -lt 3 ] && sleep $((ATTEMPT * 15))
               done
               [ "$WRAPPER_OK" = 1 ] || exit 1

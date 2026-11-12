@@ -73,7 +73,7 @@ jobs:
 
       # Batch 40: tambah `cache: 'gradle'` — bawaan actions/setup-java, cache
       # ~/.gradle/caches (SEMUA dependency Maven yang di-resolve: AndroxX, Compose,
-      # Hilt, Kotlin stdlib, dll) + ~/.gradle/wrapper/dists (distribusi Gradle 8.7
+      # Hilt, Kotlin stdlib, dll) + ~/.gradle/wrapper/dists (distribusi Gradle 8.9; sebelum Batch 316: 8.7
       # itu sendiri, ~120MB, yang sebelumnya didownload ULANG SETIAP RUN karena
       # gradlew di-generate on-the-fly dan gak pernah di-commit ke repo — lihat
       # step "Bootstrap Gradle Wrapper" di bawah). Key cache di-hash dari isi
@@ -105,8 +105,8 @@ jobs:
               # supaya penyebab (timeout/429/5xx) terbaca di gradle-wrapper-bootstrap.log. Gagal 3x = tetap gagal.
               WRAPPER_OK=0
               for ATTEMPT in 1 2 3; do
-                if ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.7 ); then WRAPPER_OK=1; break; fi
-                echo "::warning::Bootstrap wrapper gagal (percobaan $ATTEMPT/3); cek URL: $(curl -sS -I -L -o /dev/null --max-time 20 -w 'HTTP %{http_code}' https://services.gradle.org/distributions/gradle-8.7-bin.zip 2>&1)"
+                if ( cd "$BOOTSTRAP_DIR" && gradle wrapper --gradle-version 8.9 ); then WRAPPER_OK=1; break; fi
+                echo "::warning::Bootstrap wrapper gagal (percobaan $ATTEMPT/3); cek URL: $(curl -sS -I -L -o /dev/null --max-time 20 -w 'HTTP %{http_code}' https://services.gradle.org/distributions/gradle-8.9-bin.zip 2>&1)"
                 [ "$ATTEMPT" -lt 3 ] && sleep $((ATTEMPT * 15))
               done
               [ "$WRAPPER_OK" = 1 ] || exit 1
