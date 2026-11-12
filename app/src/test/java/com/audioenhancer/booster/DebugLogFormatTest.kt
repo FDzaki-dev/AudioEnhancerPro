@@ -3,6 +3,7 @@ package com.audioenhancer.booster
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -202,5 +203,101 @@ class DebugLogFormatTest {
     fun `lifecycle and spectrum gating lines are never noise`() {
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.500 I/MainActivity(16993): LIFECYCLE ui aktif=false"))
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.766 I/AudioEnhancerService(16993): Spektrum dijeda: UI tidak membaca > 3 dtk (hemat baterai)"))
+    }
+
+    /** Batch 317 — blok galat -3 (bentuk persis log v315/v316, pid 12175, 07:16:48). Indeks: 0 gema JNI, 1 D/AudioEffect Destructor, 2 gema JAVA,
+     *  3 "tidak tersedia", 4 RuntimeException, 5-7 baris `at`, 8 penanda EffectRebind (hanya bila [withVerdict]). */
+    private fun failureBlock(
+        pid: String = "12175",
+        name: String = "Equalizer",
+        unavailable: String = "$name tidak tersedia di device ini",
+        type: String = "0bed4300-ddd6-11db-8f34-0002a5d5c51b",
+        code: String = "-3",
+        withVerdict: Boolean = true
+    ): List<String> = buildList {
+        add("11-13 07:16:48.631 E/AudioEffects-JNI($pid): AudioEffect initCheck failed $code")
+        add("11-13 07:16:48.631 D/AudioEffect($pid): Destructor 0xb400007967618650")
+        add("11-13 07:16:48.632 E/AudioEffect-JAVA($pid): Error code $code when initializing AudioEffect.")
+        add("11-13 07:16:48.632 E/AudioEnhancerService($pid): $unavailable")
+        add("11-13 07:16:48.632 E/AudioEnhancerService($pid): java.lang.RuntimeException: Cannot initialize effect engine for type: $type Error: $code")
+        add("11-13 07:16:48.632 E/AudioEnhancerService($pid): \tat android.media.audiofx.AudioEffect.<init>(AudioEffect.java:555)")
+        add("11-13 07:16:48.632 E/AudioEnhancerService($pid): \tat android.media.audiofx.Equalizer.<init>(Equalizer.java:139)")
+        add("11-13 07:16:48.632 E/AudioEnhancerService($pid): \tat com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1024)")
+        if (withVerdict) add("11-13 07:16:48.632 W/AudioEnhancerService($pid): EffectRebind: $name baru gagal dibuat, efek lama dipertahankan")
+    }
+
+    @Test
+    fun `handled effect failure keeps only the raw exception line and the rebind verdict`() {
+        val block = failureBlock()
+        val lines = listOf("before") + block + listOf("after")
+        assertEquals(listOf("before", block[1], block[4], block[8], "after"), DebugLogFormat.dropHandledEffectFailures(lines))
+    }
+
+    @Test
+    fun `failure without a rebind verdict is a real failure and stays complete`() {
+        val lines = listOf("before") + failureBlock(withVerdict = false) + listOf("after")
+        assertEquals(lines, DebugLogFormat.dropHandledEffectFailures(lines))
+    }
+
+    @Test
+    fun `other error codes stay complete even with a rebind verdict`() {
+        val lines = failureBlock(code = "-5")
+        assertEquals(lines, DebugLogFormat.dropHandledEffectFailures(lines))
+    }
+
+    @Test
+    fun `four consecutive handled failures shrink to four raw exceptions and four verdicts`() {
+        val lines = listOf(
+            failureBlock(pid = " 7315", name = "BassBoost"),
+            failureBlock(pid = " 7315", name = "Virtualizer"),
+            failureBlock(pid = " 7315", name = "LoudnessEnhancer"),
+            failureBlock(pid = " 7315", name = "DynamicsProcessing", unavailable = "DynamicsProcessing (master limiter) tidak tersedia di device ini")
+        ).flatten()
+        val result = DebugLogFormat.dropHandledEffectFailures(lines)
+        assertEquals(4, result.count { it.contains("RuntimeException: Cannot initialize effect engine") })
+        assertEquals(4, result.count { it.contains("baru gagal dibuat, efek lama dipertahankan") })
+        assertEquals(4, result.count { it.contains("D/AudioEffect(") })
+        assertEquals(0, result.count { it.contains("tidak tersedia") || it.contains("\tat ") || it.contains("initCheck failed") || it.contains("Error code -3") })
+        assertEquals(12, result.size)
+    }
+
+    @Test
+    fun `lines of another process are never dropped`() {
+        val other = "11-13 07:16:48.631 E/AudioEffects-JNI( 999): AudioEffect initCheck failed -3"
+        val result = DebugLogFormat.dropHandledEffectFailures(listOf(other) + failureBlock())
+        assertTrue(other in result)
+        assertEquals(1, result.count { it.contains("initCheck failed") })
+    }
+
+    @Test
+    fun `an unrelated exception with stack frames is untouched`() {
+        val lines = listOf(
+            "11-13 07:00:00.000 E/AudioEnhancerService(12175): Gagal release Equalizer lama setelah serah-terima efek",
+            "11-13 07:00:00.001 E/AudioEnhancerService(12175): java.lang.IllegalStateException: x",
+            "11-13 07:00:00.002 E/AudioEnhancerService(12175): \tat a.b.C.d(C.java:1)",
+            "11-13 07:00:00.003 W/AudioEnhancerService(12175): EffectRebind: Equalizer baru gagal dibuat, efek lama dipertahankan"
+        )
+        assertEquals(lines, DebugLogFormat.dropHandledEffectFailures(lines))
+    }
+
+    @Test
+    fun `a block whose unavailable line names another effect is untouched`() {
+        val lines = failureBlock(name = "Equalizer", unavailable = "Virtualizer tidak tersedia di device ini")
+        assertEquals(lines, DebugLogFormat.dropHandledEffectFailures(lines))
+    }
+
+    @Test
+    fun `report compacts handled failures before applying the line cap`() {
+        val lines = listOf("old1", "old2") + failureBlock() + listOf("new1")
+        val report = DebugLogFormat.buildReport(listOf("H"), lines, maxLines = 6)
+        assertTrue(report.contains("old1"))
+        assertTrue(report.contains("(6 baris terakhir)"))
+        assertFalse(report.contains("\tat "))
+    }
+
+    @Test
+    fun `logs without handled failures are returned unchanged`() {
+        val lines = listOf("a", "11-13 07:00:00.000 I/AudioEnhancerService(1): ok")
+        assertSame(lines, DebugLogFormat.dropHandledEffectFailures(lines))
     }
 }

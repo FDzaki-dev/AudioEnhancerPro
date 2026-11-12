@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 317: Log Debug meringkas galat efek -3 yang sudah ditangani
+
+Atas pilihanmu: ekspor Log Debug tidak lagi dibanjiri baris `E` saat efek audio gagal dibuat ulang ketika pindah ke sesi pemutar yang sedang memutar. Satu kegagalan menulis ±17 baris galat (gema framework, "tidak tersedia di device ini", `RuntimeException`, ±13 baris `at`), padahal aplikasi sudah memakai efek lama dan efek kembali sehat sekitar 1 detik kemudian.
+
+**Aturan penyaringan (berbasis bukti)**: satu blok diringkas HANYA bila tepat sesudahnya ada baris `EffectRebind: X baru gagal dibuat, efek lama dipertahankan` dari proses yang sama dan bentuk blok persis (nama efek cocok, kode -3). Yang dibuang: gema framework, baris "tidak tersedia di device ini", dan baris `at`. Yang tetap: baris `RuntimeException` mentah (tipe efek + kode -3) dan baris `EffectRebind`. Kegagalan lain (efek benar-benar tak ada di perangkat, kode selain -3, tanpa baris `EffectRebind`) tetap tampil utuh dengan stacktrace penuh. Catatan di kepala berkas ekspor ikut menyebut penyaringan ini. Hanya laporan ekspor yang berubah; layanan audio, EffectGuard, `CrashLogger`, dan logcat sistem tidak disentuh.
+
+**Dampak pada log v316 (pencerminan Python)**: 4514 baris logcat -> 4423; 5 blok diringkas, 5 baris `RuntimeException` dan 5 baris `EffectRebind` tetap.
+
+**Hasil B316**: CI run 113 bersih (ArchUnit 12 aturan, SpotBugs, detekt, Lint 0 temuan, 286 tes lulus, peringatan kompilator 0) dan APK v316 berjalan di HP tanpa crash dan tanpa regresi jank (Skipped 39/42, sebanding v315 dan v314). Kompilasi profil alami belum terbukti karena log diekspor kurang dari semenit setelah pasang.
+
+**Tes**: 9 tes baru di `DebugLogFormatTest` (total 295 diharapkan).
+
+**Status**: build, CI, dan HP NOT VERIFIED (tanpa compiler Kotlin/Gradle di sandbox; logika dicerminkan dan diuji di Python).
+
 ## Batch 316: AGP naik 8.6.1 ke 8.7.3 bersama Gradle 8.9 (tiga baris versi)
 
 Atas pilihanmu, lanjutan evaluasi upgrade: Android Gradle Plugin 8.6.1 menjadi 8.7.3 dan Gradle di workflow 8.7 menjadi 8.9 (syarat minimum resmi AGP 8.7). Kotlin 1.9.25, compose compiler 1.5.15, JDK 17, compileSdk 34, dan detekt tidak diubah.

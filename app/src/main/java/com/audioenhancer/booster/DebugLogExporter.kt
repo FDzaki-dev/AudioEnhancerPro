@@ -174,7 +174,9 @@ object DebugLogExporter {
         "waktu: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z", Locale.US).format(Date(nowMillis))}",
         "perangkat: ${Build.MANUFACTURER} ${Build.MODEL} (Android ${Build.VERSION.RELEASE}, API ${Build.VERSION.SDK_INT})",
         "layanan efek: ${if (AudioEnhancerService.isRunning) "aktif" else "mati"}",
-        "catatan: baris banjir AudioEffect command()/commandExecuted()/getParameter dan derau UI (VRI, DecorView, dst.) disaring"
+        "catatan: baris banjir AudioEffect command()/commandExecuted()/getParameter dan derau UI (VRI, DecorView, dst.) disaring; " +
+            "blok galat pembuatan efek -3 yang SUDAH ditangani EffectRebind (efek lama dipertahankan) diringkas: baris RuntimeException mentah " +
+            "dan baris EffectRebind tetap, gema framework/baris \"tidak tersedia\"/baris \"at\" dibuang"
     )
 
     /** `logcat -d` berhenti sendiri setelah mencetak buffer (tak menggantung). Batch 241: TANPA `-t` — penyaringan derau
@@ -247,6 +249,85 @@ internal object DebugLogFormat {
 
     /** True untuk baris derau yang dibuang dari laporan; baris lain (efek, serah-terima, crash) selalu dipertahankan. */
     fun isNoise(line: String): Boolean = AUDIO_EFFECT_FLOOD.containsMatchIn(line) || UI_NOISE.containsMatchIn(line)
+
+    /** Batch 317 (request user: pilih "Saring baris E efek -3 di Log Debug" setelah triase v316): saat efek utama pindah ke sesi pemutar yang
+     *  sedang memutar, AudioFlinger kadang menolak membuat efek baru (status -3), sehingga satu kegagalan menulis ±17 baris `E`
+     *  (gema framework `AudioEffects-JNI` + `AudioEffect-JAVA`, baris "X tidak tersedia di device ini", `RuntimeException`, ±13 baris `at`) padahal
+     *  jalur gagal-aman bekerja ("EffectRebind: X baru gagal dibuat, efek lama dipertahankan") dan efek sehat ±1 dtk kemudian (log v315/v316).
+     *
+     *  Penyaringan BERBASIS BUKTI, bukan tebakan kata kunci: satu blok dibuang HANYA bila tepat sesudahnya (pid sama) ada baris `W` EffectRebind
+     *  di atas, DAN blok itu berbentuk persis: [gema framework -3] + ["X tidak tersedia di device ini", X = nama di baris EffectRebind] +
+     *  `java.lang.RuntimeException: Cannot initialize effect engine for type: <uuid> Error: -3` + baris `at`. Dibuang: gema framework, baris
+     *  "tidak tersedia" (menyesatkan di jalur ini: efeknya ada, hanya gagal pindah), dan baris `at`. DIPERTAHANKAN: baris RuntimeException
+     *  MENTAH (tipe efek + kode -3) dan baris EffectRebind. Kegagalan pembuatan di luar jalur ini (mis. efek memang tak ada di device saat
+     *  `attachEffects`, kode selain -3, blok yang bentuknya berbeda) TIDAK punya baris EffectRebind -> tetap utuh dengan stacktrace penuh.
+     *  Hanya berlaku pada ekspor; logcat sistem dan `CrashLogger` tak disentuh. */
+    fun dropHandledEffectFailures(lines: List<String>): List<String> {
+        val dropped = HashSet<Int>()
+        for (index in lines.indices) {
+            val block = handledFailureBlockAt(lines, index) ?: continue
+            dropped.addAll(block)
+        }
+        return if (dropped.isEmpty()) lines else lines.filterIndexed { index, _ -> index !in dropped }
+    }
+
+    private const val FAILURE_ECHO_LOOKBACK = 6
+    private const val REBIND_KEPT_OLD_HINT = "baru gagal dibuat"
+    private const val UNAVAILABLE_SUFFIX = " tidak tersedia di device ini"
+    private const val STACK_FRAME_PREFIX = "\tat "
+
+    private val APP_LOG = Regex(TS + """([VDIWEF])/AudioEnhancerService\(\s*(\d+)\): (.*)""")
+    private val REBIND_KEPT_OLD = Regex("""EffectRebind: (.+) baru gagal dibuat, efek lama dipertahankan""")
+    private val EFFECT_INIT_FAILURE = Regex("""java\.lang\.RuntimeException: Cannot initialize effect engine for type: \S+ Error: -3""")
+    private val FRAMEWORK_ECHO = Regex(
+        TS + """E/(?:AudioEffects-JNI|AudioEffect-JAVA)\(\s*(\d+)\): """ +
+            """(?:AudioEffect initCheck failed -3|Error code -3 when initializing AudioEffect\.)"""
+    )
+
+    /** Satu baris log milik layanan ini, dipecah: level (V/D/I/W/E/F), pid (tanpa spasi), pesan. */
+    private class AppLog(val level: String, val pid: String, val message: String)
+
+    private fun parseAppLog(line: String): AppLog? {
+        val match = APP_LOG.find(line) ?: return null
+        return AppLog(match.groupValues[1], match.groupValues[2], match.groupValues[3])
+    }
+
+    /** Pesan baris [index] bila itu baris layanan ini dengan [pid] dan [level] yang diminta; selain itu `null`. */
+    private fun appMessage(lines: List<String>, index: Int, pid: String, level: String): String? {
+        val log = if (index >= 0) parseAppLog(lines[index]) else null
+        return if (log != null && log.pid == pid && log.level == level) log.message else null
+    }
+
+    /** Indeks baris yang dibuang bila [markerIndex] adalah baris EffectRebind "efek lama dipertahankan" dengan blok galat -3 yang berbentuk
+     *  persis seperti di [dropHandledEffectFailures]; `null` (tak ada yang dibuang) untuk baris lain atau bentuk yang berbeda. */
+    private fun handledFailureBlockAt(lines: List<String>, markerIndex: Int): List<Int>? {
+        if (!lines[markerIndex].contains(REBIND_KEPT_OLD_HINT)) return null
+        val marker = parseAppLog(lines[markerIndex]) ?: return null
+        if (marker.level != "W") return null
+        val name = REBIND_KEPT_OLD.matchEntire(marker.message)?.groupValues?.get(1) ?: return null
+        val dropped = ArrayList<Int>()
+        var index = markerIndex - 1
+        while (appMessage(lines, index, marker.pid, "E")?.startsWith(STACK_FRAME_PREFIX) == true) {
+            dropped.add(index)
+            index--
+        }
+        val exception = appMessage(lines, index, marker.pid, "E")
+        if (exception == null || !EFFECT_INIT_FAILURE.matches(exception)) return null
+        index--
+        val unavailable = appMessage(lines, index, marker.pid, "E")
+        if (unavailable != null && unavailable.endsWith(UNAVAILABLE_SUFFIX)) {
+            if (!unavailable.startsWith(name)) return null
+            dropped.add(index)
+            index--
+        }
+        var steps = 0
+        while (index >= 0 && steps < FAILURE_ECHO_LOOKBACK && parseAppLog(lines[index]) == null) {
+            if (FRAMEWORK_ECHO.find(lines[index])?.groupValues?.get(1) == marker.pid) dropped.add(index)
+            index--
+            steps++
+        }
+        return dropped
+    }
 
     /** Batch 256: dump sistem yang dilampirkan ke ekspor; [maxLines] membatasi ukuran laporan per dump. */
     data class AudioDump(val service: String, val maxLines: Int)
@@ -347,9 +428,11 @@ internal object DebugLogFormat {
     fun fileName(timestampMillis: Long): String =
         "aep_debug_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date(timestampMillis))}.txt"
 
-    /** Header + baris logcat. Bila baris melebihi [maxLines], yang DIPERTAHANKAN adalah yang PALING BARU. */
+    /** Header + baris logcat. Blok galat efek yang sudah ditangani diringkas dulu ([dropHandledEffectFailures], Batch 317), lalu bila baris
+     *  melebihi [maxLines] yang DIPERTAHANKAN adalah yang PALING BARU. */
     fun buildReport(header: List<String>, logLines: List<String>, maxLines: Int): String {
-        val kept = if (logLines.size > maxLines) logLines.takeLast(maxLines) else logLines
+        val compact = dropHandledEffectFailures(logLines)
+        val kept = if (compact.size > maxLines) compact.takeLast(maxLines) else compact
         return buildString {
             header.forEach { appendLine(it) }
             appendLine("---- logcat Boomly (${kept.size} baris terakhir) ----")
