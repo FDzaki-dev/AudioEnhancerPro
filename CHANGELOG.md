@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 310: Penanda waktu startup di Log Debug untuk mengukur sisa jank buka dingin
+
+Baseline Profile terbukti terpasang di Android 16 (kode ProfileVerifier 2 menjadi 1) dan jank turun dari 43-44 menjadi 36 frame, setara kompilasi `speed` manual; sisa ±0,4 dtk bukan lagi JIT. Agar penyebabnya terbukti sebelum ada yang diubah, log aplikasi kini memuat penanda waktu mentah (tag `StartupTrace`) yang ikut Ekspor Log Debug.
+
+Penanda: awal Application, Activity (awal dan akhir `onCreate`), frame pertama digambar, komposisi pertama, dan di layanan `onCreate`, `attachEffects`, `enableEffects` (dengan durasi dan nama thread). Hanya `Log.i`; tidak ada perubahan perilaku audio atau UI.
+
+**Tes**: 2 tes JVM baru untuk format baris; 284 diharapkan menjadi 286.
+
+**Status**: tes bagian murni dikompilasi dan lulus lokal; kode Android baru dicek-tipe terhadap stub saja; build release, CI, dan HP NOT VERIFIED.
+
+**Hasil uji HP B308/B309**: ProfileVerifier kode 2 menjadi 1 sesudah `cmd package compile -f -m speed-profile`; skipped frames buka dingin 43-44 (tanpa kompilasi) menjadi 36 (0,39 dtk); `speed` manual 35 frame (0,37 dtk). Baris `oat:` di Log Debug tidak bisa diandalkan (abaikan). Jalur kompilasi alami (idle/mengisi daya) belum terbukti.
+
+Revert: `Boomly_v309.zip`.
+
 ## Batch 309: Log Debug mencatat bukti Baseline Profile (kode ProfileVerifier, isi APK, berkas oat)
 
 Dumpsys user menunjukkan `speed-profile` dengan reason `cmdline` (dipaksa perintah), yang belum membuktikan ProfileInstaller memasang Baseline Profile di Android 16. Log Debug kini punya bagian baru "profil kompilasi": umur proses, kode mentah `ProfileVerifier`, ukuran `assets/dexopt/baseline.prof` dan `.profm` di dalam APK, serta ukuran berkas `oat/` (odex/vdex/art).

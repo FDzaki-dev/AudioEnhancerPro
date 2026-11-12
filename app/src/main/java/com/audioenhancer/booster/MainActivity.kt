@@ -110,6 +110,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        StartupTrace.mark("activity-onCreate-mulai") // Batch 310
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -123,7 +124,9 @@ class MainActivity : ComponentActivity() {
         // launch baru (savedInstanceState == null); shortcut berikutnya masuk lewat onNewIntent.
         if (savedInstanceState == null) handleShortcutIntent(intent)
 
+        StartupTrace.markFirstDraw(window.decorView) // Batch 310
         setContent {
+            StartupTrace.markOnce("compose-pertama") // Batch 310
             var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }
             // Batch 36: switch sistem desain baru (AMOLED Glass <-> Radical Literal
             // Skeuomorphism), TERPISAH dari Material You (useDynamicColor di atas) &
@@ -314,6 +317,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        StartupTrace.mark("activity-onCreate-selesai") // Batch 310
     }
 
     private fun openNotificationSettings() {
