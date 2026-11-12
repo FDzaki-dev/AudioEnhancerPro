@@ -118,13 +118,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         requestNotificationPermissionIfNeeded()
 
-        viewModel.attemptBindService()
-
         requestIgnoreBatteryOptimizations()
         // Batch 156: Intent shortcut tetap jadi `intent` Activity setelah recreate (rotasi, dark
         // mode, process death) — tanpa guard ini toggle/preset custom dieksekusi ulang. Hanya saat
         // launch baru (savedInstanceState == null); shortcut berikutnya masuk lewat onNewIntent.
-        if (savedInstanceState == null) handleShortcutIntent(intent)
+        // Batch 312: bind/start layanan (+ shortcut; urutan LAMA dipertahankan: bind dulu, baru toggle, supaya toggle-stop tidak dibatalkan start)
+        // dijalankan SESUDAH frame pertama digambar: Service.onCreate/attachEffects (±80 ms) tak lagi menunda frame pertama. Intent diambil sekarang.
+        val launchIntent = intent
+        FirstDrawGate.runAfterFirstDraw(window.decorView, isAlive = { !isDestroyed }) { reason ->
+            StartupTrace.mark("layanan-dipicu-$reason")
+            viewModel.attemptBindService()
+            if (savedInstanceState == null) handleShortcutIntent(launchIntent)
+        }
 
         StartupTrace.markFirstDraw(window.decorView) // Batch 310
         setContent {

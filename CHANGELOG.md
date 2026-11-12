@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 312: Layanan efek ditunda sampai sesudah frame pertama (buka dingin lebih cepat muncul)
+
+Log v310/v311 menunjukkan pembuatan layanan efek (±80 ms di thread utama) ikut jalur frame pertama dan urutannya tidak tetap: kadang sebelum komposisi sehingga frame pertama terlambat ±80 ms. Start/bind layanan kini dijalankan sesudah frame pertama digambar.
+
+Efek yang diharapkan: frame pertama ±80 ms lebih cepat, Skipped turun 0-8 frame, efek aktif ±100 ms lebih lambat saat buka dingin. Pengaman: cadangan 1,5 dtk bila frame tak digambar; batal bila Activity sudah hancur; urutan lama bind lalu shortcut dipertahankan.
+
+**Tes**: 2 tes JVM baru (286 menjadi 288 diharapkan).
+
+**Status**: bagian murni dan tes lulus lokal; `MainActivity.kt` hanya dicek sintaks; build release, CI, dan HP NOT VERIFIED.
+
+**Hasil uji HP v311**: jendela 317 ms (38 frame): komposisi 68 ms, tata letak 99 ms, gambar 79 ms, sisa ±59 ms; komposisi bukan penyebab terbesar. HP memakai mode tab horizontal (hanya tab terpilih disusun).
+
+Revert: `Boomly_v311.zip`.
+
 ## Batch 311: Rincian waktu komposisi pertama per bagian layar (penanda sementara, tanpa perubahan perilaku)
 
 Log v310 menunjukkan jendela jank buka dingin 46 frame (±383 ms): ±78% di frame UI pertama (komposisi, tata letak, gambar) dan ±21% di layanan; pembuatan efek audio di thread utama hanya 49 ms, jadi bukan penyebab utama. Log aplikasi kini memuat penanda waktu per fase dan per bagian layar utama (tag `StartupTrace`, ikut Ekspor Log Debug) supaya bagian yang paling mahal terbukti sebelum ada yang diubah.

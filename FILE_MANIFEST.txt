@@ -20,6 +20,7 @@ app/src/main/java/com/audioenhancer/booster/CrashLogger.kt
 app/src/main/java/com/audioenhancer/booster/DebugLogExporter.kt
 app/src/main/java/com/audioenhancer/booster/DynamicsProfiles.kt
 app/src/main/java/com/audioenhancer/booster/EqCurveEditor.kt
+app/src/main/java/com/audioenhancer/booster/FirstDrawGate.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
@@ -84,6 +85,7 @@ app/src/test/java/com/audioenhancer/booster/DynamicsProfilesTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectGuardPolicyTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectReleaseGuardTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectSessionTest.kt
+app/src/test/java/com/audioenhancer/booster/FirstDrawGateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/OutputRouteLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
