@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 309: Log Debug mencatat bukti Baseline Profile (kode ProfileVerifier, isi APK, berkas oat)
+
+Dumpsys user menunjukkan `speed-profile` dengan reason `cmdline` (dipaksa perintah), yang belum membuktikan ProfileInstaller memasang Baseline Profile di Android 16. Log Debug kini punya bagian baru "profil kompilasi": umur proses, kode mentah `ProfileVerifier`, ukuran `assets/dexopt/baseline.prof` dan `.profm` di dalam APK, serta ukuran berkas `oat/` (odex/vdex/art).
+
+Setiap bagian gagal aman (galat menjadi teks alasan, laporan tetap terbit). Tidak ada perubahan perilaku audio atau UI.
+
+**Tes**: 2 tes JVM baru untuk bagian murni di `DebugLogFormatTest`; 282 diharapkan menjadi 284.
+
+**Status**: bagian murni dikompilasi dan lulus lokal (23 tes `DebugLogFormatTest`); kode Android baru hanya dicek-tipe terhadap stub dan API `ProfileVerifier` belum dicocokkan dengan AAR asli; build release, CI, dan HP NOT VERIFIED.
+
+**Cara baca**: buka app, tunggu minimal 10 dtk, ekspor Log Debug, kirim file. `baseline.prof` bertanda TIDAK ADA berarti profil tak terkemas di APK; kode `ProfileVerifier` ditafsirkan saat log dibaca; bandingkan ukuran `base.odex` sebelum dan sesudah kompilasi paksa.
+
+Revert: `Boomly_v308.zip`.
+
 ## Batch 308: Baseline Profile: buka dingin lebih ringan tanpa perintah compile manual (ProfileInstaller + aturan wildcard paket app)
 
 Uji user (Batch 307): `cmd package compile -m speed` menurunkan skipped frames buka dingin dari 43 menjadi 35 (0,44 menjadi 0,37 dtk sampai frame pertama; satu sampel per kondisi) dan terasa satset di HP; baris JIT `Missing inline cache` hilang setelah kompilasi. Kompilasi manual itu hilang tiap update APK karena APK di-sideload.

@@ -165,6 +165,40 @@ class DebugLogFormatTest {
     }
 
     @Test
+    fun `profile section prints raw verifier code, apk entries and oat files sorted by path`() {
+        val section = DebugLogFormat.buildProfileSection(
+            DebugLogFormat.ProfileInfo(
+                processAgeSeconds = 83,
+                verifier = DebugLogFormat.verifierLabel(1, true, false),
+                apkProfileBytes = 12_345,
+                apkProfileMetaBytes = 678,
+                oatFiles = mapOf("arm64/base.vdex" to 3L, "arm64/base.odex" to 9_000_000L)
+            )
+        )
+        assertTrue(section.startsWith("---- profil kompilasi (ProfileVerifier, isi APK, berkas oat) ----"))
+        assertTrue(section.contains("umur proses: 83 dtk"))
+        assertTrue(section.contains("ProfileVerifier: kode=1 compiledWithProfile=true enqueuedForCompilation=false"))
+        assertTrue(section.contains("APK assets/dexopt/baseline.prof: 12345 byte"))
+        assertTrue(section.contains("APK assets/dexopt/baseline.profm: 678 byte"))
+        assertTrue(section.indexOf("oat/arm64/base.odex: 9000000 byte") in 0 until section.indexOf("oat/arm64/base.vdex: 3 byte"))
+    }
+
+    @Test
+    fun `profile section reports missing entries, empty or unreadable oat and verifier failure instead of failing`() {
+        val missing = DebugLogFormat.buildProfileSection(
+            DebugLogFormat.ProfileInfo(5, "gagal: TimeoutException: ", -1, -1, null)
+        )
+        assertTrue(missing.contains("ProfileVerifier: gagal: TimeoutException: "))
+        assertTrue(missing.contains("APK assets/dexopt/baseline.prof: TIDAK ADA / tak terbaca"))
+        assertTrue(missing.contains("APK assets/dexopt/baseline.profm: TIDAK ADA / tak terbaca"))
+        assertTrue(missing.contains("oat: (folder tak ada atau tak terbaca)"))
+        val empty = DebugLogFormat.buildProfileSection(DebugLogFormat.ProfileInfo(5, "x", 0, 0, emptyMap()))
+        assertTrue(empty.contains("APK assets/dexopt/baseline.prof: 0 byte"))
+        assertTrue(empty.contains("oat: (folder kosong)"))
+        assertEquals("kode=262144 compiledWithProfile=false enqueuedForCompilation=false", DebugLogFormat.verifierLabel(262_144, false, false))
+    }
+
+    @Test
     fun `lifecycle and spectrum gating lines are never noise`() {
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.500 I/MainActivity(16993): LIFECYCLE ui aktif=false"))
         assertFalse(DebugLogFormat.isNoise("10-28 08:02:26.766 I/AudioEnhancerService(16993): Spektrum dijeda: UI tidak membaca > 3 dtk (hemat baterai)"))

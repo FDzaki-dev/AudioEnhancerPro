@@ -29,6 +29,10 @@ object DebugLogExporter {
     private const val TAG = "DebugLogExporter"
     private const val APP_FOLDER = "AudioEnhancerPro"
     private const val MAX_FILES = 10
+    private const val VERIFIER_TIMEOUT_SECONDS = 3L
+    private const val MILLIS_PER_SECOND = 1_000L
+    private const val PROFILE_ENTRY = "assets/dexopt/baseline.prof"
+    private const val PROFILE_META_ENTRY = "assets/dexopt/baseline.profm"
 
     /** Jumlah baris BERMAKNA terakhir yang disimpan. Batch 243 (log device ketiga): satu siklus serah-terima efek ±200 baris
      *  (`setParameter():` 63%) -> 3000 baris hanya ±15 siklus (±1 menit geser video) dan penanda awal uji
@@ -49,7 +53,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = readOwnLogcat(),
                 maxLines = MAX_LINES
-            ) + readAvailableEffects() + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readProfileStatus(context) + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -87,6 +91,52 @@ object DebugLogExporter {
     } catch (e: Exception) {
         Log.w(TAG, "queryEffects gagal", e)
         DebugLogFormat.buildEffectsSection(null, "${e.javaClass.simpleName}: ${e.message.orEmpty()}")
+    }
+
+    /** Batch 309 (request user: pilih "Diagnostik ProfileVerifier di Log Debug" setelah `dumpsys package dexopt` berstatus speed-profile
+     *  [reason=cmdline]: dipaksa perintah, belum membuktikan ProfileInstaller memasang Baseline Profile di Android 16): bukti MENTAH dari tiga sisi,
+     *  tanpa tafsir: (1) `ProfileVerifier` (kode hasil ProfileInstaller), (2) ukuran entri profil di dalam APK (bukti build AGP/R8 benar-benar
+     *  membuat profil), (3) ukuran berkas `oat/` (odex/vdex/art; kecil = hanya diverifikasi, besar = terkompilasi). Gagal aman per bagian:
+     *  galat -> teks alasan / `-1` / `null`, laporan tetap terbit (`LinkageError` ikut ditangkap supaya ekspor tak bisa crash). */
+    private fun readProfileStatus(context: Context): String {
+        val sourceDir = context.applicationInfo.sourceDir
+        return DebugLogFormat.buildProfileSection(
+            DebugLogFormat.ProfileInfo(
+                processAgeSeconds = (android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()) / MILLIS_PER_SECOND,
+                verifier = readProfileVerifier(),
+                apkProfileBytes = apkEntryBytes(sourceDir, PROFILE_ENTRY),
+                apkProfileMetaBytes = apkEntryBytes(sourceDir, PROFILE_META_ENTRY),
+                oatFiles = readOatFiles(sourceDir)
+            )
+        )
+    }
+
+    private fun readProfileVerifier(): String = try {
+        val status = androidx.profileinstaller.ProfileVerifier.getCompilationStatusAsync()
+            .get(VERIFIER_TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        DebugLogFormat.verifierLabel(status.profileInstallResultCode, status.isCompiledWithProfile, status.hasProfileEnqueuedForCompilation())
+    } catch (e: Exception) {
+        Log.w(TAG, "ProfileVerifier gagal", e)
+        "gagal: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
+    } catch (e: LinkageError) {
+        Log.w(TAG, "ProfileVerifier gagal (LinkageError)", e)
+        "gagal: ${e.javaClass.simpleName}: ${e.message.orEmpty()}"
+    }
+
+    private fun apkEntryBytes(apkPath: String, entryName: String): Long = try {
+        java.util.zip.ZipFile(apkPath).use { zip -> zip.getEntry(entryName)?.size ?: -1L }
+    } catch (e: Exception) {
+        Log.w(TAG, "Baca entri APK $entryName gagal", e)
+        -1L
+    }
+
+    /** `oat/` ada di sebelah `base.apk` (`/data/app/.../oat/<isa>/base.odex|vdex|art`). Kunci = jalur relatif terhadap `oat/`. */
+    private fun readOatFiles(apkPath: String): Map<String, Long>? = try {
+        val oatDir = java.io.File(java.io.File(apkPath).parentFile, "oat")
+        if (!oatDir.isDirectory) null else oatDir.walkTopDown().filter { it.isFile }.associate { it.relativeTo(oatDir).path to it.length() }
+    } catch (e: Exception) {
+        Log.w(TAG, "Baca folder oat gagal", e)
+        null
     }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
@@ -261,6 +311,36 @@ internal object DebugLogFormat {
             appendLine("$label | ${e.name} | mode=${e.connectMode} | implementor=${e.implementor} | type=${e.typeUuid} | uuid=${e.uuid}")
         }
         if (rows.size > MAX_EFFECT_LINES) appendLine("(${rows.size - MAX_EFFECT_LINES} efek lain tak ditampilkan)")
+    }
+
+    /** Batch 309: bahan bagian "profil kompilasi", semua nilai mentah. Ukuran `-1` = entri tak ada/tak terbaca; [oatFiles] `null` = folder `oat` tak ada/tak terbaca. */
+    data class ProfileInfo(
+        val processAgeSeconds: Long,
+        val verifier: String,
+        val apkProfileBytes: Long,
+        val apkProfileMetaBytes: Long,
+        val oatFiles: Map<String, Long>?
+    )
+
+    /** Kode hasil `ProfileVerifier` dicetak MENTAH (tanpa tafsir buatan); tafsir dilakukan saat log dibaca. */
+    fun verifierLabel(resultCode: Int, compiledWithProfile: Boolean, enqueuedForCompilation: Boolean): String =
+        "kode=$resultCode compiledWithProfile=$compiledWithProfile enqueuedForCompilation=$enqueuedForCompilation"
+
+    private fun sizeLabel(bytes: Long): String = if (bytes < 0) "TIDAK ADA / tak terbaca" else "$bytes byte"
+
+    /** Bagian laporan "profil kompilasi" (Batch 309): umur proses menunjukkan apakah jeda ProfileInstaller (sekitar 5 dtk setelah start) sudah lewat. */
+    fun buildProfileSection(info: ProfileInfo): String = buildString {
+        appendLine("---- profil kompilasi (ProfileVerifier, isi APK, berkas oat) ----")
+        appendLine("umur proses: ${info.processAgeSeconds} dtk")
+        appendLine("ProfileVerifier: ${info.verifier}")
+        appendLine("APK assets/dexopt/baseline.prof: ${sizeLabel(info.apkProfileBytes)}")
+        appendLine("APK assets/dexopt/baseline.profm: ${sizeLabel(info.apkProfileMetaBytes)}")
+        val oat = info.oatFiles
+        when {
+            oat == null -> appendLine("oat: (folder tak ada atau tak terbaca)")
+            oat.isEmpty() -> appendLine("oat: (folder kosong)")
+            else -> oat.toSortedMap().forEach { (path, bytes) -> appendLine("oat/$path: $bytes byte") }
+        }
     }
 
     /** `aep_debug_yyyyMMdd_HHmmss.txt` — mudah diurutkan dan dikenali di File Manager. */
