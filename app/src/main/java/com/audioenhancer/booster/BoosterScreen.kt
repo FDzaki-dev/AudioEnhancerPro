@@ -781,7 +781,6 @@ fun BoosterScreen(
     outputRouteInfoDismissed: Boolean = false,
     onDismissOutputRouteInfo: () -> Unit = {}
 ) {
-    StartupTrace.markOnce("booster-mulai") // Batch 311 (penanda sementara, StartupTrace)
     // Batch 285 (Fase 3, review rekomposisi): daftar 9 preset bawaan dulu DIBANGUN ULANG di tiap rekomposisi layar utama
     // (9 objek Preset + list EQ, tiap geser slider). Kini dibangun sekali lewat remember; label tetap dari stringResource
     // (di luar remember karena @Composable) dan jadi kunci supaya ganti bahasa tetap membangun ulang. Isi/nilai preset TIDAK berubah.
@@ -1026,7 +1025,6 @@ fun BoosterScreen(
     fun TabPageContent(page: Int) {
         when (page) {
         0 -> {
-        StartupTrace.markOnce("tab-0-mulai") // Batch 311
         Column {
             // Batch 293: +8dp di atas label — sebelumnya label hampir sama jauh ke bilah tab di atasnya dan ke chip yang
             // dilabelinya (screenshot v292), jadi kelompoknya ambigu. Batch 295: terukur di HP (v294) cuma ~33dp di atas vs
@@ -1292,7 +1290,6 @@ fun BoosterScreen(
         // `SkeuCard` yang SAMA seperti sebelumnya (`LocalSkeuTokens.current` per varian
         // tema) — TIDAK ADA logic tema baru di sini, cuma jumlah `SkeuCard` yang
         // dipanggil (dari 3 jadi 1) yang berubah.
-        StartupTrace.markOnce("tab-0-kartu-kontrol") // Batch 311
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 FeatureControl(
@@ -1472,7 +1469,6 @@ fun BoosterScreen(
             }
         }
 
-        StartupTrace.markOnce("tab-0-equalizer") // Batch 311
         if (equalizerSupported && equalizerBandCount > 0) {
             EqualizerSection(
                 // Batch 190: parameter list/angka dibungkus `EqualizerBands` (@Immutable, equals berdasar isi) —
@@ -1504,7 +1500,6 @@ fun BoosterScreen(
         }
 
         1 -> {
-        StartupTrace.markOnce("tab-1-mulai") // Batch 311
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
             SkeuCard {
                 Row(
@@ -1774,7 +1769,6 @@ fun BoosterScreen(
         }
 
         2 -> {
-        StartupTrace.markOnce("tab-2-mulai") // Batch 311
         SkeuCard {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1863,7 +1857,6 @@ fun BoosterScreen(
     // Di layar lebar (tablet/foldable), konten dibatasi max 600dp dan ditengahkan supaya
     // slider/kartu tidak melebar aneh sampai ke tepi — di HP biasa (layar < 600dp) perilakunya
     // tetap sama seperti sebelumnya (full width).
-    StartupTrace.markOnce("booster-state-selesai") // Batch 311
     Box(modifier = Modifier.fillMaxSize()) {
         // Batch 141: detektor swipe-antar-tab dipasang di Box induk (bukan di Column ber-scroll)
         // supaya area geser = seluruh layar, bukan cuma setinggi konten tab. Dipasang KONDISIONAL
@@ -1897,7 +1890,6 @@ fun BoosterScreen(
                 ),
             contentAlignment = Alignment.TopCenter
         ) {
-        StartupTrace.markOnce("booster-kolom-mulai") // Batch 311
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1980,7 +1972,6 @@ fun BoosterScreen(
 
         // Batch 13: power toggle "Aktif/Nonaktif". Ditaruh persis di posisi yang sama
         // seperti mockup: tepat di bawah header, sebelum status card service.
-        StartupTrace.markOnce("kolom-power-toggle") // Batch 311
         PowerToggleRow()
 
         // Motif waveform kecil — signature visual "audio" yang hidup, bukan sekadar dekorasi acak.
@@ -2000,7 +1991,6 @@ fun BoosterScreen(
             }
         }
 
-        StartupTrace.markOnce("kolom-banner-mulai") // Batch 311
         ServiceStatusBadge(onRestartService = onRestartService)
         CrashBanner(onCrashLogsDeleted = { showSnackbar(context.getString(R.string.crash_logs_deleted_message)) })
         ControlRecoveryBanner(
@@ -2280,7 +2270,6 @@ fun BoosterScreen(
         TabPageContent(0)
         TabPageContent(1)
         TabPageContent(2)
-        StartupTrace.markOnce("tab-semua-selesai") // Batch 311
         }
         }
         }

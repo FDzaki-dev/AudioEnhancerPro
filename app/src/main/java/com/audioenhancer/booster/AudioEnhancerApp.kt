@@ -10,8 +10,7 @@ import android.app.Application
 class AudioEnhancerApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        StartupTrace.mark("app-onCreate-mulai") // Batch 310
-        StartupTrace.span("app-crashLogger") { CrashLogger.install(this) }
-        StartupTrace.span("app-watchdogSchedule") { ServiceWatchdogWorker.schedule(this) }
+        CrashLogger.install(this)
+        ServiceWatchdogWorker.schedule(this)
     }
 }

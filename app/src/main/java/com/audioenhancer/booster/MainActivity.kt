@@ -49,9 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 
 class MainActivity : ComponentActivity() {
 
@@ -112,7 +110,6 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        StartupTrace.mark("activity-onCreate-mulai") // Batch 310
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -125,15 +122,12 @@ class MainActivity : ComponentActivity() {
         // Batch 312: bind/start layanan (+ shortcut; urutan LAMA dipertahankan: bind dulu, baru toggle, supaya toggle-stop tidak dibatalkan start)
         // dijalankan SESUDAH frame pertama digambar: Service.onCreate/attachEffects (±80 ms) tak lagi menunda frame pertama. Intent diambil sekarang.
         val launchIntent = intent
-        FirstDrawGate.runAfterFirstDraw(window.decorView, isAlive = { !isDestroyed }) { reason ->
-            StartupTrace.mark("layanan-dipicu-$reason")
+        FirstDrawGate.runAfterFirstDraw(window.decorView, isAlive = { !isDestroyed }) { _ ->
             viewModel.attemptBindService()
             if (savedInstanceState == null) handleShortcutIntent(launchIntent)
         }
 
-        StartupTrace.markFirstDraw(window.decorView) // Batch 310
         setContent {
-            StartupTrace.markOnce("compose-pertama") // Batch 310
             var useDynamicColor by remember { mutableStateOf(PrefsHelper.getUseDynamicColor(this@MainActivity)) }
             // Batch 36: switch sistem desain baru (AMOLED Glass <-> Radical Literal
             // Skeuomorphism), TERPISAH dari Material You (useDynamicColor di atas) &
@@ -162,7 +156,6 @@ class MainActivity : ComponentActivity() {
             }
 
             AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
-                StartupTrace.markOnce("compose-tema-dalam") // Batch 311
                 // Batch 37: root background sekarang gradient (bukan flat solid) —
                 // glassmorphism butuh backdrop bervariasi supaya kartu kaca di atasnya
                 // kebaca sebagai kaca. Batch 38: varian ke-3 BUKAN glass (gak butuh
@@ -191,13 +184,7 @@ class MainActivity : ComponentActivity() {
                                 if (d != null) Modifier.skeuBackdropGrain(d.backdropGrain) else Modifier
                             }
                         )
-                        .safeDrawingPadding()
-                        // Batch 311: penanda akhir tata letak dan akhir perekaman gambar konten (sementara, StartupTrace).
-                        .onGloballyPositioned { StartupTrace.markOnce("layout-selesai") }
-                        .drawWithContent {
-                            drawContent()
-                            StartupTrace.markOnce("gambar-konten-selesai")
-                        },
+                        .safeDrawingPadding(),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
@@ -239,7 +226,6 @@ class MainActivity : ComponentActivity() {
                             onBack = { showSettings = false }
                         )
                     } else {
-                        StartupTrace.markOnce("compose-BoosterScreen-dipanggil") // Batch 311
                         BoosterScreen(
                             onBass = { viewModel.setBass(it) },
                             onVirtualizer = { viewModel.setVirtualizer(it) },
@@ -331,9 +317,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            SideEffect { StartupTrace.markOnce("compose-selesai-diterapkan") } // Batch 311
         }
-        StartupTrace.mark("activity-onCreate-selesai") // Batch 310
     }
 
     private fun openNotificationSettings() {

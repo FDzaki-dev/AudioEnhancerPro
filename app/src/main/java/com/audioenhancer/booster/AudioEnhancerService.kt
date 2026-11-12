@@ -551,7 +551,6 @@ class AudioEnhancerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        StartupTrace.mark("service-onCreate-mulai") // Batch 310
         // Batch 45: "kunci" service ini di prioritas penjadwalan CPU tertinggi yang
         // disediakan Android buat kerja audio (sama seperti yang dipakai native audio
         // thread sistem), BUKAN cuma andalkan status "foreground service" (itu cuma
@@ -570,7 +569,7 @@ class AudioEnhancerService : Service() {
             android.util.Log.w(TAG, "Gagal menaikkan prioritas thread audio, lanjut prioritas default", e)
         }
         createNotificationChannel()
-        StartupTrace.span("service-attachEffects") { attachEffects() } // Batch 310
+        attachEffects()
         // Batch 82: register SETELAH attachEffects() — urutan tidak kritis (callback baru
         // aktif async lewat sistem), tapi biar konsisten "state effect dulu baru listener
         // tambahan" sama seperti pola attachXxx() di atas. Dibungkus try-catch: teoretis
@@ -643,7 +642,7 @@ class AudioEnhancerService : Service() {
         // Re-enable jaga-jaga kalau sebelumnya sempat di-"Matikan" lewat notifikasi sementara
         // Service-nya sendiri tetap hidup karena masih bound — tanpa ini, buka app lagi setelah
         // tap "Matikan" tidak akan menyalakan ulang efeknya.
-        StartupTrace.span("service-enableEffects") { enableEffects() } // Batch 310
+        enableEffects()
         isRunning = true
         if (!wasRunning) {
             beginUsageSession()

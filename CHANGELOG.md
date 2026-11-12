@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 313: Penanda startup dicabut, jank buka dingin ditutup (penyebab: kode belum terkompilasi)
+
+Uji di HP membuktikan sisa jank buka dingin adalah biaya kode yang belum terkompilasi, bukan struktur UI: setelah kompilasi speed-profile tidak ada lagi peringatan Skipped frames dan gambar pertama muncul +201 ms (tanpa kompilasi +366 ms). Penanda waktu sementara (StartupTrace, B310-B312) dicabut; Baseline Profile, diagnostik profil di Log Debug, dan penundaan layanan sampai sesudah frame pertama tetap.
+
+**Tes**: 288 menjadi 286 diharapkan (dua tes StartupTrace dihapus).
+
+**Status**: pembalikan murni (tiga file identik dengan Boomly_v309, MainActivity hanya beda blok penundaan layanan); build release, CI, dan HP NOT VERIFIED.
+
+**Hasil akhir**: v310 Skipped 46 (layanan bukan penyebab utama), v311 Skipped 38, v312 Skipped 41 dengan gambar pertama +366 ms (belum terkompilasi) lalu tanpa Skipped dan +201 ms (terkompilasi). Layanan ditunda sampai sesudah frame pertama terkonfirmasi: efek tetap aktif, tanpa kendala. Belum terbukti: kompilasi alami oleh sistem tanpa perintah manual.
+
+Revert: `Boomly_v312.zip`.
+
 ## Batch 312: Layanan efek ditunda sampai sesudah frame pertama (buka dingin lebih cepat muncul)
 
 Log v310/v311 menunjukkan pembuatan layanan efek (±80 ms di thread utama) ikut jalur frame pertama dan urutannya tidak tetap: kadang sebelum komposisi sehingga frame pertama terlambat ±80 ms. Start/bind layanan kini dijalankan sesudah frame pertama digambar.
