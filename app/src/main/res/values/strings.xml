@@ -115,6 +115,8 @@
     <string name="theme_style_serene_desc">Aktifkan Serene M3 — Material 3 asli, flat tanpa kaca/bevel, tipografi lapang dan sudut organic-asymmetric, dengan aksen sage dan lavender yang tenang di mata. Nonaktif = Midnight Glass (bawaan).</string>
     <string name="theme_style_oldmoney_title">Old Money</string>
     <string name="theme_style_oldmoney_desc">Aktifkan Old Money — tipografi serif klasik yang berkelas, sudut bersiku halus ala bingkai berlapis emas, dengan aksen burgundy dalam berpadu emas antik dan gading hangat. Nonaktif = Midnight Glass (bawaan).</string>
+    <string name="theme_style_space_title">Space</string>
+    <string name="theme_style_space_desc">Aktifkan Space — kosmos malam yang megah: nebula, cakrawala planet, dan medan bintang di latar; kartu bersapuan orbit raksasa (satu sudut membulat besar, tiga sudut tajam), tepi bercahaya ion-cyan dan ungu nebula, tipografi lebar berjarak. Nonaktif = Midnight Glass (bawaan).</string>
 
     <!-- Kartu baterai -->
     <string name="battery_card_title">Kenapa perlu izin baterai &amp; autostart?</string>

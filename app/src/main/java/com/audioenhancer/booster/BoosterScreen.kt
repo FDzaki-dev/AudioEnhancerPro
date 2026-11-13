@@ -52,6 +52,7 @@ import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Spa
+import androidx.compose.material.icons.filled.Stars
 import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Warning
@@ -1764,6 +1765,49 @@ fun BoosterScreen(
                     )
                 }
                 SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_OLD_MONEY, onCheckedChange = null)
+            }
+        }
+
+        // Batch 324: switch "Space" — varian ke-7, sejajar 6 di atas (bukan sub-opsi). Kosmos malam: nebula, cakrawala planet,
+        // medan bintang, kartu bersapuan orbit raksasa, aksen ion-cyan + ungu nebula.
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = appThemeStyleKey == PrefsHelper.APP_THEME_SPACE,
+                        onValueChange = { isOn ->
+                            onThemeStyleChange(
+                                if (isOn) PrefsHelper.APP_THEME_SPACE else PrefsHelper.APP_THEME_AMOLED_GLASS
+                            )
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            showSnackbar(
+                                if (isOn) {
+                                    context.getString(
+                                        R.string.theme_style_applied_message,
+                                        context.getString(R.string.theme_style_space_title)
+                                    )
+                                } else {
+                                    context.getString(R.string.theme_style_default_message)
+                                }
+                            )
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Filled.Stars, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
+                    Text(stringResource(R.string.theme_style_space_title), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.theme_style_space_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = appThemeStyleKey == PrefsHelper.APP_THEME_SPACE, onCheckedChange = null)
             }
         }
         }

@@ -1,5 +1,22 @@
 # Changelog
 
+## Batch 324: Skin baru "Space" (varian ke-7): kosmos malam dengan kartu bersapuan orbit raksasa
+
+Atas permintaanmu: "Tambahkan skin baru bertema space dengan shape megah dan masterpiece!!" + screenshot tab Tampilan (6 skin sebelumnya, Old Money aktif).
+
+**CI run 120 (B323)**: penanda cocok (BATCH_PROJECT_STATE=323, COMMIT=a84d734, RUN_ID=43452887420), semua exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, tes 307/307 -> B323 STATIC-VERIFIED (dan terbukti di HP, log 23:36).
+
+**Skin Space** (switch "Space" di Tampilan, sejajar 6 skin lain; default tetap Midnight Glass, pengguna lama TIDAK berubah):
+- **Bentuk "orbit"** (bahasa bentuk unik ke-7): satu pojok RAKSASA 44dp di kiri-atas (tempat cahaya jatuh = tepi planet) + tiga pojok tajam 6dp; kartu status dibalik (raksasa di kanan-bawah) agar ritme bergantian. Knob/tombol daya/thumb = permata (potong 42%), chip = pil berekor (16/2/2/2dp), trek slider berekor (7/1/1/1dp). Memakai mesin kedalaman fisik yang sama dgn tema lain (timbul + cekung, bevel mengikuti sudut).
+- **Latar kosmos** (digambar statis, tanpa animasi = 0 biaya baterai): tiga nebula (ungu kanan-atas, cyan kiri-tengah, magenta kanan-bawah), 150 bintang deterministik (langit sama tiap buka; tiap bintang ke-25 terang berkilau silang, sebagian hangat), cakrawala planet raksasa di dasar layar (badan gelap + cincin atmosfer cyan/ungu) dan satu orbit miring tipis.
+- **Palet**: void biru-hitam, ion-cyan `#7DE3FF` (primary), ungu nebula `#B9A3FF` (secondary), emas bintang `#FFD98E` (kilau knob). Tepi kartu bercahaya cyan -> ungu -> magenta redup. Kontras WCAG dihitung: teks utama 13.3:1, sekunder 8.8:1, muted 5.18:1 di permukaan kartu terang, aksen cyan 10.1:1.
+- **Tipografi**: sans-serif RINGAN berjarak lebar (judul 2,2sp, label 1,6-1,8sp), beda dari semua tema lain.
+- Material You ("Warna ikut wallpaper") tetap menang bila aktif, seperti tema lain.
+
+**File** (8, dibenarkan karena menambah nilai enum `AppThemeStyle` + konstanta prefs = perubahan kontrak): `Theme.kt`, `MainActivity.kt`, `PrefsHelper.kt`, `BoosterScreen.kt`, `res/values/strings.xml`, `res/values-en/strings.xml`, `PROJECT_STATE.md`, `CHANGELOG.md`. Tanpa tes baru (tak ada tes tema yang menyebut nilai enum; tes yang ada tak berubah, 307 diharapkan tetap).
+
+**Status**: NOT VERIFIED (tanpa kompilator; CI B324 + tampilan di HP). Warna/alpha/sudut = hasil simulasi statis, BELUM di-tuning di device (sama seperti tema lain di B187). Yang perlu dinilai matamu: (1) keterbacaan teks di atas nebula/bintang, (2) pojok 44dp di kartu pendek (kartu status ±55dp) tidak terlalu menggembung, (3) kilau knob emas dan tombol daya berbentuk permata, (4) cakrawala planet tak mengganggu kartu paling bawah. Gagal build = baca log dulu; revert = `Boomly_v323.zip`.
+
 ## Batch 323: Efek masih tertinggal di sesi 0 setelah fresh start: pindah sesi pemutar tak lagi dibatalkan
 
 Atas kiriman log `aep_debug_20261113_190208.txt` (uji B322 di HP, run 357, 18:54-19:02).

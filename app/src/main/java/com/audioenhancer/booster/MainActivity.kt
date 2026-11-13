@@ -143,6 +143,7 @@ class MainActivity : ComponentActivity() {
                 PrefsHelper.APP_THEME_STUDIO_EQ -> AppThemeStyle.STUDIO_EQ
                 PrefsHelper.APP_THEME_SERENE_M3 -> AppThemeStyle.SERENE_M3
                 PrefsHelper.APP_THEME_OLD_MONEY -> AppThemeStyle.OLD_MONEY
+                PrefsHelper.APP_THEME_SPACE -> AppThemeStyle.SPACE
                 else -> AppThemeStyle.AMOLED_GLASS
             }
             // Batch 31: WAJIB dark-mode — tidak ada lagi themeMode/isSystemInDarkTheme
@@ -171,12 +172,15 @@ class MainActivity : ComponentActivity() {
                     AppThemeStyle.STUDIO_EQ -> StudioEqScreenBackgroundBrush
                     AppThemeStyle.SERENE_M3 -> SereneScreenBackgroundBrush
                     AppThemeStyle.OLD_MONEY -> OldMoneyScreenBackgroundBrush
+                    AppThemeStyle.SPACE -> SpaceScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(screenBrush)
+                        // Batch 324: kosmos Space (nebula, cakrawala planet, medan bintang statis) hanya untuk tema Space.
+                        .then(if (appThemeStyle == AppThemeStyle.SPACE) Modifier.spaceCosmosBackdrop() else Modifier)
                         // B182: butiran latar kulit gelap (Old Money). B187: ikut SEMUA tema yang punya profil
                         // kedalaman (`depth != null`); kekuatannya = `depth.backdropGrain` per tema.
                         .then(

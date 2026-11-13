@@ -70,6 +70,7 @@ object PrefsHelper {
     const val APP_THEME_STUDIO_EQ = "studio_eq"
     const val APP_THEME_SERENE_M3 = "serene_m3"
     const val APP_THEME_OLD_MONEY = "old_money"
+    const val APP_THEME_SPACE = "space" // Batch 324: varian ke-7 (luar angkasa)
 
     fun isOnboardingDone(context: Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
