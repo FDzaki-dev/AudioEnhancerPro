@@ -482,6 +482,13 @@ class AudioEnhancerService : Service() {
     // ikatan sesi ([followEffectSession]) ditahan supaya tak berebut modul yang sama; setelah selesai probe sesi diulang.
     private val orphanSweepActive = java.util.concurrent.atomic.AtomicBoolean(false)
     @Volatile private var orphanSweepDeferredFollow = false
+
+    // Batch 321: selama penyapu yatim jalan, efek proses BARU dibuat TANPA menyala; tiap jenis dinyalakan begitu yatim jenis itu mati
+    // (jenis tanpa yatim: segera; sisanya: penyapu selesai / batas waktu). Log `aep_debug_20261113_131652`: efek global baru menyala
+    // 26,85-26,98 sementara yatim baru mati 26,95-27,17 = dua rantai bertumpuk 60-310 ms = lonjakan. Hanya diakses dari thread utama.
+    private val deferredEnableKinds: java.util.EnumSet<OrphanEffects.Kind> = java.util.EnumSet.noneOf(OrphanEffects.Kind::class.java)
+    private var deferredEnableSinceMs = 0L
+    private val deferredEnableTimeout = Runnable { releaseDeferredEnable(null, "batas-waktu") }
     private val dumpProbeRunnable = Runnable { refreshEffectSession("playback-settle") }
 
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
@@ -573,8 +580,9 @@ class AudioEnhancerService : Service() {
             // Batch 206: dicatat (SpotBugs DE_MIGHT_IGNORE); tetap lanjut di prioritas default.
             android.util.Log.w(TAG, "Gagal menaikkan prioritas thread audio, lanjut prioritas default", e)
         }
-        startOrphanSweep("mulai") // Batch 319: paling awal (sebelum membuat efek proses ini); sapu jalan paralel di thread IO
+        val sweepStarted = startOrphanSweep("mulai") // Batch 319: paling awal (sebelum membuat efek proses ini); sapu jalan paralel di thread IO
         createNotificationChannel()
+        if (sweepStarted) beginDeferredEnable() // Batch 321: efek proses ini dibuat dulu, dinyalakan sesudah yatim jenis yang sama mati
         attachEffects()
         // Batch 82: register SETELAH attachEffects() — urutan tidak kritis (callback baru
         // aktif async lewat sistem), tapi biar konsisten "state effect dulu baru listener
@@ -749,17 +757,18 @@ class AudioEnhancerService : Service() {
      *  fungsi terpisah supaya `retryControlAcquisition()` (baru, di bawah) bisa panggil
      *  ulang 1 effect spesifik tanpa reset effect lain yang sehat. */
     private fun attachEffects() {
-        attachBass()
-        attachVirtualizer()
-        attachEqualizer()
-        attachLoudness()
+        val enableNow = deferredEnableKinds.isEmpty() // Batch 321: penyapu yatim jalan = buat tanpa menyala (lihat `deferredEnableKinds`)
+        attachBass(enableNow)
+        attachVirtualizer(enableNow)
+        attachEqualizer(enableNow)
+        attachLoudness(enableNow)
         // Batch 84: dipanggil PALING TERAKHIR secara kode — TAPI ini urutan penulisan
         // kode saja, BUKAN jaminan urutan proses sinyal DSP aktual. Effect session-0
         // legacy (API `AudioEffect` publik ini) TIDAK punya API resmi buat app menentukan
         // urutan insert di chain HAL — itu justru salah satu alasan utama roadmap.md Fase
         // 0 #6 ("Rebuild session-0 architecture") ada sebagai item terpisah yang jauh
         // lebih besar. Lihat komentar panjang di `attachDynamicsProcessing()` untuk detail.
-        attachDynamicsProcessing()
+        attachDynamicsProcessing(enableNow)
         // Batch 120: dipanggil PALING TERAKHIR — Visualizer cuma observer pasif, urutan
         // relatif ke 5 effect di atas tidak relevan (tidak ikut chain DSP apa pun).
         attachVisualizer()
@@ -1338,9 +1347,9 @@ class AudioEnhancerService : Service() {
      *  dimatikan, lalu dilepas (pelepasan dari klien menghapus modulnya). Hanya jalan bila izin DUMP ada (tanpa izin efek tak pernah terikat
      *  sesi, jadi tak ada yatim). Efek proses ini TIDAK disentuh: yatim hanya di sesi > 0 dan efek proses ini baru pindah ke sana SETELAH
      *  penyapu selesai. Seluruhnya berjalan di thread IO dan dibatalkan bersama [dumpProbeScope]. */
-    private fun startOrphanSweep(reason: String) {
-        if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return
-        if (!orphanSweepActive.compareAndSet(false, true)) return
+    private fun startOrphanSweep(reason: String): Boolean {
+        if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return false
+        if (!orphanSweepActive.compareAndSet(false, true)) return false
         dumpProbeScope.launch {
             try {
                 runOrphanSweep(reason)
@@ -1348,9 +1357,74 @@ class AudioEnhancerService : Service() {
                 android.util.Log.e(TAG, "OrphanSweep[$reason]: penyapu berhenti karena galat", e)
             } finally {
                 orphanSweepActive.set(false)
+                guardHandler.post { releaseDeferredEnable(null, "sapu-selesai") } // Batch 321: jaring (sapu gagal/tanpa yatim) + sebelum probe sesi di bawah
                 if (orphanSweepDeferredFollow) {
                     orphanSweepDeferredFollow = false
                     guardHandler.post { refreshEffectSession("pasca-sapu", force = true) }
+                }
+            }
+        }
+        return true
+    }
+
+    /** Batch 321: tandai kelima jenis efek proses ini "menunggu dinyalakan" + pasang batas waktu. Dipanggil di onCreate SEBELUM `attachEffects()`. */
+    private fun beginDeferredEnable() {
+        deferredEnableKinds.addAll(OrphanEffects.Kind.values())
+        deferredEnableSinceMs = SystemClock.elapsedRealtime()
+        guardHandler.postDelayed(deferredEnableTimeout, OrphanEffects.ENABLE_DEFER_MAX_MS)
+    }
+
+    /** Batch 321: batalkan penantian (user mematikan / service dilepas) agar efek tak menyala sendiri sesudahnya. */
+    private fun cancelDeferredEnable() {
+        deferredEnableKinds.clear()
+        guardHandler.removeCallbacks(deferredEnableTimeout)
+    }
+
+    /** Batch 321: nyalakan jenis [kind] (null = semua yang masih menunggu). Thread utama. Idempoten; jenis yang sudah menyala tak disentuh lagi. */
+    private fun releaseDeferredEnable(kind: OrphanEffects.Kind?, why: String) {
+        if (deferredEnableKinds.isEmpty()) return
+        val candidates: List<OrphanEffects.Kind> = if (kind == null) deferredEnableKinds.toList() else listOf(kind)
+        val released = ArrayList<OrphanEffects.Kind>()
+        for (candidate in candidates) {
+            if (!deferredEnableKinds.remove(candidate)) continue
+            enableMixEffect(candidate)
+            released.add(candidate)
+        }
+        if (deferredEnableKinds.isEmpty()) guardHandler.removeCallbacks(deferredEnableTimeout)
+        if (released.isEmpty()) return
+        android.util.Log.i(
+            TAG,
+            "EnableGate[$why]: ${released.joinToString { it.label }} dinyalakan ${SystemClock.elapsedRealtime() - deferredEnableSinceMs} ms sejak efek dibuat, menunggu ${deferredEnableKinds.size}"
+        )
+    }
+
+    /** Batch 321: menyalakan SATU jenis; perilaku & penanda galat SAMA dengan `enableMixEffects()`. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun enableMixEffect(kind: OrphanEffects.Kind) {
+        when (kind) {
+            OrphanEffects.Kind.BASS -> {
+                try { bassBoost?.enabled = true } catch (e: Exception) {
+                    bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable BassBoost", e)
+                }
+            }
+            OrphanEffects.Kind.VIRTUALIZER -> {
+                try { virtualizer?.enabled = true } catch (e: Exception) {
+                    virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Virtualizer", e)
+                }
+            }
+            OrphanEffects.Kind.EQUALIZER -> {
+                try { equalizer?.enabled = true } catch (e: Exception) {
+                    equalizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Equalizer", e)
+                }
+            }
+            OrphanEffects.Kind.LOUDNESS -> {
+                try { loudnessEnhancer?.enabled = true } catch (e: Exception) {
+                    loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable LoudnessEnhancer", e)
+                }
+            }
+            OrphanEffects.Kind.DYNAMICS -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                try { dynamicsProcessing?.enabled = true } catch (e: Exception) {
+                    dynamicsState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable DynamicsProcessing", e)
                 }
             }
         }
@@ -1381,6 +1455,11 @@ class AudioEnhancerService : Service() {
         val notes = HashMap<Int, String>()
         var pending = targets
         var round = 0
+        // Batch 321: jenis TANPA yatim dinyalakan sekarang; jenis dengan yatim dinyalakan begitu SEMUA yatim jenis itu mati (satu rantai, tanpa tumpang-tindih).
+        val remaining = HashMap<OrphanEffects.Kind, Int>()
+        for (target in targets) remaining[target.kind] = (remaining[target.kind] ?: 0) + 1
+        val kindsWithOrphans = remaining.keys.toSet()
+        guardHandler.post { for (k in OrphanEffects.Kind.values()) if (k !in kindsWithOrphans) releaseDeferredEnable(k, "tanpa-yatim") }
         while (pending.isNotEmpty() && round < OrphanEffects.MAX_ROUNDS) {
             round++
             val failed = ArrayList<OrphanEffects.Orphan>()
@@ -1388,6 +1467,10 @@ class AudioEnhancerService : Service() {
                 val result = neutralizeOrphan(orphan)
                 if (result.done) {
                     android.util.Log.w(TAG, "OrphanSweep| ${OrphanEffects.describe(orphan)}: ${result.note} (putaran $round, ${SystemClock.elapsedRealtime() - startedAt} ms)")
+                    val kind = orphan.kind
+                    val left = (remaining[kind] ?: 1) - 1
+                    remaining[kind] = left
+                    if (left <= 0) guardHandler.post { releaseDeferredEnable(kind, "yatim-mati") } // Batch 321
                 } else {
                     notes[orphan.effectId] = result.note
                     failed.add(orphan)
@@ -1553,6 +1636,7 @@ class AudioEnhancerService : Service() {
      *  yang tertahan jeda itu DITUNDA sampai jeda habis (bukan dibuang), dan dibatalkan bila pemutaran sudah berhenti. */
     private fun runEffectRebind(reason: String, settle: Boolean = false) {
         if (!isRunning) return
+        if (deferredEnableKinds.isNotEmpty()) releaseDeferredEnable(null, "pasang-ulang") // Batch 321: serah-terima butuh efek lama menyala
         // Batch 257 (hemat baterai + "mendem"): efek yang terikat sesi pemutar ikut track ke thread keluaran mana pun, jadi serah-terima
         // karena pemutaran mulai/berhenti (2 tahap, ±70-130 ms CPU + 10 destruktor tiap kali) tak diperlukan lagi. Hanya perpindahan sesi
         // itu sendiri ("sesi-pemutar") yang tetap membuat efek baru.
@@ -1738,6 +1822,10 @@ class AudioEnhancerService : Service() {
      *  sistem/aplikasi lain. */
     private fun runEffectGuard(reason: String) {
         if (!isRunning) return
+        if (deferredEnableKinds.isNotEmpty()) { // Batch 321: efek sengaja belum menyala (menunggu yatim mati) — bukan efek rusak; periksa lagi sebentar
+            requestEffectGuard(reason)
+            return
+        }
         val now = SystemClock.elapsedRealtime()
         val lost = hasControlLostEffect()
         val disabled = findDisabledEffects()
@@ -2113,6 +2201,7 @@ class AudioEnhancerService : Service() {
     }
 
     private fun releaseEffects() {
+        cancelDeferredEnable() // Batch 321
         effectSession = DumpProbe.GLOBAL_EFFECT_SESSION // Batch 257: ikatan sesi hanya berlaku selama objek efek yang sekarang
         boundEffectSession = DumpProbe.GLOBAL_EFFECT_SESSION
         // Batch 280: tiap efek dilepas TERPISAH (satu exception tak boleh membiarkan efek lain tertinggal di audioserver) lalu referensinya
@@ -2142,6 +2231,7 @@ class AudioEnhancerService : Service() {
      *  engine yang perlu ditandai merah ke UI, `OnEnableStatusChangeListener` di atas juga
      *  akan reflect state sebenarnya kalau enabled beneran berhasil diubah sistem. */
     private fun disableEffects() {
+        cancelDeferredEnable() // Batch 321
         try { bassBoost?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable BassBoost", e) }
         try { virtualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Virtualizer", e) }
         try { equalizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal disable Equalizer", e) }
@@ -2162,7 +2252,7 @@ class AudioEnhancerService : Service() {
      *  dari `CONTROL_LOST`, yang datang dari listener sistem, bukan dari exception lokal
      *  saat pemanggilan `.enabled = true`). */
     private fun enableEffects() {
-        enableMixEffects()
+        if (deferredEnableKinds.isEmpty()) enableMixEffects() // Batch 321: selama menunggu yatim mati, penyalaan jenis diatur `releaseDeferredEnable`
         try { visualizer?.enabled = true } catch (e: Exception) {
             visualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable Visualizer", e)
         }

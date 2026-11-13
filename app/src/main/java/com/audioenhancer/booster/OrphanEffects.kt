@@ -22,6 +22,10 @@ internal object OrphanEffects {
     const val RETRY_DELAY_MS = 100L
     const val MAX_TARGETS = 12
 
+    /** Batch 321: batas tunggu penyalaan efek proses baru selama penyapu jalan (`AudioEnhancerService.deferredEnableKinds`). Penyapu normal tuntas
+     *  ±0,3 dtk (log `aep_debug_20261113_131652`: 340 ms); batas ini hanya jaring bila penyapu menggantung supaya efek tak mati selamanya. */
+    const val ENABLE_DEFER_MAX_MS = 1500L
+
     enum class Kind(val typeUuid: String, val label: String) {
         BASS("0634f220-ddd4-11db-a0fc-0002a5d5c51b", "BassBoost"),
         VIRTUALIZER("37cc2c00-dddd-11db-8577-0002a5d5c51b", "Virtualizer"),

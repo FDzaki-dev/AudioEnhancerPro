@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 321: Lonjakan saat fresh start/update: efek proses baru tak lagi menyala bersamaan dengan efek yatim
+
+Atas laporanmu: "Terjadi anomali lonjakan" + `aep_debug_20261113_131652.txt` + `AEP_laporan-untuk-claude_run117.zip` (diurai setelah update ke run 355 = B320 di HP, 13:16).
+
+**CI run 117 (B320)**: penanda cocok (BATCH_PROJECT_STATE=320, COMMIT=3b447c9, RUN_ID=43370293637), semua exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, tes 304/304 -> perbaikan workflow B320 TERBUKTI (action Node 24 + `ubuntu-24.04` jalan hijau).
+
+**Penyebab lonjakan (dari log, bukan dugaan)**: proses lama (pid 12022) dimatikan update; proses baru (pid 15296) hidup 13:16:26.557. Efek utama lama (id 5163/5219/5227/5235/5243, sesi pemutar 2537) jadi YATIM dan terus memproses. Efek global proses baru dibuat dan LANGSUNG dinyalakan 26.853 (Bass), .860 (Virtualizer), .885 (EQ), .906 (Loudness), .975 (DynamicsProcessing), sedangkan yatim baru dimatikan EQ 26.946, Bass 27.076, Loudness 27.093, DP 27.155, Virtualizer 27.168. Tumpang-tindih dua rantai (kompresor/loudness/bass dua kali): EQ 61 ms, Loudness 187 ms, DP 180 ms, Bass 223 ms, Virtualizer 308 ms. Penyapu B319 mempercepat mematikan yatim tetapi tak bisa menutup jendela itu karena efek baru sudah menyala lebih dulu (penyapu baru mulai membaca dump ±30 ms setelah efek dibuat).
+
+**Perbaikan** (`AudioEnhancerService.kt`, `OrphanEffects.kt`): bila penyapu dimulai (izin DUMP ada), efek proses baru dibuat TANPA menyala (jalur `enableNow` yang sudah dipakai serah-terima B233). Tiap jenis dinyalakan begitu SEMUA yatim jenis itu mati (jenis tanpa yatim: segera; sisanya jaring saat penyapu selesai/gagal; batas waktu 1,5 dtk bila penyapu menggantung). Efek Guard dan `enableEffects()` (onStartCommand, ganti rute) menahan diri selama penantian; Matikan/onDestroy membatalkannya; serah-terima efek (`runEffectRebind`) menyalakan sisanya dulu. Selama penantian rantai yatim yang bernilai sama tetap memproses audio (tanpa jeda sunyi), lalu serah-terima per jenis terjadi dalam hitungan ms. Tanpa izin DUMP (tak ada yatim) perilaku SAMA dengan sebelumnya. Log baru: `EnableGate[alasan]: jenis dinyalakan N ms sejak efek dibuat, menunggu M`.
+
+**Tes**: 1 tes penjaga teks baru di `OrphanEffectsTest` (urutan onCreate, gerbang `attachEffects`/`enableEffects`/guard, pelepasan per jenis, jaring penyapu selesai, pembatalan Matikan) -> 305 tes diharapkan.
+
+**Status**: kode ditulis tanpa kompilator di sandbox (kurung seimbang, tes sumber dicocokkan manual) -> NOT VERIFIED sampai CI B321; uji dengar HP juga NOT VERIFIED. Uji: putar musik, update/fresh start (pasang ZIP lalu buka Boomly) dan dengarkan 0,5 dtk pertama; kirim ekspor log. Cari di log: `EnableGate[yatim-mati]` per jenis (selisih ke `OrphanSweep|` kecil, tak ada lagi efek baru menyala sebelum yatimnya mati). Gagal build = baca log dulu; revert = `Boomly_v320.zip`.
+
 ## Batch 320: Workflow CI ke Node 24 + runner dipin ubuntu-24.04 (menutup 4 anotasi run 116)
 
 Atas permintaanmu: "Lanjutkan progress dan beresin semua warning yang ada!!" + screenshot Annotations run 116 (2 warnings, 2 notices) + `Boomly_v319.zip` + `AEP_laporan-untuk-claude_run116.zip` + `aep_debug_20261113_130134.txt`.

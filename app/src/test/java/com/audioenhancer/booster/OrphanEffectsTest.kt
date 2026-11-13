@@ -154,4 +154,28 @@ class OrphanEffectsTest {
         assertTrue("siklus terbatas", run.contains("OrphanEffects.MAX_CYCLES"))
         assertTrue("verifikasi ulang dump setelah menyapu", run.contains("sisa ${'$'}{rest.size} modul yatim"))
     }
+
+    @Test
+    fun `efek proses baru dibuat tanpa menyala selama penyapu dan dinyalakan per jenis setelah yatimnya mati`() {
+        // Batch 321, log `aep_debug_20261113_131652`: efek global baru menyala 26,85-26,98 sementara yatim baru mati 26,95-27,17 (tumpang-tindih 60-310 ms).
+        assertTrue("batas tunggu wajar (jaring saja)", OrphanEffects.ENABLE_DEFER_MAX_MS in 500L..3_000L)
+        val source = serviceSource()
+        val create = bodyBetween(source, "override fun onCreate()", "override fun onStartCommand(")
+        assertTrue("penantian dimulai setelah penyapu mulai dan sebelum efek dibuat",
+            create.indexOf("startOrphanSweep(") < create.indexOf("beginDeferredEnable()") && create.indexOf("beginDeferredEnable()") < create.indexOf("attachEffects()"))
+        val attach = bodyBetween(source, "private fun attachEffects()", "private fun attachBass(")
+        assertTrue(attach.contains("deferredEnableKinds.isEmpty()"))
+        assertTrue(attach.contains("attachBass(enableNow)") && attach.contains("attachDynamicsProcessing(enableNow)"))
+        val enable = bodyBetween(source, "private fun enableEffects()", "private fun enableMixEffects()")
+        assertTrue("onStartCommand/rute tak menyalakan efek yang sengaja ditahan", enable.indexOf("deferredEnableKinds.isEmpty()") in 0 until enable.indexOf("enableMixEffects()"))
+        val guard = bodyBetween(source, "private fun runEffectGuard(", "private fun hasControlLostEffect(")
+        assertTrue("guard tidak menganggap efek yang ditahan sebagai rusak", guard.indexOf("deferredEnableKinds.isNotEmpty()") in 0 until guard.indexOf("findDisabledEffects()"))
+        val sweep = bodyBetween(source, "private suspend fun sweepTargets(", "private class OrphanResult(")
+        assertTrue(sweep.contains("releaseDeferredEnable(kind, \"yatim-mati\")"))
+        assertTrue(sweep.contains("releaseDeferredEnable(k, \"tanpa-yatim\")"))
+        val start = bodyBetween(source, "private fun startOrphanSweep(", "private suspend fun runOrphanSweep(")
+        assertTrue("jaring: penyapu selesai/gagal menyalakan sisanya sebelum probe sesi", start.indexOf("releaseDeferredEnable(null, \"sapu-selesai\")") in 0 until start.indexOf("refreshEffectSession("))
+        val disable = bodyBetween(source, "private fun disableEffects()", "private fun enableEffects()")
+        assertTrue("Matikan membatalkan penantian", disable.contains("cancelDeferredEnable()"))
+    }
 }
