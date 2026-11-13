@@ -24,6 +24,7 @@ app/src/main/java/com/audioenhancer/booster/FirstDrawGate.kt
 app/src/main/java/com/audioenhancer/booster/MainActivity.kt
 app/src/main/java/com/audioenhancer/booster/OemAutostartHelper.kt
 app/src/main/java/com/audioenhancer/booster/OnboardingScreen.kt
+app/src/main/java/com/audioenhancer/booster/OrphanEffects.kt
 app/src/main/java/com/audioenhancer/booster/OutputRouteLabel.kt
 app/src/main/java/com/audioenhancer/booster/PrefsHelper.kt
 app/src/main/java/com/audioenhancer/booster/QuickToggleTileService.kt
@@ -86,6 +87,7 @@ app/src/test/java/com/audioenhancer/booster/EffectReleaseGuardTest.kt
 app/src/test/java/com/audioenhancer/booster/EffectSessionTest.kt
 app/src/test/java/com/audioenhancer/booster/FirstDrawGateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
+app/src/test/java/com/audioenhancer/booster/OrphanEffectsTest.kt
 app/src/test/java/com/audioenhancer/booster/OutputRouteLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt

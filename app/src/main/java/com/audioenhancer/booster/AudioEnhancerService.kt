@@ -477,6 +477,11 @@ class AudioEnhancerService : Service() {
     @Volatile private var dumpProbePending = false
     @Volatile private var lastDumpProbeAtMs: Long = EffectGuardPolicy.NEVER
     private var dumpProbeDeniedLogged = false
+
+    // Batch 318: sapu modul efek YATIM (rantai sesi pemutar milik proses lama yang mati) di awal proses. Selama penyapu jalan,
+    // ikatan sesi ([followEffectSession]) ditahan supaya tak berebut modul yang sama; setelah selesai probe sesi diulang.
+    private val orphanSweepActive = java.util.concurrent.atomic.AtomicBoolean(false)
+    @Volatile private var orphanSweepDeferredFollow = false
     private val dumpProbeRunnable = Runnable { refreshEffectSession("playback-settle") }
 
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
@@ -583,6 +588,7 @@ class AudioEnhancerService : Service() {
             android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
         }
         registerPlaybackGuard() // Batch 229
+        startOrphanSweep("mulai") // Batch 318
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -1313,12 +1319,88 @@ class AudioEnhancerService : Service() {
     /** Batch 257: ikat 5 efek utama ke sesi pemutar media yang sedang `started` (tepat satu sesi); lebih dari satu = global; tak ada = biarkan.
      *  Perpindahan memakai serah-terima tanpa celah yang sama (`runEffectRebind`), dijalankan di thread utama; dipanggil dari thread IO probe. */
     private fun followEffectSession(started: List<Int>) {
+        if (orphanSweepActive.get()) { // Batch 318: penyapu yatim masih jalan -> tunda ikatan; probe diulang begitu selesai
+            orphanSweepDeferredFollow = true
+            return
+        }
         val desired = DumpProbe.chooseEffectSession(started) ?: return
         guardHandler.post {
             if (!isRunning || desired == effectSession) return@post
             android.util.Log.i(TAG, "EffectSession: efek utama dipindah dari sesi $effectSession ke sesi $desired (sedang main: $started)")
             effectSession = desired
             runEffectRebind("sesi-pemutar")
+        }
+    }
+
+    /** Batch 318: sapu modul efek YATIM di awal proses. Setelah update/dibunuh, rantai efek lama yang terikat sesi pemutar tetap hidup tanpa
+     *  klien dan terus memproses audio dengan nilai lama, TUMPANG-TINDIH dengan efek global proses baru = suara menggelegar sesaat sampai
+     *  efek dipindah ke sesi itu (lihat [OrphanEffects]). Di sini tiap yatim diambil alih lewat objek efek sementara pada sesi yang sama,
+     *  dimatikan, lalu dilepas (pelepasan dari klien menghapus modulnya). Hanya jalan bila izin DUMP ada (tanpa izin efek tak pernah terikat
+     *  sesi, jadi tak ada yatim). Efek proses ini TIDAK disentuh: yatim hanya di sesi > 0 dan efek proses ini baru pindah ke sana SETELAH
+     *  penyapu selesai. Seluruhnya berjalan di thread IO dan dibatalkan bersama [dumpProbeScope]. */
+    private fun startOrphanSweep(reason: String) {
+        if (ContextCompat.checkSelfPermission(this, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return
+        if (!orphanSweepActive.compareAndSet(false, true)) return
+        dumpProbeScope.launch {
+            try {
+                runOrphanSweep(reason)
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "OrphanSweep[$reason]: penyapu berhenti karena galat", e)
+            } finally {
+                orphanSweepActive.set(false)
+                if (orphanSweepDeferredFollow) {
+                    orphanSweepDeferredFollow = false
+                    guardHandler.post { refreshEffectSession("pasca-sapu", force = true) }
+                }
+            }
+        }
+    }
+
+    private suspend fun runOrphanSweep(reason: String) {
+        var attempt = 0
+        while (attempt < OrphanEffects.MAX_ATTEMPTS) {
+            attempt++
+            val startedAt = SystemClock.elapsedRealtime()
+            val (orphans, total) = readDump("sapu-yatim/$reason", OrphanEffects.COMMAND) { OrphanEffects.parse(it) } ?: return
+            if (orphans.isEmpty()) {
+                android.util.Log.i(TAG, "OrphanSweep[$reason]: ${if (attempt == 1) "tidak ada" else "tuntas, tak ada lagi"} modul efek yatim (baris=$total percobaan=$attempt ${SystemClock.elapsedRealtime() - startedAt} ms)")
+                return
+            }
+            android.util.Log.w(TAG, "OrphanSweep[$reason]: ${orphans.size} modul efek yatim (tanpa klien, menyala) percobaan=$attempt baris=$total")
+            for (orphan in orphans.take(OrphanEffects.MAX_TARGETS)) {
+                android.util.Log.w(TAG, "OrphanSweep| ${OrphanEffects.describe(orphan)}: ${neutralizeOrphan(orphan)}")
+            }
+            kotlinx.coroutines.delay(OrphanEffects.RETRY_DELAY_MS)
+        }
+        val (rest, _) = readDump("sapu-yatim/$reason", OrphanEffects.COMMAND) { OrphanEffects.parse(it) } ?: return
+        android.util.Log.w(TAG, "OrphanSweep[$reason]: selesai ${OrphanEffects.MAX_ATTEMPTS} percobaan, sisa ${rest.size} modul yatim")
+    }
+
+    /** Ambil alih satu modul yatim lewat objek sementara pada sesinya, matikan, lalu lepas. Urutan mati-hidup-mati disengaja: objek baru pada
+     *  modul yang sudah menyala mengira efek itu sudah menyala, jadi perintah `enabled = false` pertama tidak sampai ke modul. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun neutralizeOrphan(orphan: OrphanEffects.Orphan): String {
+        if (orphan.kind == OrphanEffects.Kind.DYNAMICS && Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return "dilewati (API < 28)"
+        var fx: android.media.audiofx.AudioEffect? = null
+        return try {
+            val created: android.media.audiofx.AudioEffect = when (orphan.kind) {
+                OrphanEffects.Kind.BASS -> BassBoost(EffectGuardPolicy.EFFECT_PRIORITY, orphan.session)
+                OrphanEffects.Kind.VIRTUALIZER -> Virtualizer(EffectGuardPolicy.EFFECT_PRIORITY, orphan.session)
+                OrphanEffects.Kind.EQUALIZER -> Equalizer(EffectGuardPolicy.EFFECT_PRIORITY, orphan.session)
+                OrphanEffects.Kind.LOUDNESS -> LoudnessEnhancer(orphan.session)
+                OrphanEffects.Kind.DYNAMICS -> DynamicsProcessing(orphan.session)
+            }
+            fx = created
+            created.enabled = false
+            created.enabled = true
+            created.enabled = false
+            "dimatikan lalu dilepas"
+        } catch (e: Exception) {
+            "gagal (${e.javaClass.simpleName}: ${e.message.orEmpty()})"
+        } finally {
+            try { fx?.release() } catch (e: Exception) {
+                android.util.Log.w(TAG, "OrphanSweep: gagal melepas objek sementara", e)
+            }
         }
     }
 

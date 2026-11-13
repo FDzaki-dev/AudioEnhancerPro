@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 318: Sapu modul efek yatim di awal proses (suara menggelegar setelah update/fresh start)
+
+Atas laporanmu: setiap fresh start atau sesudah update, suara selalu menggelegar sesaat dibanding beberapa detik kemudian, dan yang beberapa detik kemudian itu yang kamu mau jadi standar.
+
+**Akar masalah (bukti log `aep_debug_20261113_073815`, diekspor 18 dtk setelah APK v317 terpasang)**: `dumpsys media.audio_flinger` memperlihatkan thread `AudioOut_15` (deep_buffer) masih memegang rantai "5 effects for session 2457" dengan tiap modul `0 Clients`, `Enabled y`, state 003 (ACTIVE). ID modulnya (4635, 4723, 4731, 4739, 4747) persis ID yang dibuat proses LAMA (pid 12175) saat memindahkan efek ke sesi 2457 pukul 07:32:22; prosesnya sudah mati sejak update, tapi rantainya tidak. Efek session 0 ikut hilang bersama prosesnya (rantai session 0 hanya berisi ID baru 4755-4795, `1 Clients`, pid 14653). Jadi pemutar di sesi 2457 diproses DUA rantai sekaligus: rantai yatim (nilai lama, kompresor +24 dB, bass, loudness) dan efek global proses baru. Penumpukan baru berakhir saat probe sesi (±1,6 dtk sesudah pemutar mulai) memindahkan efek proses baru ke sesi itu dan melepas yang global: itulah "beberapa detik kemudian" yang lebih pelan. Jejak yang sama ada di log lama: kegagalan -3 pada pemindahan pertama setelah proses baru (07:02:54, 07:16:48) terjadi tepat di sesi yang menyimpan yatim.
+
+**Perbaikan**: `OrphanEffects` (murni; tes memakai blok ASLI log itu) membaca `dumpsys media.audio_flinger` dan mengambil modul 5 jenis efek Boomly di sesi > 0 dengan `0 Clients` + `Enabled y`. `AudioEnhancerService.startOrphanSweep` jalan sekali di `onCreate` (hanya bila izin DUMP ada; tanpa izin efek tak pernah terikat sesi, jadi tak ada yatim) di thread IO: tiap yatim diambil alih lewat objek efek sementara pada sesi yang sama, dimatikan (mati-hidup-mati karena objek baru pada modul yang sudah menyala mengira efek itu menyala), lalu dilepas. Maksimal 3 percobaan dengan jeda 400 ms, lalu satu dump verifikasi yang mencatat sisa. Selama penyapu jalan `followEffectSession` menunda ikatan sesi supaya tak berebut modul, dan probe diulang begitu selesai. Efek proses ini tidak disentuh. Hasil: sesudah update/fresh start pemutar hanya diproses satu rantai sejak awal, sama dengan keadaan "beberapa detik kemudian". Log memuat baris `OrphanSweep[...]` dan `OrphanSweep| sesi=... id=...: dimatikan lalu dilepas / gagal (...)`.
+
+**Cermin Python atas dump asli**: 5 yatim terdeteksi (4635, 4723, 4731, 4739, 4747, semua sesi 2457); rantai session 0 dan modul berklien tidak ikut.
+
+**Tes**: `OrphanEffectsTest` (5 tes parser + 3 tes teks sumber: izin DUMP, urutan terhadap `registerPlaybackGuard`, penundaan `followEffectSession`, pelepasan di `finally`, efek proses ini tak ditulis).
+
+**Status**: build, CI, dan HP NOT VERIFIED (tanpa compiler Kotlin/Gradle di sandbox; parser dicerminkan dan diuji di Python pada dump asli). Yang belum terbukti: bahwa objek sementara pada modul yatim bisa mengambil kontrol dan pelepasannya benar-benar menghapus modul (perilaku AudioFlinger dari pembacaan kode, bukan uji). Cara cek di HP: pasang APK B318 lalu update lagi ke versi berikutnya saat musik jalan, ekspor Log Debug sesudahnya; cari `OrphanSweep[mulai]` (harus tuntas / sisa 0) dan di dump `audio_flinger` tidak ada lagi "0 Clients" di sesi pemutar.
+
 ## Batch 317: Log Debug meringkas galat efek -3 yang sudah ditangani
 
 Atas pilihanmu: ekspor Log Debug tidak lagi dibanjiri baris `E` saat efek audio gagal dibuat ulang ketika pindah ke sesi pemutar yang sedang memutar. Satu kegagalan menulis ±17 baris galat (gema framework, "tidak tersedia di device ini", `RuntimeException`, ±13 baris `at`), padahal aplikasi sudah memakai efek lama dan efek kembali sehat sekitar 1 detik kemudian.
