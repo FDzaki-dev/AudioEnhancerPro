@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 322: Efek tak terdengar setelah force stop saat musik sudah main: probe sesi selalu jalan sesudah penyapu
+
+Atas laporanmu: "Setelah force stop dan fresh start. Output kehilangan tenaga atau lebih tepatnya tidak berbeda antara indikator nyala/mati" + `aep_debug_20261113_181610.txt` + `AEP_laporan-untuk-claude_run118.zip`.
+
+**CI run 118 (B321)**: penanda cocok (BATCH_PROJECT_STATE=321, COMMIT=0af1ce7, RUN_ID=43406330760), semua exit 0, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, kompilator 0, tes 305/305 -> B321 STATIC-VERIFIED. Log HP 18:11 (run 356): efek baru menyala 4-8 ms setelah yatim jenisnya mati, tumpang-tindih 0 (sebelumnya 61-308 ms) -> B321 TERBUKTI di HP.
+
+**Penyebab (dari dump AudioFlinger di log ekspor 18:16:10, bukan dugaan)**: pemutar `com.rudi.audioplayer` (sesi 2897) sedang main (`AudioOut_15` tidak standby), tetapi rantai efek Boomly HANYA `6 effects for session 0`; tak ada rantai untuk sesi 2897. Di device ini efek sesi 0 tidak terdengar pada pemutar itu (karena itu efek diikat ke sesi pemutar sejak B257), jadi output sama persis saat indikator nyala atau mati. Pada fresh start proses 21566 (18:15:26) penyapu mematikan 5 yatim sesi 2897, lalu TIDAK ADA `DumpProbe`/`EffectSession` sama sekali sampai export: probe sesi hanya dipicu perubahan pemutaran, dan musik yang sudah main sebelum proses hidup tak menghasilkan perubahan apa pun. Sebelum B318 yatim itulah yang tanpa sengaja terdengar (nilai lama, terikat sesi 2897); penyapu B318/B319 mematikannya dan mengandalkan probe pasca-sapu, tetapi probe itu hanya dijadwalkan bila ikatan sempat TERTUNDA selama sapu (`orphanSweepDeferredFollow`) = hampir tak pernah. Hal yang sama terjadi pada hidup-ulang layanan lewat tombol indikator (18:15:34, sapu tanpa yatim).
+
+**Perbaikan** (`AudioEnhancerService.kt`, `OrphanEffectsTest.kt`): di akhir `startOrphanSweep`, `refreshEffectSession("pasca-sapu", force = true)` kini SELALU diposting (urutan tetap: gerbang B321 dinyalakan dulu, lalu probe). Probe membaca pemutar yang sedang main, memindahkan efek dari sesi 0 ke sesi itu lewat serah-terima lintas sesi yang sama dengan jalur terbukti (18:11:50: `serah-terima 120 ms, tumpang-tindih 3 ms`). Tanpa izin DUMP perilaku TIDAK berubah (penyapu tak dimulai). +1 tes penjaga teks -> 306 tes diharapkan.
+
+**Status**: NOT VERIFIED (tanpa kompilator di sandbox; CI B322 + uji dengar). Uji: putar musik, force stop Boomly, buka lagi TANPA memutar ulang musik; efek harus terdengar dalam ±0,5 dtk. Cari di log: `DumpProbe[pasca-sapu]` lalu `EffectSession: efek utama dipindah dari sesi 0 ke sesi N` dan `EffectRebind[sesi-pemutar]`. Gagal build = baca log dulu; revert = `Boomly_v321.zip`.
+
 ## Batch 321: Lonjakan saat fresh start/update: efek proses baru tak lagi menyala bersamaan dengan efek yatim
 
 Atas laporanmu: "Terjadi anomali lonjakan" + `aep_debug_20261113_131652.txt` + `AEP_laporan-untuk-claude_run117.zip` (diurai setelah update ke run 355 = B320 di HP, 13:16).

@@ -1360,8 +1360,10 @@ class AudioEnhancerService : Service() {
                 guardHandler.post { releaseDeferredEnable(null, "sapu-selesai") } // Batch 321: jaring (sapu gagal/tanpa yatim) + sebelum probe sesi di bawah
                 if (orphanSweepDeferredFollow) {
                     orphanSweepDeferredFollow = false
-                    guardHandler.post { refreshEffectSession("pasca-sapu", force = true) }
                 }
+                // Batch 322: probe sesi SELALU sesudah sapu (dulu hanya bila ikatan sempat tertunda). Fresh start saat musik SUDAH main tak memicu
+                // callback pemutar apa pun, jadi tanpa probe ini efek proses baru tertinggal di sesi 0 = tak terdengar (log 18:16: rantai sesi 2897 kosong).
+                guardHandler.post { refreshEffectSession("pasca-sapu", force = true) }
             }
         }
         return true

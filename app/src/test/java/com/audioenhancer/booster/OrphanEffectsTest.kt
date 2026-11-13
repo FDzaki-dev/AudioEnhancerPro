@@ -178,4 +178,12 @@ class OrphanEffectsTest {
         val disable = bodyBetween(source, "private fun disableEffects()", "private fun enableEffects()")
         assertTrue("Matikan membatalkan penantian", disable.contains("cancelDeferredEnable()"))
     }
+
+    @Test
+    fun `probe sesi selalu dijalankan sesudah penyapu agar efek ikut ke sesi pemutar yang sudah main`() {
+        // Batch 322, log `aep_debug_20261113_181610`: force stop saat musik main -> efek proses baru hanya di sesi 0, rantai sesi pemutar kosong (tak terdengar).
+        val start = bodyBetween(serviceSource(), "private fun startOrphanSweep(", "private suspend fun runOrphanSweep(")
+        assertTrue("probe pasca-sapu tidak bergantung pada penanda tertunda",
+            Regex("""if \(orphanSweepDeferredFollow\) \{\s*orphanSweepDeferredFollow = false\s*\}\s*guardHandler\.post \{ refreshEffectSession\("pasca-sapu", force = true\) \}""").containsMatchIn(start))
+    }
 }
