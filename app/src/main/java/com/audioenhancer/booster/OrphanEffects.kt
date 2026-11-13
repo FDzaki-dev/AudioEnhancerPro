@@ -13,8 +13,13 @@ package com.audioenhancer.booster
 internal object OrphanEffects {
     val COMMAND: List<String> = listOf("dumpsys", "media.audio_flinger")
 
-    const val MAX_ATTEMPTS = 3
-    const val RETRY_DELAY_MS = 400L
+    /** Siklus = satu pembacaan dump + putaran penyapuan. Siklus berikutnya sekaligus menjadi verifikasi (dump kosong = tuntas). */
+    const val MAX_CYCLES = 2
+
+    /** Batch 319: putaran ulang TANPA membaca dump lagi, hanya untuk modul yang pembuatan objek sementaranya gagal (-3). Log device
+     *  `aep_debug_20261113_124856`: percobaan pertama gagal (±18 ms), percobaan sesudah ±0,5 dtk berhasil; putaran 100 ms x 8 menutup jendela itu. */
+    const val MAX_ROUNDS = 8
+    const val RETRY_DELAY_MS = 100L
     const val MAX_TARGETS = 12
 
     enum class Kind(val typeUuid: String, val label: String) {

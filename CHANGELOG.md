@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 319: Penyapu yatim lebih cepat (putaran ulang 100 ms, mulai paling awal)
+
+Atas pilihanmu: "Percepat sapu (percobaan 1 selalu gagal -3)".
+
+**Bukti B318 di HP (log `aep_debug_20261113_124856`, update ke run 353 saat musik jalan di sesi 2537)**: penyapu menemukan 4 modul yatim (Bass 4867, Virtualizer 4875, Loudness 4883, DynamicsProcessing 4891). Percobaan 1 gagal semua (`AudioFlinger could not create effect ... status: -38`, 18 ms per jenis), percobaan 2 ±0,5 dtk kemudian berhasil (mati-hidup-mati lalu lepas), percobaan 3 = dump verifikasi "tuntas" (tanpa satu pun `0 Clients` di dump akhir). Tuntas ±0,9 dtk sejak proses mulai; penyapu sendiri baru mulai ±1,3 dtk setelah proses lahir.
+
+**Perubahan**: (1) `startOrphanSweep` dipanggil paling awal di `onCreate` (sebelum `createNotificationChannel`/`attachEffects`; berjalan paralel di thread IO), tadinya paling akhir; (2) kegagalan membuat objek sementara kini diulang dalam putaran 100 ms x 8 (jendela 800 ms) TANPA membaca dump lagi, hanya untuk modul yang gagal; tadinya tiap percobaan membaca dump ulang (±75-120 ms) plus jeda 400 ms; (3) siklus dump dibatasi 2 (siklus kedua = verifikasi), lalu satu dump terakhir mencatat sisa bila masih ada; (4) log per modul memuat nomor putaran dan lama, mis. `OrphanSweep| sesi=2537 BassBoost id=4867: dimatikan lalu dilepas (putaran 3, 310 ms)`; gagal pasca-pembuatan (pemadaman) tidak diulang karena modul sudah terlepas.
+
+**Batas yang jujur**: penyebab -3 pada percobaan pertama belum diketahui (log hanya membuktikan ia sementara: gagal lalu berhasil ±0,5 dtk kemudian). Percepatan nyata bergantung pada kapan jendela itu terbuka: paling banyak menghemat ±0,4 dtk dari ±0,9 dtk, dan tidak menghemat bila jendelanya memang ±0,5 dtk dari awal. Catatan: kegagalan -3 yang sama di pemindahan sesi pertama (log B315/B316) mungkin berasal dari penyebab yang sama.
+
+**Tes**: `OrphanEffectsTest` 9 tes (+1): penyapu paling awal sebelum `attachEffects()`, putaran ulang tanpa baca dump, jendela >= 500 ms dan jeda <= 150 ms, hanya yang gagal diulang.
+
+**Status**: build, CI, dan HP NOT VERIFIED (tanpa compiler Kotlin/Gradle di sandbox).
+
 ## Batch 318: Sapu modul efek yatim di awal proses (suara menggelegar setelah update/fresh start)
 
 Atas laporanmu: setiap fresh start atau sesudah update, suara selalu menggelegar sesaat dibanding beberapa detik kemudian, dan yang beberapa detik kemudian itu yang kamu mau jadi standar.

@@ -112,15 +112,28 @@ class OrphanEffectsTest {
     }
 
     @Test
-    fun `penyapu dimulai dari onCreate setelah penjaga pemutaran dan hanya dengan izin DUMP`() {
+    fun `penyapu dimulai paling awal di onCreate sebelum efek proses ini dibuat dan hanya dengan izin DUMP`() {
         val source = serviceSource()
         val create = bodyBetween(source, "override fun onCreate()", "override fun onStartCommand(")
-        assertTrue(create.indexOf("registerPlaybackGuard()") in 0 until create.indexOf("startOrphanSweep("))
+        assertTrue(create.contains("startOrphanSweep("))
+        assertTrue("penyapu mulai sebelum attachEffects()", create.indexOf("startOrphanSweep(") in 0 until create.indexOf("attachEffects()"))
         val start = bodyBetween(source, "private fun startOrphanSweep(", "private suspend fun runOrphanSweep(")
         assertTrue(start.contains("DumpProbe.PERMISSION"))
         assertTrue(start.contains("orphanSweepActive.compareAndSet(false, true)"))
         assertTrue(start.contains("orphanSweepActive.set(false)"))
         assertTrue("probe sesi diulang sesudah penyapu bila ikatan sempat tertunda", start.contains("refreshEffectSession(\"pasca-sapu\", force = true)"))
+    }
+
+    @Test
+    fun `putaran ulang cepat menutup jendela gagal -3 yang tercatat di log device`() {
+        // Log `aep_debug_20261113_124856`: pembuatan pertama gagal -3, pembuatan ±0,5 dtk kemudian berhasil.
+        assertTrue("jendela putaran minimal 500 ms", OrphanEffects.MAX_ROUNDS * OrphanEffects.RETRY_DELAY_MS >= 500L)
+        assertTrue("jeda putaran tak lebih dari 150 ms", OrphanEffects.RETRY_DELAY_MS <= 150L)
+        val sweep = bodyBetween(serviceSource(), "private suspend fun sweepTargets(", "private class OrphanResult(")
+        assertTrue(sweep.contains("OrphanEffects.MAX_ROUNDS"))
+        assertTrue(sweep.contains("kotlinx.coroutines.delay(OrphanEffects.RETRY_DELAY_MS)"))
+        assertFalse("putaran ulang tidak membaca dump lagi", sweep.contains("readDump("))
+        assertTrue("hanya yang gagal dibuat yang diulang", sweep.contains("failed.add(orphan)") && sweep.contains("pending = failed"))
     }
 
     @Test
@@ -135,9 +148,10 @@ class OrphanEffectsTest {
         val neutralize = bodyBetween(serviceSource(), "private fun neutralizeOrphan(", "private fun <T> readDump(")
         assertTrue(neutralize.contains("finally"))
         assertTrue(neutralize.contains("fx?.release()"))
+        assertTrue("gagal membuat objek = layak diulang", neutralize.contains("OrphanResult(false,"))
         assertFalse("penyapu tak boleh menulis field efek milik proses ini", Regex("""\b(bassBoost|virtualizer|equalizer|loudnessEnhancer|dynamicsProcessing)\b\s*=""").containsMatchIn(neutralize))
-        val run = bodyBetween(serviceSource(), "private suspend fun runOrphanSweep(", "private fun neutralizeOrphan(")
-        assertTrue("hanya mulai dari percobaan terbatas", run.contains("OrphanEffects.MAX_ATTEMPTS"))
+        val run = bodyBetween(serviceSource(), "private suspend fun runOrphanSweep(", "private suspend fun sweepTargets(")
+        assertTrue("siklus terbatas", run.contains("OrphanEffects.MAX_CYCLES"))
         assertTrue("verifikasi ulang dump setelah menyapu", run.contains("sisa ${'$'}{rest.size} modul yatim"))
     }
 }

@@ -573,6 +573,7 @@ class AudioEnhancerService : Service() {
             // Batch 206: dicatat (SpotBugs DE_MIGHT_IGNORE); tetap lanjut di prioritas default.
             android.util.Log.w(TAG, "Gagal menaikkan prioritas thread audio, lanjut prioritas default", e)
         }
+        startOrphanSweep("mulai") // Batch 319: paling awal (sebelum membuat efek proses ini); sapu jalan paralel di thread IO
         createNotificationChannel()
         attachEffects()
         // Batch 82: register SETELAH attachEffects() — urutan tidak kritis (callback baru
@@ -588,7 +589,6 @@ class AudioEnhancerService : Service() {
             android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
         }
         registerPlaybackGuard() // Batch 229
-        startOrphanSweep("mulai") // Batch 318
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -1357,30 +1357,58 @@ class AudioEnhancerService : Service() {
     }
 
     private suspend fun runOrphanSweep(reason: String) {
-        var attempt = 0
-        while (attempt < OrphanEffects.MAX_ATTEMPTS) {
-            attempt++
+        var cycle = 0
+        while (cycle < OrphanEffects.MAX_CYCLES) {
+            cycle++
             val startedAt = SystemClock.elapsedRealtime()
-            val (orphans, total) = readDump("sapu-yatim/$reason", OrphanEffects.COMMAND) { OrphanEffects.parse(it) } ?: return
-            if (orphans.isEmpty()) {
-                android.util.Log.i(TAG, "OrphanSweep[$reason]: ${if (attempt == 1) "tidak ada" else "tuntas, tak ada lagi"} modul efek yatim (baris=$total percobaan=$attempt ${SystemClock.elapsedRealtime() - startedAt} ms)")
+            val (found, total) = readDump("sapu-yatim/$reason", OrphanEffects.COMMAND) { OrphanEffects.parse(it) } ?: return
+            if (found.isEmpty()) {
+                android.util.Log.i(TAG, "OrphanSweep[$reason]: ${if (cycle == 1) "tidak ada" else "tuntas, tak ada lagi"} modul efek yatim (baris=$total siklus=$cycle ${SystemClock.elapsedRealtime() - startedAt} ms)")
                 return
             }
-            android.util.Log.w(TAG, "OrphanSweep[$reason]: ${orphans.size} modul efek yatim (tanpa klien, menyala) percobaan=$attempt baris=$total")
-            for (orphan in orphans.take(OrphanEffects.MAX_TARGETS)) {
-                android.util.Log.w(TAG, "OrphanSweep| ${OrphanEffects.describe(orphan)}: ${neutralizeOrphan(orphan)}")
-            }
-            kotlinx.coroutines.delay(OrphanEffects.RETRY_DELAY_MS)
+            android.util.Log.w(TAG, "OrphanSweep[$reason]: ${found.size} modul efek yatim (tanpa klien, menyala) siklus=$cycle baris=$total")
+            sweepTargets(found.take(OrphanEffects.MAX_TARGETS))
         }
         val (rest, _) = readDump("sapu-yatim/$reason", OrphanEffects.COMMAND) { OrphanEffects.parse(it) } ?: return
-        android.util.Log.w(TAG, "OrphanSweep[$reason]: selesai ${OrphanEffects.MAX_ATTEMPTS} percobaan, sisa ${rest.size} modul yatim")
+        android.util.Log.w(TAG, "OrphanSweep[$reason]: selesai ${OrphanEffects.MAX_CYCLES} siklus, sisa ${rest.size} modul yatim")
     }
+
+    /** Batch 319: putar [targets] sampai semuanya terambil alih atau [OrphanEffects.MAX_ROUNDS] habis. Hanya modul yang objek sementaranya gagal
+     *  dibuat yang diulang (jeda [OrphanEffects.RETRY_DELAY_MS], tanpa membaca dump lagi): di log device pembuatan pertama gagal -3 lalu berhasil
+     *  ±0,5 dtk kemudian, dan sebelumnya tiap percobaan ikut membaca dump (±75-120 ms) plus jeda 400 ms. */
+    private suspend fun sweepTargets(targets: List<OrphanEffects.Orphan>) {
+        val startedAt = SystemClock.elapsedRealtime()
+        val notes = HashMap<Int, String>()
+        var pending = targets
+        var round = 0
+        while (pending.isNotEmpty() && round < OrphanEffects.MAX_ROUNDS) {
+            round++
+            val failed = ArrayList<OrphanEffects.Orphan>()
+            for (orphan in pending) {
+                val result = neutralizeOrphan(orphan)
+                if (result.done) {
+                    android.util.Log.w(TAG, "OrphanSweep| ${OrphanEffects.describe(orphan)}: ${result.note} (putaran $round, ${SystemClock.elapsedRealtime() - startedAt} ms)")
+                } else {
+                    notes[orphan.effectId] = result.note
+                    failed.add(orphan)
+                }
+            }
+            pending = failed
+            if (pending.isNotEmpty() && round < OrphanEffects.MAX_ROUNDS) kotlinx.coroutines.delay(OrphanEffects.RETRY_DELAY_MS)
+        }
+        for (orphan in pending) {
+            android.util.Log.w(TAG, "OrphanSweep| ${OrphanEffects.describe(orphan)}: ${notes[orphan.effectId].orEmpty()} setelah $round putaran")
+        }
+    }
+
+    /** [done] = objek sementara berhasil dibuat (modul diambil alih lalu dilepas); false = pembuatan gagal, layak diulang. */
+    private class OrphanResult(val done: Boolean, val note: String)
 
     /** Ambil alih satu modul yatim lewat objek sementara pada sesinya, matikan, lalu lepas. Urutan mati-hidup-mati disengaja: objek baru pada
      *  modul yang sudah menyala mengira efek itu sudah menyala, jadi perintah `enabled = false` pertama tidak sampai ke modul. */
     @android.annotation.SuppressLint("NewApi")
-    private fun neutralizeOrphan(orphan: OrphanEffects.Orphan): String {
-        if (orphan.kind == OrphanEffects.Kind.DYNAMICS && Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return "dilewati (API < 28)"
+    private fun neutralizeOrphan(orphan: OrphanEffects.Orphan): OrphanResult {
+        if (orphan.kind == OrphanEffects.Kind.DYNAMICS && Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return OrphanResult(true, "dilewati (API < 28)")
         var fx: android.media.audiofx.AudioEffect? = null
         return try {
             val created: android.media.audiofx.AudioEffect = when (orphan.kind) {
@@ -1391,12 +1419,16 @@ class AudioEnhancerService : Service() {
                 OrphanEffects.Kind.DYNAMICS -> DynamicsProcessing(orphan.session)
             }
             fx = created
-            created.enabled = false
-            created.enabled = true
-            created.enabled = false
-            "dimatikan lalu dilepas"
+            try {
+                created.enabled = false
+                created.enabled = true
+                created.enabled = false
+                OrphanResult(true, "dimatikan lalu dilepas")
+            } catch (e: Exception) {
+                OrphanResult(true, "dilepas (pemadaman gagal: ${e.javaClass.simpleName}: ${e.message.orEmpty()})")
+            }
         } catch (e: Exception) {
-            "gagal (${e.javaClass.simpleName}: ${e.message.orEmpty()})"
+            OrphanResult(false, "gagal (${e.javaClass.simpleName}: ${e.message.orEmpty()})")
         } finally {
             try { fx?.release() } catch (e: Exception) {
                 android.util.Log.w(TAG, "OrphanSweep: gagal melepas objek sementara", e)
