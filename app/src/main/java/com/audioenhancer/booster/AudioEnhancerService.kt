@@ -1654,7 +1654,11 @@ class AudioEnhancerService : Service() {
             guardHandler.postDelayed(runnable, EffectGuardPolicy.USER_ADJUST_QUIET_MS)
             return
         }
-        if (!EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
+        // Batch 323: perpindahan ke sesi pemutar (tujuan sudah ditetapkan probe yang MELIHAT pemutar `started`) tak boleh dibatalkan hanya karena tanda
+        // tangan pemutaran kosong: pada fresh start saat musik sudah main, callback pemutar belum pernah terpicu (log 19:02: `dibatalkan` tiga kali,
+        // efek tertinggal di sesi 0 = tak terdengar sampai ada perubahan pemutaran berikutnya).
+        val pendingPlayerSessionMove = effectSession != DumpProbe.GLOBAL_EFFECT_SESSION && effectSession != boundEffectSession
+        if (!pendingPlayerSessionMove && !EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
             // Batch 232: pemutaran sudah berhenti selagi pasang-ulang menunggu -> tak ada output aktif yang perlu diikuti.
             android.util.Log.i(TAG, "EffectRebind[$reason]: dibatalkan (tak ada pemutar media aktif)")
             return

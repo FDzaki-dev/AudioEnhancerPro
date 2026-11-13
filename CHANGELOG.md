@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 323: Efek masih tertinggal di sesi 0 setelah fresh start: pindah sesi pemutar tak lagi dibatalkan
+
+Atas kiriman log `aep_debug_20261113_190208.txt` (uji B322 di HP, run 357, 18:54-19:02).
+
+**Hasil B322 di log**: probe pasca-sapu BERJALAN: `DumpProbe[pasca-sapu]: main=[2897]` lalu `EffectSession: efek utama dipindah dari sesi 0 ke sesi 2897` pada tiga fresh start (18:54:52, 18:55:15, 18:55:20), tanpa FATAL/ANR. Gerbang B321 tetap benar (`EnableGate[yatim-mati]` per jenis; `[sapu-selesai]` saat tanpa yatim).
+
+**Yang masih salah (dari log)**: sesudah `EffectSession` itu TIDAK ADA `EffectRebind[sesi-pemutar]`; yang muncul hanya `EffectRebind[playback-start]: dibatalkan (tak ada pemutar media aktif)` (18:54:55.988 dan 18:55:21.576). Efek baru tetap di sesi 0 (tak terdengar di HP ini) sampai perubahan pemutaran berikutnya (18:56:59 dan 19:02:02, saat `EffectRebind[sesi-pemutar]` akhirnya sukses; dump AudioFlinger 19:02:08 baru menunjukkan `5 effects for session 2897`). Sebabnya: `runEffectRebind` membatalkan diri bila `lastPlaybackSignature` kosong, padahal callback pemutar belum pernah terpicu pada fresh start saat musik sudah main; probe sudah melihat pemutar `started`, tetapi tujuan itu hanya tercatat di `effectSession`.
+
+**Perbaikan** (`AudioEnhancerService.kt`, `EffectSessionTest.kt`): di `runEffectRebind`, pembatalan "tak ada pemutar media aktif" tidak berlaku bila ada pindah-sesi tertunda (`effectSession` = sesi pemutar dan `boundEffectSession` masih sesi lain). Selain itu pembatalan B232 tetap sama. Serah-terima lintas sesi memakai jalur terbukti (`tumpang-tindih` 1-5 ms). +1 tes penjaga teks -> 307 tes diharapkan (306 bila B322 bersih).
+
+**Status**: NOT VERIFIED (tanpa kompilator; belum ada laporan CI untuk run B322/B323; uji dengar belum). Uji: musik main -> force stop Boomly -> buka lagi tanpa memutar ulang. Cari di log: `DumpProbe[pasca-sapu]`, `EffectSession: ... dari sesi 0 ke sesi N`, lalu `EffectRebind[sesi-pemutar]: efek diserahterimakan` (BUKAN `dibatalkan`); dump akhir harus `5 effects for session N` dan tak ada rantai efek Boomly di sesi 0. Gagal build = baca log dulu; revert = `Boomly_v322.zip`.
+
 ## Batch 322: Efek tak terdengar setelah force stop saat musik sudah main: probe sesi selalu jalan sesudah penyapu
 
 Atas laporanmu: "Setelah force stop dan fresh start. Output kehilangan tenaga atau lebih tepatnya tidak berbeda antara indikator nyala/mati" + `aep_debug_20261113_181610.txt` + `AEP_laporan-untuk-claude_run118.zip`.

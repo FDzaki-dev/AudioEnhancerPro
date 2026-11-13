@@ -130,4 +130,17 @@ class EffectSessionTest {
             assertFalse("sisa kode Reverb: $token", src.contains(token))
         }
     }
+
+    @Test
+    fun `pindah sesi pemutar tidak dibatalkan hanya karena tanda tangan pemutaran kosong`() {
+        // Batch 323, log `aep_debug_20261113_190208`: fresh start saat musik sudah main -> probe memindah tujuan ke sesi pemutar, tetapi serah-terima
+        // dibatalkan ("tak ada pemutar media aktif") karena callback pemutar belum pernah terpicu; efek tertinggal di sesi 0.
+        val src = code(serviceSource)
+        val rebind = between(src, "private fun runEffectRebind(", "private fun releaseReplaced(")
+        val decl = rebind.indexOf("val pendingPlayerSessionMove = effectSession != DumpProbe.GLOBAL_EFFECT_SESSION && effectSession != boundEffectSession")
+        val cancel = rebind.indexOf("if (!pendingPlayerSessionMove && !EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature))")
+        assertTrue("penanda pindah-sesi dihitung sebelum pembatalan", decl >= 0 && cancel > decl)
+        assertTrue("pembatalan tetap ada untuk kasus lain", rebind.contains("EffectRebind[\$reason]: dibatalkan (tak ada pemutar media aktif)"))
+        assertTrue("pembatalan sesudah pelewatan sesi terikat", rebind.indexOf("dilewati (efek utama terikat sesi") in 0 until cancel)
+    }
 }
