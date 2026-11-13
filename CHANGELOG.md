@@ -1,5 +1,23 @@
 # Changelog
 
+## Batch 320: Workflow CI ke Node 24 + runner dipin ubuntu-24.04 (menutup 4 anotasi run 116)
+
+Atas permintaanmu: "Lanjutkan progress dan beresin semua warning yang ada!!" + screenshot Annotations run 116 (2 warnings, 2 notices) + `Boomly_v319.zip` + `AEP_laporan-untuk-claude_run116.zip` + `aep_debug_20261113_130134.txt`.
+
+**Triase CI run 116**: penanda cocok (PROJECT=AudioEnhancerPro, APP_NAME=Boomly, APPLICATION_ID=com.audioenhancer.booster, BATCH_PROJECT_STATE=319, COMMIT=63bdf92, RUN_ID=43368666378), semua exit Gradle 0, ArchUnit 12 aturan 0 pelanggaran, SpotBugs 0, detekt 0, detekt typed 0 (classpathEntries=62), lintDebug 0, peringatan kompilator 0, tes 304/304 -> B319 STATIC-VERIFIED. Log HP `aep_debug_20261113_130134` (X6855, Android 16, 13:01): tanpa FATAL/ANR; `OrphanSweep[mulai]` menemukan 5 yatim sesi 2537 (Equalizer, Bass, Loudness, DynamicsProcessing, Virtualizer), semuanya "dimatikan lalu dilepas (putaran 2, 170-276 ms)" dan verifikasi "tuntas" (siklus=2, 63 ms) -> B319 TERBUKTI di HP.
+
+**Keempat anotasi** (semua dari workflow, bukan dari kode aplikasi):
+1. WARNING "Node.js 20 is deprecated": action yang dipakai workflow berjenis Node 20 -> `actions/checkout@v4` -> `@v7`, `actions/upload-artifact@v4` -> `@v7` (3 tempat di `build.yml`, 1 di `android-artifact.yml`), `softprops/action-gh-release@v2` -> `@v3` (`build.yml`). Semuanya berjalan di Node 24. Teks anotasi terpotong di screenshot, jadi daftar persisnya dicocokkan dari isi workflow.
+2. WARNING "setup-java v4 is deprecated": `actions/setup-java@v4` -> `@v6` di kedua workflow (`distribution: temurin`, `java-version: 17`, `cache: gradle` tidak berubah; yang dibuang v6 hanya distribusi Adopt dan input nama-variabel server, keduanya tak dipakai).
+3. NOTICE "ArchUnit: LULUS ... SpotBugs ...": ini ringkasan buatan `android-artifact.yml` sendiri (`echo "::notice::..."`, satu baris laporan), BUKAN peringatan. Sengaja dibiarkan.
+4. NOTICE "ubuntu-latest will migrate to Ubuntu 26": label `ubuntu-latest` dipin ke `ubuntu-24.04` di kedua workflow (komentar alasan di atas `runs-on`). Dengan label eksplisit anotasi ini tidak muncul lagi.
+
+**Kenapa dipin ke 24.04, bukan 26.04**: GitHub memindah `ubuntu-latest` ke Ubuntu 26.04 bertahap 19 Okt - 19 Nov 2026. Image 26.04 membawa versi JDK/Gradle/SDK yang berbeda dari image yang menghasilkan run hijau 116 (langkah bootstrap wrapper memakai Gradle bawaan runner), jadi pindah ke `ubuntu-26.04` adalah perubahan lingkungan tersendiri yang perlu diuji dulu (satu variabel risiko per batch). Batas yang jujur: label `ubuntu-24.04` suatu hari akan dipensiunkan GitHub; saat itu tiba, pindah ke 26.04 jadi batch sendiri.
+
+**Dampak**: tidak ada kode aplikasi, resource, atau tes yang berubah (tes tetap 304); APK, nama artifact (`AEP_...`), nama berkas APK dan aset Release, retensi, dan isi laporan tidak berubah. `upload-artifact@v7` tetap mengunggah zip (mode berkas-langsung `archive: false` tidak dipakai). `checkout@v7` hanya mengubah pemblokiran checkout PR dari fork untuk `pull_request_target`/`workflow_run`; kedua workflow hanya memakai `push` dan `workflow_dispatch`.
+
+**Status**: YAML kedua workflow lolos parse (job, jumlah langkah, dan semua `uses:` dicek); belum pernah dijalankan di GitHub Actions -> NOT VERIFIED sampai laporan run berikutnya. Harapan: semua 0 dan tes 304, anotasi tinggal 0 warning dan 0 notice (ringkasan `::notice::` buatan sendiri akan tetap tampil = 1 notice). Gagal = baca log dulu; kandidat: input `softprops/action-gh-release@v3` (langkah itu `continue-on-error` dengan cadangan `gh` CLI, jadi Release tetap terbit), lalu revert kedua workflow ke `Boomly_v319.zip`.
+
 ## Batch 319: Penyapu yatim lebih cepat (putaran ulang 100 ms, mulai paling awal)
 
 Atas pilihanmu: "Percepat sapu (percobaan 1 selalu gagal -3)".

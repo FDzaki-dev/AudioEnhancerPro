@@ -2,7 +2,7 @@ name: Android CI Artifact for Claude
 
 # Batch 199 — adaptasi `android-artifact_yml.txt` (template user, dari proyek SONIX) ke AudioEnhancerPro/Boomly.
 # Menghasilkan SATU berkas teks ringkas `laporan-untuk-claude.txt` sebagai artifact resmi GitHub
-# (upload-artifact@v4, retensi 7 hari). Menggantikan artifact `<Repo>_static_analysis_v*-run*` (zip berisi
+# (upload-artifact@v7, retensi 7 hari). Menggantikan artifact `<Repo>_static_analysis_v*-run*` (zip berisi
 # STATIC_ANALYSIS_MARKER.txt + log + laporan mentah, Batch 142/162/164) yang sebelumnya dibuat di akhir `build.yml`.
 # Penanda proyek (PROJECT/APP_NAME/APPLICATION_ID/GRADLE_ROOT_PROJECT/BATCH_PROJECT_STATE/COMMIT) dan baris
 # `DETEKT_TYPED_DIAG` (Batch 162/165) dipindah ke kepala laporan, jadi aturan triase "cek penanda dulu" tetap berlaku.
@@ -48,14 +48,17 @@ permissions:
 
 jobs:
   report:
-    runs-on: ubuntu-latest
+    # Batch 320: label DIPIN ke `ubuntu-24.04` (bukan `ubuntu-latest`). GitHub memindah `ubuntu-latest` ke Ubuntu 26.04 bertahap
+    # 19 Okt - 19 Nov 2026; image 26.04 membawa JDK/Gradle/SDK berbeda dari image yang menghasilkan run hijau (run 116). Pindah ke
+    # `ubuntu-26.04` = batch terpisah, diuji dulu (satu variabel risiko per batch).
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -401,7 +404,7 @@ jobs:
       # 3. Artifact resmi GitHub (berkas tunggal .txt; mudah diunduh di HP lalu diunggah ke Claude).
       - name: Upload Report for Claude
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Batch 222 (aturan PROJECT_STATE baris 1): nama artifact pakai SINGKATAN project `AEP` (= AudioEnhancerPro), bukan nama repo
           # penuh, supaya UI GitHub tidak memotong nama dan menutupi info setelahnya (jenis berkas + nomor run).

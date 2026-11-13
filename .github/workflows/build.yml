@@ -22,13 +22,16 @@ on:
 # GitHub Actions).
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
+    # Batch 320: label DIPIN ke `ubuntu-24.04` (bukan `ubuntu-latest`). GitHub memindah `ubuntu-latest` ke Ubuntu 26.04 bertahap
+    # 19 Okt - 19 Nov 2026; image 26.04 membawa JDK/Gradle/SDK berbeda dari image yang menghasilkan run hijau (run 116). Pindah ke
+    # `ubuntu-26.04` = batch terpisah, diuji dulu (satu variabel risiko per batch).
+    runs-on: ubuntu-24.04
     # Batch 11: WAJIB buat publish GitHub Release (bukan cuma Actions Artifact).
     permissions:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Batch 65 (FEATURE LOCKS #3, mandatory, sebelumnya HILANG total dari workflow
       # ini — pelanggaran nyata, bukan asumsi): "Stale Run Guard" — cegah run yang
@@ -82,7 +85,7 @@ jobs:
       # setelah workflow ini tetap full-download (gak ada cache lama buat
       # dipakai), tapi run KEDUA dst jauh lebih cepat.
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -133,7 +136,7 @@ jobs:
       # gagal, tanpa perlu buka & scroll log mentah di tab Actions.
       - name: Upload failure log (debug build)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-debug-run${{ github.run_number }}
           path: |
@@ -208,7 +211,7 @@ jobs:
       # kasus yang justru paling penting buat fitur log_fail ini).
       - name: Upload failure log (release build)
         if: failure() && steps.build_release.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: log_fail_v${{ steps.version.outputs.name }}-release-run${{ github.run_number }}
           path: |
@@ -317,7 +320,7 @@ jobs:
       # ikut disertai run_id (Batch 42) — konsisten sama key unik di atas.
       - name: Upload signed release APK (artifact tambahan)
         if: steps.secret_check.outputs.has_secret == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           # Batch 222 (aturan PROJECT_STATE baris 1): prefiks artifact = singkatan project `AEP`. Nama BERKAS APK di dalamnya & aset
           # Release TIDAK diubah (dibaca in-app updater).
@@ -328,7 +331,7 @@ jobs:
         id: publish_release
         if: steps.secret_check.outputs.has_secret == 'true'
         continue-on-error: true
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.version.outputs.name }}-run${{ github.run_id }}
           name: "AudioEnhancerPro v${{ steps.version.outputs.name }} (Run #${{ github.run_number }})"
