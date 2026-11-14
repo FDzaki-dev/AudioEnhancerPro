@@ -1,53 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Batch 215 (revisi B213/B212): token widget beranda — Neumorphism burgundy, GRADASI 3 NADA (ruby-rose -> burgundy -> plum).
-     Satu sumber untuk layout + drawable widget. Bayangan & overlay alpha di drawable (widget_background / widget_status_dot_* /
-     widget_panel_*) memakai RGB 1A0412 (gelap), D8607F (sorot), FFC2D0 (specular), FF6F8A (pendar) dgn alpha bertingkat hasil skrip,
-     jadi tidak bisa merujuk @color tunggal; nilai itu = turunan palet ini. Tanpa emas (aturan tema Old Money). -->
-<!-- Batch 227 (keluhan user: palet B226 terasa uncanny, minta komposisi terbaik): palet disusun ulang di ruang warna OKLCH, jalur hue DIPERSEMPIT dan
-     jenuh dikecilkan supaya peralihan terasa satu keluarga, bukan tiga warna berbeda: ruby-rose (hue ~10) -> plum-rose (~340) -> midnight purple (~295),
-     terang turun mulus 0,50 -> 0,36 -> 0,23, chroma menyempit 0,15 -> 0,115 -> 0,085. B226 terlalu jenuh (magenta #7B2C7A + ungu kebiruan #2E1C6B) = uncanny;
-     burgundy pekat B215 juga tak dikembalikan (menutupi gradasi). Kontras (hitung manual): judul #F8E8EB di atas raised_start 5,5:1 dan raised_mid 8,3:1;
-     status #D9B0BA di atas raised_mid 5,1:1 dan raised_end 7,5:1; teks aktif #FFB6C4 di atas sumur >= 8,6:1. Veil midnight purple (#27164D) tipis (35%/24%) hanya penghalus. -->
+<!-- Batch 325 (rombak total dari Neumorphism burgundy B212-B228): token widget beranda bertema SPACE, satu sumber untuk layout + drawable widget.
+     Palet = tema Space di app (Theme.kt: SpaceVoid/Background/Surface/CardLight/CardDark/Accent/Secondary/Gold + magenta nebula). Overlay ber-alpha di drawable
+     (bayangan, kabut nebula, kilau, bintang) memakai RGB turunan palet ini dgn alpha bertingkat hasil skrip (docs/widget_space_gen.py), jadi tidak bisa @color tunggal.
+     Nama token yang dibaca BoosterWidgetProvider/layout DIPERTAHANKAN (widget_text_*, widget_eq_on/off); token Neumorphism lama (plate/raised/well/rim/midnight) dihapus. -->
 <resources>
-    <!-- Pelat (statis): ruby-rose kiri-atas -> burgundy tengah -> plum gelap kanan-bawah (arah cahaya sama dgn tema Neumorphism app). -->
-    <color name="widget_plate_start">#A6344C</color>
-    <color name="widget_plate_mid">#631E4E</color>
-    <color name="widget_plate_end">#23103F</color>
-    <!-- Batch 225: gradasi SEKUNDER midnight purple (#27164D sejak B227) mengalir bersama gradasi rose/burgundy utama: veil alpha di atas pelat (kanan-bawah),
-         panel Nonaktif (sisi kanan), dan sumur panel Aktif (kiri-atas) sebagai pasangan komplementer pendar rose. Ketiganya sama RGB, beda alpha. -->
-    <color name="widget_midnight_clear">#0027164D</color>
-    <color name="widget_midnight_veil">#5927164D</color>
-    <color name="widget_midnight_veil_soft">#3D27164D</color>
-    <!-- Muka TIMBUL (knob & panel saat Nonaktif): sedikit lebih terang dari pelat agar terbaca sebagai bidang terangkat.
-         Judul #F8E8EB di atas raised_start >= 5:1; status #D9B0BA di atas raised_end >= 7:1. -->
-    <color name="widget_raised_start">#A43650</color>
-    <color name="widget_raised_mid">#6E2A5B</color>
-    <color name="widget_raised_end">#351E4D</color>
-    <!-- Dasar rongga CEKUNG (knob & panel saat Aktif): plum gelap kiri-atas -> burgundy kanan-bawah + garis tepi tipis 15% rose. -->
-    <color name="widget_well_start">#1E0C2A</color>
-    <color name="widget_well_end">#491740</color>
-    <color name="widget_rim">#26FFB3C4</color>
-    <!-- Teks: gading-rose di atas burgundy (kontras >= 8:1 utk judul, >= 5:1 utk status). -->
-    <color name="widget_text_primary">#F8E8EB</color>
-    <color name="widget_text_secondary">#D9B0BA</color>
-    <color name="widget_text_active">#FFB6C4</color>
-    <!-- Ikon daya: redup (nonaktif, >= 3:1 thd pelat) / menyala (aktif). -->
-    <color name="widget_glyph_off">#B98090</color>
-    <color name="widget_glyph_on">#FF7D95</color>
-    <!-- Bar equalizer dekoratif: redup (Nonaktif) / menyala (Aktif); ditint lewat setColorFilter di provider. -->
-    <color name="widget_eq_off">#A8627A</color>
-    <color name="widget_eq_on">#FF7D95</color>
+    <color name="widget_void">#04050E</color>  <!-- Void / kedalaman ruang (SpaceVoid): dasar sumur Aktif, ujung gradasi pelat. -->
+    <color name="widget_gem">#2B3A8A</color>  <!-- Tepi permata knob Nonaktif (indigo terang, di atasnya bevel kiri-atas). -->
+    <color name="widget_deep">#070A1C</color>  <!-- SpaceBackground: dasar knob Aktif, tengah gradasi pelat. -->
+    <color name="widget_surface">#0B1030</color>  <!-- SpaceSurface: tengah gradasi panel. -->
+    <color name="widget_card_light">#1A2354</color>  <!-- SpaceCardLight: sisi terang kartu/panel Nonaktif, dasar knob Nonaktif. -->
+    <color name="widget_card_dark">#0F1537</color>  <!-- SpaceCardDark: awal gradasi muka pelat. -->
+    <color name="widget_text_primary">#EEF2FF</color>  <!-- Judul: #EEF2FF di atas panel (kontras terukur di pratinjau). -->
+    <color name="widget_text_secondary">#BAC6F0</color>  <!-- Status Nonaktif. -->
+    <color name="widget_text_active">#7DE3FF</color>  <!-- Status Aktif (cyan). -->
+    <color name="widget_glyph_off">#8A97C6</color>  <!-- Ikon daya + satelit knob Nonaktif. -->
+    <color name="widget_glyph_on">#7DE3FF</color>  <!-- Ikon daya knob Aktif. -->
+    <color name="widget_eq_off">#7482B8</color>  <!-- Bar equalizer dekoratif Nonaktif (setColorFilter di provider). -->
+    <color name="widget_eq_on">#7DE3FF</color>  <!-- Bar equalizer dekoratif Aktif (setColorFilter di provider). -->
 
-    <!-- INSET. Ruang bayangan pelat 6dp (di widget_background.xml) + padding root 8dp + ruang bayangan knob/panel 4dp (di dalam
-         drawable masing-masing) => muka knob/panel berjarak 8+4=12dp dari tepi widget = 6dp dari tepi pelat. Knob & panel menyusut
-         mengikuti tinggi widget (knob: ImageView adjustViewBounds, maks 56dp; panel: match_parent). -->
+    <!-- INSET. Ruang bayangan/aura pelat 6dp (di widget_background.xml) + padding root 8dp + ruang bayangan knob/panel 4dp (di dalam drawable masing-masing) =>
+         muka knob/panel berjarak 8+4=12dp dari tepi widget = 6dp dari tepi pelat (cincin 5dp pelat + bintang-bintangnya terlihat di sana). -->
     <dimen name="widget_padding">8dp</dimen>
     <dimen name="widget_knob_max_size">56dp</dimen>
     <!-- Padding dalam panel = ruang bayangan 4dp + napas teks 12dp. -->
     <dimen name="widget_panel_padding">16dp</dimen>
-    <!-- Radius pelat. Android 12+ mengganti dgn radius sistem peluncur (values-v31). -->
+    <!-- Radius pelat (pojok besar kiri-atas). Android 12+ mengganti dgn radius sistem peluncur (values-v31). -->
     <dimen name="widget_corner_radius">22dp</dimen>
-    <!-- Batch 217: radius pojok KECIL bentuk "leaf" Neumorphism (selaras kartu app, NeumoLeafCorners): pelat = pojok BESAR (widget_corner_radius)
-         di kiri-atas & kanan-bawah + pojok kecil ini di kanan-atas & kiri-bawah; panel teks KEBALIKANNYA (24dp/8dp literal di widget_panel_*.xml). -->
-    <dimen name="widget_corner_radius_small">8dp</dimen>
+    <!-- Batch 325: pojok kecil bahasa "orbit" Space = 6dp (SpaceOrbitCorners 44/6/6/6): dipakai 3 pojok lain pelat. Panel teks kebalikannya (24dp/6dp literal di widget_panel_*.xml). -->
+    <dimen name="widget_corner_radius_small">6dp</dimen>
 </resources>

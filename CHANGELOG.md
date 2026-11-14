@@ -1,5 +1,20 @@
 # Changelog
 
+## Batch 325: Skin widget SPACE (rombak total dari Neumorphism burgundy)
+
+Atas permintaanmu: rombak total skin widget jadi bertemakan space dengan hiasan megah dan masterpiece.
+
+- **Pelat**: bahasa "orbit" (pojok besar kiri-atas, 3 pojok 6dp), tepi gradasi cyan-ungu-magenta 1dp, bidang void + 3 kabut nebula, aura ungu + bayangan gelap (tumpukan layer alpha Gaussian), 13 bintang di cincin 5dp.
+- **Panel teks**: bentuk kebalikan (pojok besar kanan-bawah). Nonaktif = timbul; Aktif = cekung + pendar cyan + garis energi + bintang lebih terang. Isi: nebula, pita galaksi, 2 orbit elips, ±45 bintang (jalur atas/bawah terang, tengah samar), 3 percikan 4-sudut, komet, planet bercincin, kilau kaca, bezel ganda. Hiasan di-anchor ke tepi (gravity), tidak diregangkan.
+- **Knob**: permata oktagon potong-sudut (selaras knob tema Space), satu vector 56dp tanpa gradien (aman API 24+); bevel dihitung dari arah cahaya kiri-atas, 8 faset; cincin orbit, 24 tik, satelit emas. Aktif: bevel terbalik, inti menyala cyan, ikon daya berpendar.
+- **Ikon EQ**: 5 bar kapsul berujung bintang + trek titik-titik (viewport 25x24 sama, layout tak terpengaruh).
+- **Token**: palet Space (SpaceVoid/Background/Surface/CardLight/CardDark/Accent/Gold); token Neumorphism lama dihapus; nama token yang dibaca provider dipertahankan (`widget_text_*`, `widget_eq_on/off`). `widget_corner_radius_small` 8dp -> 6dp.
+- **Alat**: `docs/widget_space_gen.py` menghasilkan ke-7 berkas dari satu sumber angka; `--preview` (numpy+Pillow) merender pendekatan + kontras. Terukur di pratinjau (piksel terburuk): judul >= 6,8:1, status >= 4,6:1 (250x72, 330x110).
+
+**File** (7 resource + 1 skrip docs; > 5 dibenarkan: token warna bersama menyentuh semua drawable perujuk, pola B215): `values/widget_theme.xml`, `drawable/widget_background.xml`, `widget_panel_off.xml`, `widget_panel_on.xml`, `widget_status_dot_off.xml`, `widget_status_dot_on.xml`, `ic_widget_eq.xml`. Layout, provider, tes TIDAK berubah.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; pratinjau bukan renderer Android; CI B325 + tampilan HP). Tinggi minimum (60dp): bintang/komet bisa menyentuh teks, sengaja samar. Revert = `Boomly_v324.zip`.
+
 ## Batch 324: Skin baru "Space" (varian ke-7): kosmos malam dengan kartu bersapuan orbit raksasa
 
 Atas permintaanmu: "Tambahkan skin baru bertema space dengan shape megah dan masterpiece!!" + screenshot tab Tampilan (6 skin sebelumnya, Old Money aktif).

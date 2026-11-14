@@ -107,5 +107,6 @@ docs/archive/PROJECT_STATE_LOG_B1-B142.md
 docs/archive/roadmap.md
 docs/preset_loudness_check.py
 docs/preview/current.html
+docs/widget_space_gen.py
 gradle.properties
 settings.gradle.kts
