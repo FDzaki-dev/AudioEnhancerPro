@@ -163,7 +163,7 @@ object DebugLogExporter {
 
     /** Batch 331: `dumpsys meminfo/gfxinfo` (B329) ternyata "Can't find service" bagi aplikasi biasa (SELinux), jadi diganti [FrameStats]: ringkasan
      *  waktu frame nyata UI Boomly (API 31+, tanpa izin) = bukti jank saat scroll. */
-    private fun readFrameSection(): String = DebugLogFormat.buildFrameSection(FrameStats.snapshot())
+    private fun readFrameSection(): String = DebugLogFormat.buildFrameSection(FrameStats.snapshot(), FrameStats.label, FrameStats.refreshHz)
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
      *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran +
@@ -266,10 +266,23 @@ internal object FrameStats {
     private val draw = LongArray(CAPACITY)
     private val gpu = LongArray(CAPACITY)
     private val deadline = LongArray(CAPACITY)
+    private val vsync = LongArray(CAPACITY)
+    private val touched = BooleanArray(CAPACITY)
     private var next = 0
     private var count = 0
     private var thread: android.os.HandlerThread? = null
     private var attached = 0
+
+    /** Batch 332: tema aktif (diisi MainActivity) dan laju segar layar terakhir, hanya untuk label ekspor. */
+    @Volatile var label: String = ""
+    @Volatile var refreshHz: Float = 0f
+
+    @Volatile private var lastTouchNs = 0L
+
+    /** Batch 332: dipanggil dari `MainActivity.dispatchTouchEvent` (sentuh/geser); murni menyimpan satu angka. */
+    fun noteTouch() {
+        lastTouchNs = System.nanoTime()
+    }
 
     @android.annotation.SuppressLint("NewApi") // dipanggil HANYA bila SDK_INT >= S (MainActivity.onStart); GPU_DURATION/DEADLINE = API 31
     fun attach(window: android.view.Window): android.view.Window.OnFrameMetricsAvailableListener? = try {
@@ -279,12 +292,14 @@ internal object FrameStats {
             attached++
             android.os.Handler(t.looper)
         }
-        val listener = android.view.Window.OnFrameMetricsAvailableListener { _, metrics, _ ->
+        val listener = android.view.Window.OnFrameMetricsAvailableListener { w, metrics, _ ->
+            refreshHz = w.decorView.display?.refreshRate ?: refreshHz
             record(
                 metrics.getMetric(android.view.FrameMetrics.TOTAL_DURATION),
                 metrics.getMetric(android.view.FrameMetrics.DRAW_DURATION),
                 metrics.getMetric(android.view.FrameMetrics.GPU_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.DEADLINE)
+                metrics.getMetric(android.view.FrameMetrics.DEADLINE),
+                metrics.getMetric(android.view.FrameMetrics.INTENDED_VSYNC_TIMESTAMP)
             )
         }
         window.addOnFrameMetricsAvailableListener(listener, handler)
@@ -310,12 +325,15 @@ internal object FrameStats {
         }
     }
 
-    private fun record(totalNs: Long, drawNs: Long, gpuNs: Long, deadlineNs: Long) {
+    private fun record(totalNs: Long, drawNs: Long, gpuNs: Long, deadlineNs: Long, vsyncNs: Long) {
+        val touching = lastTouchNs != 0L && vsyncNs - lastTouchNs in -DebugLogFormat.TOUCH_WINDOW_NS..DebugLogFormat.TOUCH_WINDOW_NS
         synchronized(lock) {
             total[next] = totalNs
             draw[next] = drawNs
             gpu[next] = gpuNs
             deadline[next] = deadlineNs
+            vsync[next] = vsyncNs
+            touched[next] = touching
             next = (next + 1) % CAPACITY
             if (count < CAPACITY) count++
         }
@@ -325,7 +343,7 @@ internal object FrameStats {
         val start = if (count < CAPACITY) 0 else next
         List(count) { i ->
             val j = (start + i) % CAPACITY
-            DebugLogFormat.FrameSample(total[j], draw[j], gpu[j], deadline[j])
+            DebugLogFormat.FrameSample(total[j], draw[j], gpu[j], deadline[j], vsync[j], touched[j])
         }
     }
 }
@@ -559,11 +577,23 @@ internal object DebugLogFormat {
         }
     }
 
-    /** Batch 331: satu frame dari `FrameMetrics` (ns). [deadlineNs] <= 0 = tak diketahui (pakai 16,67 ms). */
-    data class FrameSample(val totalNs: Long, val drawNs: Long, val gpuNs: Long, val deadlineNs: Long)
+    /** Batch 331/332: satu frame dari `FrameMetrics` (ns). [deadlineNs] <= 0 = tak diketahui (pakai 16,67 ms). [touching] = ada sentuhan/geser/fling
+     *  dalam [TOUCH_WINDOW_NS] sebelum frame (pendekatan "sedang scroll"). [intendedVsyncNs] = jam monotonik (untuk laju frame). */
+    data class FrameSample(
+        val totalNs: Long,
+        val drawNs: Long,
+        val gpuNs: Long,
+        val deadlineNs: Long,
+        val intendedVsyncNs: Long = 0L,
+        val touching: Boolean = false
+    )
 
+    internal const val TOUCH_WINDOW_NS = 1_500_000_000L
     private const val NS_PER_MS = 1_000_000.0
+    private const val NS_PER_SECOND = 1_000_000_000.0
     private const val DEFAULT_DEADLINE_NS = 16_666_667L
+    private const val FRAME_60_NS = 16_666_667L
+    private const val FRAME_30_NS = 33_333_333L
     private const val PERCENT = 100.0
 
     /** Persentil nilai terurut (peringkat terdekat); kosong = 0. */
@@ -575,22 +605,39 @@ internal object DebugLogFormat {
 
     private fun ms(ns: Long): String = String.format(java.util.Locale.US, "%.1f", ns / NS_PER_MS)
 
-    /** Batch 331: ringkasan frame UI. Jank = total > tenggat frame (atau 16,67 ms bila tenggat tak diketahui). "gambar" = waktu rekam UI thread,
-     *  "gpu" = waktu GPU: gambar tinggi = beban rekam (recomposition/draw), gpu tinggi = beban piksel (gradien, bayangan, layer). */
-    fun buildFrameSection(frames: List<FrameSample>): String = buildString {
-        appendLine("---- frame UI (FrameMetrics, ${frames.size} frame terakhir) ----")
+    private fun pct(part: Int, whole: Int): Int = if (whole == 0) 0 else part * PERCENT.toInt() / whole
+
+    private fun groupLine(name: String, group: List<FrameSample>): String {
+        if (group.isEmpty()) return "$name: 0 frame"
+        val total = group.map { it.totalNs }.sorted()
+        val gpu = group.map { it.gpuNs }.sorted()
+        val draw = group.map { it.drawNs }.sorted()
+        val vsyncs = group.map { it.intendedVsyncNs }.filter { it > 0L }
+        val spanSeconds = if (vsyncs.size > 1) (vsyncs.max() - vsyncs.min()) / NS_PER_SECOND else 0.0
+        val fps = if (spanSeconds > 0.0) String.format(java.util.Locale.US, "%.0f", (vsyncs.size - 1) / spanSeconds) else "?"
+        val over60 = group.count { it.totalNs > FRAME_60_NS }
+        val over30 = group.count { it.totalNs > FRAME_30_NS }
+        return "$name: ${group.size} frame (~$fps fps); total ms p50=${ms(percentile(total, 50))} p90=${ms(percentile(total, 90))} " +
+            "p99=${ms(percentile(total, 99))} maks=${ms(total.last())}; gpu ms p50=${ms(percentile(gpu, 50))} p90=${ms(percentile(gpu, 90))} " +
+            "p99=${ms(percentile(gpu, 99))}; gambar(UI thread) ms p50=${ms(percentile(draw, 50))} p90=${ms(percentile(draw, 90))}; " +
+            ">16,7ms: $over60 (${pct(over60, group.size)}%), >33,3ms: $over30 (${pct(over30, group.size)}%)"
+    }
+
+    /** Batch 331/332: ringkasan frame UI, DIPISAH "disentuh/scroll" vs "diam" supaya beban scroll tak tercampur frame spektrum idle.
+     *  [label] = tema aktif, [refreshHz] = laju segar layar (0 = tak diketahui). "gambar" = rekam UI thread, "gpu" = waktu GPU: gambar tinggi = beban
+     *  rekam, gpu tinggi = beban piksel. Jank berbasis tenggat (total > tenggat) TIDAK dipakai sebagai angka utama: di layar laju-variabel tenggat
+     *  bisa jauh lebih besar dari 16,7 ms sehingga selalu 0% (log 06:52 = 0% padahal p50 = 52 ms); dipakai ambang tetap 16,7/33,3 ms. */
+    fun buildFrameSection(frames: List<FrameSample>, label: String = "", refreshHz: Float = 0f): String = buildString {
+        appendLine("---- frame UI (FrameMetrics, ${frames.size} frame terakhir; tema=${label.ifEmpty { "?" }}; layar ${if (refreshHz > 0f) "%.0f Hz".format(java.util.Locale.US, refreshHz) else "? Hz"}) ----")
         if (frames.isEmpty()) {
             appendLine("(belum ada frame: UI belum aktif sejak proses mulai, atau Android < 12)")
             return@buildString
         }
-        val totals = frames.map { it.totalNs }.sorted()
-        val janky = frames.count { it.totalNs > (if (it.deadlineNs > 0L) it.deadlineNs else DEFAULT_DEADLINE_NS) }
-        appendLine("jank (total > tenggat): $janky dari ${frames.size} (${janky * PERCENT.toInt() / frames.size}%)")
-        appendLine(
-            "total ms: p50=${ms(percentile(totals, 50))} p90=${ms(percentile(totals, 90))} " +
-                "p95=${ms(percentile(totals, 95))} p99=${ms(percentile(totals, 99))} maks=${ms(totals.last())}"
-        )
-        appendLine("rata-rata ms: gambar(UI thread)=${ms(frames.sumOf { it.drawNs } / frames.size)} gpu=${ms(frames.sumOf { it.gpuNs } / frames.size)}")
+        appendLine(groupLine("semua", frames))
+        appendLine(groupLine("disentuh/scroll (<= 1,5 dtk sejak sentuhan)", frames.filter { it.touching }))
+        appendLine(groupLine("diam", frames.filterNot { it.touching }))
+        val deadlines = frames.map { it.deadlineNs }.filter { it > 0L }.sorted()
+        appendLine("tenggat frame p50=${ms(percentile(deadlines, 50))} ms; jank berbasis tenggat: ${frames.count { it.totalNs > (if (it.deadlineNs > 0L) it.deadlineNs else DEFAULT_DEADLINE_NS) }} dari ${frames.size}")
     }
 
     /** Batch 256: dump sistem yang dilampirkan ke ekspor; [maxLines] membatasi ukuran laporan per dump. */

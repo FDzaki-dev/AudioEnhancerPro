@@ -157,6 +157,7 @@ class MainActivity : ComponentActivity() {
             }
 
             AudioEnhancerTheme(useDynamicColor = useDynamicColor, themeStyle = appThemeStyle) {
+                SideEffect { FrameStats.label = appThemeStyle.name } // Batch 332: label tema di bagian "frame UI" ekspor
                 // Batch 37: root background sekarang gradient (bukan flat solid) —
                 // glassmorphism butuh backdrop bervariasi supaya kartu kaca di atasnya
                 // kebaca sebagai kaca. Batch 38: varian ke-3 BUKAN glass (gak butuh
@@ -381,6 +382,11 @@ class MainActivity : ComponentActivity() {
 
     // Batch 162: beri tahu ViewModel kapan UI terlihat supaya loop polling-nya berhenti di background.
     private var frameListener: android.view.Window.OnFrameMetricsAvailableListener? = null // Batch 331
+
+    override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+        FrameStats.noteTouch() // Batch 332: penanda "sedang disentuh/scroll" untuk ringkasan frame (satu angka, tanpa alokasi)
+        return super.dispatchTouchEvent(ev)
+    }
 
     override fun onStart() {
         super.onStart()

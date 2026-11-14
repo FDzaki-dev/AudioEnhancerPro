@@ -393,19 +393,28 @@ class DebugLogFormatTest {
     }
 
     @Test
-    fun `frame section counts jank against each frame deadline`() {
+    fun `frame section splits touch frames from idle frames and uses fixed thresholds`() {
         val ms = 1_000_000L
         val frames = listOf(
-            DebugLogFormat.FrameSample(10 * ms, 4 * ms, 3 * ms, 16 * ms),
-            DebugLogFormat.FrameSample(30 * ms, 20 * ms, 9 * ms, 16 * ms),
-            DebugLogFormat.FrameSample(9 * ms, 2 * ms, 2 * ms, 8 * ms),
-            DebugLogFormat.FrameSample(12 * ms, 2 * ms, 2 * ms, 0)
+            DebugLogFormat.FrameSample(10 * ms, 4 * ms, 3 * ms, 100 * ms, 0, false),
+            DebugLogFormat.FrameSample(50 * ms, 2 * ms, 40 * ms, 100 * ms, 0, true),
+            DebugLogFormat.FrameSample(20 * ms, 2 * ms, 12 * ms, 100 * ms, 0, true),
+            DebugLogFormat.FrameSample(12 * ms, 2 * ms, 2 * ms, 0, 0, false)
         )
-        val text = DebugLogFormat.buildFrameSection(frames)
-        assertTrue(text.contains("4 frame terakhir"))
-        assertTrue(text.contains("jank (total > tenggat): 2 dari 4 (50%)"))
-        assertTrue(text.contains("maks=30.0"))
-        assertTrue(text.contains("gambar(UI thread)=7.0 gpu=4.0"))
+        val text = DebugLogFormat.buildFrameSection(frames, "SPACE", 120f)
+        assertTrue(text.contains("4 frame terakhir; tema=SPACE; layar 120 Hz"))
+        assertTrue(text.contains("disentuh/scroll (<= 1,5 dtk sejak sentuhan): 2 frame"))
+        assertTrue(text.contains("diam: 2 frame"))
+        assertTrue(text.contains(">16,7ms: 2 (100%), >33,3ms: 1 (50%)"))
+        assertTrue(text.contains("jank berbasis tenggat: 0 dari 4"))
+    }
+
+    @Test
+    fun `frame section works without label and refresh rate`() {
+        val text = DebugLogFormat.buildFrameSection(listOf(DebugLogFormat.FrameSample(1_000_000, 1_000_000, 1_000_000, 0)))
+        assertTrue(text.contains("tema=?; layar ? Hz"))
+        assertTrue(text.contains("diam: 1 frame"))
+        assertTrue(text.contains("disentuh/scroll (<= 1,5 dtk sejak sentuhan): 0 frame"))
     }
 
     @Test

@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 332: Ringkasan frame dipisah scroll vs diam (temuan GPU-bound)
+
+**Temuan dari log 06:52 (B331, 40 detik, 1200 frame)**: total frame p50 52 ms, p99 110 ms; rata-rata waktu gambar UI thread hanya 1,2 ms sedangkan GPU 27,1 ms. Artinya beban ada di GPU (piksel), bukan di rekam/recomposition UI thread. Heap Java stabil rendah (9,4 MB), GC 13 per menit tanpa blocking GC: tidak ada bukti kebocoran memori heap. Memori besar ada di grafis (graphics PSS 145 MB). Angka "jank 0%" berbasis tenggat menyesatkan di layar laju-variabel, jadi diganti ambang tetap.
+
+- **Ringkasan frame kini dipisah**: "semua", "disentuh/scroll" (sampai 1,5 detik sesudah sentuhan terakhir), dan "diam". Tiap kelompok: jumlah dan ~fps, total p50/p90/p99/maks, gpu p50/p90/p99, gambar p50/p90, hitungan di atas 16,7 ms dan 33,3 ms.
+- **Header memuat tema aktif dan laju segar layar**, supaya log tanpa keterangan tetap bisa dibaca.
+- **Tes**: net +1 di `DebugLogFormatTest` => 329 diharapkan.
+
+**File** (3 kode + docs): `DebugLogExporter.kt`, `MainActivity.kt`, `DebugLogFormatTest.kt`. Perilaku UI tidak berubah.
+
+**Cara memakai**: proses baru, tema Space, tab Kontrol, scroll cepat sekitar 10 detik, lalu langsung ekspor. Ulangi di tema lain (proses baru) sebagai pembanding.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B332 + uji device). Revert = `Boomly_v331.zip`.
+
 ## Batch 331: Bukti frame UI nyata (menggantikan dumpsys gfxinfo yang tak bisa dibaca)
 
 Log 00:11 (build B330) menunjukkan `dumpsys meminfo` dan `gfxinfo` gagal "Can't find service" untuk aplikasi biasa, jadi bagian itu dibuang.
