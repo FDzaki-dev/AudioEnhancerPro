@@ -341,4 +341,51 @@ class DebugLogFormatTest {
         assertTrue(Regex("""DebugLogRing\.stop\(\)\s*super\.onDestroy\(\)""").containsMatchIn(service))
         assertTrue(export.contains("DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot())"))
     }
+
+    // ---- Batch 329: bagian memori & frame ----
+
+    @Test
+    fun `memory section prints heap pss gc and average rates since process start`() {
+        val text = DebugLogFormat.buildMemorySection(
+            DebugLogFormat.MemoryInfo(
+                processAgeSeconds = 600,
+                javaHeapUsedKb = 20_000,
+                javaHeapMaxKb = 256_000,
+                nativeHeapKb = 9_000,
+                pss = mapOf("summary.java-heap" to "31000", "summary.total-pss" to "150000"),
+                gc = mapOf("art.gc.gc-count" to "30", "art.gc.bytes-allocated" to "614400000", "art.gc.gc-time" to "")
+            )
+        )
+        assertTrue(text.contains("umur proses 600 dtk"))
+        assertTrue(text.contains("terpakai 20000 KB dari maks 256000 KB"))
+        assertTrue(text.contains("summary.java-heap=31000"))
+        assertTrue(text.contains("gc-time=?"))
+        assertTrue(text.contains("laju GC: 3 per menit"))
+        assertTrue(text.contains("laju alokasi: 1000 KB/dtk"))
+    }
+
+    @Test
+    fun `memory section reports a failed read and never divides by a zero age`() {
+        assertTrue(DebugLogFormat.buildMemorySection(null).contains("(gagal dibaca)"))
+        assertEquals(0L, DebugLogFormat.ratePerSecond(1_000, 0))
+        assertEquals(0L, DebugLogFormat.ratePerSecond(1_000, -5))
+        assertEquals(10L, DebugLogFormat.ratePerSecond(1_000, 100))
+    }
+
+    @Test
+    fun `system dump section marks an empty dump and lists kept lines otherwise`() {
+        assertTrue(DebugLogFormat.buildSystemDumpSection("gfxinfo x", emptyList(), 0).contains("(kosong"))
+        val text = DebugLogFormat.buildSystemDumpSection("meminfo x", listOf("Views: 42"), 7)
+        assertTrue(text.contains("memori/frame (dumpsys meminfo x, 1 dari 7 baris)"))
+        assertTrue(text.contains("Views: 42"))
+    }
+
+    @Test
+    fun `export puts memory and frame sections before the long audio dumps`() {
+        val rel = "src/main/java/com/audioenhancer/booster/DebugLogExporter.kt"
+        val src = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "DebugLogExporter.kt tidak ditemukan" }
+        val order = listOf("readMemorySection() +", "readFrameDumps(context) +", "readAudioPathSnapshot(context)").map { src.indexOf(it) }
+        assertTrue(order.all { it >= 0 })
+        assertEquals(order.sorted(), order)
+    }
 }

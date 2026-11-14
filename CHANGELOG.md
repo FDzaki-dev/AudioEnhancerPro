@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 329: Bukti memori, GC, dan frame di ekspor log (laporan "memory leak + fps drop" tab Home)
+
+Log 17:49 tidak memuat satu angka memori atau frame pun (hanya ±30 detik sejak pasang-ulang), jadi dugaan kebocoran belum bisa dibuktikan maupun dibantah. Telaah kode tab Home tidak menemukan sumber kebocoran (observer berpasangan dilepas, bind/unbind berpasangan, tak ada animasi tak berujung atau koleksi yang tumbuh, spektrum digambar di fase gambar dengan layer sendiri, latar Space statis). Karena itu tidak ada tambalan tebakan; yang ditambah adalah buktinya.
+
+- **Bagian baru "memori & GC proses"** (API publik, tanpa izin): heap Java/native, PSS ringkas, statistik GC ART, laju GC dan alokasi rata-rata sejak proses mulai.
+- **Bila izin DUMP ada**: `dumpsys meminfo <paket>` (blok Objects: Views/ViewRootImpl/Activities) dan `dumpsys gfxinfo <paket>` (frame jank, persentil). Keduanya ditaruh sebelum dump jalur audio supaya tak tenggelam.
+- **Tes**: +4 di `DebugLogFormatTest` => 322 diharapkan.
+
+**File** (2 kode + docs): `DebugLogExporter.kt`, `DebugLogFormatTest.kt`. Perilaku UI tidak berubah.
+
+**Cara memakai**: buka tab Home, pakai 3-5 menit dengan musik main, ekspor log; pakai 10 menit lagi, ekspor lagi. Heap, PSS, Views, atau Activities yang naik terus = kebocoran; laju GC/alokasi dan frame jank tinggi tanpa kenaikan memori = jank dari alokasi/gambar.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B329 + uji device). Revert = `Boomly_v328.zip`.
+
 ## Batch 328: Bukti tick Effect Guard hidup
 
 Sesuai pilihanmu. Tick yang sehat sengaja tidak dicatat (B231), jadi hidupnya pemeriksaan berkala tak pernah terlihat di log. Instruksi uji sebelumnya ("tick muncul berkala") keliru; ini koreksinya.

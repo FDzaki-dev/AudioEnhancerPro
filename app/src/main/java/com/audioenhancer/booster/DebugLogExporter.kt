@@ -31,6 +31,8 @@ object DebugLogExporter {
     private const val MAX_FILES = 10
     private const val VERIFIER_TIMEOUT_SECONDS = 3L
     private const val MILLIS_PER_SECOND = 1_000L
+    private const val MEMINFO_MAX_LINES = 260
+    private const val GFXINFO_MAX_LINES = 200
     private const val PROFILE_ENTRY = "assets/dexopt/baseline.prof"
     private const val PROFILE_META_ENTRY = "assets/dexopt/baseline.profm"
 
@@ -53,7 +55,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot()), // Batch 327
                 maxLines = MAX_LINES
-            ) + readAvailableEffects() + readProfileStatus(context) + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readFrameDumps(context) + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -137,6 +139,57 @@ object DebugLogExporter {
     } catch (e: Exception) {
         Log.w(TAG, "Baca folder oat gagal", e)
         null
+    }
+
+    /** Batch 329 (laporan user: "tab home memory leak sehingga fps drop", tetapi log-log sebelumnya TIDAK memuat satu angka memori/frame pun, jadi tak bisa
+     *  dibuktikan atau dibantah): angka mentah proses ini lewat API publik tanpa izin: heap Java/native, PSS ringkas, dan statistik GC ART (jumlah GC,
+     *  waktu GC, total byte dialokasikan) + lajunya sejak proses mulai. Kebocoran = heap/PSS naik terus antar ekspor; jank dari alokasi = laju alokasi
+     *  dan laju GC tinggi. HANYA saat Ekspor (tanpa biaya baterai); gagal = bagian berisi alasan, laporan tetap terbit. */
+    private fun readMemorySection(): String = try {
+        val runtime = Runtime.getRuntime()
+        val memory = android.os.Debug.MemoryInfo().also { android.os.Debug.getMemoryInfo(it) }
+        DebugLogFormat.buildMemorySection(
+            DebugLogFormat.MemoryInfo(
+                processAgeSeconds = (android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()) / MILLIS_PER_SECOND,
+                javaHeapUsedKb = (runtime.totalMemory() - runtime.freeMemory()) / DebugLogFormat.BYTES_PER_KB,
+                javaHeapMaxKb = runtime.maxMemory() / DebugLogFormat.BYTES_PER_KB,
+                nativeHeapKb = android.os.Debug.getNativeHeapAllocatedSize() / DebugLogFormat.BYTES_PER_KB,
+                pss = memory.memoryStats,
+                gc = DebugLogFormat.GC_STAT_KEYS.associateWith { android.os.Debug.getRuntimeStat(it).orEmpty() }
+            )
+        )
+    } catch (e: Exception) {
+        Log.w(TAG, "Bagian memori gagal", e)
+        DebugLogFormat.buildMemorySection(null)
+    }
+
+    /** Batch 329: bila izin DUMP ada, `dumpsys meminfo <paket>` (blok "Objects": Views/ViewRootImpl/Activities/AppContexts: angka yang naik terus =
+     *  kebocoran) dan `dumpsys gfxinfo <paket>` (frame dirender, frame jank, persentil waktu frame). Tanpa izin = kosong (bagian "memori & GC proses"
+     *  di atas tetap ada). Tanpa saringan kata kunci; hanya baris kosong dibuang dan jumlah baris dibatasi. */
+    private fun readFrameDumps(context: Context): String {
+        if (ContextCompat.checkSelfPermission(context, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return ""
+        val pkg = context.packageName
+        return readSystemDump(listOf("meminfo", pkg), MEMINFO_MAX_LINES) + readSystemDump(listOf("gfxinfo", pkg), GFXINFO_MAX_LINES)
+    }
+
+    private fun readSystemDump(args: List<String>, maxLines: Int): String = try {
+        val process = ProcessBuilder(listOf("dumpsys") + args).redirectErrorStream(true).start()
+        try {
+            val kept = ArrayList<String>()
+            var read = 0
+            process.inputStream.bufferedReader().use { reader ->
+                for (line in reader.lineSequence()) {
+                    if (++read > DebugLogFormat.PATH_MAX_READ) break
+                    if (line.isNotBlank() && kept.size < maxLines) kept.add(line.trimEnd())
+                }
+            }
+            DebugLogFormat.buildSystemDumpSection(args.joinToString(" "), kept, read)
+        } finally {
+            process.destroy()
+        }
+    } catch (e: Exception) {
+        Log.w(TAG, "Cuplikan dumpsys ${args.firstOrNull()} gagal", e)
+        DebugLogFormat.buildSystemDumpSection(args.joinToString(" "), emptyList(), 0)
     }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
@@ -415,6 +468,52 @@ internal object DebugLogFormat {
             steps++
         }
         return dropped
+    }
+
+    const val BYTES_PER_KB = 1_024L
+    private const val SECONDS_PER_MINUTE = 60L
+    private const val KEY_GC_COUNT = "art.gc.gc-count"
+    private const val KEY_BYTES_ALLOCATED = "art.gc.bytes-allocated"
+
+    /** Batch 329: kunci `Debug.getRuntimeStat` yang dicetak (API 23+; nilai kosong = tak didukung device). */
+    val GC_STAT_KEYS: List<String> = listOf(KEY_GC_COUNT, "art.gc.gc-time", KEY_BYTES_ALLOCATED, "art.gc.blocking-gc-count", "art.gc.blocking-gc-time")
+
+    /** Batch 329: bahan bagian "memori & GC proses", semua nilai mentah (KB kecuali dinyatakan lain). [pss] = `Debug.MemoryInfo.getMemoryStats()`, [gc] = [GC_STAT_KEYS]. */
+    data class MemoryInfo(
+        val processAgeSeconds: Long,
+        val javaHeapUsedKb: Long,
+        val javaHeapMaxKb: Long,
+        val nativeHeapKb: Long,
+        val pss: Map<String, String>,
+        val gc: Map<String, String>
+    )
+
+    /** Laju rata-rata per detik; umur proses 0 atau negatif = 0 (tak bisa dibagi). */
+    fun ratePerSecond(total: Long, ageSeconds: Long): Long = if (ageSeconds <= 0L) 0L else total / ageSeconds
+
+    /** [info] `null` = pembacaan gagal. Laju = rata-rata SEJAK PROSES MULAI (bandingkan dua ekspor untuk laju saat ini). */
+    fun buildMemorySection(info: MemoryInfo?): String = buildString {
+        if (info == null) {
+            appendLine("---- memori & GC proses ----")
+            appendLine("(gagal dibaca)")
+            return@buildString
+        }
+        appendLine("---- memori & GC proses (umur proses ${info.processAgeSeconds} dtk) ----")
+        appendLine("heap Java: terpakai ${info.javaHeapUsedKb} KB dari maks ${info.javaHeapMaxKb} KB; heap native: ${info.nativeHeapKb} KB")
+        appendLine("PSS (KB): " + info.pss.entries.joinToString(", ") { "${it.key}=${it.value}" })
+        appendLine("GC ART: " + info.gc.entries.joinToString(", ") { "${it.key.removePrefix("art.gc.")}=${it.value.ifEmpty { "?" }}" })
+        info.gc[KEY_GC_COUNT]?.toLongOrNull()?.let {
+            appendLine("laju GC: ${ratePerSecond(it * SECONDS_PER_MINUTE, info.processAgeSeconds)} per menit (rata-rata sejak proses mulai)")
+        }
+        info.gc[KEY_BYTES_ALLOCATED]?.toLongOrNull()?.let {
+            appendLine("laju alokasi: ${ratePerSecond(it / BYTES_PER_KB, info.processAgeSeconds)} KB/dtk (rata-rata sejak proses mulai)")
+        }
+    }
+
+    /** Batch 329: satu bagian `dumpsys meminfo/gfxinfo <paket>`; [readLines] = jumlah baris yang dibaca (0 + kosong = gagal/tak terbaca). */
+    fun buildSystemDumpSection(title: String, lines: List<String>, readLines: Int): String = buildString {
+        appendLine("---- memori/frame (dumpsys $title, ${lines.size} dari $readLines baris) ----")
+        if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris)") else lines.forEach { appendLine(it) }
     }
 
     /** Batch 256: dump sistem yang dilampirkan ke ekspor; [maxLines] membatasi ukuran laporan per dump. */
