@@ -300,4 +300,45 @@ class DebugLogFormatTest {
         val lines = listOf("a", "11-13 07:00:00.000 I/AudioEnhancerService(1): ok")
         assertSame(lines, DebugLogFormat.dropHandledEffectFailures(lines))
     }
+
+    // ---- Batch 327: penampung log berjalan ----
+
+    private val early = "11-14 17:31:50.100 I/AudioEnhancerService(11391): Pemutaran awal disemai: [1/2] pemutar=[7]"
+    private val late = "11-14 17:32:34.091 I/MainActivity(11391): LIFECYCLE ui aktif=true"
+
+    @Test
+    fun `empty ring leaves the logcat lines untouched`() {
+        val primary = listOf("--------- beginning of main", late)
+        assertSame(primary, DebugLogFormat.mergeLogLines(primary, emptyList()))
+    }
+
+    @Test
+    fun `merge restores lines the system buffer already dropped and keeps chronological order`() {
+        val merged = DebugLogFormat.mergeLogLines(listOf("--------- beginning of main", late), listOf(early, late))
+        assertEquals(listOf("--------- beginning of main", early, late), merged)
+    }
+
+    @Test
+    fun `merge drops duplicates and buffer markers coming from the ring`() {
+        val merged = DebugLogFormat.mergeLogLines(listOf(early, late), listOf("--------- beginning of system", early, late, early))
+        assertEquals(listOf(early, late), merged)
+    }
+
+    @Test
+    fun `timestamp check separates log lines from buffer markers`() {
+        assertTrue(DebugLogFormat.hasTimestamp(early))
+        assertFalse(DebugLogFormat.hasTimestamp("--------- beginning of main"))
+        assertFalse(DebugLogFormat.hasTimestamp(""))
+    }
+
+    @Test
+    fun `service starts the ring first in onCreate and stops it in onDestroy and export merges it`() {
+        val rel = "src/main/java/com/audioenhancer/booster"
+        fun read(name: String) = checkNotNull(listOf("$rel/$name", "app/$rel/$name").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "$name tidak ditemukan" }
+        val service = read("AudioEnhancerService.kt").replace(Regex("//[^\n]*"), "")
+        val export = read("DebugLogExporter.kt").replace(Regex("//[^\n]*"), "")
+        assertTrue(Regex("""override fun onCreate\(\) \{\s*super\.onCreate\(\)\s*DebugLogRing\.start\(\)""").containsMatchIn(service))
+        assertTrue(Regex("""DebugLogRing\.stop\(\)\s*super\.onDestroy\(\)""").containsMatchIn(service))
+        assertTrue(export.contains("DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot())"))
+    }
 }

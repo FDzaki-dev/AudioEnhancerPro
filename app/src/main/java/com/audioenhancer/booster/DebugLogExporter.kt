@@ -51,7 +51,7 @@ object DebugLogExporter {
             val now = System.currentTimeMillis()
             val report = DebugLogFormat.buildReport(
                 header = buildHeader(now),
-                logLines = readOwnLogcat(),
+                logLines = DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot()), // Batch 327
                 maxLines = MAX_LINES
             ) + readAvailableEffects() + readProfileStatus(context) + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
@@ -228,6 +228,69 @@ object DebugLogExporter {
     }
 }
 
+/** Batch 327: penampung log BERJALAN. Buffer logcat sistem ditimpa cepat (log device 17:32: tersisa ±3 dtk dari proses yang sudah hidup ±50 dtk,
+ *  saat musik main + UI terbuka: banjir `AudioEffect command()` membuat UID aplikasi paling "cerewet" sehingga barisnya dipangkas lebih dulu),
+ *  jadi `logcat -d` saat ekspor kehilangan justru baris awal yang dibutuhkan (OrphanSweep, semai pemutaran, pemindahan sesi). Selama layanan hidup,
+ *  satu proses `logcat -v time` (hanya baris UID aplikasi ini, tanpa izin) dibaca terus di thread daemon; derau disaring SAAT dibaca
+ *  ([DebugLogFormat.isNoise]) dan hanya [MAX_LINES] baris bermakna terakhir disimpan di memori. Tak ada berkas, tak ada izin baru; gagal = diam
+ *  (ekspor tetap memakai `logcat -d` seperti sebelum B327). Berhenti saat layanan di-destroy. NOT VERIFIED di device. */
+internal object DebugLogRing {
+    internal const val MAX_LINES = 4_000
+    private const val TAG = "DebugLogRing"
+    private val lock = Any()
+    private val lines = ArrayDeque<String>()
+    private var thread: Thread? = null
+    private var process: Process? = null
+
+    fun start() {
+        synchronized(lock) {
+            if (thread?.isAlive == true) return
+            thread = Thread({ pump() }, "boomly-logring").also {
+                it.isDaemon = true
+                it.start()
+            }
+        }
+    }
+
+    fun stop() {
+        val running = synchronized(lock) { process.also { process = null } }
+        try {
+            running?.destroy()
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal menghentikan pembaca logcat", e)
+        }
+    }
+
+    fun snapshot(): List<String> = synchronized(lock) { lines.toList() }
+
+    private fun pump() {
+        var started: Process? = null
+        try {
+            started = ProcessBuilder("logcat", "-v", "time").redirectErrorStream(true).start()
+            synchronized(lock) { process = started }
+            started.inputStream.bufferedReader().use { reader ->
+                reader.forEachLine { line ->
+                    if (DebugLogFormat.hasTimestamp(line) && !DebugLogFormat.isNoise(line)) {
+                        synchronized(lock) {
+                            if (lines.size >= MAX_LINES) lines.removeFirst()
+                            lines.addLast(line)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Pembaca logcat berhenti (ekspor memakai logcat -d saja)", e)
+        } finally {
+            try {
+                started?.destroy()
+            } catch (e: Exception) {
+                Log.w(TAG, "Gagal menutup pembaca logcat", e)
+            }
+            synchronized(lock) { process = null }
+        }
+    }
+}
+
 /** Bagian murni (tanpa Android) supaya bisa dites di JVM. */
 internal object DebugLogFormat {
 
@@ -249,6 +312,31 @@ internal object DebugLogFormat {
 
     /** True untuk baris derau yang dibuang dari laporan; baris lain (efek, serah-terima, crash) selalu dipertahankan. */
     fun isNoise(line: String): Boolean = AUDIO_EFFECT_FLOOD.containsMatchIn(line) || UI_NOISE.containsMatchIn(line)
+
+    private val LINE_TS = Regex(TS)
+
+    /** Batch 327: baris logcat `-v time` selalu berawalan `MM-dd HH:mm:ss.SSS `; penanda buffer ("--------- beginning of ...") tidak. */
+    fun hasTimestamp(line: String): Boolean = LINE_TS.containsMatchIn(line)
+
+    /** Batch 327: gabungan `logcat -d` ([primary]) dan penampung berjalan ([extra]) tanpa baris ganda, urut waktu (stabil: baris sama-milidetik
+     *  tetap pada urutan masuknya). [extra] kosong = [primary] dikembalikan APA ADANYA (nol perubahan perilaku). Penanda buffer hanya dari [primary]
+     *  dan tetap di atas. Kunci urut = awalan waktu (tanpa tahun): lewat pergantian tahun urutannya bisa tertukar (diterima). */
+    fun mergeLogLines(primary: List<String>, extra: List<String>): List<String> {
+        if (extra.isEmpty()) return primary
+        val seen = HashSet<String>()
+        val markers = ArrayList<String>()
+        val stamped = ArrayList<String>()
+        for (line in primary) {
+            if (!hasTimestamp(line)) markers.add(line) else if (seen.add(line)) stamped.add(line)
+        }
+        for (line in extra) {
+            if (hasTimestamp(line) && seen.add(line)) stamped.add(line)
+        }
+        stamped.sortBy { it.substring(0, TIMESTAMP_LENGTH) }
+        return markers + stamped
+    }
+
+    private const val TIMESTAMP_LENGTH = 18
 
     /** Batch 317 (request user: pilih "Saring baris E efek -3 di Log Debug" setelah triase v316): saat efek utama pindah ke sesi pemutar yang
      *  sedang memutar, AudioFlinger kadang menolak membuat efek baru (status -3), sehingga satu kegagalan menulis ±17 baris `E`

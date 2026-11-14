@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 327: Penampung log berjalan (logcat tak lagi kehilangan baris awal)
+
+Sesuai pesanmu soal tangkapan log yang harus total dan tak terhalang bug.
+
+- **Masalah (terbukti di log 17:32)**: saat musik main + UI terbuka, logcat sistem hanya menyisakan ±3 detik dari proses yang sudah hidup ±50 detik. Baris awal layanan (OrphanSweep, semai pemutaran, pemindahan sesi) hilang; banjir `AudioEffect command()` membuat UID aplikasi paling cerewet sehingga barisnya dipangkas lebih dulu. Dump audio_flinger membuktikan efek B326 sebenarnya terpasang di sesi pemutar 673 (5 efek, Enabled).
+- **Perbaikan**: `DebugLogRing` membaca `logcat -v time` (UID sendiri, tanpa izin) terus-menerus di thread daemon selama layanan hidup; derau disaring saat dibaca; maks 4000 baris bermakna di memori. Ekspor menggabungkannya dengan `logcat -d` lewat `DebugLogFormat.mergeLogLines` (tanpa duplikat, urut waktu; penampung kosong = hasil lama apa adanya). Dimulai paling awal di `onCreate`, dihentikan di `onDestroy`; gagal = diam.
+- **Tes**: +5 di `DebugLogFormatTest` => 316 diharapkan.
+- **Biaya**: satu proses logcat + ±20-30 baris/dtk disaring saat spektrum aktif (diperkirakan kecil; pantau baterai).
+
+**File** (3 kode + docs): `DebugLogExporter.kt`, `AudioEnhancerService.kt`, `DebugLogFormatTest.kt`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B327 + uji device: ulangi skenario musik main -> force stop -> buka lagi, log kini harus memuat baris awal). Revert = `Boomly_v326.zip`.
+
 ## Batch 326: Semai tanda tangan pemutaran saat fresh start
 
 Sesuai pilihanmu: kandidat tertunda B323 poin 4.

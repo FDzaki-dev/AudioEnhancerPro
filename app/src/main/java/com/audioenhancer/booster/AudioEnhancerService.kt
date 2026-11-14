@@ -563,6 +563,7 @@ class AudioEnhancerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        DebugLogRing.start() // Batch 327: penampung log berjalan (buffer logcat sistem cepat tertimpa); dimulai PALING AWAL agar baris awal layanan ikut
         // Batch 45: "kunci" service ini di prioritas penjadwalan CPU tertinggi yang
         // disediakan Android buat kerja audio (sama seperti yang dipakai native audio
         // thread sistem), BUKAN cuma andalkan status "foreground service" (itu cuma
@@ -737,6 +738,7 @@ class AudioEnhancerService : Service() {
         // Batch 44 (bugfix): jalur "service di-destroy" (mis. dibunuh OS) juga ikut
         // sinkronkan QS Tile — cabang ke-3 & terakhir yang sebelumnya kelewat.
         QuickToggleTileService.requestTileUpdate(this)
+        DebugLogRing.stop() // Batch 327
         super.onDestroy()
     }
 
