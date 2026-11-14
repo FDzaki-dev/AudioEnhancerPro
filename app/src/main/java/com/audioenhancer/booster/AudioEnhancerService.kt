@@ -597,6 +597,7 @@ class AudioEnhancerService : Service() {
             android.util.Log.e(TAG, "Gagal register AudioDeviceCallback (output routing awareness nonaktif)", e)
         }
         registerPlaybackGuard() // Batch 229
+        seedPlaybackState() // Batch 326
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -1196,6 +1197,37 @@ class AudioEnhancerService : Service() {
             audioManager?.unregisterAudioPlaybackCallback(callback)
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal unregister AudioPlaybackCallback", e)
+        }
+    }
+
+    /** Batch 326 (kandidat tertunda B323): `AudioPlaybackCallback` TIDAK berbunyi saat didaftarkan, hanya saat pemutaran berubah. Pada fresh
+     *  start ketika musik/video SUDAH main, `lastPlaybackSignature` dan `lastPlayerKey` karenanya kosong sampai ada perubahan pemutaran berikutnya:
+     *  pemeriksaan berkala (`updateGuardTick`) tak hidup, dan pasang-ulang (`runEffectRebind`) dibatalkan sebagai "tak ada pemutar media aktif".
+     *  Di sini keduanya disemai SEKALI dari `AudioManager.activePlaybackConfigurations` (publik, API 26+, tanpa izin; daftar yang sama dengan
+     *  yang dikirim callback). Murni mengisi dua variabel: tak memicu guard, pasang-ulang, maupun probe (itu tetap urusan callback/sapu yatim),
+     *  dan hanya bila keduanya masih kosong. Gagal membaca = dibiarkan kosong (perilaku lama). NOT VERIFIED di device. */
+    @android.annotation.SuppressLint("NewApi")
+    private fun seedPlaybackState() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (!EffectGuardPolicy.shouldSeedPlayback(lastPlaybackSignature, lastPlayerKey)) return
+        val configs: List<AudioPlaybackConfiguration> = try {
+            audioManager?.activePlaybackConfigurations
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal membaca pemutaran aktif awal (tanda tangan pemutaran tidak disemai)", e)
+            null
+        } ?: return
+        try {
+            val signature = EffectGuardPolicy.playbackSignature(
+                configs.map { it.audioAttributes.usage to it.audioAttributes.contentType }
+            )
+            val playerKey = EffectGuardPolicy.playerKey(
+                configs.filter { EffectGuardPolicy.isRebindUsage(it.audioAttributes.usage) }.map { it.hashCode() }
+            )
+            lastPlaybackSignature = signature
+            lastPlayerKey = playerKey
+            android.util.Log.i(TAG, "Pemutaran awal disemai: [$signature] pemutar=[$playerKey]")
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Gagal membaca AudioAttributes pemutar aktif awal (tidak disemai)", e)
         }
     }
 
@@ -3145,6 +3177,9 @@ internal object EffectGuardPolicy {
 
     /** Batch 231: true bila tanda tangan pemutaran memuat minimal satu pemutar media (usage UNKNOWN/MEDIA). */
     fun hasMediaPlayer(signature: String): Boolean = mediaEntryCounts(signature).isNotEmpty()
+
+    /** Batch 326: semai pemutaran awal (fresh start) hanya bila callback belum pernah mengisi apa pun; data callback yang sudah ada tak ditimpa. */
+    fun shouldSeedPlayback(lastSignature: String, lastKey: String): Boolean = lastSignature.isEmpty() && lastKey.isEmpty()
 
     /** Batch 230: boleh pasang ulang bila belum pernah memasang, atau sudah >= [REBIND_MIN_INTERVAL_MS] sejak terakhir. */
     fun mayRebind(nowMs: Long, lastBindMs: Long): Boolean =

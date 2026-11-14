@@ -143,4 +143,41 @@ class EffectSessionTest {
         assertTrue("pembatalan tetap ada untuk kasus lain", rebind.contains("EffectRebind[\$reason]: dibatalkan (tak ada pemutar media aktif)"))
         assertTrue("pembatalan sesudah pelewatan sesi terikat", rebind.indexOf("dilewati (efek utama terikat sesi") in 0 until cancel)
     }
+
+    // ---- Batch 326: semai tanda tangan pemutaran saat fresh start ----
+
+    @Test
+    fun `playback state is seeded only while both callback fields are still empty`() {
+        assertTrue(EffectGuardPolicy.shouldSeedPlayback("", ""))
+        assertFalse(EffectGuardPolicy.shouldSeedPlayback("1/2", ""))
+        assertFalse(EffectGuardPolicy.shouldSeedPlayback("", "123"))
+        assertFalse(EffectGuardPolicy.shouldSeedPlayback("1/2", "123"))
+    }
+
+    @Test
+    fun `seeded media state keeps guard tick alive and ignores an identical first callback`() {
+        val seeded = EffectGuardPolicy.playbackSignature(listOf(1 to 2))
+        val key = EffectGuardPolicy.playerKey(listOf(4711))
+        assertTrue(EffectGuardPolicy.hasMediaPlayer(seeded))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayback(seeded, seeded))
+        assertFalse(EffectGuardPolicy.shouldRebindOnPlayers(key, key))
+        assertTrue(EffectGuardPolicy.shouldRebindOnPlayers(key, EffectGuardPolicy.playerKey(listOf(4711, 4712))))
+        assertFalse(EffectGuardPolicy.hasMediaPlayer(EffectGuardPolicy.playbackSignature(emptyList())))
+    }
+
+    @Test
+    fun `onCreate seeds playback state right after registering the playback guard`() {
+        assertTrue(Regex("""registerPlaybackGuard\(\)\s*\n\s*seedPlaybackState\(\)""").containsMatchIn(code(serviceSource)))
+    }
+
+    @Test
+    fun `seed only fills the two playback fields without scheduling any guard work`() {
+        val body = between(code(serviceSource), "private fun seedPlaybackState()", "private fun onPlaybackConfigsChanged")
+        assertTrue(body.contains("activePlaybackConfigurations"))
+        assertTrue(body.contains("lastPlaybackSignature = signature"))
+        assertTrue(body.contains("lastPlayerKey = playerKey"))
+        for (forbidden in listOf("requestEffectGuard", "runEffectRebind", "rebindRunnable", "scheduleEffectSessionProbe", "updateGuardTick", "postDelayed")) {
+            assertFalse("seed tak boleh memanggil $forbidden", body.contains(forbidden))
+        }
+    }
 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 326: Semai tanda tangan pemutaran saat fresh start
+
+Sesuai pilihanmu: kandidat tertunda B323 poin 4.
+
+- **Masalah**: `AudioPlaybackCallback` tidak berbunyi saat didaftarkan, hanya saat pemutaran berubah. Jika Boomly dinyalakan saat musik/video sudah main, tanda tangan dan kunci pemutar kosong sampai ada perubahan pemutaran: pemeriksaan berkala (Effect Guard tick) tak hidup, dan pasang-ulang efek dapat dibatalkan karena dianggap tak ada pemutar media aktif.
+- **Perbaikan**: `seedPlaybackState()` (dipanggil sesudah `registerPlaybackGuard()` di `onCreate`) mengisi `lastPlaybackSignature` dan `lastPlayerKey` sekali dari `AudioManager.activePlaybackConfigurations` (daftar yang sama dengan yang dikirim callback). Hanya mengisi dua variabel; tidak menjadwalkan guard/pasang-ulang/probe; hanya bila keduanya masih kosong; gagal baca = perilaku lama. Aturan murni: `EffectGuardPolicy.shouldSeedPlayback`.
+- **Tes**: +4 di `EffectSessionTest` (aturan seed, perilaku keadaan tersemai, urutan panggil di `onCreate`, seed tak menjadwalkan apa pun) => 311 diharapkan.
+
+**File** (2 kode + docs): `AudioEnhancerService.kt`, `EffectSessionTest.kt`. Skin widget B325 tidak disentuh.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B326 + uji device: fresh start saat musik main, log memuat "Pemutaran awal disemai" lalu EffectGuard[tick]). Revert = `Boomly_v325.zip`.
+
 ## Batch 325: Skin widget SPACE (rombak total dari Neumorphism burgundy)
 
 Atas permintaanmu: rombak total skin widget jadi bertemakan space dengan hiasan megah dan masterpiece.
