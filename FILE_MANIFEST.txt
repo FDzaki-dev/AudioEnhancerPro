@@ -95,6 +95,7 @@ app/src/test/java/com/audioenhancer/booster/SettingsRotationStateTest.kt
 app/src/test/java/com/audioenhancer/booster/ShizukuGrantTest.kt
 app/src/test/java/com/audioenhancer/booster/SliderApplyCoalescingTest.kt
 app/src/test/java/com/audioenhancer/booster/SliderDragGuardTest.kt
+app/src/test/java/com/audioenhancer/booster/SpaceBackdropTest.kt
 app/src/test/java/com/audioenhancer/booster/UpdateCheckPolicyTest.kt
 build.gradle.kts
 config/detekt/detekt-typed.yml

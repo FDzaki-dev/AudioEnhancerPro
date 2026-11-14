@@ -14,13 +14,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.CacheDrawScope
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -31,8 +36,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 
 // ============================================================================
 // BATCH 38 — tambahan (BUKAN rewrite ulang Batch 37): varian tema ke-3, awalnya
@@ -1058,8 +1065,8 @@ private fun DrawScope.drawSpaceStars() {
     }
 }
 
-/** Cakrawala planet raksasa di dasar layar (badan gelap + cincin atmosfer cyan/ungu) dan satu orbit miring tipis di atas nebula ungu. */
-private fun DrawScope.drawSpacePlanetAndOrbit() {
+/** Cakrawala planet raksasa di dasar layar (badan gelap + cincin atmosfer cyan/ungu). Batch 330: dipisah dari orbit supaya planet bisa dirender ke bitmap (frekuensi rendah). */
+private fun DrawScope.drawSpacePlanet() {
     val w = size.width
     val h = size.height
     val planetRadius = w * 1.25f
@@ -1077,6 +1084,12 @@ private fun DrawScope.drawSpacePlanetAndOrbit() {
         radius = planetRadius * 1.06f,
         center = planetCenter
     )
+}
+
+/** Satu orbit miring tipis di atas nebula ungu. Batch 330: SELALU digambar langsung (garis 1dp tipis akan kabur bila dirender ke bitmap beresolusi rendah). */
+private fun DrawScope.drawSpaceOrbit() {
+    val w = size.width
+    val h = size.height
     val orbitCenter = Offset(w * 0.86f, h * 0.12f)
     rotate(degrees = -24f, pivot = orbitCenter) {
         drawOval(
@@ -1088,12 +1101,35 @@ private fun DrawScope.drawSpacePlanetAndOrbit() {
     }
 }
 
-/** Batch 324: latar kosmos Space (nebula -> bintang -> planet+orbit), dipasang di Surface root `MainActivity` HANYA untuk tema Space.
- *  Digambar statis lewat `drawBehind` (tak membaca state => tak digambar ulang saat konten di-scroll). */
-internal fun Modifier.spaceCosmosBackdrop(): Modifier = this.drawBehind {
-    drawSpaceNebulae()
-    drawSpaceStars()
-    drawSpacePlanetAndOrbit()
+/** Batch 330: skala bitmap latar Space terhadap layar (0,25 = 1/16 piksel; nebula dan planet frekuensi rendah, tak butuh resolusi penuh). */
+internal const val SPACE_BACKDROP_SCALE = 0.25f
+
+/** Batch 330: render [block] sekali ke bitmap beresolusi [SPACE_BACKDROP_SCALE] (ukuran = layar x skala; `size` di dalam [block] = ukuran bitmap, jadi
+ *  semua koordinat pecahan tetap sama). Dipanggil hanya di dalam `drawWithCache` (diulang HANYA saat ukuran/densitas berubah). */
+private fun CacheDrawScope.renderLowRes(block: DrawScope.() -> Unit): ImageBitmap {
+    val w = (size.width * SPACE_BACKDROP_SCALE).roundToInt().coerceAtLeast(1)
+    val h = (size.height * SPACE_BACKDROP_SCALE).roundToInt().coerceAtLeast(1)
+    val bitmap = ImageBitmap(w, h)
+    CanvasDrawScope().draw(this, layoutDirection, androidx.compose.ui.graphics.Canvas(bitmap), Size(w.toFloat(), h.toFloat()), block)
+    return bitmap
+}
+
+/** Batch 324: latar kosmos Space (nebula -> bintang -> planet -> orbit), dipasang di Surface root `MainActivity` HANYA untuk tema Space.
+ *  Batch 330 (laporan user: berat/fps drop saat tema Space + scroll cepat): sebelumnya SEMUA ini (3 gradien radial + gradien planet layar-penuh +
+ *  150 bintang) direkam ulang dan digambar ulang tiap frame scroll, karena konten yang bergeser membuat layer akar digambar ulang. Kini nebula dan planet
+ *  (frekuensi rendah) dirender SEKALI ke dua bitmap kecil (1/16 piksel layar, ±1,3 MB total) di `drawWithCache` (ulang hanya saat ukuran/densitas
+ *  berubah), lalu tiap frame hanya dua lapis tekstur + 150 lingkaran kecil + 1 garis orbit. URUTAN lapis TETAP seperti B324 (bintang di BAWAH planet).
+ *  Bintang dan orbit sengaja tetap digambar langsung supaya tajam. NOT VERIFIED di device. */
+internal fun Modifier.spaceCosmosBackdrop(): Modifier = this.drawWithCache {
+    val nebula = renderLowRes { drawSpaceNebulae() }
+    val planet = renderLowRes { drawSpacePlanet() }
+    val target = IntSize(size.width.roundToInt().coerceAtLeast(1), size.height.roundToInt().coerceAtLeast(1))
+    onDrawBehind {
+        drawImage(nebula, dstSize = target, filterQuality = FilterQuality.Low)
+        drawSpaceStars()
+        drawImage(planet, dstSize = target, filterQuality = FilterQuality.Low)
+        drawSpaceOrbit()
+    }
 }
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca

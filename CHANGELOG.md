@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 330: Latar kosmos Space dirender sekali (berat/fps drop saat scroll cepat)
+
+Laporanmu: berat dan fps drop terjadi saat tema Space dipakai lalu scroll cepat atas-bawah.
+
+- **Penyebab paling mungkin**: latar kosmos B324 (3 gradien radial layar-penuh, gradien planet, 150 bintang) dirender ulang tiap frame scroll. Komentar B324 "tak digambar ulang saat di-scroll" keliru untuk layer akar.
+- **Perbaikan**: nebula dan planet dirender SEKALI ke dua bitmap beresolusi 1/4 (±1,3 MB total, diulang hanya saat ukuran/densitas berubah); tiap frame hanya dua lapis tekstur, 150 lingkaran bintang, dan satu garis orbit. Urutan lapis dan tampilan sama (nebula/planet sedikit lebih halus); bintang dan orbit tetap tajam.
+- **Tes**: +3 di `SpaceBackdropTest` (render sekali, urutan lapis, skala kecil) => 325 diharapkan.
+- **Belum terbukti** sebagai satu-satunya penyebab (tak ada profil frame). Bagian gfxinfo dari B329 tetap alat ukurnya; biaya khas Space lain (tepi gradien kartu, mesin kedalaman) belum diukur. "Menerapkan tema" (sekali) tidak diubah.
+
+**File** (2 kode + docs): `Theme.kt`, `SpaceBackdropTest.kt` (baru), `FILE_MANIFEST.txt`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B330 + uji device: tema Space, scroll cepat di tab Kontrol). Revert = `Boomly_v329.zip`.
+
 ## Batch 329: Bukti memori, GC, dan frame di ekspor log (laporan "memory leak + fps drop" tab Home)
 
 Log 17:49 tidak memuat satu angka memori atau frame pun (hanya ±30 detik sejak pasang-ulang), jadi dugaan kebocoran belum bisa dibuktikan maupun dibantah. Telaah kode tab Home tidak menemukan sumber kebocoran (observer berpasangan dilepas, bind/unbind berpasangan, tak ada animasi tak berujung atau koleksi yang tumbuh, spektrum digambar di fase gambar dengan layer sendiri, latar Space statis). Karena itu tidak ada tambalan tebakan; yang ditambah adalah buktinya.
