@@ -31,8 +31,6 @@ object DebugLogExporter {
     private const val MAX_FILES = 10
     private const val VERIFIER_TIMEOUT_SECONDS = 3L
     private const val MILLIS_PER_SECOND = 1_000L
-    private const val MEMINFO_MAX_LINES = 260
-    private const val GFXINFO_MAX_LINES = 200
     private const val PROFILE_ENTRY = "assets/dexopt/baseline.prof"
     private const val PROFILE_META_ENTRY = "assets/dexopt/baseline.profm"
 
@@ -55,7 +53,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot()), // Batch 327
                 maxLines = MAX_LINES
-            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readFrameDumps(context) + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readFrameSection() + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -163,34 +161,9 @@ object DebugLogExporter {
         DebugLogFormat.buildMemorySection(null)
     }
 
-    /** Batch 329: bila izin DUMP ada, `dumpsys meminfo <paket>` (blok "Objects": Views/ViewRootImpl/Activities/AppContexts: angka yang naik terus =
-     *  kebocoran) dan `dumpsys gfxinfo <paket>` (frame dirender, frame jank, persentil waktu frame). Tanpa izin = kosong (bagian "memori & GC proses"
-     *  di atas tetap ada). Tanpa saringan kata kunci; hanya baris kosong dibuang dan jumlah baris dibatasi. */
-    private fun readFrameDumps(context: Context): String {
-        if (ContextCompat.checkSelfPermission(context, DumpProbe.PERMISSION) != PackageManager.PERMISSION_GRANTED) return ""
-        val pkg = context.packageName
-        return readSystemDump(listOf("meminfo", pkg), MEMINFO_MAX_LINES) + readSystemDump(listOf("gfxinfo", pkg), GFXINFO_MAX_LINES)
-    }
-
-    private fun readSystemDump(args: List<String>, maxLines: Int): String = try {
-        val process = ProcessBuilder(listOf("dumpsys") + args).redirectErrorStream(true).start()
-        try {
-            val kept = ArrayList<String>()
-            var read = 0
-            process.inputStream.bufferedReader().use { reader ->
-                for (line in reader.lineSequence()) {
-                    if (++read > DebugLogFormat.PATH_MAX_READ) break
-                    if (line.isNotBlank() && kept.size < maxLines) kept.add(line.trimEnd())
-                }
-            }
-            DebugLogFormat.buildSystemDumpSection(args.joinToString(" "), kept, read)
-        } finally {
-            process.destroy()
-        }
-    } catch (e: Exception) {
-        Log.w(TAG, "Cuplikan dumpsys ${args.firstOrNull()} gagal", e)
-        DebugLogFormat.buildSystemDumpSection(args.joinToString(" "), emptyList(), 0)
-    }
+    /** Batch 331: `dumpsys meminfo/gfxinfo` (B329) ternyata "Can't find service" bagi aplikasi biasa (SELinux), jadi diganti [FrameStats]: ringkasan
+     *  waktu frame nyata UI Boomly (API 31+, tanpa izin) = bukti jank saat scroll. */
+    private fun readFrameSection(): String = DebugLogFormat.buildFrameSection(FrameStats.snapshot())
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
      *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran +
@@ -277,6 +250,82 @@ object DebugLogExporter {
             }
         } catch (e: Exception) {
             Log.w(TAG, "Prune log debug lama gagal (diabaikan)", e)
+        }
+    }
+}
+
+/** Batch 331 (laporan user: fps drop saat tema Space + scroll cepat; `dumpsys gfxinfo` tak bisa dibaca aplikasi): penampung waktu frame NYATA dari
+ *  `Window.OnFrameMetricsAvailableListener` (API 31+; di bawahnya tak aktif). Cincin [CAPACITY] frame terakhir (±38 KB), HandlerThread sendiri hanya
+ *  selama Activity terlihat (attach di `onStart`, detach di `onStop`), callback ringan (4 angka). Ekspor tepat sesudah scroll cepat = ringkasan
+ *  frame scroll. NOT VERIFIED di device. */
+internal object FrameStats {
+    internal const val CAPACITY = 1_200
+    private const val TAG = "FrameStats"
+    private val lock = Any()
+    private val total = LongArray(CAPACITY)
+    private val draw = LongArray(CAPACITY)
+    private val gpu = LongArray(CAPACITY)
+    private val deadline = LongArray(CAPACITY)
+    private var next = 0
+    private var count = 0
+    private var thread: android.os.HandlerThread? = null
+    private var attached = 0
+
+    @android.annotation.SuppressLint("NewApi") // dipanggil HANYA bila SDK_INT >= S (MainActivity.onStart); GPU_DURATION/DEADLINE = API 31
+    fun attach(window: android.view.Window): android.view.Window.OnFrameMetricsAvailableListener? = try {
+        val handler = synchronized(lock) {
+            val t = thread ?: android.os.HandlerThread("boomly-frames").also { it.start() }
+            thread = t
+            attached++
+            android.os.Handler(t.looper)
+        }
+        val listener = android.view.Window.OnFrameMetricsAvailableListener { _, metrics, _ ->
+            record(
+                metrics.getMetric(android.view.FrameMetrics.TOTAL_DURATION),
+                metrics.getMetric(android.view.FrameMetrics.DRAW_DURATION),
+                metrics.getMetric(android.view.FrameMetrics.GPU_DURATION),
+                metrics.getMetric(android.view.FrameMetrics.DEADLINE)
+            )
+        }
+        window.addOnFrameMetricsAvailableListener(listener, handler)
+        listener
+    } catch (e: Exception) {
+        Log.w(TAG, "Gagal memasang pengukur frame", e)
+        null
+    }
+
+    fun detach(window: android.view.Window, listener: android.view.Window.OnFrameMetricsAvailableListener?) {
+        if (listener == null) return
+        try {
+            window.removeOnFrameMetricsAvailableListener(listener)
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal melepas pengukur frame", e)
+        }
+        synchronized(lock) {
+            attached = (attached - 1).coerceAtLeast(0)
+            if (attached == 0) {
+                thread?.quitSafely()
+                thread = null
+            }
+        }
+    }
+
+    private fun record(totalNs: Long, drawNs: Long, gpuNs: Long, deadlineNs: Long) {
+        synchronized(lock) {
+            total[next] = totalNs
+            draw[next] = drawNs
+            gpu[next] = gpuNs
+            deadline[next] = deadlineNs
+            next = (next + 1) % CAPACITY
+            if (count < CAPACITY) count++
+        }
+    }
+
+    fun snapshot(): List<DebugLogFormat.FrameSample> = synchronized(lock) {
+        val start = if (count < CAPACITY) 0 else next
+        List(count) { i ->
+            val j = (start + i) % CAPACITY
+            DebugLogFormat.FrameSample(total[j], draw[j], gpu[j], deadline[j])
         }
     }
 }
@@ -510,10 +559,38 @@ internal object DebugLogFormat {
         }
     }
 
-    /** Batch 329: satu bagian `dumpsys meminfo/gfxinfo <paket>`; [readLines] = jumlah baris yang dibaca (0 + kosong = gagal/tak terbaca). */
-    fun buildSystemDumpSection(title: String, lines: List<String>, readLines: Int): String = buildString {
-        appendLine("---- memori/frame (dumpsys $title, ${lines.size} dari $readLines baris) ----")
-        if (lines.isEmpty()) appendLine("(kosong: dump tak terbaca atau tak ada baris)") else lines.forEach { appendLine(it) }
+    /** Batch 331: satu frame dari `FrameMetrics` (ns). [deadlineNs] <= 0 = tak diketahui (pakai 16,67 ms). */
+    data class FrameSample(val totalNs: Long, val drawNs: Long, val gpuNs: Long, val deadlineNs: Long)
+
+    private const val NS_PER_MS = 1_000_000.0
+    private const val DEFAULT_DEADLINE_NS = 16_666_667L
+    private const val PERCENT = 100.0
+
+    /** Persentil nilai terurut (peringkat terdekat); kosong = 0. */
+    fun percentile(sorted: List<Long>, percent: Int): Long {
+        if (sorted.isEmpty()) return 0L
+        val rank = Math.ceil(percent / PERCENT * sorted.size).toInt().coerceIn(1, sorted.size)
+        return sorted[rank - 1]
+    }
+
+    private fun ms(ns: Long): String = String.format(java.util.Locale.US, "%.1f", ns / NS_PER_MS)
+
+    /** Batch 331: ringkasan frame UI. Jank = total > tenggat frame (atau 16,67 ms bila tenggat tak diketahui). "gambar" = waktu rekam UI thread,
+     *  "gpu" = waktu GPU: gambar tinggi = beban rekam (recomposition/draw), gpu tinggi = beban piksel (gradien, bayangan, layer). */
+    fun buildFrameSection(frames: List<FrameSample>): String = buildString {
+        appendLine("---- frame UI (FrameMetrics, ${frames.size} frame terakhir) ----")
+        if (frames.isEmpty()) {
+            appendLine("(belum ada frame: UI belum aktif sejak proses mulai, atau Android < 12)")
+            return@buildString
+        }
+        val totals = frames.map { it.totalNs }.sorted()
+        val janky = frames.count { it.totalNs > (if (it.deadlineNs > 0L) it.deadlineNs else DEFAULT_DEADLINE_NS) }
+        appendLine("jank (total > tenggat): $janky dari ${frames.size} (${janky * PERCENT.toInt() / frames.size}%)")
+        appendLine(
+            "total ms: p50=${ms(percentile(totals, 50))} p90=${ms(percentile(totals, 90))} " +
+                "p95=${ms(percentile(totals, 95))} p99=${ms(percentile(totals, 99))} maks=${ms(totals.last())}"
+        )
+        appendLine("rata-rata ms: gambar(UI thread)=${ms(frames.sumOf { it.drawNs } / frames.size)} gpu=${ms(frames.sumOf { it.gpuNs } / frames.size)}")
     }
 
     /** Batch 256: dump sistem yang dilampirkan ke ekspor; [maxLines] membatasi ukuran laporan per dump. */

@@ -380,16 +380,21 @@ class MainActivity : ComponentActivity() {
     }
 
     // Batch 162: beri tahu ViewModel kapan UI terlihat supaya loop polling-nya berhenti di background.
+    private var frameListener: android.view.Window.OnFrameMetricsAvailableListener? = null // Batch 331
+
     override fun onStart() {
         super.onStart()
         viewModel.setUiActive(true)
         Log.i("MainActivity", "LIFECYCLE ui aktif=true") // Batch 242: bukti kapan spektrum boleh dijeda (log kedua tak memuat ini)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) frameListener = FrameStats.attach(window) // Batch 331
     }
 
     override fun onStop() {
         super.onStop()
         viewModel.setUiActive(false)
         Log.i("MainActivity", "LIFECYCLE ui aktif=false") // Batch 242
+        FrameStats.detach(window, frameListener) // Batch 331
+        frameListener = null
     }
 
     override fun onResume() {

@@ -1,5 +1,20 @@
 # Changelog
 
+## Batch 331: Bukti frame UI nyata (menggantikan dumpsys gfxinfo yang tak bisa dibaca)
+
+Log 00:11 (build B330) menunjukkan `dumpsys meminfo` dan `gfxinfo` gagal "Can't find service" untuk aplikasi biasa, jadi bagian itu dibuang.
+
+- **Baru**: `FrameStats` memakai `Window.OnFrameMetricsAvailableListener` (Android 12+, tanpa izin), dipasang saat layar terlihat dan dilepas saat tidak. Menyimpan 1200 frame terakhir.
+- **Ekspor**: bagian "frame UI": jumlah jank (total melewati tenggat frame), persentil waktu frame (p50/p90/p95/p99/maks), rata-rata waktu gambar UI thread vs GPU.
+- **Dari log 00:11**: heap Java 11,9 MB, PSS total 198 MB, graphics 133,6 MB pada 23 detik, laju GC 10 per menit tanpa blocking GC. Belum ada pembanding antar tema.
+- **Tes**: net +3 di `DebugLogFormatTest` => 328 diharapkan.
+
+**File** (3 kode + docs): `DebugLogExporter.kt`, `MainActivity.kt`, `DebugLogFormatTest.kt`.
+
+**Cara memakai**: tema Space, scroll cepat atas-bawah sekitar 10 detik di tab Kontrol, lalu langsung ekspor log. Ulangi dengan tema lain sebagai pembanding.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B331 + uji device). Revert = `Boomly_v330.zip`.
+
 ## Batch 330: Latar kosmos Space dirender sekali (berat/fps drop saat scroll cepat)
 
 Laporanmu: berat dan fps drop terjadi saat tema Space dipakai lalu scroll cepat atas-bawah.

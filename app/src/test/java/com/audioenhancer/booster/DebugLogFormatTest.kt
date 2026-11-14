@@ -373,19 +373,52 @@ class DebugLogFormatTest {
     }
 
     @Test
-    fun `system dump section marks an empty dump and lists kept lines otherwise`() {
-        assertTrue(DebugLogFormat.buildSystemDumpSection("gfxinfo x", emptyList(), 0).contains("(kosong"))
-        val text = DebugLogFormat.buildSystemDumpSection("meminfo x", listOf("Views: 42"), 7)
-        assertTrue(text.contains("memori/frame (dumpsys meminfo x, 1 dari 7 baris)"))
-        assertTrue(text.contains("Views: 42"))
-    }
-
-    @Test
     fun `export puts memory and frame sections before the long audio dumps`() {
         val rel = "src/main/java/com/audioenhancer/booster/DebugLogExporter.kt"
         val src = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "DebugLogExporter.kt tidak ditemukan" }
-        val order = listOf("readMemorySection() +", "readFrameDumps(context) +", "readAudioPathSnapshot(context)").map { src.indexOf(it) }
+        val order = listOf("readMemorySection() +", "readFrameSection() +", "readAudioPathSnapshot(context)").map { src.indexOf(it) }
         assertTrue(order.all { it >= 0 })
         assertEquals(order.sorted(), order)
+    }
+
+    // ---- Batch 331: ringkasan frame UI ----
+
+    @Test
+    fun `percentile picks the nearest rank and tolerates empty input`() {
+        assertEquals(0L, DebugLogFormat.percentile(emptyList(), 95))
+        val sorted = (1L..100L).toList()
+        assertEquals(50L, DebugLogFormat.percentile(sorted, 50))
+        assertEquals(95L, DebugLogFormat.percentile(sorted, 95))
+        assertEquals(100L, DebugLogFormat.percentile(sorted, 100))
+    }
+
+    @Test
+    fun `frame section counts jank against each frame deadline`() {
+        val ms = 1_000_000L
+        val frames = listOf(
+            DebugLogFormat.FrameSample(10 * ms, 4 * ms, 3 * ms, 16 * ms),
+            DebugLogFormat.FrameSample(30 * ms, 20 * ms, 9 * ms, 16 * ms),
+            DebugLogFormat.FrameSample(9 * ms, 2 * ms, 2 * ms, 8 * ms),
+            DebugLogFormat.FrameSample(12 * ms, 2 * ms, 2 * ms, 0)
+        )
+        val text = DebugLogFormat.buildFrameSection(frames)
+        assertTrue(text.contains("4 frame terakhir"))
+        assertTrue(text.contains("jank (total > tenggat): 2 dari 4 (50%)"))
+        assertTrue(text.contains("maks=30.0"))
+        assertTrue(text.contains("gambar(UI thread)=7.0 gpu=4.0"))
+    }
+
+    @Test
+    fun `frame section explains an empty buffer`() {
+        assertTrue(DebugLogFormat.buildFrameSection(emptyList()).contains("belum ada frame"))
+    }
+
+    @Test
+    fun `main activity attaches frame metrics on start and detaches on stop`() {
+        val rel = "src/main/java/com/audioenhancer/booster/MainActivity.kt"
+        val src = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "MainActivity.kt tidak ditemukan" }
+        assertTrue(src.contains("FrameStats.attach(window)"))
+        assertTrue(src.contains("FrameStats.detach(window, frameListener)"))
+        assertTrue(src.indexOf("FrameStats.attach(window)") < src.indexOf("FrameStats.detach(window, frameListener)"))
     }
 }
