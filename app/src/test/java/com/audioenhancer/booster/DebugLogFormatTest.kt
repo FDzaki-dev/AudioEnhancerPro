@@ -430,4 +430,16 @@ class DebugLogFormatTest {
         assertTrue(src.contains("FrameStats.detach(window, frameListener)"))
         assertTrue(src.indexOf("FrameStats.attach(window)") < src.indexOf("FrameStats.detach(window, frameListener)"))
     }
+
+    @Test
+    fun `frame section reports frame intervals ignores idle gaps and lists stage p99`() {
+        val ms = 1_000_000L
+        val frames = listOf(0L, 10 * ms, 20 * ms, 60 * ms, 2_000 * ms).map {
+            DebugLogFormat.FrameSample(8 * ms, 1 * ms, 5 * ms, 0, it, true, layoutNs = 2 * ms, syncNs = 3 * ms, cmdNs = 4 * ms)
+        }
+        val text = DebugLogFormat.buildFrameSection(frames, "SPACE", 120f)
+        assertTrue(text.contains("selang ms p50=10.0"))
+        assertTrue(text.contains("> 1,5x p50: 1 (33%)"))
+        assertTrue(text.contains("tahap p99 ms: layout=2.0 gambar=1.0 sync/unggah=3.0 perintah=4.0 gpu=5.0"))
+    }
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 333: Selang antar-frame dan rincian tahap frame
+
+**Temuan log 07:01 (tema SPACE, build B332, 1200 frame semuanya saat disentuh/scroll)**: sekitar 93 fps efektif; waktu GPU p50 14,9 ms; waktu gambar UI thread hanya 0,5 ms; 5% frame lebih dari 33,3 ms; total p99 62 ms. Heap Java 15,5 MB, GC 9 per menit tanpa blocking GC, graphics PSS 114,9 MB. Angka "total" mencakup latensi antrean, jadi 99% di atas 16,7 ms bukan berarti 99% frame terlewat. Kelancaran yang sebenarnya perlu diukur lewat selang antar-frame.
+
+- **Selang antar-frame**: p50/p90/p99/maks dan jumlah selang lebih dari 1,5x median (celah lebih dari 500 ms dianggap jeda, bukan patah-patah).
+- **Rincian tahap (p99)**: layout, gambar (rekam UI thread), sync/unggah (unggah tekstur), perintah (RenderThread), dan GPU. Tahap yang tinggi menunjukkan sumber lonjakan.
+- **Tes**: +1 di `DebugLogFormatTest` => 330 diharapkan.
+
+**File** (2 kode + docs): `DebugLogExporter.kt`, `DebugLogFormatTest.kt`. Perilaku UI tidak berubah.
+
+**Cara memakai**: proses baru, tema Space, scroll cepat sekitar 10 detik, ekspor; ulangi di satu tema lain dengan gerakan yang sama.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B333 + uji device). Revert = `Boomly_v332.zip`.
+
 ## Batch 332: Ringkasan frame dipisah scroll vs diam (temuan GPU-bound)
 
 **Temuan dari log 06:52 (B331, 40 detik, 1200 frame)**: total frame p50 52 ms, p99 110 ms; rata-rata waktu gambar UI thread hanya 1,2 ms sedangkan GPU 27,1 ms. Artinya beban ada di GPU (piksel), bukan di rekam/recomposition UI thread. Heap Java stabil rendah (9,4 MB), GC 13 per menit tanpa blocking GC: tidak ada bukti kebocoran memori heap. Memori besar ada di grafis (graphics PSS 145 MB). Angka "jank 0%" berbasis tenggat menyesatkan di layar laju-variabel, jadi diganti ambang tetap.

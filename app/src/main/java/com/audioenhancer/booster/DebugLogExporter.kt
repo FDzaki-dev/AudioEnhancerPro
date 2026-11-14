@@ -267,6 +267,9 @@ internal object FrameStats {
     private val gpu = LongArray(CAPACITY)
     private val deadline = LongArray(CAPACITY)
     private val vsync = LongArray(CAPACITY)
+    private val layout = LongArray(CAPACITY)
+    private val sync = LongArray(CAPACITY)
+    private val cmd = LongArray(CAPACITY)
     private val touched = BooleanArray(CAPACITY)
     private var next = 0
     private var count = 0
@@ -299,7 +302,10 @@ internal object FrameStats {
                 metrics.getMetric(android.view.FrameMetrics.DRAW_DURATION),
                 metrics.getMetric(android.view.FrameMetrics.GPU_DURATION),
                 metrics.getMetric(android.view.FrameMetrics.DEADLINE),
-                metrics.getMetric(android.view.FrameMetrics.INTENDED_VSYNC_TIMESTAMP)
+                metrics.getMetric(android.view.FrameMetrics.INTENDED_VSYNC_TIMESTAMP),
+                metrics.getMetric(android.view.FrameMetrics.LAYOUT_MEASURE_DURATION),
+                metrics.getMetric(android.view.FrameMetrics.SYNC_DURATION),
+                metrics.getMetric(android.view.FrameMetrics.COMMAND_ISSUE_DURATION)
             )
         }
         window.addOnFrameMetricsAvailableListener(listener, handler)
@@ -325,7 +331,8 @@ internal object FrameStats {
         }
     }
 
-    private fun record(totalNs: Long, drawNs: Long, gpuNs: Long, deadlineNs: Long, vsyncNs: Long) {
+    @Suppress("LongParameterList")
+    private fun record(totalNs: Long, drawNs: Long, gpuNs: Long, deadlineNs: Long, vsyncNs: Long, layoutNs: Long, syncNs: Long, cmdNs: Long) {
         val touching = lastTouchNs != 0L && vsyncNs - lastTouchNs in -DebugLogFormat.TOUCH_WINDOW_NS..DebugLogFormat.TOUCH_WINDOW_NS
         synchronized(lock) {
             total[next] = totalNs
@@ -333,6 +340,9 @@ internal object FrameStats {
             gpu[next] = gpuNs
             deadline[next] = deadlineNs
             vsync[next] = vsyncNs
+            layout[next] = layoutNs
+            sync[next] = syncNs
+            cmd[next] = cmdNs
             touched[next] = touching
             next = (next + 1) % CAPACITY
             if (count < CAPACITY) count++
@@ -343,7 +353,7 @@ internal object FrameStats {
         val start = if (count < CAPACITY) 0 else next
         List(count) { i ->
             val j = (start + i) % CAPACITY
-            DebugLogFormat.FrameSample(total[j], draw[j], gpu[j], deadline[j], vsync[j], touched[j])
+            DebugLogFormat.FrameSample(total[j], draw[j], gpu[j], deadline[j], vsync[j], touched[j], layout[j], sync[j], cmd[j])
         }
     }
 }
@@ -585,7 +595,10 @@ internal object DebugLogFormat {
         val gpuNs: Long,
         val deadlineNs: Long,
         val intendedVsyncNs: Long = 0L,
-        val touching: Boolean = false
+        val touching: Boolean = false,
+        val layoutNs: Long = 0L,
+        val syncNs: Long = 0L,
+        val cmdNs: Long = 0L
     )
 
     internal const val TOUCH_WINDOW_NS = 1_500_000_000L
@@ -607,6 +620,11 @@ internal object DebugLogFormat {
 
     private fun pct(part: Int, whole: Int): Int = if (whole == 0) 0 else part * PERCENT.toInt() / whole
 
+    internal const val MAX_GAP_NS = 500_000_000L
+    private const val LATE_FACTOR = 1.5
+
+    private fun stage(group: List<FrameSample>, pick: (FrameSample) -> Long): String = ms(percentile(group.map(pick).sorted(), 99))
+
     private fun groupLine(name: String, group: List<FrameSample>): String {
         if (group.isEmpty()) return "$name: 0 frame"
         val total = group.map { it.totalNs }.sorted()
@@ -617,10 +635,18 @@ internal object DebugLogFormat {
         val fps = if (spanSeconds > 0.0) String.format(java.util.Locale.US, "%.0f", (vsyncs.size - 1) / spanSeconds) else "?"
         val over60 = group.count { it.totalNs > FRAME_60_NS }
         val over30 = group.count { it.totalNs > FRAME_30_NS }
-        return "$name: ${group.size} frame (~$fps fps); total ms p50=${ms(percentile(total, 50))} p90=${ms(percentile(total, 90))} " +
+        // selang antar-frame = kelancaran yang dirasakan (celah > 500 ms = jeda tanpa animasi, bukan patah-patah)
+        val gaps = group.zipWithNext { x, y -> y.intendedVsyncNs - x.intendedVsyncNs }.filter { it in 1..MAX_GAP_NS }.sorted()
+        val medianGap = percentile(gaps, 50)
+        val late = gaps.count { it > medianGap * LATE_FACTOR }
+        val gapText = if (gaps.isEmpty()) "selang: ?" else
+            "selang ms p50=${ms(medianGap)} p90=${ms(percentile(gaps, 90))} p99=${ms(percentile(gaps, 99))} maks=${ms(gaps.last())}, > 1,5x p50: $late (${pct(late, gaps.size)}%)"
+        return "$name: ${group.size} frame (~$fps fps); $gapText; total ms p50=${ms(percentile(total, 50))} p90=${ms(percentile(total, 90))} " +
             "p99=${ms(percentile(total, 99))} maks=${ms(total.last())}; gpu ms p50=${ms(percentile(gpu, 50))} p90=${ms(percentile(gpu, 90))} " +
             "p99=${ms(percentile(gpu, 99))}; gambar(UI thread) ms p50=${ms(percentile(draw, 50))} p90=${ms(percentile(draw, 90))}; " +
-            ">16,7ms: $over60 (${pct(over60, group.size)}%), >33,3ms: $over30 (${pct(over30, group.size)}%)"
+            ">16,7ms: $over60 (${pct(over60, group.size)}%), >33,3ms: $over30 (${pct(over30, group.size)}%); " +
+            "tahap p99 ms: layout=${stage(group) { it.layoutNs }} gambar=${stage(group) { it.drawNs }} sync/unggah=${stage(group) { it.syncNs }} " +
+            "perintah=${stage(group) { it.cmdNs }} gpu=${stage(group) { it.gpuNs }}"
     }
 
     /** Batch 331/332: ringkasan frame UI, DIPISAH "disentuh/scroll" vs "diam" supaya beban scroll tak tercampur frame spektrum idle.
