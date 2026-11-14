@@ -494,9 +494,19 @@ class AudioEnhancerService : Service() {
     // Batch 231: pemeriksaan berkala SELAMA ada pemutar media aktif. Efek bisa dimatikan/di-reset vendor TANPA event
     // apa pun (tak ada callback enable/control/playback), jadi guard berbasis event B229 tak pernah terpicu. Tiap
     // GUARD_TICK_MS `runEffectGuard("tick")` membaca status nyata efek dan HANYA memulihkan yang rusak (efek sehat = diam).
+    // Batch 328: nomor tick dalam rangkaian berjalan (0 = rangkaian belum/tak lagi berjalan); main thread saja (guardHandler).
+    private var guardTickCount = 0
     private val guardTickRunnable = object : Runnable {
         override fun run() {
-            if (!isRunning || !EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) return
+            if (!isRunning || !EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
+                guardTickCount = 0
+                return
+            }
+            guardTickCount++
+            // Batch 328: tick sehat diam (B231), jadi hidupnya rangkaian tak pernah terlihat di log. Satu baris untuk tick PERTAMA tiap rangkaian = bukti hidup.
+            if (EffectGuardPolicy.shouldLogTick(guardTickCount)) {
+                android.util.Log.i(TAG, "EffectGuard[tick]: rangkaian berjalan (tiap ${EffectGuardPolicy.GUARD_TICK_MS / 1000} dtk selama ada pemutar media; tick sehat tidak dicatat)")
+            }
             runEffectGuard(EffectGuardPolicy.TICK_REASON)
             guardHandler.postDelayed(this, EffectGuardPolicy.GUARD_TICK_MS)
         }
@@ -1170,6 +1180,7 @@ class AudioEnhancerService : Service() {
         reacquireFailures = 0
         reassertWindowStartMs = EffectGuardPolicy.NEVER
         reassertCount = 0
+        guardTickCount = 0 // Batch 328
     }
 
     /** `AudioPlaybackCallback` (API 26+, publik, tanpa izin) = tahu kapan aplikasi LAIN mulai/berhenti memutar audio
@@ -1645,6 +1656,8 @@ class AudioEnhancerService : Service() {
         guardHandler.removeCallbacks(guardTickRunnable)
         if (isRunning && EffectGuardPolicy.hasMediaPlayer(lastPlaybackSignature)) {
             guardHandler.postDelayed(guardTickRunnable, EffectGuardPolicy.GUARD_TICK_MS)
+        } else {
+            guardTickCount = 0 // Batch 328: rangkaian berhenti -> tick berikutnya dihitung sebagai yang pertama lagi
         }
     }
 
@@ -3061,6 +3074,9 @@ internal object EffectGuardPolicy {
     const val GUARD_TICK_MS = 15_000L
     /** Batch 231: alasan pemeriksaan berkala; hasil "sehat" tidak di-log (hindari banjir log). */
     const val TICK_REASON = "tick"
+
+    /** Batch 328: hanya tick PERTAMA tiap rangkaian yang dicatat (bukti rangkaian hidup); tick berikutnya yang sehat tetap diam (B231). */
+    fun shouldLogTick(tickIndex: Int): Boolean = tickIndex == 1
     /** Batch 230: jeda setelah pemutar media baru terdeteksi sebelum efek dipasang ulang (sistem selesai memilih output).
      *  Batch 237: kini jeda tahap PENEGASAN (serah-terima kedua, jaring pengaman); tahap pertama = [REBIND_FAST_DELAY_MS].
      *  JANGAN dihapus/dipendekkan tanpa data device: inilah jalur yang terbukti mengatasi "mendem" (B233). */

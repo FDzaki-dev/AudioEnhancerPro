@@ -180,4 +180,22 @@ class EffectSessionTest {
             assertFalse("seed tak boleh memanggil $forbidden", body.contains(forbidden))
         }
     }
+
+    // ---- Batch 328: bukti tick hidup ----
+
+    @Test
+    fun `only the first tick of a run is logged`() {
+        assertTrue(EffectGuardPolicy.shouldLogTick(1))
+        assertFalse(EffectGuardPolicy.shouldLogTick(0))
+        assertFalse(EffectGuardPolicy.shouldLogTick(2))
+        assertFalse(EffectGuardPolicy.shouldLogTick(21))
+    }
+
+    @Test
+    fun `tick counter is counted logged and reset where the run ends or restarts`() {
+        val src = code(serviceSource)
+        assertEquals(1, Regex("""guardTickCount\+\+""").findAll(src).count())
+        assertTrue(src.contains("EffectGuardPolicy.shouldLogTick(guardTickCount)"))
+        assertTrue("reset: sesi baru + rangkaian berhenti + tick tanpa pemutar", Regex("""guardTickCount = 0""").findAll(src).count() >= 4)
+    }
 }

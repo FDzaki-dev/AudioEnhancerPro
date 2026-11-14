@@ -1,5 +1,16 @@
 # Changelog
 
+## Batch 328: Bukti tick Effect Guard hidup
+
+Sesuai pilihanmu. Tick yang sehat sengaja tidak dicatat (B231), jadi hidupnya pemeriksaan berkala tak pernah terlihat di log. Instruksi uji sebelumnya ("tick muncul berkala") keliru; ini koreksinya.
+
+- **Perubahan**: tick PERTAMA tiap rangkaian mencatat satu baris `EffectGuard[tick]: rangkaian berjalan (tiap 15 dtk ...)`. Penghitung direset saat sesi baru, rangkaian berhenti (tak ada pemutar media/layanan mati), dan saat jadwal ulang tanpa pemutar. Tick sehat berikutnya tetap diam.
+- **Tes**: +2 di `EffectSessionTest` (aturan `shouldLogTick`, penghitungan/reset di sumber) => 318 diharapkan.
+
+**File** (2 kode + docs): `AudioEnhancerService.kt`, `EffectSessionTest.kt`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B328 + uji device: musik main >= 20 dtk lalu ekspor log, harus ada satu baris tick). Revert = `Boomly_v327.zip`.
+
 ## Batch 327: Penampung log berjalan (logcat tak lagi kehilangan baris awal)
 
 Sesuai pesanmu soal tangkapan log yang harus total dan tak terhalang bug.
