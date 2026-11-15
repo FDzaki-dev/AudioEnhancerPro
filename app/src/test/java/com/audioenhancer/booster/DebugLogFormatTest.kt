@@ -442,4 +442,32 @@ class DebugLogFormatTest {
         assertTrue(text.contains("> 1,5x p50: 1 (33%)"))
         assertTrue(text.contains("tahap p99 ms: layout=2.0 gambar=1.0 sync/unggah=3.0 perintah=4.0 gpu=5.0"))
     }
+
+    // ---- Batch 334: CPU proses per thread ----
+
+    @Test
+    fun `thread stat parser reads name and cpu even when the name holds spaces and brackets`() {
+        val line = "4242 (Binder:42_1 (x)) S 1 2 3 4 5 6 7 8 9 10 150 50 0 0 20 0 1 0"
+        assertEquals("Binder:42_1 (x)" to 2_000L, DebugLogFormat.parseThreadStat(line))
+        assertEquals(null, DebugLogFormat.parseThreadStat("garbage"))
+        assertEquals(null, DebugLogFormat.parseThreadStat("1 (a) S 1 2"))
+    }
+
+    @Test
+    fun `cpu section sums threads by name sorts them and prints the average percentage`() {
+        val text = DebugLogFormat.buildCpuSection(
+            processCpuMs = 6_000,
+            ageSeconds = 600,
+            threads = listOf("RenderThread" to 3_000L, "boomly-logring" to 500L, "Binder" to 100L, "Binder" to 200L)
+        )
+        assertTrue(text.contains("umur proses 600 dtk"))
+        assertTrue(text.contains("6000 ms = 1.0% dari satu inti"))
+        assertTrue(text.contains("RenderThread x1: 3000; boomly-logring x1: 500; Binder x2: 300"))
+    }
+
+    @Test
+    fun `cpu section reports a failed read and a zero age`() {
+        assertTrue(DebugLogFormat.buildCpuSection(null, 0, emptyList()).contains("(gagal dibaca)"))
+        assertTrue(DebugLogFormat.buildCpuSection(100, 0, emptyList()).contains("= 0.0% dari satu inti"))
+    }
 }

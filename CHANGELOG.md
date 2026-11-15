@@ -1,5 +1,21 @@
 # Changelog
 
+## Batch 334: Audit baterai + bagian "CPU proses" di ekspor
+
+Pertanyaanmu: adakah indikasi penyebab baterai boros. Hasil audit kode (tanpa perubahan perilaku):
+
+- **Tidak ditemukan**: WakeLock, alarm exact berkala (dimatikan sejak B132), polling UI saat app tak terlihat, spektrum yang jalan terus saat UI tertutup (dijeda sesudah 3 detik tak dibaca), pembaruan widget rapat (30 menit), pembaruan notifikasi berkala. Watchdog WorkManager 15 menit di-batch OS.
+- **Dugaan terbesar (struktural, belum terukur)**: lima efek mixer plus Visualizer dinyalakan tanpa syarat selama layanan hidup walau pengaturannya netral, dan terpasang di sesi 0 (global output mix), sehingga DSP-nya berjalan di proses audioserver untuk semua audio sistem dan menahan jalur offload. Itu tidak tampak di CPU app.
+- **Layar menyala**: tema Space ±15 ms GPU per frame, spektrum 20 Hz, Visualizer 10 Hz.
+- **Komponen buatan sendiri**: penampung log (satu proses logcat selama layanan hidup; saat UI tertutup barisnya sedikit sehingga seharusnya kecil, belum terukur) dan pengukur frame (hanya saat UI terlihat).
+- **Faktor uji**: memasang ulang APK berkali-kali sehari memicu dexopt, ProfileInstaller, dan JIT yang masuk statistik baterai Boomly.
+- **Bagian baru "CPU proses"**: CPU app sejak mulai, persen terhadap satu inti, dan thread teratas. Batas: DSP efek di audioserver tidak terhitung.
+- **Tes**: +3 di `DebugLogFormatTest` => 333 diharapkan.
+
+**File** (2 kode + docs): `DebugLogExporter.kt`, `DebugLogFormatTest.kt`. Perilaku audio/UI tidak berubah.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B334 + uji baterai: skenario A mati, B nyala + layar mati + musik, C tema). Revert = `Boomly_v333.zip`.
+
 ## Batch 333: Selang antar-frame dan rincian tahap frame
 
 **Temuan log 07:01 (tema SPACE, build B332, 1200 frame semuanya saat disentuh/scroll)**: sekitar 93 fps efektif; waktu GPU p50 14,9 ms; waktu gambar UI thread hanya 0,5 ms; 5% frame lebih dari 33,3 ms; total p99 62 ms. Heap Java 15,5 MB, GC 9 per menit tanpa blocking GC, graphics PSS 114,9 MB. Angka "total" mencakup latensi antrean, jadi 99% di atas 16,7 ms bukan berarti 99% frame terlewat. Kelancaran yang sebenarnya perlu diukur lewat selang antar-frame.

@@ -53,7 +53,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot()), // Batch 327
                 maxLines = MAX_LINES
-            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readFrameSection() + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readCpuSection() + readFrameSection() + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -159,6 +159,25 @@ object DebugLogExporter {
     } catch (e: Exception) {
         Log.w(TAG, "Bagian memori gagal", e)
         DebugLogFormat.buildMemorySection(null)
+    }
+
+    /** Batch 334 (pertanyaan user: indikasi penyebab baterai boros): CPU NYATA proses Boomly sejak mulai + per-thread (`/proc/self/task/<tid>/stat`, bisa dibaca
+     *  proses sendiri tanpa izin). BATAS JUJUR: DSP efek (Bass/Virtualizer/EQ/Loudness/Dynamics) berjalan di proses `audioserver`, BUKAN di sini, jadi
+     *  biayanya TIDAK terlihat di angka ini; angka ini hanya menunjukkan apa yang dikerjakan app sendiri (UI, penampung log, guard, pengukur frame). */
+    private fun readCpuSection(): String = try {
+        val ageSeconds = (android.os.SystemClock.elapsedRealtime() - android.os.Process.getStartElapsedRealtime()) / MILLIS_PER_SECOND
+        val threads = ArrayList<Pair<String, Long>>()
+        java.io.File("/proc/self/task").listFiles()?.forEach { task ->
+            try {
+                DebugLogFormat.parseThreadStat(java.io.File(task, "stat").readText())?.let { threads.add(it) }
+            } catch (e: Exception) {
+                Log.w(TAG, "Thread ${task.name} tak terbaca", e) // thread bisa mati di tengah pembacaan
+            }
+        }
+        DebugLogFormat.buildCpuSection(android.os.Process.getElapsedCpuTime(), ageSeconds, threads)
+    } catch (e: Exception) {
+        Log.w(TAG, "Bagian CPU gagal", e)
+        DebugLogFormat.buildCpuSection(null, 0, emptyList())
     }
 
     /** Batch 331: `dumpsys meminfo/gfxinfo` (B329) ternyata "Can't find service" bagi aplikasi biasa (SELinux), jadi diganti [FrameStats]: ringkasan
@@ -585,6 +604,37 @@ internal object DebugLogFormat {
         info.gc[KEY_BYTES_ALLOCATED]?.toLongOrNull()?.let {
             appendLine("laju alokasi: ${ratePerSecond(it / BYTES_PER_KB, info.processAgeSeconds)} KB/dtk (rata-rata sejak proses mulai)")
         }
+    }
+
+    private const val CLOCK_TICK_MS = 10L // USER_HZ = 100 di kernel Android
+    private const val STAT_UTIME_INDEX = 11 // field 14 `/proc/<pid>/task/<tid>/stat`, dihitung dari field 3 (sesudah ")")
+    private const val STAT_STIME_INDEX = 12
+    private const val CPU_TOP_THREADS = 12
+
+    /** Batch 334: satu baris `/proc/self/task/<tid>/stat` -> (nama thread, CPU ms = utime + stime). Nama boleh mengandung spasi/kurung (diambil sampai ")" TERAKHIR). */
+    fun parseThreadStat(line: String): Pair<String, Long>? {
+        val open = line.indexOf('(')
+        val close = line.lastIndexOf(')')
+        if (open < 0 || close <= open) return null
+        val rest = line.substring(close + 1).trim().split(' ').filter { it.isNotEmpty() }
+        val utime = rest.getOrNull(STAT_UTIME_INDEX)?.toLongOrNull() ?: return null
+        val stime = rest.getOrNull(STAT_STIME_INDEX)?.toLongOrNull() ?: return null
+        return line.substring(open + 1, close) to (utime + stime) * CLOCK_TICK_MS
+    }
+
+    /** Batch 334: [processCpuMs] `null` = gagal baca. Persen = CPU proses / umur proses (rata-rata sejak mulai; 100% = satu inti penuh). */
+    fun buildCpuSection(processCpuMs: Long?, ageSeconds: Long, threads: List<Pair<String, Long>>): String = buildString {
+        if (processCpuMs == null) {
+            appendLine("---- CPU proses ----")
+            appendLine("(gagal dibaca)")
+            return@buildString
+        }
+        val permille = if (ageSeconds <= 0L) 0L else processCpuMs * PERCENT.toLong() * 10 / (ageSeconds * 1_000L)
+        appendLine("---- CPU proses (umur proses $ageSeconds dtk) ----")
+        appendLine("CPU app: $processCpuMs ms = ${permille / 10}.${permille % 10}% dari satu inti (rata-rata sejak proses mulai). DSP efek audio ada di proses audioserver, TIDAK dihitung di sini.")
+        val byName = threads.groupBy({ it.first }, { it.second }).map { (name, values) -> Triple(name, values.size, values.sum()) }
+            .sortedByDescending { it.third }.take(CPU_TOP_THREADS)
+        appendLine("thread teratas (nama x jumlah: CPU ms): " + byName.joinToString("; ") { "${it.first} x${it.second}: ${it.third}" })
     }
 
     /** Batch 331/332: satu frame dari `FrameMetrics` (ns). [deadlineNs] <= 0 = tak diketahui (pakai 16,67 ms). [touching] = ada sentuhan/geser/fling
