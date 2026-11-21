@@ -115,6 +115,17 @@ class IdleBypassPolicyTest {
         assertFalse("tak boleh ada salinan instance yang menyimpang dari status companion", svc.contains("private var mixBypassed"))
     }
 
+    @Test
+    fun `leaving the bypass enables the limiter before any gain effect and entering disables it last`() {
+        val svc = source("AudioEnhancerService.kt")
+        val refresh = svc.substring(svc.indexOf("private fun refreshIdleBypass("), svc.indexOf("private fun disableMixEffects()"))
+        val limiterFirst = refresh.indexOf("enableMixEffect(OrphanEffects.Kind.DYNAMICS)")
+        assertTrue("limiter dinyalakan dulu", limiterFirst >= 0 && limiterFirst < refresh.indexOf("enableMixEffects()"))
+        val disable = svc.substring(svc.indexOf("private fun disableMixEffects()"), svc.indexOf("private fun releaseEffects()"))
+        assertTrue("limiter dimatikan terakhir", disable.indexOf("loudnessEnhancer?.enabled = false") < disable.indexOf("dynamicsProcessing?.enabled = false"))
+        assertTrue(disable.indexOf("bassBoost?.enabled = false") < disable.indexOf("loudnessEnhancer?.enabled = false"))
+    }
+
     private fun source(name: String): String {
         val rel = "src/main/java/com/audioenhancer/booster/$name"
         val text = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "$name tidak ditemukan" }

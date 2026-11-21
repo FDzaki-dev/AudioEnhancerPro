@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 338: Klik saat bypass idle berakhir (limiter dinyalakan dulu)
+
+Laporan user (log v372 = B337): bypass berjalan (`IdleBypass[loudness]: DIMATIKAN` 06:41:35, `DINYALAKAN` 06:42:41, tanpa galat) tetapi **klik terdengar saat efek DINYALAKAN**; saat dimatikan tidak.
+
+- **Dugaan penyebab (NOT VERIFIED)**: `enableMixEffects` menyalakan Bass, Virtualizer, EQ, Loudness, lalu DynamicsProcessing. Loudness (gain, mis. +10 dB) menyala SEBELUM limiter DynamicsProcessing, jadi beberapa ms puncak sinyal lewat tanpa limiter = klik/clipping. Arah mematikan sudah benar (limiter dimatikan TERAKHIR), sesuai bahwa mematikan tak berklik.
+- **Perbaikan**: `refreshIdleBypass` saat keluar dari bypass memanggil `enableMixEffect(OrphanEffects.Kind.DYNAMICS)` (limiter) DULU, baru `enableMixEffects()`. Jalur lain (serah-terima, start layanan) tak diubah. Hanya berlaku bila saklar ON.
+- **Tes**: +1 `IdleBypassPolicyTest` (limiter dulu saat menyalakan, terakhir saat mematikan) => 354 diharapkan.
+- **File** (2): `AudioEnhancerService.kt`, `IdleBypassPolicyTest.kt`.
+- **Bila klik masih ada**: klik adalah sifat menyalakan/mematikan efek di tengah audio (perubahan tunda sinyal). Langkah berikutnya: peralihan hanya pada batas pemutaran (jeda/serah-terima), atau bypass hanya saat UI tertutup.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B338 + telinga user). Revert = `Boomly_v337.zip` atau matikan saklar.
+
 ## Batch 337: Diagnostik bypass idle di ekspor log
 
 Pilihan user "1" setelah triase log v371 (= B336): log tak bisa membedakan saklar "Hemat baterai saat netral" OFF dari ON-tapi-ada-slider-tak-netral (kelima efek Enabled=y, tanpa baris `IdleBypass`). Tanpa perubahan perilaku audio/UI.

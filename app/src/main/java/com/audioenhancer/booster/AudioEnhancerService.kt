@@ -2312,6 +2312,10 @@ class AudioEnhancerService : Service() {
             if (wanted) {
                 disableMixEffects()
             } else if (deferredEnableKinds.isEmpty()) {
+                // Batch 338 (laporan user v372: klik hanya saat efek DINYALAKAN, mematikan tidak): urutan `enableMixEffects` menyalakan Loudness
+                // (gain, mis. +10 dB) SEBELUM DynamicsProcessing (limiter), sehingga beberapa ms puncak sinyal lewat tanpa limiter = klik/clipping.
+                // Peralihan ini menyalakan limiter DULU; arah mematikan sudah benar (limiter dimatikan TERAKHIR, lihat [disableMixEffects]).
+                enableMixEffect(OrphanEffects.Kind.DYNAMICS)
                 enableMixEffects()
             }
             android.util.Log.i(TAG, "IdleBypass[$why]: kelima efek mixer ${if (wanted) "DIMATIKAN (semua pengaturan netral)" else "DINYALAKAN (ada pengaturan tak netral)"}")
