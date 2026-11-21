@@ -84,6 +84,37 @@ class IdleBypassPolicyTest {
         assertTrue("digerbang isRunning", refresh.indexOf("if (!isRunning) return") in 0 until refresh.indexOf("idleBypassWanted()"))
     }
 
+    @Test
+    fun `idle bypass section tells the four cases apart`() {
+        fun section(opt: Boolean, neutral: Boolean, running: Boolean, bypassed: Boolean) =
+            DebugLogFormat.buildIdleBypassSection(opt, neutral, running, bypassed, "bass=0")
+        assertTrue(section(false, true, true, false).contains("kesimpulan: saklar OFF"))
+        assertTrue(section(true, false, true, false).contains("ada pengaturan tak netral"))
+        assertTrue(section(true, true, true, true).contains("sesuai harapan"))
+        assertTrue(section(true, true, true, false).contains("TIDAK SESUAI"))
+        assertTrue(section(true, true, false, false).contains("layanan mati"))
+    }
+
+    @Test
+    fun `idle bypass section shows switch settings and neutrality`() {
+        val text = DebugLogFormat.buildIdleBypassSection(true, false, true, false, "bass=300 pita EQ tak nol=0")
+        assertTrue(text.startsWith("---- bypass idle (Hemat baterai saat netral) ----"))
+        assertTrue(text.contains("saklar Pengaturan: ON"))
+        assertTrue(text.contains("bass=300 pita EQ tak nol=0"))
+        assertTrue(text.contains("semua pengaturan netral: tidak"))
+        assertTrue(text.contains("status di layanan: efek mixer menyala normal"))
+    }
+
+    @Test
+    fun `export includes the idle bypass section and the service exposes the real state`() {
+        val exporter = source("DebugLogExporter.kt")
+        assertTrue(exporter.contains("readAvailableEffects() + readIdleBypassSection(context) + readProfileStatus(context)"))
+        assertTrue(exporter.contains("serviceBypassed = AudioEnhancerService.mixBypassed"))
+        val svc = source("AudioEnhancerService.kt")
+        assertTrue(svc.contains("var mixBypassed = false\n            private set"))
+        assertFalse("tak boleh ada salinan instance yang menyimpang dari status companion", svc.contains("private var mixBypassed"))
+    }
+
     private fun source(name: String): String {
         val rel = "src/main/java/com/audioenhancer/booster/$name"
         val text = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "$name tidak ditemukan" }

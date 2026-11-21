@@ -55,7 +55,7 @@ object DebugLogExporter {
                 header = buildHeader(now),
                 logLines = DebugLogFormat.mergeLogLines(readOwnLogcat(), DebugLogRing.snapshot()), // Batch 327
                 maxLines = MAX_LINES
-            ) + readAvailableEffects() + readProfileStatus(context) + readMemorySection() + readCpuSection() + readFrameSection() + readAudioPathSnapshot(context)
+            ) + readAvailableEffects() + readIdleBypassSection(context) + readProfileStatus(context) + readMemorySection() + readCpuSection() + readFrameSection() + readAudioPathSnapshot(context)
             val fileName = DebugLogFormat.fileName(now)
             val resolver = context.contentResolver
             val collection = MediaStore.Files.getContentUri("external")
@@ -194,6 +194,27 @@ object DebugLogExporter {
     /** Batch 331: `dumpsys meminfo/gfxinfo` (B329) ternyata "Can't find service" bagi aplikasi biasa (SELinux), jadi diganti [FrameStats]: ringkasan
      *  waktu frame nyata UI Boomly (API 31+, tanpa izin) = bukti jank saat scroll. */
     private fun readFrameSection(): String = DebugLogFormat.buildFrameSection(FrameStats.snapshot(), FrameStats.label, FrameStats.refreshHz)
+
+    /** Batch 337 (log v371: tak bisa dibedakan apakah saklar "Hemat baterai saat netral" OFF atau ON-tapi-tak-netral): catat pilihan user, apakah
+     *  pengaturan tersimpan netral, dan status NYATA di service ([AudioEnhancerService.mixBypassed]). Hanya membaca prefs, tanpa menyentuh efek. */
+    private fun readIdleBypassSection(context: Context): String = try {
+        val bass = PrefsHelper.getBass(context)
+        val virtualizer = PrefsHelper.getVirtualizer(context)
+        val loudness = PrefsHelper.getLoudness(context)
+        val compressor = PrefsHelper.getCompressorAmount(context)
+        val clarity = PrefsHelper.getClarity(context)
+        val eq = List(IdleBypassPolicy.MAX_EQ_BANDS) { band -> PrefsHelper.getEqualizerBandLevel(context, band, 0) }
+        DebugLogFormat.buildIdleBypassSection(
+            optedIn = PrefsHelper.getIdleBypass(context),
+            neutral = IdleBypassPolicy.isAllNeutral(bass, virtualizer, loudness, compressor, clarity, eq),
+            serviceRunning = AudioEnhancerService.isRunning,
+            serviceBypassed = AudioEnhancerService.mixBypassed,
+            settings = "bass=$bass virt=$virtualizer loudness=${loudness.toInt()} mB komp=$compressor clarity=$clarity pita EQ tak nol=${eq.count { it != 0 }}"
+        )
+    } catch (e: Exception) {
+        Log.w(TAG, "Bagian bypass idle gagal", e)
+        DebugLogFormat.buildIdleBypassSection(optedIn = false, neutral = false, serviceRunning = false, serviceBypassed = false, settings = "(gagal dibaca)")
+    }
 
     /** Batch 255 (komplikasi user: efek Boomly tak terdengar walau semua efek "sehat" di log): log aplikasi hanya melihat status efek di sisi
      *  aplikasi, bukan jalur keluaran yang dipilih sistem. Bila izin DUMP ada, tambahkan cuplikan `dumpsys media.audio_flinger` (thread keluaran +
@@ -698,6 +719,27 @@ internal object DebugLogFormat {
     }
 
     /** Batch 334: [processCpuMs] `null` = gagal baca. Persen = CPU proses / umur proses (rata-rata sejak mulai; 100% = satu inti penuh). */
+    /** Batch 337: bagian "bypass idle" (murni). [optedIn] = saklar Pengaturan, [neutral] = semua pengaturan tersimpan netral, [serviceBypassed] = status
+     *  nyata di service. Baris "kesimpulan" membedakan 4 kasus supaya log langsung menjawab "kenapa efek menyala/mati". */
+    fun buildIdleBypassSection(optedIn: Boolean, neutral: Boolean, serviceRunning: Boolean, serviceBypassed: Boolean, settings: String): String = buildString {
+        appendLine("---- bypass idle (Hemat baterai saat netral) ----")
+        appendLine("saklar Pengaturan: ${if (optedIn) "ON" else "OFF (bawaan)"}")
+        appendLine("pengaturan tersimpan: $settings")
+        appendLine("semua pengaturan netral: ${if (neutral) "ya" else "tidak"}")
+        appendLine("status di layanan: " + when {
+            !serviceRunning -> "layanan mati (tak berlaku)"
+            serviceBypassed -> "BYPASS AKTIF (kelima efek mixer sengaja dimatikan)"
+            else -> "efek mixer menyala normal"
+        })
+        appendLine("kesimpulan: " + when {
+            !optedIn -> "saklar OFF, efek selalu menyala (perilaku bawaan)"
+            !neutral -> "saklar ON tetapi ada pengaturan tak netral, efek menyala"
+            !serviceRunning -> "saklar ON dan netral, layanan mati"
+            serviceBypassed -> "sesuai harapan (saklar ON + netral = bypass)"
+            else -> "TIDAK SESUAI: saklar ON + netral tetapi efek tidak dalam bypass (cari baris IdleBypass di log)"
+        })
+    }
+
     fun buildCpuSection(processCpuMs: Long?, ageSeconds: Long, threads: List<Pair<String, Long>>): String = buildString {
         if (processCpuMs == null) {
             appendLine("---- CPU proses ----")

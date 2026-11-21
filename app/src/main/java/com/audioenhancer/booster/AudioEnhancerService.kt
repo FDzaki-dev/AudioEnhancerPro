@@ -175,6 +175,13 @@ class AudioEnhancerService : Service() {
         var isRunning = false
             private set
 
+        /** Batch 336/337: true = kelima efek mixer sengaja dibiarkan MATI (pilihan user aktif + semua pengaturan netral). Ditulis hanya lewat
+         *  [mixBypassNow] / [refreshIdleBypass]; dibaca ekspor log debug (bagian "bypass idle") supaya status nyata di service terlihat. Hanya bermakna
+         *  selama [isRunning]. */
+        @Volatile
+        var mixBypassed = false
+            private set
+
         /** Batch 154 (Fase 9 M5): patokan `SystemClock.elapsedRealtime()` awal sesi aktif sekarang
          *  (0 = tidak ada sesi). Tulis hanya di main thread (onStartCommand/onDestroy), dibaca UI
          *  lewat [currentSessionMs]. elapsedRealtime kebal ubah jam sistem. */
@@ -2267,8 +2274,6 @@ class AudioEnhancerService : Service() {
     // pengaturan tak netral, kelimanya dinyalakan BERSAMA (semua-atau-tidak-sama-sekali, tak ada nyala-mati per efek). Keputusan murni ada di
     // [IdleBypassPolicy]. NOT VERIFIED di device: risiko klik sesaat saat peralihan; Visualizer (spektrum) tak ikut diatur di sini.
 
-    /** true = kelima efek mixer sengaja dibiarkan MATI (pilihan user aktif + semua pengaturan netral). Ditulis hanya lewat [mixBypassNow] / [refreshIdleBypass]. */
-    @Volatile private var mixBypassed = false
     private val bypassLock = Any()
 
     // Disimpan sebagai field (SharedPreferences hanya menyimpan referensi LEMAH ke listener).

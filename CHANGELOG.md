@@ -1,5 +1,16 @@
 # Changelog
 
+## Batch 337: Diagnostik bypass idle di ekspor log
+
+Pilihan user "1" setelah triase log v371 (= B336): log tak bisa membedakan saklar "Hemat baterai saat netral" OFF dari ON-tapi-ada-slider-tak-netral (kelima efek Enabled=y, tanpa baris `IdleBypass`). Tanpa perubahan perilaku audio/UI.
+
+- **Bagian baru "bypass idle"** di ekspor Log Debug (sesudah daftar efek): saklar Pengaturan ON/OFF, nilai tersimpan (Bass, Virtualizer, Loudness, Compressor, Clarity, jumlah pita EQ tak nol), apakah semua netral, status NYATA di layanan (`AudioEnhancerService.mixBypassed`, kini di companion seperti `isRunning`), dan satu baris "kesimpulan" yang membedakan: saklar OFF / ON tapi tak netral / sesuai harapan (ON + netral = bypass) / TIDAK SESUAI (ON + netral tetapi efek menyala; cari baris `IdleBypass`).
+- **Pemformat murni** `DebugLogFormat.buildIdleBypassSection` (bisa dites di JVM).
+- **Tes**: +3 di `IdleBypassPolicyTest` => 353 diharapkan.
+- **File** (3): `AudioEnhancerService.kt` (pindah `mixBypassed` ke companion), `DebugLogExporter.kt`, `IdleBypassPolicyTest.kt`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B337 + uji device). Revert = `Boomly_v336.zip`.
+
 ## Batch 336: Bypass idle opt-in ("Hemat baterai saat netral")
 
 Pilihan user "Batch penghemat" dari audit baterai B334. Saklar BARU di Pengaturan, **default MATI** = perilaku identik dengan B335 (kelima efek mixer selalu menyala).
