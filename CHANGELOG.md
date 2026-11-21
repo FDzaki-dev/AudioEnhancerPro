@@ -1,5 +1,22 @@
 # Changelog
 
+## Batch 335: Perburuan bug (crash handler, penampung log, koneksi service)
+
+Perburuan statis atas sumber B334 (artifact run 369), tanpa laporan CI/log baru dan tanpa kompilator. Hanya cacat yang terbukti dari kode yang diperbaiki; perilaku audio dan UI tidak berubah.
+
+- **Crash handler (`CrashLogger`)**: penangkap di handler crash hanya `Exception`. Crash akibat OutOfMemoryError/StackOverflowError membuat penulisan log sendiri melempar `Error` yang lolos dan MELEWATI pemanggilan handler sistem di baris terakhir (tanpa dialog/FATAL standar). Kini `Throwable`. Baris MediaStore yang gagal diisi dibuang, supaya berkas crash 0 byte tak dipilih banner sebagai "crash terbaru".
+- **Penampung log (`DebugLogRing`)**: race start/stop. (a) `stop` yang datang sebelum thread sempat mencatat prosesnya meninggalkan proses `logcat` hidup selamanya (boros baterai); (b) `start` yang datang selagi thread lama belum selesai keluar dianggap "sudah jalan", sehingga penampung mati sepanjang umur layanan baru. Kini keadaan dipegang `RingGeneration` (nomor generasi): `stop` membatalkan generasi, thread lama tak lagi mendaftar proses/menulis baris, `start` sesudah `stop` selalu diizinkan.
+- **Pengukur frame (`FrameStats.attach`)**: bila pemasangan listener gagal setelah hitungan `attached` naik, HandlerThread `boomly-frames` tertinggal hidup. Kini dikembalikan (`releaseThread`).
+- **Ekspor Log Debug**: tulis gagal (aliran null/IOException) meninggalkan berkas 0 byte di `Documents/AudioEnhancerPro/debug/`. Kini baris dibuang.
+- **`BoosterViewModel`**: `onCleared` hanya `unbindService` bila `bound`, padahal `bound` baru benar sesudah `onServiceConnected` dan salah lagi di `onServiceDisconnected`; koneksi tetap terdaftar di sistem (dokumentasi `Context.bindService`: panggil `unbindService` apa pun hasilnya). ViewModel + state-nya tertinggal. Kini bendera `bindRequested` + penangkap `IllegalArgumentException`. `CancellationException` tidak lagi ditelan di `downloadAndInstallUpdate` dan `checkForUpdateManually` (pembatalan bukan "unduhan/cek gagal").
+- **Tes**: +9 di `DebugLogFormatTest` (5 tes `RingGeneration` + 4 penjaga sumber) => 342 diharapkan.
+
+**Tidak diubah (dugaan, belum terbukti)**: `BootReceiver` memulai layanan `mediaPlayback` dari `BOOT_COMPLETED`; Android 15+ membatasi jenis itu, tetapi belum diverifikasi berlaku untuk `targetSdk` 34. Hanya log device pasca-reboot yang bisa membuktikan.
+
+**File** (3 kode + 1 tes + docs): `CrashLogger.kt`, `DebugLogExporter.kt`, `BoosterViewModel.kt`, `DebugLogFormatTest.kt`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B335 + uji device). Revert = `Boomly_v334.zip`.
+
 ## Batch 334: Audit baterai + bagian "CPU proses" di ekspor
 
 Pertanyaanmu: adakah indikasi penyebab baterai boros. Hasil audit kode (tanpa perubahan perilaku):

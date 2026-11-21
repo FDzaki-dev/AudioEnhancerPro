@@ -1,9 +1,11 @@
 package com.audioenhancer.booster
 
+import android.content.ContentResolver
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
@@ -63,8 +65,17 @@ object DebugLogExporter {
                 put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_PATH)
             }
             val uri = resolver.insert(collection, values) ?: return null
-            val written = resolver.openOutputStream(uri)?.use { it.write(report.toByteArray(Charsets.UTF_8)) }
-            if (written == null) return null
+            // Batch 335: tulis gagal (aliran null / IOException) -> baris MediaStore kosong dibuang, tidak tertinggal berkas 0 byte di Documents.
+            var written = false
+            try {
+                resolver.openOutputStream(uri)?.use {
+                    it.write(report.toByteArray(Charsets.UTF_8))
+                    written = true
+                }
+            } finally {
+                if (!written) discardEntry(resolver, uri)
+            }
+            if (!written) return null
             pruneOldFiles(context)
             "${RELATIVE_PATH}$fileName"
         } catch (e: Exception) {
@@ -247,6 +258,15 @@ object DebugLogExporter {
         }
     }
 
+    /** Batch 335: buang baris MediaStore yang gagal diisi. Gagal membuang hanya dicatat (tak boleh menutupi galat tulis aslinya). */
+    private fun discardEntry(resolver: ContentResolver, uri: Uri) {
+        try {
+            resolver.delete(uri, null, null)
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal membuang entri log debug kosong", e)
+        }
+    }
+
     /** Simpan MAX_FILES log debug terbaru di folder kita, supaya tak menumpuk (pola SAMA `CrashLogger`).
      *  Dibungkus sendiri: gagal prune TIDAK boleh menggagalkan ekspor yang sudah tersimpan. */
     private fun pruneOldFiles(context: Context) {
@@ -307,31 +327,38 @@ internal object FrameStats {
     }
 
     @android.annotation.SuppressLint("NewApi") // dipanggil HANYA bila SDK_INT >= S (MainActivity.onStart); GPU_DURATION/DEADLINE = API 31
-    fun attach(window: android.view.Window): android.view.Window.OnFrameMetricsAvailableListener? = try {
-        val handler = synchronized(lock) {
-            val t = thread ?: android.os.HandlerThread("boomly-frames").also { it.start() }
-            thread = t
-            attached++
-            android.os.Handler(t.looper)
+    fun attach(window: android.view.Window): android.view.Window.OnFrameMetricsAvailableListener? {
+        var counted = false
+        return try {
+            val handler = synchronized(lock) {
+                val t = thread ?: android.os.HandlerThread("boomly-frames").also { it.start() }
+                thread = t
+                attached++
+                counted = true
+                android.os.Handler(t.looper)
+            }
+            val listener = android.view.Window.OnFrameMetricsAvailableListener { w, metrics, _ ->
+                refreshHz = w.decorView.display?.refreshRate ?: refreshHz
+                record(
+                    metrics.getMetric(android.view.FrameMetrics.TOTAL_DURATION),
+                    metrics.getMetric(android.view.FrameMetrics.DRAW_DURATION),
+                    metrics.getMetric(android.view.FrameMetrics.GPU_DURATION),
+                    metrics.getMetric(android.view.FrameMetrics.DEADLINE),
+                    metrics.getMetric(android.view.FrameMetrics.INTENDED_VSYNC_TIMESTAMP),
+                    metrics.getMetric(android.view.FrameMetrics.LAYOUT_MEASURE_DURATION),
+                    metrics.getMetric(android.view.FrameMetrics.SYNC_DURATION),
+                    metrics.getMetric(android.view.FrameMetrics.COMMAND_ISSUE_DURATION)
+                )
+            }
+            window.addOnFrameMetricsAvailableListener(listener, handler)
+            listener
+        } catch (e: Exception) {
+            Log.w(TAG, "Gagal memasang pengukur frame", e)
+            // Batch 335: pemasangan gagal SESUDAH hitungan `attached` naik -> kembalikan (tanpa ini HandlerThread "boomly-frames"
+            // tertinggal hidup selamanya karena `detach` tak pernah dipanggil untuk listener yang null).
+            if (counted) releaseThread()
+            null
         }
-        val listener = android.view.Window.OnFrameMetricsAvailableListener { w, metrics, _ ->
-            refreshHz = w.decorView.display?.refreshRate ?: refreshHz
-            record(
-                metrics.getMetric(android.view.FrameMetrics.TOTAL_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.DRAW_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.GPU_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.DEADLINE),
-                metrics.getMetric(android.view.FrameMetrics.INTENDED_VSYNC_TIMESTAMP),
-                metrics.getMetric(android.view.FrameMetrics.LAYOUT_MEASURE_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.SYNC_DURATION),
-                metrics.getMetric(android.view.FrameMetrics.COMMAND_ISSUE_DURATION)
-            )
-        }
-        window.addOnFrameMetricsAvailableListener(listener, handler)
-        listener
-    } catch (e: Exception) {
-        Log.w(TAG, "Gagal memasang pengukur frame", e)
-        null
     }
 
     fun detach(window: android.view.Window, listener: android.view.Window.OnFrameMetricsAvailableListener?) {
@@ -341,6 +368,10 @@ internal object FrameStats {
         } catch (e: Exception) {
             Log.w(TAG, "Gagal melepas pengukur frame", e)
         }
+        releaseThread()
+    }
+
+    private fun releaseThread() {
         synchronized(lock) {
             attached = (attached - 1).coerceAtLeast(0)
             if (attached == 0) {
@@ -388,21 +419,25 @@ internal object DebugLogRing {
     private const val TAG = "DebugLogRing"
     private val lock = Any()
     private val lines = ArrayDeque<String>()
-    private var thread: Thread? = null
+    private val gate = RingGeneration()
     private var process: Process? = null
 
     fun start() {
-        synchronized(lock) {
-            if (thread?.isAlive == true) return
-            thread = Thread({ pump() }, "boomly-logring").also {
-                it.isDaemon = true
-                it.start()
-            }
+        val generation = synchronized(lock) { gate.begin() } ?: return
+        Thread({ pump(generation) }, "boomly-logring").also {
+            it.isDaemon = true
+            it.start()
         }
     }
 
     fun stop() {
-        val running = synchronized(lock) { process.also { process = null } }
+        // Batch 335: `stop` KINI membatalkan generasi, bukan hanya mematikan proses yang sudah tercatat. Sebelumnya (a) stop yang datang
+        // sebelum thread sempat mencatat prosesnya meninggalkan proses `logcat` hidup selamanya (dan menghabiskan baterai), (b) start yang
+        // datang selagi thread lama belum selesai keluar dianggap "sudah jalan" sehingga penampung log mati sepanjang umur layanan baru.
+        val running = synchronized(lock) {
+            gate.end()
+            process.also { process = null }
+        }
         try {
             running?.destroy()
         } catch (e: Exception) {
@@ -412,17 +447,25 @@ internal object DebugLogRing {
 
     fun snapshot(): List<String> = synchronized(lock) { lines.toList() }
 
-    private fun pump() {
+    private fun pump(generation: Int) {
         var started: Process? = null
         try {
-            started = ProcessBuilder("logcat", "-v", "time").redirectErrorStream(true).start()
-            synchronized(lock) { process = started }
-            started.inputStream.bufferedReader().use { reader ->
+            val launched = ProcessBuilder("logcat", "-v", "time").redirectErrorStream(true).start()
+            started = launched
+            val current = synchronized(lock) {
+                val ok = gate.isCurrent(generation)
+                if (ok) process = launched
+                ok
+            }
+            if (!current) return // stop() mendahului: proses yang baru dibuat dimatikan di `finally`
+            launched.inputStream.bufferedReader().use { reader ->
                 reader.forEachLine { line ->
                     if (DebugLogFormat.hasTimestamp(line) && !DebugLogFormat.isNoise(line)) {
                         synchronized(lock) {
-                            if (lines.size >= MAX_LINES) lines.removeFirst()
-                            lines.addLast(line)
+                            if (gate.isCurrent(generation)) {
+                                if (lines.size >= MAX_LINES) lines.removeFirst()
+                                lines.addLast(line)
+                            }
                         }
                     }
                 }
@@ -435,8 +478,40 @@ internal object DebugLogRing {
             } catch (e: Exception) {
                 Log.w(TAG, "Gagal menutup pembaca logcat", e)
             }
-            synchronized(lock) { process = null }
+            synchronized(lock) {
+                // Hanya generasi yang MASIH berlaku boleh membersihkan keadaan; thread lama tak boleh menimpa proses milik generasi baru.
+                if (gate.isCurrent(generation)) process = null
+                gate.finished(generation)
+            }
         }
+    }
+}
+
+/** Batch 335: keadaan murni (tanpa Android, tanpa thread) di balik [DebugLogRing], supaya aturan start/stop bisa dites di JVM. Tiap `begin` memberi nomor
+ *  generasi baru; hanya generasi TERBARU yang berlaku. Dipanggil di bawah kunci milik pemanggil (kelas ini sendiri tidak thread-safe). */
+internal class RingGeneration {
+    private var running = false
+    private var generation = 0
+
+    /** Nomor generasi baru bila belum berjalan; `null` bila sudah berjalan (start ganda diabaikan). */
+    fun begin(): Int? {
+        if (running) return null
+        running = true
+        generation++
+        return generation
+    }
+
+    /** Batalkan generasi yang sedang berlaku (idempoten); `begin` berikutnya langsung diizinkan walau thread lama belum selesai keluar. */
+    fun end() {
+        running = false
+        generation++
+    }
+
+    fun isCurrent(candidate: Int): Boolean = running && candidate == generation
+
+    /** Thread generasi [candidate] berhenti sendiri (logcat mati): izinkan `begin` lagi, tetapi hanya bila generasi itu MASIH yang berlaku. */
+    fun finished(candidate: Int) {
+        if (candidate == generation) running = false
     }
 }
 

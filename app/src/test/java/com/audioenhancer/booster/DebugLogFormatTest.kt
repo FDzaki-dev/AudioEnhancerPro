@@ -470,4 +470,100 @@ class DebugLogFormatTest {
         assertTrue(DebugLogFormat.buildCpuSection(null, 0, emptyList()).contains("(gagal dibaca)"))
         assertTrue(DebugLogFormat.buildCpuSection(100, 0, emptyList()).contains("= 0.0% dari satu inti"))
     }
+
+    // ---- Batch 335: perburuan bug (DebugLogRing, CrashLogger, BoosterViewModel, ekspor) ----
+
+    @Test
+    fun `ring gate ignores a second start while running`() {
+        val gate = RingGeneration()
+        assertTrue(gate.begin() == 1)
+        assertTrue("start ganda harus diabaikan", gate.begin() == null)
+        assertTrue(gate.isCurrent(1))
+    }
+
+    @Test
+    fun `ring gate cancels the generation on stop even before the thread registered its process`() {
+        val gate = RingGeneration()
+        val generation = checkNotNull(gate.begin())
+        gate.end()
+        assertFalse("thread lama tak boleh lagi mendaftar proses / menulis baris", gate.isCurrent(generation))
+    }
+
+    @Test
+    fun `ring gate allows an immediate restart while the old thread is still exiting`() {
+        val gate = RingGeneration()
+        val old = checkNotNull(gate.begin())
+        gate.end()
+        val fresh = checkNotNull(gate.begin())
+        assertTrue("generasi baru harus lebih besar", fresh > old)
+        assertTrue(gate.isCurrent(fresh))
+        assertFalse(gate.isCurrent(old))
+    }
+
+    @Test
+    fun `ring gate lets an old thread finish without stopping the new generation`() {
+        val gate = RingGeneration()
+        val old = checkNotNull(gate.begin())
+        gate.end()
+        val fresh = checkNotNull(gate.begin())
+        gate.finished(old)
+        assertTrue(gate.isCurrent(fresh))
+        assertTrue("generasi baru masih berjalan, start ganda tetap diabaikan", gate.begin() == null)
+    }
+
+    @Test
+    fun `ring gate allows a new start after the reader ended on its own`() {
+        val gate = RingGeneration()
+        val generation = checkNotNull(gate.begin())
+        gate.finished(generation)
+        assertFalse(gate.isCurrent(generation))
+        assertTrue(gate.begin() != null)
+    }
+
+    @Test
+    fun `crash handler forwards to the system handler even when the log write throws an Error`() {
+        val src = bugHuntSource("CrashLogger.kt")
+        val install = src.substring(src.indexOf("fun install("), src.indexOf("private fun buildLogContent("))
+        assertTrue(install.contains("catch (_: Throwable)"))
+        assertFalse("Exception saja melewatkan OutOfMemoryError/StackOverflowError", install.contains("catch (_: Exception)"))
+        assertTrue(install.indexOf("catch (_: Throwable)") < install.indexOf("previousHandler?.uncaughtException(thread, throwable)"))
+        val mediaStore = src.substring(src.indexOf("private fun writeCrashLogMediaStore("), src.indexOf("private fun writeCrashLogLegacy("))
+        assertTrue("baris MediaStore kosong dibuang bila tulis gagal", mediaStore.contains("if (!written && resolver.delete(uri, null, null)"))
+    }
+
+    @Test
+    fun `view model unbinds on cleared even when the connection never reached connected`() {
+        val src = bugHuntSource("BoosterViewModel.kt")
+        val cleared = src.substring(src.indexOf("override fun onCleared()"))
+        assertTrue(cleared.contains("if (bindRequested)"))
+        assertTrue(cleared.contains("unbindService(connection)"))
+        assertTrue("unbindService yang tak terdaftar tak boleh membuat crash", cleared.contains("catch (e: IllegalArgumentException)"))
+        val attempt = src.substring(src.indexOf("fun attemptBindService()"), src.indexOf("fun setBass("))
+        assertTrue(attempt.indexOf("bindRequested = true") in 0 until attempt.indexOf("ctx.bindService("))
+    }
+
+    @Test
+    fun `explicit update actions rethrow cancellation instead of reporting a failure`() {
+        val src = bugHuntSource("BoosterViewModel.kt")
+        for (marker in listOf("fun downloadAndInstallUpdate()", "fun checkForUpdateManually()")) {
+            val body = src.substring(src.indexOf(marker)).substringBefore("\n    }\n")
+            val cancel = body.indexOf("catch (e: CancellationException)")
+            assertTrue("$marker: pembatalan harus dilempar ulang", cancel >= 0)
+            assertTrue("$marker: cabang pembatalan harus SEBELUM catch Exception", cancel < body.indexOf("catch (_: Exception)"))
+        }
+    }
+
+    @Test
+    fun `export and frame stats release what they acquired when a step fails`() {
+        val src = bugHuntSource("DebugLogExporter.kt")
+        val export = src.substring(src.indexOf("fun export("), src.indexOf("private fun readAvailableEffects("))
+        assertTrue(export.contains("if (!written) discardEntry(resolver, uri)"))
+        assertTrue("HandlerThread dikembalikan bila pemasangan listener gagal", src.contains("if (counted) releaseThread()"))
+    }
+
+    private fun bugHuntSource(name: String): String {
+        val rel = "src/main/java/com/audioenhancer/booster/$name"
+        val text = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "$name tidak ditemukan" }
+        return text.replace(Regex("//[^\n]*"), "")
+    }
 }

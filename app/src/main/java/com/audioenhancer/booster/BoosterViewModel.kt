@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -60,6 +61,12 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     // Batch 189: @Volatile — dibaca juga oleh worker apply EQ di Dispatchers.IO (ditulis di Main).
     @Volatile private var service: AudioEnhancerService? = null
     private var bound = false
+
+    // Batch 335: `bound` hanya benar SESUDAH `onServiceConnected` dan kembali salah di `onServiceDisconnected`, padahal koneksi tetap terdaftar di
+    // sistem sampai `unbindService` (dokumentasi Context.bindService: panggil `unbindService` apa pun hasil `bindService`). `onCleared` yang
+    // hanya memeriksa `bound` melewatkan unbind bila ViewModel dibuang sebelum koneksi tersambung / sesudah putus -> `ServiceConnection` (dan
+    // ViewModel + state Compose-nya) tertinggal di sistem. Bendera terpisah ini = "sudah pernah meminta bind, belum di-unbind".
+    private var bindRequested = false
 
     // Status koneksi ke service, dipakai untuk tampilkan loading/error state eksplisit di UI —
     // sebelumnya kalau bindService() gagal total, app cuma diam tanpa penjelasan sama sekali.
@@ -446,6 +453,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         val ctx: Context = getApplication()
         val intent = Intent(ctx, AudioEnhancerService::class.java)
         try {
+            bindRequested = true
             val boundOk = ctx.bindService(intent, connection, Context.BIND_AUTO_CREATE)
             if (!boundOk) connectionState = ConnectionState.ERROR
         } catch (_: Exception) {
@@ -535,6 +543,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                 }
                 downloadedApkFile = file
                 UpdateManager.installApk(getApplication(), file)
+            } catch (e: CancellationException) {
+                throw e // Batch 335: pembatalan coroutine bukan "unduhan gagal" (tak boleh menyalakan snackbar gagal)
             } catch (_: Exception) {
                 updateDownloadFailed = true
             } finally {
@@ -578,6 +588,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     UpdateManager.CheckResult.UpToDate -> ManualUpdateCheckState.UP_TO_DATE
                     UpdateManager.CheckResult.Failed, is UpdateManager.CheckResult.RateLimited -> ManualUpdateCheckState.ERROR
                 }
+            } catch (e: CancellationException) {
+                throw e // Batch 335: dibatalkan (ViewModel dibuang) bukan "cek gagal"; state tak ikut ditulis
             } catch (_: Exception) {
                 lastUpdateCheckFailed = true
                 lastUpdateCheckAtMs = SystemClock.elapsedRealtime()
@@ -587,10 +599,16 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     override fun onCleared() {
-        if (bound) {
-            getApplication<Application>().unbindService(connection)
-            bound = false
+        if (bindRequested) {
+            bindRequested = false
+            try {
+                getApplication<Application>().unbindService(connection)
+            } catch (e: IllegalArgumentException) {
+                // Koneksi memang tak terdaftar (bindService ditolak sistem) — tak ada yang perlu dilepas.
+                android.util.Log.w("BoosterViewModel", "unbindService: koneksi tak terdaftar", e)
+            }
         }
+        bound = false
         service = null
         super.onCleared()
     }

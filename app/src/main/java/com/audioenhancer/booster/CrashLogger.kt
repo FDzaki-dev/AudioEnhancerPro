@@ -70,9 +70,12 @@ object CrashLogger {
             // Fail-safe: logger sendiri TIDAK BOLEH ikut bikin crash tambahan atau
             // menelan crash asli — apapun yang terjadi di sini, selalu diteruskan ke
             // handler default (sistem) di baris paling akhir lambda ini.
+            // Batch 335: `Throwable`, bukan `Exception` — crash akibat OutOfMemoryError/StackOverflowError membuat
+            // penulisan log sendiri melempar `Error` yang lolos dari `catch (Exception)` dan MELEWATI baris terakhir
+            // (handler sistem tak pernah dipanggil: tanpa dialog/FATAL standar, proses tertahan).
             try {
                 writeCrashLog(appContext, thread, throwable)
-            } catch (_: Exception) {
+            } catch (_: Throwable) {
                 // Diamkan — penulisan log gagal (mis. MediaStore lagi bermasalah) TIDAK
                 // BOLEH mencegah proses crash normal Android (dialog "App berhenti", dst).
             }
@@ -120,7 +123,17 @@ object CrashLogger {
             put(MediaStore.MediaColumns.RELATIVE_PATH, RELATIVE_PATH)
         }
         val uri = resolver.insert(collection, values) ?: return
-        resolver.openOutputStream(uri)?.use { it.write(content.toByteArray(Charsets.UTF_8)) }
+        // Batch 335: tulis gagal / aliran null -> baris MediaStore kosong dibuang; kalau tidak, `latestCrashLog` bisa
+        // memilih berkas 0 byte itu sebagai "crash terbaru" dan banner crash menampilkan isi kosong.
+        var written = false
+        try {
+            resolver.openOutputStream(uri)?.use {
+                it.write(content.toByteArray(Charsets.UTF_8))
+                written = true
+            }
+        } finally {
+            if (!written && resolver.delete(uri, null, null) < 0) Log.w(TAG, "Gagal membuang entri log kosong: $uri")
+        }
         pruneMediaStoreLogs(context)
     }
 
