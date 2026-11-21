@@ -3,6 +3,7 @@ package com.audioenhancer.booster
 import android.Manifest
 import android.app.*
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.media.AudioDeviceCallback
@@ -609,6 +610,7 @@ class AudioEnhancerService : Service() {
         }
         registerPlaybackGuard() // Batch 229
         seedPlaybackState() // Batch 326
+        PrefsHelper.registerChangeListener(this, prefChangeListener) // Batch 336: saklar bypass idle di Pengaturan berlaku langsung
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -741,6 +743,7 @@ class AudioEnhancerService : Service() {
         unregisterPlaybackGuard() // Batch 229
         guardHandler.removeCallbacksAndMessages(null)
         dumpProbeScope.cancel() // Batch 246 (CoroutineScope.cancel menghentikan probe yang berjalan)
+        PrefsHelper.unregisterChangeListener(this, prefChangeListener) // Batch 336
         releaseEffects()
         isRunning = false
         endUsageSession() // no-op kalau sesi sudah ditutup di jalur ACTION_STOP
@@ -770,7 +773,9 @@ class AudioEnhancerService : Service() {
      *  fungsi terpisah supaya `retryControlAcquisition()` (baru, di bawah) bisa panggil
      *  ulang 1 effect spesifik tanpa reset effect lain yang sehat. */
     private fun attachEffects() {
-        val enableNow = deferredEnableKinds.isEmpty() // Batch 321: penyapu yatim jalan = buat tanpa menyala (lihat `deferredEnableKinds`)
+        // Batch 336: bypass idle (opt-in) = semua pengaturan netral -> efek dibuat TANPA menyala (lihat `mixBypassed`); default MATI = tak berubah.
+        val bypass = mixBypassNow()
+        val enableNow = deferredEnableKinds.isEmpty() && !bypass // Batch 321: penyapu yatim jalan = buat tanpa menyala (lihat `deferredEnableKinds`)
         attachBass(enableNow)
         attachVirtualizer(enableNow)
         attachEqualizer(enableNow)
@@ -1448,6 +1453,7 @@ class AudioEnhancerService : Service() {
     /** Batch 321: menyalakan SATU jenis; perilaku & penanda galat SAMA dengan `enableMixEffects()`. */
     @android.annotation.SuppressLint("NewApi")
     private fun enableMixEffect(kind: OrphanEffects.Kind) {
+        if (mixBypassNow()) return // Batch 336: bypass idle aktif = efek sengaja dibiarkan mati
         when (kind) {
             OrphanEffects.Kind.BASS -> {
                 try { bassBoost?.enabled = true } catch (e: Exception) {
@@ -1940,6 +1946,7 @@ class AudioEnhancerService : Service() {
     }
 
     private fun findDisabledEffects(): List<String> {
+        if (mixBypassed) return emptyList() // Batch 336: mati karena bypass idle = disengaja, bukan efek rusak
         val disabled = mutableListOf<String>()
         if (readEnabled("bass") { bassBoost?.enabled } == false) disabled += "bass"
         if (readEnabled("virtualizer") { virtualizer?.enabled } == false) disabled += "virtualizer"
@@ -2253,6 +2260,68 @@ class AudioEnhancerService : Service() {
         applyCompressorBands(PrefsHelper.getCompressorAmount(this), PrefsHelper.getVocalFocus(this))
     }
 
+    // ---- Batch 336: bypass idle (opt-in, default MATI) ----
+    // Temuan audit baterai B334: lima efek mixer dinyalakan tanpa syarat selama layanan hidup walau SEMUA pengaturan netral, sehingga DSP-nya
+    // berjalan di audioserver untuk semua audio sistem dan menahan jalur offload. Dengan saklar di Pengaturan, kelima efek tetap DIBUAT (kontrol
+    // tetap dipegang) tetapi dibiarkan mati selama Bass/Virtualizer/Loudness/Compressor/Clarity = 0 dan semua pita EQ = 0; begitu ada satu
+    // pengaturan tak netral, kelimanya dinyalakan BERSAMA (semua-atau-tidak-sama-sekali, tak ada nyala-mati per efek). Keputusan murni ada di
+    // [IdleBypassPolicy]. NOT VERIFIED di device: risiko klik sesaat saat peralihan; Visualizer (spektrum) tak ikut diatur di sini.
+
+    /** true = kelima efek mixer sengaja dibiarkan MATI (pilihan user aktif + semua pengaturan netral). Ditulis hanya lewat [mixBypassNow] / [refreshIdleBypass]. */
+    @Volatile private var mixBypassed = false
+    private val bypassLock = Any()
+
+    // Disimpan sebagai field (SharedPreferences hanya menyimpan referensi LEMAH ke listener).
+    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == PrefsHelper.IDLE_BYPASS_KEY) guardHandler.post { refreshIdleBypass("pilihan") }
+    }
+
+    /** Dibaca dari nilai TERSIMPAN (bukan dari objek efek), jadi benar juga sebelum efek dibuat. */
+    private fun idleBypassWanted(): Boolean {
+        if (!PrefsHelper.getIdleBypass(this)) return false
+        return IdleBypassPolicy.isAllNeutral(
+            bass = PrefsHelper.getBass(this),
+            virtualizer = PrefsHelper.getVirtualizer(this),
+            loudnessMb = PrefsHelper.getLoudness(this),
+            compressor = PrefsHelper.getCompressorAmount(this),
+            clarity = PrefsHelper.getClarity(this),
+            eqLevelsMb = List(IdleBypassPolicy.MAX_EQ_BANDS) { band -> PrefsHelper.getEqualizerBandLevel(this, band, 0) }
+        )
+    }
+
+    /** Hitung ulang dari nilai tersimpan dan simpan di [mixBypassed]; true = jangan nyalakan kelima efek mixer. */
+    private fun mixBypassNow(): Boolean {
+        val wanted = idleBypassWanted()
+        mixBypassed = wanted
+        return wanted
+    }
+
+    /** Dipanggil setter publik (sesudah nilai ditulis ke prefs) dan saklar Pengaturan: bila status bypass berubah, matikan/nyalakan kelima efek BERSAMA.
+     *  Digerbang `isRunning` (user menekan "Matikan" = jangan menyalakan apa pun); penyalaan ulang normal dihitung di [enableMixEffects]. */
+    private fun refreshIdleBypass(why: String) {
+        if (!isRunning) return
+        synchronized(bypassLock) {
+            val wanted = idleBypassWanted()
+            if (wanted == mixBypassed) return
+            mixBypassed = wanted
+            if (wanted) {
+                disableMixEffects()
+            } else if (deferredEnableKinds.isEmpty()) {
+                enableMixEffects()
+            }
+            android.util.Log.i(TAG, "IdleBypass[$why]: kelima efek mixer ${if (wanted) "DIMATIKAN (semua pengaturan netral)" else "DINYALAKAN (ada pengaturan tak netral)"}")
+        }
+    }
+
+    /** Bagian [disableEffects] untuk 5 efek mixer SAJA (tanpa Visualizer); galat hanya dicatat, status efek mengikuti listener sistem. */
+    private fun disableMixEffects() {
+        try { bassBoost?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal bypass BassBoost", e) }
+        try { virtualizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal bypass Virtualizer", e) }
+        try { equalizer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal bypass Equalizer", e) }
+        try { loudnessEnhancer?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal bypass LoudnessEnhancer", e) }
+        try { dynamicsProcessing?.enabled = false } catch (e: Exception) { android.util.Log.e(TAG, "Gagal bypass DynamicsProcessing", e) }
+    }
+
     private fun releaseEffects() {
         cancelDeferredEnable() // Batch 321
         effectSession = DumpProbe.GLOBAL_EFFECT_SESSION // Batch 257: ikatan sesi hanya berlaku selama objek efek yang sekarang
@@ -2315,6 +2384,7 @@ class AudioEnhancerService : Service() {
     /** Batch 233: bagian [enableEffects] untuk 5 efek mixer session-0 SAJA (tanpa Visualizer). Dipakai serah-terima
      *  efek ([runEffectRebind]) dan [retryControlAcquisition]; perilaku per efek SAMA dengan sebelumnya. */
     private fun enableMixEffects() {
+        if (mixBypassNow()) return // Batch 336: bypass idle aktif = efek sengaja dibiarkan mati
         try { bassBoost?.enabled = true } catch (e: Exception) {
             bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal enable BassBoost", e)
         }
@@ -2423,6 +2493,7 @@ class AudioEnhancerService : Service() {
             bassState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set BassBoost strength", e)
         }
         PrefsHelper.setBass(this, strength.toInt())
+        refreshIdleBypass("bass") // Batch 336
     }
 
     fun setVirtualizerStrength(strength: Short) { // 0..1000, per mille — lihat komentar di atas
@@ -2439,6 +2510,7 @@ class AudioEnhancerService : Service() {
             virtualizerState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set Virtualizer strength", e)
         }
         PrefsHelper.setVirtualizer(this, strength.toInt())
+        refreshIdleBypass("virtualizer") // Batch 336
     }
 
     fun setLoudnessGain(gainMb: Float) { // dalam milliBel, misal 0..3000 — tidak ada API range query (lihat komentar di atas)
@@ -2447,6 +2519,7 @@ class AudioEnhancerService : Service() {
             loudnessState = EffectState.FAILED; android.util.Log.e(TAG, "Gagal set LoudnessEnhancer gain", e)
         }
         PrefsHelper.setLoudness(this, gainMb)
+        refreshIdleBypass("loudness") // Batch 336
     }
 
     /** Batch 121 (Fase 8 ROI #4 "Compressor"): 1 slider "Amount" 0..100 menyetir band
@@ -2466,6 +2539,7 @@ class AudioEnhancerService : Service() {
         val clamped = amount.coerceIn(0, 100)
         applyCompressorBands(clamped, PrefsHelper.getVocalFocus(this))
         PrefsHelper.setCompressorAmount(this, clamped)
+        refreshIdleBypass("compressor") // Batch 336
     }
 
     /** Batch 209 (request user: slider "Vocal Focus" 0..100): seberapa jauh makeup band bass & treble
@@ -2489,6 +2563,7 @@ class AudioEnhancerService : Service() {
         val clamped = amount.coerceIn(0, 100)
         PrefsHelper.setClarity(this, clamped)
         applyClarityBands()
+        refreshIdleBypass("clarity") // Batch 336
     }
 
     // Batch 282: tulis ULANG band post-EQ saja (3 band) untuk Clarity; Compressor/Vocal Focus tidak ikut ditulis ulang.
@@ -2675,6 +2750,7 @@ class AudioEnhancerService : Service() {
             }
         }
         PrefsHelper.setEqualizerBandLevel(this, band.toInt(), levelMb.toInt())
+        refreshIdleBypass("eq") // Batch 336
     }
 
     /** Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): terapkan 1

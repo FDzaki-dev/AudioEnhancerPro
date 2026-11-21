@@ -542,6 +542,43 @@ fun SettingsScreen(
         // definisinya cuma ada di `BoosterScreen.kt` (private, UI-only), SENGAJA di luar
         // scope biar tidak perlu refactor pindahin preset table ke layer Service
         // (Tunnel Vision).
+        // Batch 336: saklar "Hemat baterai saat netral" (opt-in, default MATI). Hanya menulis prefs (pola SAMA `autoProfileEnabled`); service
+        // memantau perubahannya sendiri, jadi 0 callback baru ke ViewModel/MainActivity.
+        Spacer(modifier = Modifier.height(20.dp))
+        SectionLabel(text = stringResource(R.string.settings_idle_bypass_section_title))
+        var idleBypassEnabled by remember { mutableStateOf(PrefsHelper.getIdleBypass(context)) }
+        SkeuCard {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .toggleable(
+                        value = idleBypassEnabled,
+                        onValueChange = {
+                            idleBypassEnabled = it
+                            PrefsHelper.setIdleBypass(context, it)
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        },
+                        role = Role.Switch
+                    )
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.settings_idle_bypass_title),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        stringResource(R.string.settings_idle_bypass_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalSkeuTokens.current.mutedText
+                    )
+                }
+                SkeuSwitch(checked = idleBypassEnabled, onCheckedChange = null)
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
         SectionLabel(text = stringResource(R.string.settings_auto_profile_section_title))
         var autoProfileEnabled by remember { mutableStateOf(PrefsHelper.getAutoProfileEnabled(context)) }

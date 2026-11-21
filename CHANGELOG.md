@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 336: Bypass idle opt-in ("Hemat baterai saat netral")
+
+Pilihan user "Batch penghemat" dari audit baterai B334. Saklar BARU di Pengaturan, **default MATI** = perilaku identik dengan B335 (kelima efek mixer selalu menyala).
+
+- **Saklar aktif**: kelima efek (Bass, Virtualizer, Equalizer, Loudness, DynamicsProcessing) tetap DIBUAT (kontrol tetap dipegang) tetapi dibiarkan MATI selama Bass/Virtualizer/Loudness/Compressor/Clarity = 0 dan semua pita EQ = 0. Satu pengaturan tak netral = kelimanya menyala BERSAMA (semua-atau-tidak-sama-sekali, tak ada nyala-mati per efek). Tujuan: tak ada DSP session-0 di audioserver saat tak ada yang diubah.
+- **Titik sambung**: `enableMixEffects`/`enableMixEffect` (penyalaan tertunda yatim) menghitung ulang dari nilai tersimpan dan tak menyalakan bila bypass; `findDisabledEffects` (Effect Guard) tak menganggap efek bypass sebagai rusak; `attachEffects` membuat efek tanpa menyala; 6 setter publik (Bass, Virtualizer, Loudness, Compressor, Clarity, EQ band) memanggil `refreshIdleBypass` sesudah menulis prefs; pendengar prefs di service membuat saklar Pengaturan berlaku langsung.
+- **Keputusan murni**: `IdleBypassPolicy.isAllNeutral` (baru, bisa dites di JVM). Vocal Focus tak dihitung (tanpa Compressor tak berefek). Visualizer (spektrum) tak ikut diatur.
+- **Risiko yang diketahui**: klik sesaat saat peralihan netral <-> tak netral; belum ada bukti audio/baterai di device. Cara uji: Pengaturan > Hemat Baterai ON, semua slider 0, musik 1 jam layar mati, ekspor; bandingkan dengan OFF.
+- **Tes**: +8 `IdleBypassPolicyTest` (5 aturan murni + 3 penjaga sumber) => 350 diharapkan.
+- **File** (4 kode + 1 tes baru + 2 string; di atas batas 5 file karena kontrak data baru: kunci prefs + jalur UI->service): `AudioEnhancerService.kt`, `PrefsHelper.kt`, `SettingsScreen.kt`, `IdleBypassPolicy.kt` (baru), `strings.xml` (ID+EN), `IdleBypassPolicyTest.kt` (baru).
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; CI B336 + uji device). Revert = `Boomly_v335.zip` atau matikan saklar.
+
 ## Batch 335: Perburuan bug (crash handler, penampung log, koneksi service)
 
 Perburuan statis atas sumber B334 (artifact run 369), tanpa laporan CI/log baru dan tanpa kompilator. Hanya cacat yang terbukti dari kode yang diperbaiki; perilaku audio dan UI tidak berubah.

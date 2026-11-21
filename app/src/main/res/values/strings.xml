@@ -329,4 +329,7 @@
         <item quantity="one">%1$d kali</item>
         <item quantity="other">%1$d kali</item>
     </plurals>
+    <string name="settings_idle_bypass_section_title">Hemat Baterai</string>
+    <string name="settings_idle_bypass_title">Hemat baterai saat netral</string>
+    <string name="settings_idle_bypass_desc">Matikan kelima efek audio selama semua pengaturan netral (Bass, Virtualizer, Loudness, Compressor, Clarity, dan EQ = 0), lalu nyalakan otomatis begitu ada yang diubah. Eksperimental: bisa terdengar klik sesaat saat peralihan.</string>
 </resources>

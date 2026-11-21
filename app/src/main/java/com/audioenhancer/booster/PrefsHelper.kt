@@ -132,6 +132,27 @@ object PrefsHelper {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_CLARITY, value).apply()
     }
 
+    // Batch 336 (request user: pilih "Batch penghemat" dari audit baterai B334): bypass idle, opt-in, default MATI (perilaku lama =
+    // kelima efek mixer selalu menyala). Aktif = efek dibiarkan mati selama semua pengaturan netral (lihat `IdleBypassPolicy`).
+    // Kunci publik: service memantau perubahannya lewat `registerChangeListener` supaya saklar Pengaturan berlaku langsung.
+    const val IDLE_BYPASS_KEY = "idle_bypass"
+
+    fun getIdleBypass(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getBoolean(IDLE_BYPASS_KEY, false)
+
+    fun setIdleBypass(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putBoolean(IDLE_BYPASS_KEY, enabled).apply()
+    }
+
+    /** Pemanggil WAJIB menyimpan [listener] di field (SharedPreferences hanya memegang referensi lemah) dan melepasnya lewat [unregisterChangeListener]. */
+    fun registerChangeListener(context: Context, listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    fun unregisterChangeListener(context: Context, listener: android.content.SharedPreferences.OnSharedPreferenceChangeListener) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).unregisterOnSharedPreferenceChangeListener(listener)
+    }
+
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): opt-in, default MATI —
     // fitur ini mengubah Bass/Virtualizer/Loudness/EQ user TANPA sentuhan tangan (dipicu
     // ganti output audio), jadi TIDAK boleh aktif diam-diam tanpa persetujuan eksplisit

@@ -328,4 +328,7 @@
         <item quantity="one">%1$d time</item>
         <item quantity="other">%1$d times</item>
     </plurals>
+    <string name="settings_idle_bypass_section_title">Battery Saving</string>
+    <string name="settings_idle_bypass_title">Save battery when neutral</string>
+    <string name="settings_idle_bypass_desc">Turn off all five audio effects while every setting is neutral (Bass, Virtualizer, Loudness, Compressor, Clarity and EQ = 0), then switch them on automatically as soon as one changes. Experimental: a brief click may be heard when switching.</string>
 </resources>
