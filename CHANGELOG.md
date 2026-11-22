@@ -1,5 +1,24 @@
 # Changelog
 
+## Batch 340: Gain Keluaran (gain masuk kompresor dan limiter)
+
+Permintaan user: "Tapi keluaran seperti itu yang saya cari. Biar gak perlu slide volume device sampai mentok" (konteks: sesi efek yatim terdengar lebih bertenaga dari sesi baru; log `aep_debug_20261122_122932.txt` + `Boomly_v339.zip`).
+
+- **Bukti log (12:29)**: tidak ada rantai yatim Boomly lagi (`OrphanSweep[mulai]: tidak ada modul efek yatim`); sesi pemutar 297 berisi 5 efek Enabled dengan urutan rantai Bass -> EQ -> Loudness -> DynamicsProcessing -> Virtualizer. Jadi level "bertenaga" sebelumnya berasal dari pemrosesan ganda (sinyal yang sama dinaikkan dua kali lalu dibatasi ulang limiter) dan tidak akan muncul lagi dengan sendirinya.
+- **Perbaikan**: pemrosesan ganda dijadikan kontrol SENGAJA, bukan dikembalikan sebagai bug. Slider baru "Gain Keluaran" 0..+12 dB (langkah 1 dB, default 0 = perilaku persis B339) menulis gain INPUT `DynamicsProcessing` (`setInputGainAllChannelsTo`, API 28; 0 dB = tanpa perubahan), yaitu level naik SEBELUM MBC kompresor dan limiter -1 dBFS: lebih keras dan padat dengan puncak tetap dibatasi, sehingga volume HP tak perlu mentok.
+  - `PrefsHelper`: key `output_gain_db`, `OUTPUT_GAIN_DEFAULT = 0`, `OUTPUT_GAIN_MAX_DB = 12` (satu sumber untuk UI dan service).
+  - `AudioEnhancerService.setOutputGain(gainDb)` + `applyOutputGain(target)`; nilai tersimpan ikut `buildDynamicsConfig` (objek baru dari serah-terima efek langsung bergain benar) dan penegasan di `attachDynamicsProcessing` (hanya bila > 0). Galat penulisan gain ditelan dan dicatat mentah (`Log.e`/`Log.w`), `dynamicsState` tidak berubah, limiter dan kompresor tidak ikut gagal.
+  - Gain > 0 = BUKAN netral untuk bypass idle (service `idleBypassWanted` dan ekspor); kontrak `IdleBypassPolicy.isAllNeutral` tidak diubah.
+  - `BoosterViewModel.setOutputGain` memakai pola B279 (slot last-write-wins, worker `Dispatchers.IO`, nilai tertahan saat service putus); `MainActivity` menyambungkan `onOutputGain`/`initialOutputGain`.
+  - `BoosterScreen`: kartu baru tepat di bawah Loudness (aksen Loudness, label "+N dB"); tidak ikut preset; ketersediaan mengikuti `compressorSupported` (hidup di objek DynamicsProcessing yang sama dengan limiter).
+  - Ekspor Log Debug: bagian bypass idle mencatat "gain keluaran=N dB"; teks saklar Hemat Baterai (ID+EN) menyebut Gain Keluaran.
+- **Cara pakai**: Bass/EQ/Loudness seperti biasa, geser Gain Keluaran bertahap (mulai +3 sampai +6 dB), turunkan volume HP. Di atas +6 dB limiter bekerja keras dan musik yang sudah padat bisa terdengar pecah.
+- **Batas yang diketahui**: padanan hanya untuk level/kepadatan akhir; Bass/EQ/Loudness TIDAK ikut digandakan seperti pada rantai ganda lama (itu perubahan terpisah bila user mau). Virtualizer berada sesudah limiter di rantai, jadi puncak bisa sedikit melewati -1 dBFS.
+- **Tes**: tidak ada tes baru (batas 8 file terpakai); 360 tes yang ada tidak disentuh. Cerminan Python: kurung seimbang 6 file Kotlin, XML parse + paritas ID=EN (243 string), pemeriksaan teks sumber `SliderApplyCoalescingTest` dan `IdleBypassPolicyTest` lulus termasuk slot slider baru.
+- **File** (8; pembenaran: kontrak data baru + jalur UI -> ViewModel -> Service + string ID+EN + ekspor yang membaca netralitas): `PrefsHelper.kt`, `AudioEnhancerService.kt`, `BoosterViewModel.kt`, `MainActivity.kt`, `BoosterScreen.kt`, `DebugLogExporter.kt`, `values/strings.xml`, `values-en/strings.xml`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android/telinga; CI B340 + uji telinga user). Revert = `Boomly_v339.zip` atau geser Gain Keluaran ke 0.
+
 ## Batch 339: Bypass idle hanya saat UI tertutup (klik tak berulang)
 
 Laporan user (log `aep_debug_20261122_070817.txt` = v373/B338): "Masih klik". Urutan limiter-dulu B338 tidak menghilangkan klik.

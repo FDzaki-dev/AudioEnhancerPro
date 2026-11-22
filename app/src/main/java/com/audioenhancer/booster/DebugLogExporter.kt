@@ -203,14 +203,15 @@ object DebugLogExporter {
         val loudness = PrefsHelper.getLoudness(context)
         val compressor = PrefsHelper.getCompressorAmount(context)
         val clarity = PrefsHelper.getClarity(context)
+        val outputGain = PrefsHelper.getOutputGain(context) // Batch 340
         val eq = List(IdleBypassPolicy.MAX_EQ_BANDS) { band -> PrefsHelper.getEqualizerBandLevel(context, band, 0) }
         DebugLogFormat.buildIdleBypassSection(
             optedIn = PrefsHelper.getIdleBypass(context),
-            neutral = IdleBypassPolicy.isAllNeutral(bass, virtualizer, loudness, compressor, clarity, eq),
+            neutral = IdleBypassPolicy.isAllNeutral(bass, virtualizer, loudness, compressor, clarity, eq) && outputGain == 0, // Batch 340: sama dengan `idleBypassWanted`
             serviceRunning = AudioEnhancerService.isRunning,
             serviceBypassed = AudioEnhancerService.mixBypassed,
             uiVisible = AudioEnhancerService.uiVisible,
-            settings = "bass=$bass virt=$virtualizer loudness=${loudness.toInt()} mB komp=$compressor clarity=$clarity pita EQ tak nol=${eq.count { it != 0 }}"
+            settings = "bass=$bass virt=$virtualizer loudness=${loudness.toInt()} mB komp=$compressor clarity=$clarity gain keluaran=$outputGain dB pita EQ tak nol=${eq.count { it != 0 }}"
         )
     } catch (e: Exception) {
         Log.w(TAG, "Bagian bypass idle gagal", e)

@@ -148,6 +148,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private var pendingCompressor: Int? = null // Batch 121
     private var pendingVocalFocus: Int? = null // Batch 209
     private var pendingClarity: Int? = null // Batch 282
+    private var pendingOutputGain: Int? = null // Batch 340
     private val pendingEqualizerBands = mutableMapOf<Int, Short>()
 
     // Batch 189 (request user "gejala masih kambuh, perluas optimalisasi" — tab Equalizer Manual):
@@ -171,6 +172,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private val latestCompressor = AtomicReference<Int?>(null)
     private val latestVocalFocus = AtomicReference<Int?>(null)
     private val latestClarity = AtomicReference<Int?>(null) // Batch 282
+    private val latestOutputGain = AtomicReference<Int?>(null) // Batch 340
 
     init {
         viewModelScope.launch(Dispatchers.IO) {
@@ -184,7 +186,8 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     private fun hasLatestSliderValues(): Boolean =
         latestBass.get() != null || latestVirtualizer.get() != null || latestLoudness.get() != null ||
-            latestCompressor.get() != null || latestVocalFocus.get() != null || latestClarity.get() != null
+            latestCompressor.get() != null || latestVocalFocus.get() != null || latestClarity.get() != null ||
+            latestOutputGain.get() != null
 
     /** Batch 279: terapkan nilai TERBARU tiap slider (urutan tetap). Service putus: slot dibiarkan terisi (tidak diambil) dan diterapkan
      *  saat konek lagi (kick di `onServiceConnected`). Satu slider gagal tidak menghentikan yang lain. */
@@ -196,6 +199,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         applyLatest(latestCompressor, "Compressor") { svc.setCompressorAmount(it) }
         applyLatest(latestVocalFocus, "Vocal Focus") { svc.setVocalFocus(it) }
         applyLatest(latestClarity, "Clarity") { svc.setClarity(it) }
+        applyLatest(latestOutputGain, "Output Gain") { svc.setOutputGain(it) } // Batch 340
     }
 
     private fun <T : Any> applyLatest(slot: AtomicReference<T?>, name: String, action: (T) -> Unit) {
@@ -277,6 +281,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             pendingCompressor?.let { service?.setCompressorAmount(it) }; pendingCompressor = null
             pendingVocalFocus?.let { service?.setVocalFocus(it) }; pendingVocalFocus = null
             pendingClarity?.let { service?.setClarity(it) }; pendingClarity = null
+            pendingOutputGain?.let { service?.setOutputGain(it) }; pendingOutputGain = null // Batch 340
             pendingEqualizerBands.forEach { (band, level) -> service?.setEqualizerBand(band.toShort(), level) }
             pendingEqualizerBands.clear()
             // Batch 189: nilai yang sempat tertahan di `eqLatestMb` saat service putus.
@@ -508,6 +513,13 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             latestClarity.set(value) // Batch 282: pola B279 (last-write-wins, diterapkan worker, bukan di Main)
             eqApplyKick.trySend(Unit)
         } else pendingClarity = value
+    }
+
+    fun setOutputGain(value: Int) {
+        if (bound) {
+            latestOutputGain.set(value) // Batch 340: pola B279 (last-write-wins, diterapkan worker, bukan di Main)
+            eqApplyKick.trySend(Unit)
+        } else pendingOutputGain = value
     }
 
     fun setEqualizerBand(band: Int, level: Short) {

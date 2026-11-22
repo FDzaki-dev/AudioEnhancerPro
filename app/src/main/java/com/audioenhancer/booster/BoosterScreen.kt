@@ -704,6 +704,8 @@ fun BoosterScreen(
     onVocalFocus: (Int) -> Unit = {},
     // Batch 282: slider Clarity (0..100) + chip cepat Natural/Crystal/Ultra Immersive — kejernihan & "udara" nada tinggi.
     onClarity: (Int) -> Unit = {},
+    // Batch 340: slider Gain Keluaran (0..PrefsHelper.OUTPUT_GAIN_MAX_DB dB) — gain masuk kompresor/limiter, agar volume HP tak perlu mentok.
+    onOutputGain: (Int) -> Unit = {},
     onOpenHelp: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
     bassSupported: Boolean = true,
@@ -742,6 +744,7 @@ fun BoosterScreen(
     initialCompressorAmount: Float = 0f,
     initialVocalFocus: Float = 50f,
     initialClarity: Float = 0f,
+    initialOutputGain: Float = 0f, // Batch 340
     initialActivePreset: String? = null,
     onActivePresetChange: (String?) -> Unit = {},
     notificationPermissionGranted: Boolean = true,
@@ -882,6 +885,7 @@ fun BoosterScreen(
     var compressorAmount by remember { mutableFloatStateOf(initialCompressorAmount) }
     var vocalFocus by remember { mutableFloatStateOf(initialVocalFocus) }
     var clarity by remember { mutableFloatStateOf(initialClarity) } // Batch 282
+    var outputGain by remember { mutableFloatStateOf(initialOutputGain) } // Batch 340
     // Preset yang tersimpan direstore di sini — nilai slider di atas sudah otomatis benar
     // karena tiap terapkan preset juga menulis nilai numeriknya ke PrefsHelper (lihat applyPreset).
     var activePreset by remember { mutableStateOf(initialActivePreset) }
@@ -1367,6 +1371,33 @@ fun BoosterScreen(
                     valueRange = 0f..3000f,
                     step = 50f,
                     enabled = loudnessSupported,
+                    wrapInCard = false
+                )
+
+                SkeuGroupDivider()
+
+                // Batch 340 (request user: "biar gak perlu slide volume device sampai mentok"): gain masuk tahap input DynamicsProcessing, sebelum
+                // kompresor dan limiter -1 dBFS (lihat `AudioEnhancerService.setOutputGain`). Seperti Compressor/Clarity: SENGAJA tidak ikut
+                // preset (nilai tersimpan terpisah di PrefsHelper); hidup di objek DynamicsProcessing, jadi ketersediaannya mengikuti `compressorSupported`.
+                FeatureControl(
+                    title = stringResource(R.string.feature_output_gain_title),
+                    icon = Icons.Filled.Equalizer,
+                    accentColor = LoudnessAccent,
+                    accentColor2 = LoudnessAccent2,
+                    helpText = when {
+                        !compressorSupported -> stringResource(R.string.feature_help_unsupported)
+                        compressorEffectState == AudioEnhancerService.EffectState.CONTROL_LOST ->
+                            stringResource(R.string.feature_help_control_lost)
+                        compressorEffectState == AudioEnhancerService.EffectState.FAILED ->
+                            stringResource(R.string.feature_help_failed)
+                        else -> stringResource(R.string.feature_output_gain_help_normal)
+                    },
+                    value = outputGain,
+                    valueLabel = if (outputGain.toInt() == 0) "0 dB" else "+${outputGain.toInt()} dB",
+                    onValueChange = { outputGain = it; onOutputGain(it.toInt()) },
+                    valueRange = 0f..PrefsHelper.OUTPUT_GAIN_MAX_DB.toFloat(),
+                    step = 1f,
+                    enabled = compressorSupported,
                     wrapInCard = false
                 )
 

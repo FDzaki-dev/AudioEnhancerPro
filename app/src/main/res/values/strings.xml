@@ -75,6 +75,9 @@
     <string name="clarity_preset_natural">Natural</string>
     <string name="clarity_preset_crystal">Crystal</string>
     <string name="clarity_preset_ultra">Ultra Immersive</string>
+    <!-- Batch 340: slider Gain Keluaran (gain masuk kompresor dan limiter) -->
+    <string name="feature_output_gain_title">Gain Keluaran</string>
+    <string name="feature_output_gain_help_normal">Menaikkan level sinyal SEBELUM kompresor dan limiter -1 dBFS, jadi suara lebih keras dan padat tanpa perlu menaikkan volume HP sampai mentok. Naikkan bertahap: di atas +6 dB limiter bekerja keras dan musik yang sudah padat bisa terdengar pecah. 0 = mati.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —
@@ -331,5 +334,5 @@
     </plurals>
     <string name="settings_idle_bypass_section_title">Hemat Baterai</string>
     <string name="settings_idle_bypass_title">Hemat baterai saat netral</string>
-    <string name="settings_idle_bypass_desc">Matikan kelima efek audio saat aplikasi ditutup dan semua pengaturan netral (Bass, Virtualizer, Loudness, Compressor, Clarity, dan EQ = 0). Selagi aplikasi terbuka efek dibiarkan menyala, dan baru dinyalakan lagi begitu ada pengaturan yang diubah dari netral. Eksperimental: bisa terdengar satu klik sesaat saat efek dinyalakan.</string>
+    <string name="settings_idle_bypass_desc">Matikan kelima efek audio saat aplikasi ditutup dan semua pengaturan netral (Bass, Virtualizer, Loudness, Compressor, Clarity, Gain Keluaran, dan EQ = 0). Selagi aplikasi terbuka efek dibiarkan menyala, dan baru dinyalakan lagi begitu ada pengaturan yang diubah dari netral. Eksperimental: bisa terdengar satu klik sesaat saat efek dinyalakan.</string>
 </resources>

@@ -1034,6 +1034,9 @@ class AudioEnhancerService : Service() {
                     }
                 }
                 setLimiterAllChannelsTo(masterLimiter()) // Batch 235: angka limiter dipindah ke `masterLimiter()` (dipakai juga `buildDynamicsConfig`)
+                // Batch 340: penegasan idempoten Gain Keluaran tersimpan (jaring bila `buildDynamicsConfig` jatuh ke Config bawaan). Hanya bila > 0
+                // (0 = bawaan Config, jalur lama tak disentuh); galatnya ditelan di `applyOutputGain`, jadi limiter/kompresor tak ikut gagal.
+                if (PrefsHelper.getOutputGain(this@AudioEnhancerService) > 0) applyOutputGain(this)
                 if (enableNow) enabled = true // Batch 233: serah-terima efek (pasang-ulang) membuat efek baru TANPA menyala dulu
                 // Batch 87: kalau fallback aktif, listener yang SAMA (satu-satunya objek
                 // effect ini) SEKARANG juga menentukan `equalizerState` — objek limiter &
@@ -2276,7 +2279,7 @@ class AudioEnhancerService : Service() {
     // ---- Batch 336: bypass idle (opt-in, default MATI) ----
     // Temuan audit baterai B334: lima efek mixer dinyalakan tanpa syarat selama layanan hidup walau SEMUA pengaturan netral, sehingga DSP-nya
     // berjalan di audioserver untuk semua audio sistem dan menahan jalur offload. Dengan saklar di Pengaturan, kelima efek tetap DIBUAT (kontrol
-    // tetap dipegang) tetapi dibiarkan mati selama Bass/Virtualizer/Loudness/Compressor/Clarity = 0 dan semua pita EQ = 0; begitu ada satu
+    // tetap dipegang) tetapi dibiarkan mati selama Bass/Virtualizer/Loudness/Compressor/Clarity/Gain Keluaran = 0 dan semua pita EQ = 0; begitu ada satu
     // pengaturan tak netral, kelimanya dinyalakan BERSAMA (semua-atau-tidak-sama-sekali, tak ada nyala-mati per efek). Keputusan murni ada di
     // [IdleBypassPolicy]. NOT VERIFIED di device: risiko klik sesaat saat peralihan; Visualizer (spektrum) tak ikut diatur di sini.
 
@@ -2297,7 +2300,7 @@ class AudioEnhancerService : Service() {
             compressor = PrefsHelper.getCompressorAmount(this),
             clarity = PrefsHelper.getClarity(this),
             eqLevelsMb = List(IdleBypassPolicy.MAX_EQ_BANDS) { band -> PrefsHelper.getEqualizerBandLevel(this, band, 0) }
-        )
+        ) && PrefsHelper.getOutputGain(this) == 0 // Batch 340: Gain Keluaran > 0 mengubah suara = BUKAN netral (kontrak `isAllNeutral` tak diubah)
         // Batch 339: selagi UI terlihat status bypass ditahan (lihat [IdleBypassPolicy.shouldBypass]); keputusan murni, bisa dites JVM.
         return IdleBypassPolicy.shouldBypass(allNeutral = neutral, uiVisible = uiVisible, currentlyBypassed = mixBypassed)
     }
@@ -2591,6 +2594,30 @@ class AudioEnhancerService : Service() {
         refreshIdleBypass("clarity") // Batch 336
     }
 
+    /** Batch 340 (request user: "Tapi keluaran seperti itu yang saya cari. Biar gak perlu slide volume device sampai mentok"): Gain Keluaran 0..
+     *  [PrefsHelper.OUTPUT_GAIN_MAX_DB] dB (0 = mati, perilaku persis B339). Ditulis ke gain INPUT `DynamicsProcessing` (sebelum MBC kompresor dan
+     *  limiter -1 dBFS), jadi level naik tetapi puncak tetap dijaga limiter: padanan terkendali dari efek tumpukan dua rantai yang selama ini
+     *  terdengar "bertenaga" (sinyal sama dinaikkan lalu dibatasi ulang). Nilai TETAP disimpan tanpa syarat (pola Batch 57); `dynamicsProcessing`
+     *  null / gain input ditolak device = no-op aman (galat tercatat mentah; limiter tidak ikut dijatuhkan). Nilai tersimpan inilah yang dibaca
+     *  [buildDynamicsConfig] dan penegasan di [attachDynamicsProcessing], sehingga tidak hilang di serah-terima efek. Bukan netral untuk bypass idle. */
+    fun setOutputGain(gainDb: Int) {
+        val clamped = gainDb.coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB)
+        PrefsHelper.setOutputGain(this, clamped)
+        applyOutputGain()
+        refreshIdleBypass("output-gain")
+    }
+
+    // Batch 340: tulis ULANG gain input saja (semua kanal); band MBC/post-EQ/limiter tidak disentuh. Galat ditelan + dicatat mentah:
+    // gagal di sini tidak boleh mengubah `dynamicsState` (limiter tetap sah) maupun menjatuhkan `attachDynamicsProcessing`.
+    @android.annotation.SuppressLint("NewApi")
+    private fun applyOutputGain(target: DynamicsProcessing? = dynamicsProcessing) {
+        try {
+            target?.setInputGainAllChannelsTo(PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB).toFloat())
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Gagal set Gain Keluaran (gain input DynamicsProcessing)", e)
+        }
+    }
+
     // Batch 282: tulis ULANG band post-EQ saja (3 band) untuk Clarity; Compressor/Vocal Focus tidak ikut ditulis ulang.
     @android.annotation.SuppressLint("NewApi")
     private fun applyClarityBands(target: DynamicsProcessing? = dynamicsProcessing) {
@@ -2711,6 +2738,16 @@ class AudioEnhancerService : Service() {
                 builder.setPreEqAllChannelsTo(preEq)
             }
             builder.setLimiterAllChannelsTo(masterLimiter())
+            // Batch 340: Gain Keluaran tersimpan ikut `Config` supaya objek baru (serah-terima efek) langsung bergain benar, tanpa jendela 0 dB.
+            // Hanya bila > 0; kegagalan sendiri TIDAK boleh menjatuhkan seluruh Config terisi (MBC/presence/limiter) ke Config bawaan.
+            val outputGainDb = PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB)
+            if (outputGainDb > 0) {
+                try {
+                    builder.setInputGainAllChannelsTo(outputGainDb.toFloat())
+                } catch (e: Exception) {
+                    android.util.Log.w(TAG, "Gain Keluaran gagal dimasukkan ke Config DynamicsProcessing (ditulis sesudah objek dibuat)", e)
+                }
+            }
             builder.build()
         } catch (e: Exception) {
             android.util.Log.w(TAG, "Config DynamicsProcessing terisi nilai tersimpan gagal dibangun; memakai Config bawaan (nilai ditulis sesudah objek dibuat)", e)

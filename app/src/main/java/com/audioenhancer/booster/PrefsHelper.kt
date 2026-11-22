@@ -14,6 +14,9 @@ object PrefsHelper {
     const val VOCAL_FOCUS_DEFAULT = 50 // Batch 209
     private const val KEY_CLARITY = "clarity" // Batch 282
     const val CLARITY_DEFAULT = 0 // Batch 282
+    private const val KEY_OUTPUT_GAIN = "output_gain_db" // Batch 340
+    const val OUTPUT_GAIN_DEFAULT = 0 // Batch 340: 0 dB = mati, perilaku persis B339
+    const val OUTPUT_GAIN_MAX_DB = 12 // Batch 340: batas atas slider Gain Keluaran (dB), satu sumber untuk UI dan service
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
     // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).
@@ -130,6 +133,15 @@ object PrefsHelper {
 
     fun setClarity(context: Context, value: Int) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_CLARITY, value).apply()
+    }
+
+    // Batch 340 (request user: "biar gak perlu slide volume device sampai mentok"): Gain Keluaran 0..OUTPUT_GAIN_MAX_DB dB (bilangan bulat),
+    // default 0 = mati. Ditulis ke tahap input DynamicsProcessing, SEBELUM kompresor dan limiter -1 dBFS (lihat AudioEnhancerService.setOutputGain()).
+    fun getOutputGain(context: Context): Int =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(KEY_OUTPUT_GAIN, OUTPUT_GAIN_DEFAULT)
+
+    fun setOutputGain(context: Context, value: Int) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit().putInt(KEY_OUTPUT_GAIN, value).apply()
     }
 
     // Batch 336 (request user: pilih "Batch penghemat" dari audit baterai B334): bypass idle, opt-in, default MATI (perilaku lama =

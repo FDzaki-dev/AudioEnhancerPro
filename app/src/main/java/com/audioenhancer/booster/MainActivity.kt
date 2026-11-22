@@ -238,6 +238,7 @@ class MainActivity : ComponentActivity() {
                             onCompressor = { viewModel.setCompressor(it) },
                             onVocalFocus = { viewModel.setVocalFocus(it) },
                             onClarity = { viewModel.setClarity(it) },
+                            onOutputGain = { viewModel.setOutputGain(it) }, // Batch 340
                             onEqualizerBand = { band, level -> viewModel.setEqualizerBand(band, level) },
                             onOpenHelp = { showOnboarding = true },
                             onOpenSettings = { showSettings = true },
@@ -275,6 +276,7 @@ class MainActivity : ComponentActivity() {
                             initialCompressorAmount = PrefsHelper.getCompressorAmount(this@MainActivity).toFloat(),
                             initialVocalFocus = PrefsHelper.getVocalFocus(this@MainActivity).toFloat(),
                             initialClarity = PrefsHelper.getClarity(this@MainActivity).toFloat(),
+                            initialOutputGain = PrefsHelper.getOutputGain(this@MainActivity).toFloat(), // Batch 340
                             initialActivePreset = PrefsHelper.getActivePreset(this@MainActivity),
                             onActivePresetChange = { PrefsHelper.setActivePreset(this@MainActivity, it) },
                             notificationPermissionGranted = notificationPermissionGranted,
