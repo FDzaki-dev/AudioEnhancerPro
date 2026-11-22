@@ -77,7 +77,7 @@
     <string name="clarity_preset_ultra">Ultra Immersive</string>
     <!-- Batch 340: Output Gain slider (gain into the compressor and limiter) -->
     <string name="feature_output_gain_title">Output Gain</string>
-    <string name="feature_output_gain_help_normal">Raises the signal level BEFORE the compressor and the -1 dBFS limiter, so sound gets louder and denser without pushing the phone volume to the maximum. Raise it gradually: above +6 dB the limiter works hard and music that is already dense can sound crushed. 0 = off.</string>
+    <string name="feature_output_gain_help_normal">Raises the signal level BEFORE the compressor and the -1 dBFS limiter, so sound gets louder and denser without pushing the phone volume to the maximum. Raise it gradually: above +6 dB the limiter works hard, and above +12 dB it almost always works at full tilt so sound gets denser and can sound crushed. 0 = off.</string>
     <string name="feature_help_unsupported">Not supported on this device.</string>
     <string name="feature_help_strength_unsupported">Already fully active — this chipset doesn\'t support granular strength control.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) to UI —

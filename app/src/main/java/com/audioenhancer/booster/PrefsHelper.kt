@@ -16,7 +16,9 @@ object PrefsHelper {
     const val CLARITY_DEFAULT = 0 // Batch 282
     private const val KEY_OUTPUT_GAIN = "output_gain_db" // Batch 340
     const val OUTPUT_GAIN_DEFAULT = 0 // Batch 340: 0 dB = mati, perilaku persis B339
-    const val OUTPUT_GAIN_MAX_DB = 12 // Batch 340: batas atas slider Gain Keluaran (dB), satu sumber untuk UI dan service
+    // Batch 340: batas atas slider Gain Keluaran (dB), satu sumber untuk UI dan service. Batch 342: 12 -> 24 (uji telinga user: +12 dB masih kurang keras);
+    // nilai tersimpan 0..12 tetap berarti sama.
+    const val OUTPUT_GAIN_MAX_DB = 24
     // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): KEY_AUTO_PROFILE_ROUTE_PREFIX
     // + kategori (lihat AudioEnhancerService.ROUTE_CATEGORY_*) = 1 key per kategori, value =
     // nama CustomPreset ATAU tidak ada key sama sekali (= "Tidak ada"/belum diatur).

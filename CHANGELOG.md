@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 342: Gain Keluaran sampai +24 dB dan bukti penerapan gain
+
+Unggahan user: `AEP_laporan-untuk-claude_run138.zip` (BATCH_PROJECT_STATE=341, commit 5e02411, run 138) dan `aep_debug_20261122_184220.txt`; tahap lanjutan yang dipilih: hasil uji telinga Gain Keluaran = "masih kurang keras di +12 dB".
+
+- **B341 terverifikasi CI**: SpotBugs 0, detekt 0, detekt typed 0, lint 0, ArchUnit 12/12, tes 360, peringatan kompilator 0. Log 18:42: tanpa modul efek yatim, 5 efek sehat dan menyala, tanpa FATAL; saat ekspor hanya Gain Keluaran +12 dB yang aktif (Loudness, Bass, Virtualizer, Kompresor, Clarity, EQ semuanya 0).
+- **Jangkauan**: `PrefsHelper.OUTPUT_GAIN_MAX_DB` 12 -> 24. Satu konstanta dipakai slider (`valueRange`) dan clamp di service; nilai tersimpan 0..12 tetap berarti sama, default tetap 0. Teks bantuan (ID+EN) memperingatkan bahwa di atas +12 dB limiter hampir selalu bekerja penuh dan suara bisa pecah.
+- **Bukti, bukan asumsi**: log B340 hanya mencatat nomor parameter DynamicsProcessing (32 = gain input, kanal 0 dan 1), bukan nilainya, jadi belum terbukti HAL benar-benar menerapkan gain itu. `applyOutputGain` kini mencatat `GainKeluaran: tulis=N dB baca-ulang kanal0=M dB` (`getInputGainByChannelIndex`, API 28; dokumentasi resmi tidak menyebut batas atas/bawah). M sama dengan N = gain diterapkan; M lebih kecil = HAL membatasi; galat tetap tercatat mentah dan tidak menjatuhkan limiter.
+- **Belum dikerjakan (butuh keputusan/bukti)**: padanan penuh rantai ganda (Bass/EQ/Loudness ikut digandakan) dan kompresor MBC lebih agresif; uji log 18:42 hanya memakai Gain Keluaran, belum dibandingkan dengan kombinasi Loudness/Bass/EQ seperti pada sesi yatim lama.
+- **Tes**: tidak ada tes baru; 360 tes lama tak disentuh. Cerminan Python: XML valid, string baru bersih dari tanda kutip tunggal, `&`, dan `%`.
+- **File** (4): `PrefsHelper.kt`, `AudioEnhancerService.kt`, `values/strings.xml`, `values-en/strings.xml`.
+
+**Status**: NOT VERIFIED (CI + telinga + log baca-ulang). Revert = `Boomly_v341.zip` atau Gain Keluaran <= 12.
+
 ## Batch 341: Bersihkan 11 temuan CI run 137
 
 Unggahan user: `AEP_laporan-untuk-claude_run137.zip` (BATCH_PROJECT_STATE=340, commit 91d8cd5, run 137) dan `aep_debug_20261122_135124.txt`.

@@ -2615,7 +2615,13 @@ class AudioEnhancerService : Service() {
     @android.annotation.SuppressLint("NewApi")
     private fun applyOutputGain(target: DynamicsProcessing? = dynamicsProcessing) {
         try {
-            target?.setInputGainAllChannelsTo(PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB).toFloat())
+            val wantedDb = PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB)
+            target?.setInputGainAllChannelsTo(wantedDb.toFloat())
+            // Batch 342: log B340 hanya mencatat NOMOR parameter (param 32), bukan nilainya, jadi tak terbukti HAL benar-benar menerapkan gain ini
+            // (user: +12 dB "masih kurang keras"). Baca-ulang kanal 0 dicatat apa adanya; tulis != baca-ulang = HAL membatasi/menolak nilai.
+            if (target != null) {
+                android.util.Log.i(TAG, "GainKeluaran: tulis=$wantedDb dB baca-ulang kanal0=${target.getInputGainByChannelIndex(0)} dB")
+            }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal set Gain Keluaran (gain input DynamicsProcessing)", e)
         }
