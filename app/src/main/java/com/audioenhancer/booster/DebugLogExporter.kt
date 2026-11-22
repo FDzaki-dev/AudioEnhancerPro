@@ -541,6 +541,10 @@ internal class RingGeneration {
 /** Bagian murni (tanpa Android) supaya bisa dites di JVM. */
 internal object DebugLogFormat {
 
+    // Batch 341: dua konstanta ini sebelumnya dideklarasikan di bawah pemakainya (detekt typed PropertyUsedBeforeDeclaration); nilai tak berubah.
+    private const val TIMESTAMP_LENGTH = 18
+    private const val PERCENT = 100.0
+
     private const val TS = """^\d\d-\d\d \d\d:\d\d:\d\d\.\d{3} """
 
     /** Banjir capture Visualizer (`command() ... cmdCode = 65536` ~10x/dtk) dan balasannya `commandExecuted()`.
@@ -582,8 +586,6 @@ internal object DebugLogFormat {
         stamped.sortBy { it.substring(0, TIMESTAMP_LENGTH) }
         return markers + stamped
     }
-
-    private const val TIMESTAMP_LENGTH = 18
 
     /** Batch 317 (request user: pilih "Saring baris E efek -3 di Log Debug" setelah triase v316): saat efek utama pindah ke sesi pemutar yang
      *  sedang memutar, AudioFlinger kadang menolak membuat efek baru (status -3), sehingga satu kegagalan menulis ±17 baris `E`
@@ -780,7 +782,6 @@ internal object DebugLogFormat {
     private const val DEFAULT_DEADLINE_NS = 16_666_667L
     private const val FRAME_60_NS = 16_666_667L
     private const val FRAME_30_NS = 33_333_333L
-    private const val PERCENT = 100.0
 
     /** Persentil nilai terurut (peringkat terdekat); kosong = 0. */
     fun percentile(sorted: List<Long>, percent: Int): Long {

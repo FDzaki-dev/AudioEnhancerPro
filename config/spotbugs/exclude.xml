@@ -125,4 +125,14 @@
         <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
         <Class name="com.audioenhancer.booster.ShizukuGrant"/>
     </Match>
+
+    <!-- Batch 341 (triase laporan CI run137: SpotBugs 6 temuan, semuanya ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD di DebugLogExporter.kt baris 342, 343, 349,
+         358, 359 = `FrameStats` dan 462 = `DebugLogRing`; tiap titik dicocokkan dengan sumber v340). Keduanya Kotlin `object` (singleton): properti
+         (`label`, `refreshHz`, `thread`, `attached`, `process`) dikompilasi jadi field static dan ditulis dari "metode instance" singleton itu = bentuk bytecode
+         normal sebuah `object` (sama dengan blok ShizukuGrant Batch 258), bukan penulisan static tak sengaja. State-nya SENGAJA satu per proses
+         (@Volatile atau di bawah `synchronized(lock)`). Hanya dua kelas ini yang disaring. -->
+    <Match>
+        <Bug pattern="ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD"/>
+        <Class name="~com\.audioenhancer\.booster\.(FrameStats|DebugLogRing)(\$.*)?"/>
+    </Match>
 </FindBugsFilter>

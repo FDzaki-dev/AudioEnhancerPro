@@ -1,5 +1,20 @@
 # Changelog
 
+## Batch 341: Bersihkan 11 temuan CI run 137
+
+Unggahan user: `AEP_laporan-untuk-claude_run137.zip` (BATCH_PROJECT_STATE=340, commit 91d8cd5, run 137) dan `aep_debug_20261122_135124.txt`.
+
+- **B340 terverifikasi CI**: kompilasi bersih, 360 tes lulus, ArchUnit 12 aturan 0 pelanggaran, lint 0, detekt 0, peringatan kompilator 0. Log 13:51: sapu yatim di start menuntaskan 5 modul efek sisa proses lama (sesi 457), efek sehat 5 dari 5, tiap geser Gain Keluaran menulis gain input untuk kanal 0 dan 1, rantai sesi 1449 tanpa efek yatim. Pada log itu Loudness 3000 mB dan Gain Keluaran 12 dB (keduanya maksimum); kesan suara tetap menunggu uji telinga user.
+- **Sisa temuan** (berasal dari batch B324-B339 yang belum pernah dilaporkan CI; tak ada hubungannya dengan B340): detekt typed 5 dan SpotBugs 6.
+  - `Theme.kt`: import `drawBehind` yang tak lagi dipakai dihapus.
+  - `DebugLogExporter.kt`: `TIMESTAMP_LENGTH` dan `PERCENT` dipindah ke awal `DebugLogFormat` (sebelumnya dideklarasikan di bawah pemakainya); nilai sama.
+  - `AudioEnhancerService.kt`: `prefChangeListener` dipindah ke bawah `guardHandler`, sebelum pemakaian di `onCreate`/`onDestroy`; isi sama, lambda hanya memakai `guardHandler` dan `refreshIdleBypass` saat dipanggil sehingga urutan inisialisasi tak berpengaruh.
+  - `config/spotbugs/exclude.xml`: blok filter `ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD` untuk `FrameStats` dan `DebugLogRing`. Keduanya Kotlin `object` (singleton): properti `label`, `refreshHz`, `thread`, `attached`, `process` menjadi field static dan ditulis dari metode instance singleton itu, @Volatile atau di bawah `synchronized(lock)`; sama dengan preseden `ShizukuGrant` (B258). Kelas lain tidak disaring.
+- **Perilaku**: tidak ada perubahan; tanpa tes baru (tes sumber `IdleBypassPolicyTest` yang mencari `registerChangeListener`/`unregisterChangeListener` tetap cocok).
+- **File** (4): `Theme.kt`, `DebugLogExporter.kt`, `AudioEnhancerService.kt`, `config/spotbugs/exclude.xml`.
+
+**Status**: NOT VERIFIED sampai CI ulang (harapan: detekt typed 0, SpotBugs 0, tes 360). Revert = `Boomly_v340.zip`.
+
 ## Batch 340: Gain Keluaran (gain masuk kompresor dan limiter)
 
 Permintaan user: "Tapi keluaran seperti itu yang saya cari. Biar gak perlu slide volume device sampai mentok" (konteks: sesi efek yatim terdengar lebih bertenaga dari sesi baru; log `aep_debug_20261122_122932.txt` + `Boomly_v339.zip`).

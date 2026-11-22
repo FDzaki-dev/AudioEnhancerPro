@@ -441,6 +441,14 @@ class AudioEnhancerService : Service() {
     // pemeriksaan ber-debounce (`runEffectGuard`) yang memulihkan hanya yang rusak. Angka & aturan murni ada di
     // `EffectGuardPolicy` (bawah file, ada tesnya). NOT VERIFIED di device.
     private val guardHandler = android.os.Handler(android.os.Looper.getMainLooper())
+
+    // Disimpan sebagai field (SharedPreferences hanya menyimpan referensi LEMAH ke listener).
+    // Batch 341: dipindah dari blok bypass idle ke sini (sebelum pemakaian di onCreate/onDestroy; detekt typed PropertyUsedBeforeDeclaration). Isi tak berubah;
+    // lambda hanya memakai `guardHandler` (di atas) dan `refreshIdleBypass` saat dipanggil, bukan saat konstruksi.
+    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == PrefsHelper.IDLE_BYPASS_KEY) guardHandler.post { refreshIdleBypass("pilihan") }
+    }
+
     @android.annotation.SuppressLint("NewApi")
     private var playbackCallback: AudioManager.AudioPlaybackCallback? = null
     private var lastPlaybackSignature: String = ""
@@ -2284,11 +2292,6 @@ class AudioEnhancerService : Service() {
     // [IdleBypassPolicy]. NOT VERIFIED di device: risiko klik sesaat saat peralihan; Visualizer (spektrum) tak ikut diatur di sini.
 
     private val bypassLock = Any()
-
-    // Disimpan sebagai field (SharedPreferences hanya menyimpan referensi LEMAH ke listener).
-    private val prefChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == PrefsHelper.IDLE_BYPASS_KEY) guardHandler.post { refreshIdleBypass("pilihan") }
-    }
 
     /** Dibaca dari nilai TERSIMPAN (bukan dari objek efek), jadi benar juga sebelum efek dibuat. */
     private fun idleBypassWanted(): Boolean {
