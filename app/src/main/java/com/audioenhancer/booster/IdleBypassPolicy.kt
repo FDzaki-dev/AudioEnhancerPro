@@ -18,4 +18,18 @@ internal object IdleBypassPolicy {
     fun isAllNeutral(bass: Int, virtualizer: Int, loudnessMb: Float, compressor: Int, clarity: Int, eqLevelsMb: List<Int>): Boolean =
         bass == 0 && virtualizer == 0 && abs(loudnessMb) < LOUDNESS_EPSILON_MB &&
             compressor == 0 && clarity == 0 && eqLevelsMb.all { it == 0 }
+
+    /**
+     * Batch 339 (laporan user v373 = B338: "Masih klik"; log: Loudness 350 -> 0 -> 600 diulang 4x = 4 kali mati-nyala kelima efek dalam 11 dtk):
+     * menyalakan efek di tengah audio adalah sumber klik, jadi peralihan sengaja dibuat SEDIKIT mungkin. Bypass hanya boleh dimulai saat UI
+     * TIDAK terlihat (tujuan hemat baterai: musik berjam-jam dengan layar mati). Selama UI terlihat status bypass DITAHAN apa adanya:
+     * efek yang sudah menyala tidak dimatikan saat slider kembali ke 0 (geser bolak-balik tak memicu klik berulang), dan efek yang masih
+     * bypass tidak dinyalakan hanya karena UI dibuka (tanpa klik saat sekadar melihat). Satu-satunya penyalaan = pengaturan tak netral.
+     * [allNeutral] = hasil [isAllNeutral]; saklar Pengaturan dicek pemanggil (OFF = tak pernah bypass).
+     */
+    fun shouldBypass(allNeutral: Boolean, uiVisible: Boolean, currentlyBypassed: Boolean): Boolean = when {
+        !allNeutral -> false
+        uiVisible -> currentlyBypassed
+        else -> true
+    }
 }

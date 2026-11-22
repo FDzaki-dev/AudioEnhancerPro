@@ -252,6 +252,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             service = (binder as AudioEnhancerService.LocalBinder).getService()
             bound = true
             connectionState = ConnectionState.CONNECTED
+            pushUiVisibility() // Batch 339: status UI terkini (onStart bisa lebih dulu dari koneksi)
             bassSupported = service?.isBassSupported() ?: true
             virtualizerSupported = service?.isVirtualizerSupported() ?: true
             loudnessSupported = service?.isLoudnessSupported() ?: true
@@ -293,8 +294,14 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     // (Main.immediate) menjalankan loop langsung di dalam init. Awal `true` = perilaku lama.
     private val uiActive = MutableStateFlow(true)
 
+    /** Batch 339: bypass idle hanya boleh mulai saat UI tertutup, jadi service perlu tahu status UI (null = belum konek; didorong lagi saat konek). */
+    private fun pushUiVisibility() {
+        service?.setUiVisible(uiActive.value)
+    }
+
     fun setUiActive(active: Boolean) {
         uiActive.value = active
+        pushUiVisibility()
         // Batch 299: UI terlihat lagi -> cek update bila jeda sejak cek terakhir cukup (rilis baru yang terbit
         // saat app/Service tetap hidup di latar belakang kini ikut terdeteksi, bukan hanya saat app dibuka dari nol).
         if (active) autoCheckForUpdate("ui-aktif")

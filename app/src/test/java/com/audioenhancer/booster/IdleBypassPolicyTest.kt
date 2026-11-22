@@ -126,6 +126,65 @@ class IdleBypassPolicyTest {
         assertTrue(disable.indexOf("bassBoost?.enabled = false") < disable.indexOf("loudnessEnhancer?.enabled = false"))
     }
 
+    @Test
+    fun `bypass starts only when the ui is hidden and everything is neutral`() {
+        assertTrue(IdleBypassPolicy.shouldBypass(allNeutral = true, uiVisible = false, currentlyBypassed = false))
+        assertTrue(IdleBypassPolicy.shouldBypass(allNeutral = true, uiVisible = false, currentlyBypassed = true))
+    }
+
+    @Test
+    fun `a non neutral setting always switches the effects on whatever the ui does`() {
+        for (visible in listOf(true, false)) for (bypassed in listOf(true, false)) {
+            assertFalse(IdleBypassPolicy.shouldBypass(allNeutral = false, uiVisible = visible, currentlyBypassed = bypassed))
+        }
+    }
+
+    @Test
+    fun `while the ui is visible the bypass state is held so sliders crossing zero do not toggle the effects`() {
+        // efek sudah menyala + slider kembali ke 0 + UI terbuka -> tetap menyala (tak ada peralihan, tak ada klik)
+        assertFalse(IdleBypassPolicy.shouldBypass(allNeutral = true, uiVisible = true, currentlyBypassed = false))
+        // efek masih bypass + UI dibuka -> tetap bypass (tak menyala hanya karena app dibuka)
+        assertTrue(IdleBypassPolicy.shouldBypass(allNeutral = true, uiVisible = true, currentlyBypassed = true))
+    }
+
+    @Test
+    fun `slider drag sequence toggles the effects at most once`() {
+        var bypassed = true // app dibuka dari bypass
+        var toggles = 0
+        // 350 -> 0 -> 600 -> 0 -> 600 (UI terbuka; netral hanya pada nilai 0)
+        for (neutral in listOf(false, true, false, true, false)) {
+            val next = IdleBypassPolicy.shouldBypass(allNeutral = neutral, uiVisible = true, currentlyBypassed = bypassed)
+            if (next != bypassed) toggles++
+            bypassed = next
+        }
+        assertEquals(1, toggles)
+        assertFalse(bypassed)
+    }
+
+    @Test
+    fun `the service decides through the policy and the view model pushes the ui state`() {
+        val svc = source("AudioEnhancerService.kt")
+        val wanted = svc.substring(svc.indexOf("private fun idleBypassWanted()"), svc.indexOf("fun setUiVisible("))
+        assertTrue(wanted.contains("IdleBypassPolicy.shouldBypass(allNeutral = neutral, uiVisible = uiVisible, currentlyBypassed = mixBypassed)"))
+        assertTrue(svc.contains("var uiVisible = false\n            private set"))
+        val vm = source("BoosterViewModel.kt")
+        val setActive = vm.substring(vm.indexOf("fun setUiActive("), vm.indexOf("autoCheckForUpdate(\"ui-aktif\")"))
+        assertTrue("setUiActive mendorong status ke service", setActive.contains("pushUiVisibility()"))
+        assertTrue(vm.contains("private fun pushUiVisibility() {\n        service?.setUiVisible(uiActive.value)"))
+        val connect = vm.substring(vm.indexOf("override fun onServiceConnected("), vm.indexOf("override fun onServiceDisconnected("))
+        assertTrue("koneksi mendorong status UI terkini", connect.contains("pushUiVisibility()"))
+    }
+
+    @Test
+    fun `idle bypass section explains the ui hold instead of reporting a mismatch`() {
+        val held = DebugLogFormat.buildIdleBypassSection(true, true, true, false, "bass=0", uiVisible = true)
+        assertTrue(held.contains("efek sengaja tetap menyala selagi UI terbuka"))
+        assertFalse(held.contains("TIDAK SESUAI"))
+        assertTrue(held.contains("UI terlihat: ya"))
+        val hidden = DebugLogFormat.buildIdleBypassSection(true, true, true, false, "bass=0", uiVisible = false)
+        assertTrue(hidden.contains("TIDAK SESUAI"))
+    }
+
     private fun source(name: String): String {
         val rel = "src/main/java/com/audioenhancer/booster/$name"
         val text = checkNotNull(listOf(rel, "app/$rel").map { File(it) }.firstOrNull { it.isFile }?.readText()) { "$name tidak ditemukan" }

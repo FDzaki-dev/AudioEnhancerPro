@@ -330,5 +330,5 @@
     </plurals>
     <string name="settings_idle_bypass_section_title">Battery Saving</string>
     <string name="settings_idle_bypass_title">Save battery when neutral</string>
-    <string name="settings_idle_bypass_desc">Turn off all five audio effects while every setting is neutral (Bass, Virtualizer, Loudness, Compressor, Clarity and EQ = 0), then switch them on automatically as soon as one changes. Experimental: a brief click may be heard when switching.</string>
+    <string name="settings_idle_bypass_desc">Turn off all five audio effects when the app is closed and every setting is neutral (Bass, Virtualizer, Loudness, Compressor, Clarity and EQ = 0). While the app is open the effects are left as they are, and are switched back on as soon as a setting moves away from neutral. Experimental: a single brief click may be heard when the effects switch on.</string>
 </resources>

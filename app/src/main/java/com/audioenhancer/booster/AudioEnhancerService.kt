@@ -182,6 +182,12 @@ class AudioEnhancerService : Service() {
         var mixBypassed = false
             private set
 
+        /** Batch 339: true = UI (MainActivity) terlihat. Diisi ViewModel lewat [setUiVisible]; awal false = proses layanan tanpa UI (mis. dimulai
+         *  sistem) boleh langsung bypass. Dibaca [IdleBypassPolicy.shouldBypass] dan ekspor log debug. */
+        @Volatile
+        var uiVisible = false
+            private set
+
         /** Batch 154 (Fase 9 M5): patokan `SystemClock.elapsedRealtime()` awal sesi aktif sekarang
          *  (0 = tidak ada sesi). Tulis hanya di main thread (onStartCommand/onDestroy), dibaca UI
          *  lewat [currentSessionMs]. elapsedRealtime kebal ubah jam sistem. */
@@ -2284,7 +2290,7 @@ class AudioEnhancerService : Service() {
     /** Dibaca dari nilai TERSIMPAN (bukan dari objek efek), jadi benar juga sebelum efek dibuat. */
     private fun idleBypassWanted(): Boolean {
         if (!PrefsHelper.getIdleBypass(this)) return false
-        return IdleBypassPolicy.isAllNeutral(
+        val neutral = IdleBypassPolicy.isAllNeutral(
             bass = PrefsHelper.getBass(this),
             virtualizer = PrefsHelper.getVirtualizer(this),
             loudnessMb = PrefsHelper.getLoudness(this),
@@ -2292,6 +2298,16 @@ class AudioEnhancerService : Service() {
             clarity = PrefsHelper.getClarity(this),
             eqLevelsMb = List(IdleBypassPolicy.MAX_EQ_BANDS) { band -> PrefsHelper.getEqualizerBandLevel(this, band, 0) }
         )
+        // Batch 339: selagi UI terlihat status bypass ditahan (lihat [IdleBypassPolicy.shouldBypass]); keputusan murni, bisa dites JVM.
+        return IdleBypassPolicy.shouldBypass(allNeutral = neutral, uiVisible = uiVisible, currentlyBypassed = mixBypassed)
+    }
+
+    /** Batch 339: dipanggil ViewModel saat UI terlihat/tertutup (`MainActivity.onStart`/`onStop`) dan sekali saat koneksi terbentuk. UI tertutup +
+     *  semua netral = bypass mulai (mematikan efek, tanpa klik menurut laporan user); UI terlihat = status ditahan, tak ada peralihan. */
+    fun setUiVisible(visible: Boolean) {
+        if (uiVisible == visible) return
+        uiVisible = visible
+        guardHandler.post { refreshIdleBypass(if (visible) "ui-terbuka" else "ui-tertutup") }
     }
 
     /** Hitung ulang dari nilai tersimpan dan simpan di [mixBypassed]; true = jangan nyalakan kelima efek mixer. */

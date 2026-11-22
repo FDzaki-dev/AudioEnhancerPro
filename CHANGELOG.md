@@ -1,5 +1,23 @@
 # Changelog
 
+## Batch 339: Bypass idle hanya saat UI tertutup (klik tak berulang)
+
+Laporan user (log `aep_debug_20261122_070817.txt` = v373/B338): "Masih klik". Urutan limiter-dulu B338 tidak menghilangkan klik.
+
+- **Bukti log**: Loudness digeser 350 -> 0 -> 600 -> 0 -> 600 -> 0 -> 600 -> 0 -> 600 = 4 siklus mati-nyala kelima efek dalam ±11 dtk (`IdleBypass[loudness]` DIMATIKAN 07:08:01.578, DINYALAKAN 07:08:02.770, DIMATIKAN 07:08:05.450, DINYALAKAN 07:08:06.431, DIMATIKAN 07:08:08.829, DINYALAKAN 07:08:10.024, DIMATIKAN 07:08:11.093, DINYALAKAN 07:08:12.320); tiap penyalaan = `enable` pada 5 efek dalam ±2 ms (limiter DynamicsProcessing lebih dulu, sesuai B338). Tak ada galat/underrun di log; efek terikat sesi pemutar 297 (deep_buffer), 5 efek Enabled.
+- **Dugaan (NOT VERIFIED)**: sumber klik = peralihan itu sendiri (rantai efek sesi aktif/nonaktif di audioserver), bukan urutan penyalaan. Karena itu jumlah peralihan dikurangi, bukan diurutkan ulang.
+- **Perbaikan**: bypass hanya boleh MULAI saat UI tidak terlihat. Selagi UI terlihat status bypass DITAHAN: efek yang sudah menyala tidak dimatikan saat slider kembali ke 0, efek yang masih bypass tidak dinyalakan hanya karena app dibuka; satu-satunya penyalaan = pengaturan tak netral. Urutan geser di atas kini = paling banyak SATU peralihan (dites).
+  - `IdleBypassPolicy.shouldBypass(allNeutral, uiVisible, currentlyBypassed)` (murni).
+  - `AudioEnhancerService`: `uiVisible` (companion) + `setUiVisible(visible)`; `idleBypassWanted` memakai kebijakan baru; UI tertutup memicu `refreshIdleBypass("ui-tertutup")`.
+  - `BoosterViewModel`: `pushUiVisibility()` dipanggil dari `setUiActive` (onStart/onStop) dan saat koneksi terbentuk.
+  - Ekspor Log Debug: baris "UI terlihat" + kesimpulan baru (efek sengaja menyala selagi UI terbuka) supaya ekspor dari layar Pengaturan tak salah terbaca "TIDAK SESUAI".
+  - Teks saklar Pengaturan (ID+EN) disesuaikan.
+- **Konsekuensi**: hemat baterai berlaku saat UI tertutup (musik layar mati); selagi app terbuka efek tetap menyala. Satu klik pada penyalaan PERTAMA dari bypass masih mungkin.
+- **Tes**: +6 `IdleBypassPolicyTest` => 360 diharapkan.
+- **File** (7; pembenaran: kontrak baru ViewModel -> Service `setUiVisible` + keputusan murni + teks ID+EN + ekspor yang membaca status baru): `IdleBypassPolicy.kt`, `AudioEnhancerService.kt`, `BoosterViewModel.kt`, `DebugLogExporter.kt`, `IdleBypassPolicyTest.kt`, `values/strings.xml`, `values-en/strings.xml`.
+
+**Status**: NOT VERIFIED (tanpa kompilator/Android; kurung seimbang, XML parse OK, tabel kebenaran kebijakan dicerminkan di Python; CI B339 + telinga user). Revert = `Boomly_v338.zip` atau matikan saklar.
+
 ## Batch 338: Klik saat bypass idle berakhir (limiter dinyalakan dulu)
 
 Laporan user (log v372 = B337): bypass berjalan (`IdleBypass[loudness]: DIMATIKAN` 06:41:35, `DINYALAKAN` 06:42:41, tanpa galat) tetapi **klik terdengar saat efek DINYALAKAN**; saat dimatikan tidak.

@@ -209,6 +209,7 @@ object DebugLogExporter {
             neutral = IdleBypassPolicy.isAllNeutral(bass, virtualizer, loudness, compressor, clarity, eq),
             serviceRunning = AudioEnhancerService.isRunning,
             serviceBypassed = AudioEnhancerService.mixBypassed,
+            uiVisible = AudioEnhancerService.uiVisible,
             settings = "bass=$bass virt=$virtualizer loudness=${loudness.toInt()} mB komp=$compressor clarity=$clarity pita EQ tak nol=${eq.count { it != 0 }}"
         )
     } catch (e: Exception) {
@@ -721,11 +722,14 @@ internal object DebugLogFormat {
     /** Batch 334: [processCpuMs] `null` = gagal baca. Persen = CPU proses / umur proses (rata-rata sejak mulai; 100% = satu inti penuh). */
     /** Batch 337: bagian "bypass idle" (murni). [optedIn] = saklar Pengaturan, [neutral] = semua pengaturan tersimpan netral, [serviceBypassed] = status
      *  nyata di service. Baris "kesimpulan" membedakan 4 kasus supaya log langsung menjawab "kenapa efek menyala/mati". */
-    fun buildIdleBypassSection(optedIn: Boolean, neutral: Boolean, serviceRunning: Boolean, serviceBypassed: Boolean, settings: String): String = buildString {
+    fun buildIdleBypassSection(
+        optedIn: Boolean, neutral: Boolean, serviceRunning: Boolean, serviceBypassed: Boolean, settings: String, uiVisible: Boolean = false
+    ): String = buildString {
         appendLine("---- bypass idle (Hemat baterai saat netral) ----")
         appendLine("saklar Pengaturan: ${if (optedIn) "ON" else "OFF (bawaan)"}")
         appendLine("pengaturan tersimpan: $settings")
         appendLine("semua pengaturan netral: ${if (neutral) "ya" else "tidak"}")
+        appendLine("UI terlihat: ${if (uiVisible) "ya (Batch 339: status bypass ditahan selagi UI terbuka)" else "tidak"}")
         appendLine("status di layanan: " + when {
             !serviceRunning -> "layanan mati (tak berlaku)"
             serviceBypassed -> "BYPASS AKTIF (kelima efek mixer sengaja dimatikan)"
@@ -736,6 +740,7 @@ internal object DebugLogFormat {
             !neutral -> "saklar ON tetapi ada pengaturan tak netral, efek menyala"
             !serviceRunning -> "saklar ON dan netral, layanan mati"
             serviceBypassed -> "sesuai harapan (saklar ON + netral = bypass)"
+            uiVisible -> "saklar ON + netral, efek sengaja tetap menyala selagi UI terbuka (bypass mulai setelah UI ditutup)"
             else -> "TIDAK SESUAI: saklar ON + netral tetapi efek tidak dalam bypass (cari baris IdleBypass di log)"
         })
     }

@@ -331,5 +331,5 @@
     </plurals>
     <string name="settings_idle_bypass_section_title">Hemat Baterai</string>
     <string name="settings_idle_bypass_title">Hemat baterai saat netral</string>
-    <string name="settings_idle_bypass_desc">Matikan kelima efek audio selama semua pengaturan netral (Bass, Virtualizer, Loudness, Compressor, Clarity, dan EQ = 0), lalu nyalakan otomatis begitu ada yang diubah. Eksperimental: bisa terdengar klik sesaat saat peralihan.</string>
+    <string name="settings_idle_bypass_desc">Matikan kelima efek audio saat aplikasi ditutup dan semua pengaturan netral (Bass, Virtualizer, Loudness, Compressor, Clarity, dan EQ = 0). Selagi aplikasi terbuka efek dibiarkan menyala, dan baru dinyalakan lagi begitu ada pengaturan yang diubah dari netral. Eksperimental: bisa terdengar satu klik sesaat saat efek dinyalakan.</string>
 </resources>
