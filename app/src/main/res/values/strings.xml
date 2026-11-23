@@ -77,7 +77,7 @@
     <string name="clarity_preset_ultra">Ultra Immersive</string>
     <!-- Batch 340: slider Gain Keluaran (gain masuk kompresor dan limiter) -->
     <string name="feature_output_gain_title">Gain Keluaran</string>
-    <string name="feature_output_gain_help_normal">Menaikkan level sinyal SEBELUM kompresor dan limiter -1 dBFS, jadi suara lebih keras dan padat tanpa perlu menaikkan volume HP sampai mentok. Naikkan bertahap: di atas +6 dB limiter bekerja keras, dan di atas +12 dB hampir selalu bekerja penuh sehingga suara makin padat dan bisa terdengar pecah. 0 = mati.</string>
+    <string name="feature_output_gain_help_normal">Menaikkan kekerasan tanpa perlu menaikkan volume HP sampai mentok. Sinyal dinaikkan SEBELUM limiter -1 dBFS; selama Compressor mati, bass, vokal, dan treble dibatasi sendiri-sendiri supaya puncak bass tidak menekan vokal. Naikkan bertahap: makin tinggi makin keras, tetapi tambahan kerasnya makin kecil dan puncak yang dipangkas makin banyak (paling terasa di atas +24 dB). 0 = mati.</string>
     <string name="feature_help_unsupported">Tidak didukung di HP ini.</string>
     <string name="feature_help_strength_unsupported">Sudah aktif penuh — chipset ini tidak mendukung kontrol kekuatan bertingkat.</string>
     <!-- Batch 58: surfacing AudioEnhancerService.EffectState (Batch 57) ke UI —

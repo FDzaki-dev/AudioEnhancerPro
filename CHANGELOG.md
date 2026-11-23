@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 343: pembatas per band untuk Gain Keluaran
+
+Unggahan user: `AEP_laporan-untuk-claude_run139_1.zip` (CI ulang B342, run 139) dan permintaan: keluaran harus bertenaga seperti efek yatim bertumpuk, tetapi tanpa distorsi/mengganggu pendengaran (Gain Keluaran +24 dB B342 sudah terdengar distorsi).
+
+- **B342 terverifikasi CI (run 139, jalan ulang)**: 360 tes lulus, SpotBugs/detekt/typed/lint/ArchUnit 0. Kegagalan 36 tes Robolectric pada unggahan sebelumnya = gagal mengunduh artefak Maven `android-all-instrumented`, bukan regresi kode.
+- **Penyebab distorsi (model sandbox, bukan DP asli)**: Gain Keluaran masuk sebelum satu limiter -1 dBFS full-band tanpa lookahead; puncak bass yang ikut naik menarik gain seluruh spektrum (vokal tertekan tiap kick) dan sisa puncak dipotong konverter.
+- **Perbaikan**: saat Gain Keluaran > 0 dan Compressor mati, tahap MBC 3 band yang sudah ada menjadi pembatas per band (`OutputGainGuard`: bass -4, vokal -1, treble -3 dB, rasio 20:1, tanpa makeup). Compressor menyala = kurva B262 tak disentuh; Gain 0 = perilaku B339. Slider kini 0..+30 dB; `Config` konstruktor hanya memuat gain sampai +24 dB (terbukti diterima device), sisanya ditulis sesudah objek dibuat.
+- **Angka model pada kekerasan setara**: modulasi-silang 60 Hz + 1 kHz -30,5 dB (B342 +12) -> -38,1 dB (pelindung +18); -24,8 dB (B342 +18) -> -37,1 dB (pelindung +30). Keseimbangan bass-vokal tidak menipis.
+- **Keterbatasan jujur**: pemotongan puncak oleh konverter dan penekanan limiter pada kekerasan setara hampir sama dengan B342; kekerasan tetap dibayar dengan puncak terpotong. Di +24 dB pelindung model lebih pelan (-11,3 dBFS) daripada B342 +24 dB (-9,7 dBFS) karena distorsi B342 ikut "mengeraskan".
+- **Tes**: `OutputGainGuardTest` baru (angka band, rentang aman, aktif hanya saat Compressor mati, jalur tulis); 360 tes lama tak disentuh.
+- **File** (5): `AudioEnhancerService.kt`, `PrefsHelper.kt`, `values/strings.xml`, `values-en/strings.xml`, `OutputGainGuardTest.kt`.
+
+**Status**: NOT VERIFIED (kompilasi, JUnit, CI, telinga). Revert = `Boomly_v342.zip` atau Gain Keluaran 0.
+
 ## Batch 342: Gain Keluaran sampai +24 dB dan bukti penerapan gain
 
 Unggahan user: `AEP_laporan-untuk-claude_run138.zip` (BATCH_PROJECT_STATE=341, commit 5e02411, run 138) dan `aep_debug_20261122_184220.txt`; tahap lanjutan yang dipilih: hasil uji telinga Gain Keluaran = "masih kurang keras di +12 dB".

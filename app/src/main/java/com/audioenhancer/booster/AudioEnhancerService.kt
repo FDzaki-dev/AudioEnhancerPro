@@ -140,6 +140,12 @@ class AudioEnhancerService : Service() {
         // di bawah). Batch 210: noise-gate/expander band bass & treble + presence vokal (post-EQ) juga dari `CompressorCurve`.
         private const val COMPRESSOR_KNEE_DB = 6f
 
+        // Batch 343: batas atas Gain Keluaran yang ikut ditulis ke `Config` konstruktor DynamicsProcessing. +24 dB TERBUKTI diterima device
+        // (log B342: tulis=24 == baca-ulang 24.0, termasuk saat serah-terima efek); nilai di atasnya (slider kini sampai +30) ditulis SESUDAH
+        // objek dibuat oleh `applyOutputGain` (galat ditelan). Alasan: penolakan HAL saat konstruktor = IllegalArgumentException = profil
+        // DynamicsProcessing diturunkan (B264, kompresor hilang), jauh lebih mahal daripada gain yang gagal ditulis.
+        private const val CONFIG_OUTPUT_GAIN_PROVEN_DB = 24
+
         // Batch 122 (Fase 8 ROI #5 "Auto-profile per output device"): 4 bucket kategori
         // output yang DIEKSPOS ke UI (SettingsScreen.kt) buat auto-profile, dipakai SEBAGAI
         // KEY PrefsHelper — JANGAN diubah string-nya tanpa migrasi (akan memutus mapping
@@ -2602,11 +2608,16 @@ class AudioEnhancerService : Service() {
      *  limiter -1 dBFS), jadi level naik tetapi puncak tetap dijaga limiter: padanan terkendali dari efek tumpukan dua rantai yang selama ini
      *  terdengar "bertenaga" (sinyal sama dinaikkan lalu dibatasi ulang). Nilai TETAP disimpan tanpa syarat (pola Batch 57); `dynamicsProcessing`
      *  null / gain input ditolak device = no-op aman (galat tercatat mentah; limiter tidak ikut dijatuhkan). Nilai tersimpan inilah yang dibaca
-     *  [buildDynamicsConfig] dan penegasan di [attachDynamicsProcessing], sehingga tidak hilang di serah-terima efek. Bukan netral untuk bypass idle. */
+     *  [buildDynamicsConfig] dan penegasan di [attachDynamicsProcessing], sehingga tidak hilang di serah-terima efek. Bukan netral untuk bypass idle.
+     *  Batch 343: bila Compressor mati, Gain Keluaran > 0 juga menyalakan pembatas per band ([OutputGainGuard]) di tahap MBC sebelum limiter akhir. */
     fun setOutputGain(gainDb: Int) {
         val clamped = gainDb.coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB)
         PrefsHelper.setOutputGain(this, clamped)
         applyOutputGain()
+        // Batch 343: pelindung per band ikut menyala/mati mengikuti Gain Keluaran (0 <-> > 0). Compressor menyala = band tak berubah (kurva B262),
+        // tak perlu ditulis ulang. Hanya band MBC yang ditulis; gain input & limiter tidak disentuh lagi di sini.
+        val compressorAmount = PrefsHelper.getCompressorAmount(this)
+        if (compressorAmount <= 0) applyCompressorBands(compressorAmount, PrefsHelper.getVocalFocus(this))
         refreshIdleBypass("output-gain")
     }
 
@@ -2620,7 +2631,11 @@ class AudioEnhancerService : Service() {
             // Batch 342: log B340 hanya mencatat NOMOR parameter (param 32), bukan nilainya, jadi tak terbukti HAL benar-benar menerapkan gain ini
             // (user: +12 dB "masih kurang keras"). Baca-ulang kanal 0 dicatat apa adanya; tulis != baca-ulang = HAL membatasi/menolak nilai.
             if (target != null) {
-                android.util.Log.i(TAG, "GainKeluaran: tulis=$wantedDb dB baca-ulang kanal0=${target.getInputGainByChannelIndex(0)} dB")
+                android.util.Log.i(
+                    TAG,
+                    "GainKeluaran: tulis=$wantedDb dB baca-ulang kanal0=${target.getInputGainByChannelIndex(0)} dB " +
+                        "pelindung-band=${OutputGainGuard.isActive(PrefsHelper.getCompressorAmount(this), wantedDb)}"
+                )
             }
         } catch (e: Exception) {
             android.util.Log.e(TAG, "Gagal set Gain Keluaran (gain input DynamicsProcessing)", e)
@@ -2646,11 +2661,16 @@ class AudioEnhancerService : Service() {
     // Batch 235: konversi kurva -> objek band, SATU sumber untuk dua jalur: `applyCompressorBands` (menulis ke objek yang
     // sudah ada) dan `buildDynamicsConfig` (mengisi `Config` sebelum objek dibuat). Dua salinan angka bisa berselisih diam-diam.
     // `amount` DIPAKAI MENTAH (bukan yang sudah di-clamp) untuk `enabled`, sama dgn perilaku B234; `fraction`/`focus` 0..1.
+    // Batch 343: bila Compressor MATI (amount <= 0) dan Gain Keluaran tersimpan > 0, band memakai pembatas per band [OutputGainGuard]
+    // (bukan kurva B262, yang TIDAK disentuh dan tetap berlaku utuh saat Compressor menyala). Gain Keluaran dibaca dari nilai TERSIMPAN
+    // (pola B282 `presenceEqBand`), jadi konstruktor `Config`, serah-terima efek, dan setter Compressor/Vocal Focus/Gain Keluaran
+    // menghasilkan band identik.
     @android.annotation.SuppressLint("NewApi")
     private fun compressorMbcBand(bandIndex: Int, amount: Int, fraction: Float, focus: Float): DynamicsProcessing.MbcBand {
-        val spec = CompressorCurve.band(bandIndex, fraction, focus)
+        val guard = OutputGainGuard.isActive(amount, PrefsHelper.getOutputGain(this))
+        val spec = if (guard) OutputGainGuard.band(bandIndex) else CompressorCurve.band(bandIndex, fraction, focus)
         return DynamicsProcessing.MbcBand(
-            /* enabled            = */ amount > 0,
+            /* enabled            = */ amount > 0 || guard,
             /* cutoffFrequency    = */ spec.cutoffHz,
             /* attackTime         = */ spec.attackMs,
             /* releaseTime        = */ spec.releaseMs,
@@ -2749,7 +2769,8 @@ class AudioEnhancerService : Service() {
             builder.setLimiterAllChannelsTo(masterLimiter())
             // Batch 340: Gain Keluaran tersimpan ikut `Config` supaya objek baru (serah-terima efek) langsung bergain benar, tanpa jendela 0 dB.
             // Hanya bila > 0; kegagalan sendiri TIDAK boleh menjatuhkan seluruh Config terisi (MBC/presence/limiter) ke Config bawaan.
-            val outputGainDb = PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB)
+            // Batch 343: hanya sampai [CONFIG_OUTPUT_GAIN_PROVEN_DB]; sisanya (slider sampai +30) ditulis `applyOutputGain` sesudah objek dibuat.
+            val outputGainDb = PrefsHelper.getOutputGain(this).coerceIn(0, PrefsHelper.OUTPUT_GAIN_MAX_DB).coerceAtMost(CONFIG_OUTPUT_GAIN_PROVEN_DB)
             if (outputGainDb > 0) {
                 try {
                     builder.setInputGainAllChannelsTo(outputGainDb.toFloat())
@@ -3138,6 +3159,57 @@ internal object CompressorCurve {
             postGainDb = f * (POST_GAIN_MAX_DB[index] - g * FOCUS_DEPTH_DB[index]),
             noiseGateDb = NEUTRAL_GATE_DB + f * (GATE_THRESHOLD_MAX_DB[index] - NEUTRAL_GATE_DB),
             expanderRatio = 1f + f * g * EXPANDER_EXTRA[index]
+        )
+    }
+}
+
+/**
+ * Batch 343 (request user: "wajib bertenaga macam efek yatim bertumpuk, namun jangan sampai distorsi/mengganggu pendengaran" setelah Gain
+ * Keluaran +24 dB B342 terdengar distorsi). Penyebab (model sandbox: limiter feed-forward tanpa lookahead + clip konverter, BUKAN DP asli):
+ * Gain Keluaran masuk SEBELUM satu limiter -1 dBFS full-band, sehingga puncak bass/kick yang ikut dinaikkan menarik gain SELURUH spektrum
+ * turun (vokal "tersedot" tiap kick = modulasi-silang) dan puncak yang lolos dipotong konverter.
+ *
+ * Perbaikan: saat Gain Keluaran > 0 dan Compressor MATI, tahap MBC 3 band yang SUDAH ada (batas 250 / 5000 / 20000 Hz = `CompressorCurve`)
+ * dipakai sebagai PEMBATAS PER BAND sebelum limiter akhir: bass (ambang -4 dB), vokal (-1 dB), treble (-3 dB), rasio 20:1, lutut
+ * `COMPRESSOR_KNEE_DB`, TANPA makeup, noise-gate/expander mati. Kick lalu hanya membatasi band bass-nya sendiri dan limiter akhir hanya
+ * menangkap sisa. Compressor menyala = kurva B262 apa adanya (setelan AKHIR, tidak disentuh).
+ *
+ * Angka dari model sandbox (musik sintetis RMS -18 dBFS; tes dua-nada 60 Hz + 1 kHz; kekerasan "terdengar" = RMS sesudah high-pass 150 Hz),
+ * dibandingkan pada kekerasan SETARA: sisi-pita modulasi-silang B342 +12 dB -30,5 dB -> pelindung +18 dB -38,1 dB (kekerasan -12,1 dBFS);
+ * B342 +18 dB -24,8 dB -> pelindung +30 dB -37,1 dB (-10,6 dBFS); keseimbangan bass-vokal tidak menipis (+2,0 vs -1,4 dB pada -12,1 dBFS).
+ * KETERBATASAN JUJUR: clipping konverter dan ducking-limiter pada kekerasan setara HAMPIR SAMA dengan B342 (clipE -25,0 vs -24,6 dB;
+ * -22,1 vs -21,4 dB), jadi kekerasan tetap dibayar dengan puncak terpotong; yang turun adalah modulasi-silang. Kekerasan model di +24 dB
+ * pelindung (-11,3 dBFS) lebih pelan dari B342 +24 dB (-9,7 dBFS) karena distorsi B342 memang membuatnya lebih "keras". Slider kini sampai +30 dB.
+ * Tuning (ubah HANYA angka ini, bukan logika): [THRESHOLD_DB] (naikkan = lebih keras & lebih banyak dipangkas limiter akhir), [ATTACK_MS] /
+ * [RELEASE_MS]. NOT VERIFIED di telinga/HP (model != DP asli).
+ */
+internal object OutputGainGuard {
+    /** Rasio semua band (sama dengan ujung kurva Compressor B262). */
+    const val RATIO = 20f
+
+    private val ATTACK_MS = floatArrayOf(4f, 1.5f, 0.5f)
+    private val RELEASE_MS = floatArrayOf(120f, 60f, 40f)
+    private val THRESHOLD_DB = floatArrayOf(-4f, -1f, -3f)
+
+    // Noise-gate/expander mati: nilai netral yang sama dengan `CompressorCurve` pada slider 0 (ambang -90 dB, rasio 1:1).
+    private const val GATE_OFF_DB = -90f
+    private const val EXPANDER_OFF = 1f
+
+    /** Pelindung aktif hanya bila Compressor mati ([compressorAmount] <= 0) dan Gain Keluaran tersimpan [outputGainDb] > 0. */
+    fun isActive(compressorAmount: Int, outputGainDb: Int): Boolean = compressorAmount <= 0 && outputGainDb > 0
+
+    /** Parameter band pembatas [index] (0 until `CompressorCurve.BAND_COUNT`). Batas frekuensi diambil dari `CompressorCurve` (satu sumber). */
+    fun band(index: Int): CompressorBandSpec {
+        require(index in 0 until CompressorCurve.BAND_COUNT) { "band $index di luar 0..${CompressorCurve.BAND_COUNT - 1}" }
+        return CompressorBandSpec(
+            cutoffHz = CompressorCurve.band(index, 0f).cutoffHz,
+            attackMs = ATTACK_MS[index],
+            releaseMs = RELEASE_MS[index],
+            ratio = RATIO,
+            thresholdDb = THRESHOLD_DB[index],
+            postGainDb = 0f,
+            noiseGateDb = GATE_OFF_DB,
+            expanderRatio = EXPANDER_OFF
         )
     }
 }

@@ -90,6 +90,7 @@ app/src/test/java/com/audioenhancer/booster/FirstDrawGateTest.kt
 app/src/test/java/com/audioenhancer/booster/FormatFreqLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/IdleBypassPolicyTest.kt
 app/src/test/java/com/audioenhancer/booster/OrphanEffectsTest.kt
+app/src/test/java/com/audioenhancer/booster/OutputGainGuardTest.kt
 app/src/test/java/com/audioenhancer/booster/OutputRouteLabelTest.kt
 app/src/test/java/com/audioenhancer/booster/PrefsHelperTest.kt
 app/src/test/java/com/audioenhancer/booster/ScheduleNextOccurrenceTest.kt
