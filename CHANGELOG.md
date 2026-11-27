@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 345: perbaiki gagal kompilasi KDoc `ShizukuInstaller` (CI run 379)
+
+Unggahan user: `log_fail_v379-debug-run379.zip` (build debug B344 gagal) dan `Boomly_v344.zip`, tanpa keterangan.
+
+- **Penyebab (terbukti dari log)**: `compileDebugKotlin` gagal dengan satu galat: `ShizukuInstaller.kt:62:112 Closing bracket expected`. Baris 62 adalah komentar KDoc `SilentInstallPolicy.installSucceeded`; teks `[INSTALL_FAILED_...]` dibaca parser KDoc Kotlin 1.9.25 sebagai tautan simbol `[...]` yang tidak valid karena memuat `...` (kolom 112 = titik pertama setelah `INSTALL_FAILED_`). Hanya komentar; kode eksekusi dan perilaku aplikasi tidak berubah.
+- **Bukti lokal**: kotlinc 1.9.25 (versi proyek) pada `ShizukuInstaller.kt` B344 asli mereproduksi persis `62:112: error: closing bracket expected`; setelah perbaikan galat itu hilang.
+- **Perbaikan**: satu baris KDoc: `Failure [INSTALL_FAILED_...]` -> `Failure` diikuti kode `INSTALL_FAILED_...` (tanpa kurung siku). `ShizukuInstallerTest` memakai `"Failure [INSTALL_FAILED_...]"` sebagai string literal (bukan KDoc), jadi tak terpengaruh dan tak diubah.
+- **Pemeriksaan sintaks lokal**: 4 berkas yang disentuh B344 (`ShizukuInstaller.kt`, `ShizukuGrant.kt`, `BoosterViewModel.kt`, `ShizukuInstallerTest.kt`) diurai bersama oleh kotlinc 1.9.25: tidak ada galat sintaks; sisa galat hanya referensi Android/coroutines yang tak terselesaikan karena sandbox tanpa SDK (wajar).
+- **Keterbatasan jujur**: kompilasi penuh (Gradle + Android SDK + pengecekan tipe), JUnit, lint, detekt, SpotBugs dan ArchUnit TIDAK dapat dijalankan di sandbox; kompilasi seluruh berkas sekaligus kehabisan memori (exit 137), jadi hanya 4 berkas B344 yang diperiksa. Karena parser menghentikan kompilasi lebih dulu, galat TIPE di kode B344 (bila ada) baru akan terlihat di CI B345.
+- **File** (1): `ShizukuInstaller.kt` (+ docs).
+
+**Status**: NOT VERIFIED (kompilasi penuh, JUnit, CI, perilaku Shizuku dan ubin di HP). Revert = `Boomly_v344.zip` (diketahui gagal kompilasi; hanya bila B345 gagal karena sebab lain).
+
 ## Batch 344: tahan ubin Quick Settings membuka aplikasi + pasang update lewat Shizuku
 
 Permintaan user: "ubin quick setting saat di hold itu langsung membuka aplikasi bukan setting app nya. Dan pop-up install update bisa langsung di skip via shizuku".

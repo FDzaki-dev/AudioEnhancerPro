@@ -59,7 +59,7 @@ internal object SilentInstallPolicy {
     fun installCommand(sizeBytes: Long): List<String>? =
         if (sizeBytes in 1L..MAX_APK_BYTES) INSTALL_PREFIX + sizeBytes.toString() else null
 
-    /** `pm install` sukses hanya bila exit 0 DAN ada baris `Success` (gagal mencetak `Failure [INSTALL_FAILED_...]`). */
+    /** `pm install` sukses hanya bila exit 0 DAN ada baris `Success` (gagal mencetak `Failure` diikuti kode `INSTALL_FAILED_...`). */
     fun installSucceeded(exitCode: Int, output: String): Boolean =
         exitCode == 0 && output.lineSequence().any { it.trim().equals("Success", ignoreCase = true) }
 
