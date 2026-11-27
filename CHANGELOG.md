@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 344: tahan ubin Quick Settings membuka aplikasi + pasang update lewat Shizuku
+
+Permintaan user: "ubin quick setting saat di hold itu langsung membuka aplikasi bukan setting app nya. Dan pop-up install update bisa langsung di skip via shizuku".
+
+- **Ubin**: Android membuka layar Info Aplikasi saat ubin ditahan kecuali ada Activity yang menerima aksi `android.service.quicksettings.action.QS_TILE_PREFERENCES` di paket ubin. `MainActivity` (sudah exported) kini punya intent-filter itu (+ kategori DEFAULT); `handleShortcutIntent` hanya membaca ekstra shortcut, jadi intent ini hanya membuka app seperti peluncuran biasa.
+- **Pasang update**: `ShizukuGrantService` (layanan shell yang sudah dipakai tombol izin DUMP) mendapat transaksi `CODE_INSTALL = 3`: menerima file descriptor APK + ukuran, lalu menjalankan `pm install -r -S <ukuran>` dengan APK dialirkan ke stdin lewat buffer Okio (tanpa memuat byte ke memori). `ShizukuInstaller` (baru) memeriksa APK memang berisi paket Boomly, memastikan izin Shizuku (dialog Shizuku sekali bila belum), mengikat UserService yang sama, mengirim APK, membaca keluaran mentah `pm` (log `UpdateInstall`), dan melepas layanan. `BoosterViewModel.installUpdateApk` memakainya untuk "Unduh & Pasang" dan "Pasang Sekarang"; hasil selain `INSTALLED` (Shizuku tak hidup, izin ditolak, `pm` gagal, waktu habis) jatuh ke intent installer sistem seperti sebelumnya.
+- **Versi layanan** UserService 1 -> 2 (kode layanan berubah). Perintah pemasangan tetap (`pm install -r -S` + satu angka ukuran 1..512 MB); sukses = exit 0 + baris `Success`.
+- **Keterbatasan**: tidak ada indikator "memasang via Shizuku" (bilah unduhan tetap 100% beberapa detik sampai app dimulai ulang); Play Protect/perilaku `pm install` per OEM tidak bisa dipastikan dari sini.
+- **Tes**: `ShizukuInstallerTest` baru (kebijakan perintah/sukses/paket, aliran Okio, konstanta, urutan Shizuku -> installer sistem, filter ubin di manifest); 370 tes lama tak disentuh.
+- **File** (5): `AndroidManifest.xml`, `ShizukuGrant.kt`, `ShizukuInstaller.kt` (baru), `BoosterViewModel.kt`, `ShizukuInstallerTest.kt` (baru). Satu transaksi layanan baru = perubahan kontrak layanan (alasan file di atas 3).
+
+**Status**: NOT VERIFIED (kompilasi, JUnit, CI, perilaku Shizuku dan ubin di HP). Revert = `Boomly_v343.zip`.
+
 ## Batch 343: pembatas per band untuk Gain Keluaran
 
 Unggahan user: `AEP_laporan-untuk-claude_run139_1.zip` (CI ulang B342, run 139) dan permintaan: keluaran harus bertenaga seperti efek yatim bertumpuk, tetapi tanpa distorsi/mengganggu pendengaran (Gain Keluaran +24 dB B342 sudah terdengar distorsi).

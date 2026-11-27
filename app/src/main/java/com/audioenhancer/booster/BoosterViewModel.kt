@@ -561,7 +561,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
                     updateDownloadProgress = progress
                 }
                 downloadedApkFile = file
-                UpdateManager.installApk(getApplication(), file)
+                installUpdateApk(file)
             } catch (e: CancellationException) {
                 throw e // Batch 335: pembatalan coroutine bukan "unduhan gagal" (tak boleh menyalakan snackbar gagal)
             } catch (_: Exception) {
@@ -577,7 +577,17 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
      *  `downloadAndInstallUpdate()`, supaya bisa coba lagi TANPA unduh ulang APK yang
      *  sudah ada di cache. */
     fun reinstallDownloadedUpdate() {
-        downloadedApkFile?.let { UpdateManager.installApk(getApplication(), it) }
+        val file = downloadedApkFile ?: return
+        viewModelScope.launch { installUpdateApk(file) }
+    }
+
+    /** Batch 344 (request user: pop-up pemasangan update dilewati lewat Shizuku): bila Shizuku hidup dan Boomly diberi izin, APK dipasang
+     *  diam-diam lewat `pm install` (tanpa dialog installer sistem; app dimulai ulang oleh sistem lewat MY_PACKAGE_REPLACED seperti biasa).
+     *  Selain itu (Shizuku tak ada/tak hidup/izin ditolak/pemasangan gagal) jalur LAMA tetap dipakai: intent installer sistem. */
+    private suspend fun installUpdateApk(file: File) {
+        if (ShizukuInstaller.install(getApplication(), file) != SilentInstallResult.INSTALLED) {
+            UpdateManager.installApk(getApplication(), file)
+        }
     }
 
     fun dismissUpdateDownloadFailed() {

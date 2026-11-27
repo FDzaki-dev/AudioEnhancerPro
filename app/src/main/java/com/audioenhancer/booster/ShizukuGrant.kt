@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Binder
 import android.os.IBinder
 import android.os.Parcel
+import android.os.ParcelFileDescriptor
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +23,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okio.buffer
+import okio.sink
+import okio.source
 import rikka.shizuku.Shizuku
 
 /**
@@ -67,7 +71,8 @@ internal object ReverbAccessPolicy {
 
     /** `tag` UserService HARUS tetap: tanpa tag Shizuku memakai nama kelas, yang tak stabil setelah R8. */
     const val SERVICE_TAG = "boomly-reverb-grant"
-    const val SERVICE_VERSION = 1
+    // Batch 344: 1 -> 2 (layanan shell mendapat transaksi `CODE_INSTALL`); versi baru membuat Shizuku memulai ulang proses layanan lama.
+    const val SERVICE_VERSION = 2
     const val PROCESS_SUFFIX = "grant"
 
     const val CONNECT_TIMEOUT_MS = 8_000L
@@ -119,8 +124,11 @@ internal object DumpCardPolicy {
 
 /**
  * Layanan yang dijalankan Shizuku di proses shell (UID 2000) atau root. Proses ini BUKAN proses aplikasi biasa: tanpa
- * Context/Compose, hanya `Binder` mentah (tanpa AIDL). Hanya dua perintah yang dikenal ([CODE_GRANT], [CODE_REVOKE]) dan tak menerima
- * argumen, jadi pemegang binder tak bisa memberi izin ke paket atau izin lain. Kelas ini dipertahankan R8 lewat
+ * Context/Compose, hanya `Binder` mentah (tanpa AIDL). Perintah izin ([CODE_GRANT], [CODE_REVOKE]) tak menerima argumen, jadi pemegang binder
+ * tak bisa memberi izin ke paket atau izin lain. Batch 344: [CODE_INSTALL] menerima SATU berkas APK (ParcelFileDescriptor) dan ukurannya,
+ * lalu menjalankan `pm install -r -S <ukuran>` dengan APK dialirkan ke stdin (tanpa dimuat ke memori); perintahnya tetap, hanya angka ukuran
+ * yang divalidasi `SilentInstallPolicy.installCommand`. Pemanggilnya hanya Boomly sendiri (UserService hanya bisa diikat oleh paket
+ * pemilik kelas ini), dan sebelum mengirim, `ShizukuInstaller` memastikan APK berisi paket Boomly. Kelas ini dipertahankan R8 lewat
  * `proguard-rules.pro` (dibuat lewat refleksi oleh Shizuku, bukan dipanggil dari kode).
  */
 class ShizukuGrantService : Binder() {
@@ -131,6 +139,16 @@ class ShizukuGrantService : Binder() {
                 data.enforceInterface(DESCRIPTOR)
                 val command = if (code == CODE_GRANT) ReverbAccessPolicy.GRANT_COMMAND else ReverbAccessPolicy.REVOKE_COMMAND
                 val (exitCode, output) = runCommand(command)
+                reply?.writeNoException()
+                reply?.writeInt(exitCode)
+                reply?.writeString(output)
+                return true
+            }
+            CODE_INSTALL -> {
+                data.enforceInterface(DESCRIPTOR)
+                val sizeBytes = data.readLong()
+                val apk = ParcelFileDescriptor.CREATOR.createFromParcel(data)
+                val (exitCode, output) = runInstall(apk, sizeBytes)
                 reply?.writeNoException()
                 reply?.writeInt(exitCode)
                 reply?.writeString(output)
@@ -155,10 +173,35 @@ class ShizukuGrantService : Binder() {
         -1 to ReverbAccessPolicy.trimOutput(e.toString())
     }
 
+    /** Batch 344: pasang APK lewat `pm install -r -S <ukuran>`; byte APK mengalir berkas -> stdin `pm` lewat buffer Okio (bukan dimuat utuh). */
+    private fun runInstall(apk: ParcelFileDescriptor?, sizeBytes: Long): Pair<Int, String> {
+        val command = SilentInstallPolicy.installCommand(sizeBytes)
+        if (apk == null || command == null) {
+            apk?.close()
+            return -1 to "APK atau ukuran tidak valid"
+        }
+        return try {
+            apk.use { pfd ->
+                val process = ProcessBuilder(command).redirectErrorStream(true).start()
+                ParcelFileDescriptor.AutoCloseInputStream(pfd).source().buffer().use { source ->
+                    process.outputStream.sink().buffer().use { sink -> sink.writeAll(source) }
+                }
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                process.waitFor() to ReverbAccessPolicy.trimOutput(output)
+            }
+        } catch (e: Exception) {
+            Log.w("ShizukuGrantService", "pm install gagal dijalankan", e)
+            -1 to ReverbAccessPolicy.trimOutput(e.toString())
+        }
+    }
+
     companion object {
         const val DESCRIPTOR = "com.audioenhancer.booster.ShizukuGrantService"
         const val CODE_GRANT = IBinder.FIRST_CALL_TRANSACTION
         const val CODE_REVOKE = 2
+
+        /** Batch 344: pasang APK (ParcelFileDescriptor + ukuran) lewat `pm install`. */
+        const val CODE_INSTALL = 3
 
         /** Nomor transaksi "destroy" yang ditetapkan Shizuku (16777115). */
         const val CODE_DESTROY = 16_777_115
