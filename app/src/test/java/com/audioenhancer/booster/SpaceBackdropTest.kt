@@ -74,4 +74,49 @@ class SpaceBackdropTest {
         assertFalse(region.contains("withFrameNanos"))
         assertFalse(region.contains("animate"))
     }
+
+    private val componentsSource: String by lazy { sourceOf("src/main/java/com/audioenhancer/booster/SkeuomorphicComponents.kt") }
+
+    /** Batch 348: isi fungsi top-level [marker] sampai penutup `}` di awal baris pertama sesudahnya. */
+    private fun bodyOf(source: String, marker: String): String {
+        val start = source.indexOf(marker)
+        assertTrue("$marker tidak ditemukan", start >= 0)
+        val end = source.indexOf("\n}\n", start)
+        assertTrue("penutup $marker tidak ditemukan", end > start)
+        return source.substring(start, end)
+    }
+
+    @Test
+    fun `only cosmic orange enables the card ornament`() {
+        val theme = code(themeSource)
+        val assignments = Regex("""\bornament\s*=\s*""").findAll(theme).count()
+        assertEquals("hanya SpaceDepth yang mengaktifkan ornamen", 1, assignments)
+        val spaceDepth = theme.substringAfter("val SpaceDepth = DepthStyle(").substringBefore("\n)\n")
+        assertTrue(spaceDepth.contains("ornament = SpaceCardOrnament"))
+        assertTrue("SpaceCardOrnament wajib di atas SpaceDepth", theme.indexOf("val SpaceCardOrnament") in 0 until theme.indexOf("val SpaceDepth = DepthStyle("))
+    }
+
+    @Test
+    fun `card ornament is drawn only on plates and behind the content`() {
+        val code = code(componentsSource)
+        assertTrue(code.contains("DepthPartsPlate = DepthParts(face = true, grain = true, frame = true, front = false, ornament = true)"))
+        assertTrue(code.contains("DepthPartsKey = DepthParts(face = false, grain = false, frame = false, front = false)"))
+        assertTrue(code.contains("DepthPartsDialog = DepthParts(face = false, grain = true, frame = true, front = true)"))
+        val ops = code.substringAfter("val ops: DrawScope.() -> Unit = {").substringBefore("if (parts.front) {")
+        val order = listOf("drawImage(face", "drawRect(brush = DepthGrainBrush", "drawCardOrnament(ornament)", "drawPath(framePath", "for (f in facets)").map { ops.indexOf(it) }
+        assertTrue("urutan lapisan pelat: $order", order.all { it >= 0 } && order == order.sorted())
+        assertFalse(ops.contains("buildCardOrnament"))
+    }
+
+    @Test
+    fun `card ornament stays light and never animates`() {
+        val draw = code(bodyOf(componentsSource, "private fun DrawScope.drawCardOrnament("))
+        val calls = Regex("""\bdraw(Arc|Path|Circle|Line|Rect|Image|Oval|Points)\(""").findAll(draw).count()
+        assertTrue("panggilan gambar ornamen kartu = $calls", calls in 1..8)
+        val region = code(bodyOf(componentsSource, "private fun buildCardOrnament(") + draw)
+        listOf("InfiniteTransition", "withFrameNanos", "animate", "BlurMaskFilter", "graphicsLayer", "saveLayer").forEach {
+            assertFalse("ornamen kartu tidak boleh memuat $it", region.contains(it))
+        }
+        assertTrue("pelat kecil (snackbar) dilewati", region.contains("if (w < 150f * d || h < 64f * d) return null"))
+    }
 }

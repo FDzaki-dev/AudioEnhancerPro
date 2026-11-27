@@ -379,10 +379,11 @@ private val DepthKeyShadow = DepthShadowSpec(
 )
 
 /** Bagian dekorasi pelat yang digambar: [face] permukaan ter-bake, [grain] butiran, [frame] alur
- *  ukir; [front] = digambar DI ATAS konten (overlay dialog), bukan di belakang. */
-private class DepthParts(val face: Boolean, val grain: Boolean, val frame: Boolean, val front: Boolean)
+ *  ukir; [front] = digambar DI ATAS konten (overlay dialog), bukan di belakang. [ornament] (Batch 348) = ornamen
+ *  kartu `DepthStyle.ornament`; hanya pelat kartu (kunci/tab dan dialog tidak). */
+private class DepthParts(val face: Boolean, val grain: Boolean, val frame: Boolean, val front: Boolean, val ornament: Boolean = false)
 
-private val DepthPartsPlate = DepthParts(face = true, grain = true, frame = true, front = false)
+private val DepthPartsPlate = DepthParts(face = true, grain = true, frame = true, front = false, ornament = true)
 private val DepthPartsKey = DepthParts(face = false, grain = false, frame = false, front = false)
 private val DepthPartsDialog = DepthParts(face = false, grain = true, frame = true, front = true)
 
@@ -913,6 +914,133 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
     close()
 }
 
+/** Batch 348: geometri ornamen kartu hasil [buildCardOrnament]. Path dan gaya goresan dibuat SEKALI di cache gambar (ulang hanya saat
+ *  ukuran/densitas pelat berubah); per frame cuma [drawCardOrnament]. */
+private class CardOrnament(
+    val spec: DepthOrnament,
+    val limb: Rect?,
+    val limbStart: Float,
+    val limbStyle: Stroke,
+    val limbGlowStyle: Stroke,
+    val rings: Path,
+    val ringStyle: Stroke,
+    val satellite: Offset,
+    val satelliteRadius: Float,
+    val links: Path?,
+    val linkStyle: Stroke,
+    val stars: Path?
+)
+
+/** Batch 348: susun ornamen pelat [w] x [h] px ([d] = px per dp): tiga cincin orbit berpusat di dekat pojok kanan-atas, satu satelit di cincin
+ *  tengah, busur tepi planet mengikuti pojok besar ([bigCorner] px, 0 = tanpa busur; [bevel] = lebar bevel px) dan rasi bintang di tepi bawah
+ *  (hanya bila pelat cukup lebar). [mirror] (kartu status, pojok besar kanan-bawah) memutar semua titik 180 derajat. Pelat terlalu kecil
+ *  (snackbar, baris pendek) = null. */
+private fun buildCardOrnament(
+    spec: DepthOrnament,
+    w: Float,
+    h: Float,
+    d: Float,
+    mirror: Boolean,
+    bigCorner: Float,
+    bevel: Float
+): CardOrnament? {
+    if (w < 150f * d || h < 64f * d) return null
+    fun px(x: Float): Float = if (mirror) w - x else x
+    fun py(y: Float): Float = if (mirror) h - y else y
+    val cx = w - 10f * d
+    val cy = 12f * d
+    val rings = Path()
+    for (radiusDp in floatArrayOf(34f, 54f, 76f)) {
+        rings.addOval(Rect(Offset(px(cx), py(cy)), radiusDp * d))
+    }
+    val satellite = Offset(px(cx - 0.82f * 54f * d), py(cy + 0.57f * 54f * d))
+    val limbRadius = bigCorner - (bevel + 0.8f * d)
+    val limb: Rect? =
+        if (limbRadius > 4f * d) {
+            Rect(Offset(if (mirror) w - bigCorner else bigCorner, if (mirror) h - bigCorner else bigCorner), limbRadius)
+        } else {
+            null
+        }
+    var links: Path? = null
+    var stars: Path? = null
+    if (w >= 190f * d) {
+        val dx = floatArrayOf(22f, 50f, 76f, 106f, 134f)
+        val dy = floatArrayOf(8f, 14f, 7f, 13f, 8f)
+        val radius = floatArrayOf(1.4f, 1.8f, 1.3f, 2.0f, 1.5f)
+        val linkPath = Path()
+        val starPath = Path()
+        for (i in dx.indices) {
+            val x = px(w - dx[i] * d)
+            val y = py(h - dy[i] * d)
+            if (i == 0) linkPath.moveTo(x, y) else linkPath.lineTo(x, y)
+            starPath.addOval(Rect(Offset(x, y), radius[i] * d))
+        }
+        val sx = px(w - dx[3] * d)
+        val sy = py(h - dy[3] * d)
+        val arm = 6f * d
+        val waist = 1.2f * d
+        starPath.moveTo(sx, sy - arm)
+        starPath.lineTo(sx + waist, sy - waist)
+        starPath.lineTo(sx + arm, sy)
+        starPath.lineTo(sx + waist, sy + waist)
+        starPath.lineTo(sx, sy + arm)
+        starPath.lineTo(sx - waist, sy + waist)
+        starPath.lineTo(sx - arm, sy)
+        starPath.lineTo(sx - waist, sy - waist)
+        starPath.close()
+        links = linkPath
+        stars = starPath
+    }
+    return CardOrnament(
+        spec = spec,
+        limb = limb,
+        limbStart = if (mirror) 0f else 180f,
+        limbStyle = Stroke(width = 1.3f * d),
+        limbGlowStyle = Stroke(width = 4f * d),
+        rings = rings,
+        ringStyle = Stroke(width = 1.1f * d),
+        satellite = satellite,
+        satelliteRadius = 2.2f * d,
+        links = links,
+        linkStyle = Stroke(width = 0.8f * d),
+        stars = stars
+    )
+}
+
+/** Batch 348: gambar ornamen kartu — maks 7 panggilan gambar kecil (2 busur, 1 path cincin, 2 lingkaran satelit, 1 path garis rasi, 1 path bintang),
+ *  tanpa animasi, tanpa layer, tanpa blur. Dipanggil dari `depthPlateSurface` SESUDAH butiran dan SEBELUM alur ukir + bevel, di belakang konten. */
+private fun DrawScope.drawCardOrnament(o: CardOrnament) {
+    val spec = o.spec
+    val limb = o.limb
+    if (limb != null) {
+        drawArc(
+            color = spec.limb.copy(alpha = spec.limbAlpha * 0.22f),
+            startAngle = o.limbStart,
+            sweepAngle = 90f,
+            useCenter = false,
+            topLeft = limb.topLeft,
+            size = limb.size,
+            style = o.limbGlowStyle
+        )
+        drawArc(
+            color = spec.limb.copy(alpha = spec.limbAlpha),
+            startAngle = o.limbStart,
+            sweepAngle = 90f,
+            useCenter = false,
+            topLeft = limb.topLeft,
+            size = limb.size,
+            style = o.limbStyle
+        )
+    }
+    drawPath(o.rings, spec.ring.copy(alpha = spec.ringAlpha), style = o.ringStyle)
+    drawCircle(spec.star.copy(alpha = spec.starAlpha * 0.22f), radius = o.satelliteRadius * 2.6f, center = o.satellite)
+    drawCircle(spec.star.copy(alpha = spec.starAlpha), radius = o.satelliteRadius, center = o.satellite)
+    val links = o.links
+    if (links != null) drawPath(links, spec.star.copy(alpha = spec.starAlpha * 0.38f), style = o.linkStyle)
+    val stars = o.stars
+    if (stars != null) drawPath(stars, spec.star.copy(alpha = spec.starAlpha))
+}
+
 /** Dekorasi pelat timbul: permukaan ter-bake + grain + alur ukir + bevel FACET 8 sisi (bentuk
  *  chamfer [chamfer] seragam), bagian yang aktif menurut [parts]. Tiap facet (atas, kanan, bawah,
  *  kiri, 4 diagonal) diwarnai menurut `dot(normal, arahCahaya)`: > 0 = sorot gading (alpha skala
@@ -921,7 +1049,8 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
  *  B187: bila `style.corner == ROUND`, [chamfer] dibaca sebagai RADIUS sudut & facet/alur ukir
  *  mengikuti busur (`depthRoundFacets`/`depthRoundFrame`); `CHAMFER` = segi-8 persis seperti B186.
  *  B217: [corners] non-null (hanya berlaku di gaya ROUND) = radius per-pojok (`depthCornerFacets`/
- *  `depthCornerFrame`, diskalakan muat seperti Compose); null = jalur seragam B187 TANPA perubahan. */
+ *  `depthCornerFrame`, diskalakan muat seperti Compose); null = jalur seragam B187 TANPA perubahan.
+ *  B348: bila [parts] memuat ornamen dan `style.ornament` ada, ornamen kartu digambar sesudah butiran, sebelum alur ukir + bevel. */
 private fun Modifier.depthPlateSurface(
     style: DepthStyle,
     chamfer: Dp,
@@ -993,11 +1122,20 @@ private fun Modifier.depthPlateSurface(
             facets.add(Pair(quad, color))
         }
     }
+    val ornamentSpec = style.ornament
+    val ornament: CardOrnament? =
+        if (parts.ornament && ornamentSpec != null) {
+            val mirror = corners != null && corners == style.tintedCardCorners
+            buildCardOrnament(ornamentSpec, w, h, density, mirror, cornerPx?.get(if (mirror) 2 else 0) ?: 0f, b)
+        } else {
+            null
+        }
     val wi = w.roundToInt()
     val hi = h.roundToInt()
     val ops: DrawScope.() -> Unit = {
         if (face != null) drawImage(face, dstSize = IntSize(wi, hi))
         if (parts.grain) drawRect(brush = DepthGrainBrush, alpha = style.grainAlpha)
+        if (ornament != null) drawCardOrnament(ornament)
         if (framePath != null) {
             drawPath(framePath, style.rimShade.copy(alpha = 0.40f), style = Stroke(width = frameStroke))
             translate(left = frameShiftX, top = frameShiftY) {

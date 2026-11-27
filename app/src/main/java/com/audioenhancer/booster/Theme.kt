@@ -769,7 +769,9 @@ data class DepthStyle(
     val knobShape: Shape? = null,
     // Batch 225: bentuk CHIP preset (DepthKeyBox kind Pill) & TREK slider per tema. null = pil penuh / trek bulat 5dp (Midnight Glass).
     val chipShape: Shape? = null,
-    val trackShape: Shape? = null
+    val trackShape: Shape? = null,
+    // Batch 348: ornamen di PELAT KARTU (bukan hanya latar layar). null = tanpa ornamen (semua tema lain TIDAK berubah).
+    val ornament: DepthOrnament? = null
 )
 
 /** Batch 187: gaya sudut mesin kedalaman. [CHAMFER] = potongan 45 derajat (Old Money, Serene M3 —
@@ -790,6 +792,18 @@ data class DepthCorners(
 ) {
     val shape: CornerBasedShape = AbsoluteRoundedCornerShape(topLeft, topRight, bottomRight, bottomLeft)
 }
+
+/** Batch 348: warna + kekuatan ornamen pelat kartu (cincin orbit + satelit + busur tepi planet + rasi bintang di tepi bawah).
+ *  [ring] = cincin orbit, [limb] = busur terang di pojok besar (tepi planet), [star] = satelit dan rasi; tiap `*Alpha` = alpha dasar 0..1.
+ *  Digambar `depthPlateSurface` di belakang konten, hanya pada bagian pelat (kartu), bukan kunci/dialog. */
+data class DepthOrnament(
+    val ring: Color,
+    val ringAlpha: Float,
+    val limb: Color,
+    val limbAlpha: Float,
+    val star: Color,
+    val starAlpha: Float
+)
 
 // Batch 187 (request user "terapkan konfigurasi ini ke semua theme yang masih flat"): profil
 // kedalaman fisik untuk 5 tema lain. Mesin & aturan SAMA dgn Old Money (permukaan pelat LEBIH
@@ -975,6 +989,17 @@ val SpaceKnobShape: Shape = CutCornerShape(percent = 42)
 val SpaceChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 2.dp, 2.dp, 2.dp)
 val SpaceTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 1.dp, 1.dp, 1.dp)
 
+/** Batch 348: ornamen kartu Cosmic Orange — cincin jingga plasma, busur tepi planet jingga muda terang, satelit + rasi emas pucat.
+ *  WAJIB di atas `SpaceDepth` (inisialisasi top-level berurutan). */
+val SpaceCardOrnament = DepthOrnament(
+    ring = SpaceAccent,
+    ringAlpha = 0.34f,
+    limb = Color(0xFFFFB066),
+    limbAlpha = 0.80f,
+    star = SpaceGold,
+    starAlpha = 0.75f
+)
+
 /** Batch 324: profil kedalaman fisik Space — mesin SAMA dgn tema lain (lihat [DepthStyle]). Batch 347: sorot = krem hangat (cahaya bara),
  *  bayangan = hitam kecokelatan, lantai sumur nyaris void supaya cekungan terbaca dari luminansi. Sudut ROUND dgn pojok "orbit" per-pojok. */
 val SpaceDepth = DepthStyle(
@@ -1000,7 +1025,8 @@ val SpaceDepth = DepthStyle(
     tintedCardCorners = SpaceOrbitMirrorCorners,
     knobShape = SpaceKnobShape,
     chipShape = SpaceChipShape,
-    trackShape = SpaceTrackShape
+    trackShape = SpaceTrackShape,
+    ornament = SpaceCardOrnament
 )
 
 /** Batch 324: satu bintang latar Space (posisi 0..1 relatif layar, radius dp, alpha, bara/krem, berkilau silang). */

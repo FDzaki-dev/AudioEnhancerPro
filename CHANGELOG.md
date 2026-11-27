@@ -1,5 +1,17 @@
 # Changelog
 
+## Batch 348: ornamen Cosmic Orange di pelat kartu (bukan hanya latar layar)
+
+Permintaan user: "Ornamen kok di background doang. Mana paten!!" (+ `Boomly_v347.zip`).
+
+- **Akar masalah**: ornamen B347 (nebula, pita galaksi, planet berkorona, cincin orbit) seluruhnya digambar di latar layar (`spaceCosmosBackdrop`); kartu = pelat cokelat polos, jadi di balik konten tak ada ornamen sama sekali.
+- **Ornamen kartu** (`depthPlateSurface`, digambar di belakang konten, sesudah butiran, sebelum alur ukir + bevel): (1) busur tepi planet jingga muda menyala mengikuti pojok besar 44dp (glow lebar + garis tipis); (2) tiga cincin orbit berpusat di dekat pojok atas dengan satu satelit emas berhalo di cincin tengah; (3) rasi 5 bintang + satu kilau 4 sudut di tepi bawah (hanya bila lebar >= 190dp). Kartu status (`tintedCardCorners`) = cermin 180 derajat (cincin di kiri-bawah, rasi di tepi atas). Pelat < 150 x 64dp (snackbar, baris pendek) dilewati.
+- **Kontrak**: `DepthOrnament` (warna + alpha cincin/busur/bintang) dan `DepthStyle.ornament` (default `null` = 6 tema lain TIDAK berubah; hanya `SpaceDepth` mengaktifkan lewat `SpaceCardOrnament`); `DepthParts.ornament` (true hanya `DepthPartsPlate`, jadi tombol/tab dan dialog tak berornamen).
+- **Ringan GPU/CPU**: geometri (`CardOrnament`: Path + gaya goresan) dibuat SEKALI di `drawWithCache` (ulang hanya saat ukuran/densitas berubah); per gambar ulang cuma 7 panggilan gambar kecil (2 busur, 1 path cincin, 2 lingkaran satelit, 1 path garis rasi, 1 path bintang). Tanpa animasi, tanpa layer offscreen, tanpa blur, tanpa bitmap baru.
+- **Tes**: `SpaceBackdropTest` +3 (hanya `SpaceDepth` mengaktifkan ornamen dan dideklarasikan di atasnya; ornamen hanya di `DepthPartsPlate`, urutan lapisan face -> grain -> ornamen -> alur ukir -> bevel, geometri tak dibangun di dalam `ops`; <= 8 panggilan gambar, tanpa animasi/blur/layer, pelat kecil dilewati). Total diharapkan 385 (382 + 3).
+- **Validasi**: semua asersi tes (baru + yang terdampak) disimulasikan terhadap berkas: PASS. kotlinc 1.9.25 pada 3 berkas: himpunan galat identik dengan v347 (semua semantik karena tanpa classpath Compose), tanpa galat sintaks/galat baru di area ornamen. NOT VERIFIED: kompilasi penuh Gradle, JUnit, CI, tampilan dan fps di HP; angka alpha/posisi = tebakan awal, belum dilihat di perangkat.
+- **File** (3 kode): `Theme.kt`, `SkeuomorphicComponents.kt`, `SpaceBackdropTest.kt` (+ docs: `README.md`, `CHANGELOG.md`, `PROJECT_STATE.md`).
+
 ## Batch 347: rebranding tema Space menjadi Cosmic Orange (ornamen megah, ringan GPU/CPU)
 
 Permintaan user: "Rebranding tema space -> Cosmic Orange. Dengan ornamen megah namun tetap ringan untuk GPU/CPU!!"
