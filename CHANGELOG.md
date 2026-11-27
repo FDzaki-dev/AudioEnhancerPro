@@ -1,5 +1,19 @@
 # Changelog
 
+## Batch 347: rebranding tema Space menjadi Cosmic Orange (ornamen megah, ringan GPU/CPU)
+
+Permintaan user: "Rebranding tema space -> Cosmic Orange. Dengan ornamen megah namun tetap ringan untuk GPU/CPU!!"
+
+- **Branding**: nama tampil `Space` -> `Cosmic Orange` (judul + deskripsi ID/EN di `strings.xml` dan `values-en/strings.xml`). Id internal TETAP: enum `AppThemeStyle.SPACE`, kunci tersimpan `"space"` (`PrefsHelper.APP_THEME_SPACE`), nama simbol `Space*`, nama sumber daya `theme_style_space_*`. Pilihan tema tersimpan user lama tetap valid (tanpa migrasi) dan tes teks-sumber tidak pecah; dijaga tes baru.
+- **Palet** (`Theme.kt`): void cokelat-hitam hangat (`0A0504`/`120805`/`1A0D08`), kartu `33190F` -> `1D0E08`, primary jingga plasma `FF8A2B`, secondary emas bintang `FFC857`, kilau knob `FFE08A`, tepi bercahaya jingga -> emas -> merah bara. Kontras WCAG di kartu paling terang: teks utama 14,75:1, sekunder 10,42:1, muted 5,84:1, aksen 6,93:1, emas 10,61:1. Warna error diganti merah muda-mawar `FF5C7A` (5,49:1) supaya tak tertukar dengan aksen jingga.
+- **Ornamen megah**: nebula 4 warna (amber, merah bara, emas, ungu-cokelat gelap) + pita galaksi miring + kilau bintang raksasa di pusat orbit; gerhana planet berkorona (halo lebar di luar tepi jingga menyala); dua cincin orbit + satu satelit emas; bintang bara/krem.
+- **Ringan GPU/CPU (tanpa menambah beban per frame)**: arsitektur B330 dipertahankan. Nebula, pita, kilau, dan planet + korona dirender SEKALI ke dua bitmap 1/16 piksel (`drawWithCache`, ulang hanya saat ukuran/densitas berubah). Live tiap frame: 2 tekstur + 120 bintang (turun dari 150) + 4 panggilan gambar orbit (satu cincin + satu satelit baru). Tanpa animasi/state terus-menerus. Panggilan gambar kecil per frame ±130 (sebelumnya ±165).
+- **Tes**: `SpaceBackdropTest` +3 tes (kunci tersimpan "space"; judul Cosmic Orange di ID dan EN; ornamen live <= 6 panggilan gambar orbit, bintang <= 150, tanpa animasi). Semua asersi tes teks-sumber (lama + baru) disimulasikan terhadap berkas: PASS. Sintaks `Theme.kt` + tes diperiksa kotlinc 1.9.25 (tanpa galat sintaks).
+- **Tidak diubah (batas scope file per batch)**: widget beranda (B325) tetap skin Space biru; palet dan drawable-nya berdiri sendiri (RGB turunan palet lama di banyak drawable), jadi mengubahnya = batch terpisah.
+- **File** (4 kode/resource): `Theme.kt`, `strings.xml` (id), `values-en/strings.xml`, `SpaceBackdropTest.kt` (+ docs: `README.md`, `CHANGELOG.md`, `PROJECT_STATE.md`).
+
+**Status**: NOT VERIFIED (kompilasi penuh, JUnit, SpotBugs, CI, tampilan dan fps di HP). Revert = `Boomly_v346.zip`.
+
 ## Batch 346: tes guard Clarity gagal palsu + listener izin Shizuku tanpa `lateinit` (CI run 142)
 
 Unggahan user: `AEP_laporan-untuk-claude_run142.zip` (CI B345), tanpa keterangan.

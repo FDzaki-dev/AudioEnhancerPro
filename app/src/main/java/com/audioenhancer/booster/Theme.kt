@@ -937,34 +937,37 @@ val SereneDepth = DepthStyle(
 
 // ===== Batch 324: varian ke-7 "Space" (request user: skin bertema luar angkasa, shape megah). Bahasa bentuk = "orbit":
 // SATU pojok raksasa 44dp di kiri-atas (tempat cahaya jatuh = tepi planet) + tiga pojok tajam 6dp; kartu status kebalikannya (kanan-bawah).
-// Knob/kunci = permata (potong 42%), chip & trek = pil berekor. Palet: void biru-hitam, ion-cyan (primary), ungu nebula (secondary),
-// emas bintang (kilau knob). Kontras dihitung (WCAG): teks utama 13.3:1, sekunder 8.8:1, muted 5.18:1 di permukaan kartu paling terang.
+// Knob/kunci = permata (potong 42%), chip & trek = pil berekor.
+// Batch 347 (request user: "Rebranding tema space -> Cosmic Orange, ornamen megah namun tetap ringan untuk GPU/CPU"): tampil sebagai "Cosmic Orange".
+// Id internal TETAP `SPACE` / "space" (PrefsHelper.APP_THEME_SPACE) dan nama simbol `Space*` tidak diganti: pilihan tema tersimpan user lama tetap valid
+// dan tes teks-sumber tidak pecah. Palet: void cokelat-hitam hangat, jingga plasma (primary), emas bintang (secondary), merah bara (tepi).
+// Kontras dihitung (WCAG) di permukaan kartu paling terang: teks utama 14.75:1, sekunder 10.42:1, muted 5.84:1, aksen jingga 6.93:1, emas 10.61:1.
 // WAJIB DI ATAS `SpaceDepth`/`SpaceSkeuTokens` (inisialisasi top-level berurutan; di bawah = null saat startup).
-val SpaceVoid = Color(0xFF04050E)
-val SpaceBackground = Color(0xFF070A1C)
-val SpaceSurface = Color(0xFF0B1030)
-val SpaceSurfaceRaised = Color(0xFF121A42)
-val SpaceCardLight = Color(0xFF1A2354)
-val SpaceCardDark = Color(0xFF0F1537)
-val SpaceAccent = Color(0xFF7DE3FF) // ion cyan, primary
-val SpaceAccentDeep = Color(0xFF0B3A57)
-val SpaceSecondary = Color(0xFFB9A3FF) // ungu nebula, secondary
-val SpaceSecondaryDeep = Color(0xFF2E2370)
-val SpaceGold = Color(0xFFFFD98E) // emas bintang: kilau knob slider
-val SpaceTextPrimary = Color(0xFFEEF2FF)
-val SpaceTextSecondary = Color(0xFFBAC6F0)
-val SpaceTextMuted = Color(0xFF8A97C6)
-val SpaceOutline = Color(0xFF2E3A76)
-// Tepi bercahaya: cyan -> ungu nebula -> magenta redup (kiri-atas ke kanan-bawah).
+val SpaceVoid = Color(0xFF0A0504)
+val SpaceBackground = Color(0xFF120805)
+val SpaceSurface = Color(0xFF1A0D08)
+val SpaceSurfaceRaised = Color(0xFF26140C)
+val SpaceCardLight = Color(0xFF33190F)
+val SpaceCardDark = Color(0xFF1D0E08)
+val SpaceAccent = Color(0xFFFF8A2B) // jingga plasma, primary
+val SpaceAccentDeep = Color(0xFF5A2508)
+val SpaceSecondary = Color(0xFFFFC857) // emas bintang, secondary
+val SpaceSecondaryDeep = Color(0xFF5C3A07)
+val SpaceGold = Color(0xFFFFE08A) // emas pucat: kilau knob slider
+val SpaceTextPrimary = Color(0xFFFFF1E6)
+val SpaceTextSecondary = Color(0xFFE8C9B0)
+val SpaceTextMuted = Color(0xFFB9937A)
+val SpaceOutline = Color(0xFF6B3F2A)
+// Tepi bercahaya: jingga -> emas -> merah bara redup (kiri-atas ke kanan-bawah).
 val SpaceBorderBrush: Brush = Brush.linearGradient(
-    0.0f to Color(0x667DE3FF),
-    0.5f to Color(0x44B9A3FF),
-    1.0f to Color(0x2AFF8AD8)
+    0.0f to Color(0x66FF8A2B),
+    0.5f to Color(0x44FFC857),
+    1.0f to Color(0x2AFF4D3D)
 )
 val SpaceCardBrush: Brush = Brush.linearGradient(colors = listOf(SpaceCardLight, SpaceCardDark))
 val SpaceSpecularBrush: Brush = SolidColor(Color.Transparent) // pelat tanpa kilau kaca; kilau datang dari bevel + tepi
 val SpaceScreenBackgroundBrush: Brush = Brush.verticalGradient(
-    listOf(Color(0xFF0A1030), SpaceBackground, SpaceVoid)
+    listOf(Color(0xFF1F0C06), SpaceBackground, SpaceVoid)
 )
 val SpaceOrbitCorners = DepthCorners(44.dp, 6.dp, 6.dp, 6.dp)
 val SpaceOrbitMirrorCorners = DepthCorners(6.dp, 6.dp, 44.dp, 6.dp)
@@ -972,21 +975,21 @@ val SpaceKnobShape: Shape = CutCornerShape(percent = 42)
 val SpaceChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 2.dp, 2.dp, 2.dp)
 val SpaceTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 1.dp, 1.dp, 1.dp)
 
-/** Batch 324: profil kedalaman fisik Space — mesin SAMA dgn tema lain (lihat [DepthStyle]); sorot = putih-biru dingin (cahaya bintang),
- *  bayangan = hitam kebiruan, lantai sumur nyaris void supaya cekungan terbaca dari luminansi. Sudut ROUND dgn pojok "orbit" per-pojok. */
+/** Batch 324: profil kedalaman fisik Space — mesin SAMA dgn tema lain (lihat [DepthStyle]). Batch 347: sorot = krem hangat (cahaya bara),
+ *  bayangan = hitam kecokelatan, lantai sumur nyaris void supaya cekungan terbaca dari luminansi. Sudut ROUND dgn pojok "orbit" per-pojok. */
 val SpaceDepth = DepthStyle(
     lightX = -0.5522f,
     lightY = -0.8337f,
     faceTop = SpaceCardLight,
     faceBottom = SpaceCardDark,
-    rimLight = Color(0xFFCFE4FF),
+    rimLight = Color(0xFFFFE2C2),
     rimLightAlpha = 0.44f,
-    rimShade = Color(0xFF02030A),
+    rimShade = Color(0xFF060201),
     rimShadeAlpha = 0.66f,
     bevelWidth = 1.7.dp,
-    castShadow = Color(0xFF01020A),
-    wellFloor = Color(0xFF03040E),
-    knobShade = Color(0xFF38468A),
+    castShadow = Color(0xFF050201),
+    wellFloor = Color(0xFF080302),
+    knobShade = Color(0xFF8F4318),
     grainAlpha = 0.03f,
     frameInset = 0.dp,
     corner = DepthCorner.ROUND,
@@ -1000,49 +1003,84 @@ val SpaceDepth = DepthStyle(
     trackShape = SpaceTrackShape
 )
 
-/** Batch 324: satu bintang latar Space (posisi 0..1 relatif layar, radius dp, alpha, hangat/dingin, berkilau silang). */
+/** Batch 324: satu bintang latar Space (posisi 0..1 relatif layar, radius dp, alpha, bara/krem, berkilau silang). */
 private class SpaceStar(val x: Float, val y: Float, val radiusDp: Float, val alpha: Float, val warm: Boolean, val sparkle: Boolean)
 
-/** 150 bintang deterministik (seed tetap = langit yang SAMA tiap buka app); dibuat SEKALI. Tiap bintang ke-25 = bintang terang berkilau silang. */
+/** 120 bintang deterministik (seed tetap = langit yang SAMA tiap buka app); dibuat SEKALI. Tiap bintang ke-20 = bintang terang berkilau silang.
+ *  Batch 347: 150 -> 120 (lebih sedikit panggilan gambar per frame; tampilan tetap rapat karena nebula/korona kini lebih kaya). */
 private val SpaceStars: List<SpaceStar> = run {
     val rnd = kotlin.random.Random(0x5BACE)
-    List(150) { i ->
-        val bright = i % 25 == 0
+    List(120) { i ->
+        val bright = i % 20 == 0
         SpaceStar(
             x = rnd.nextFloat(),
             y = rnd.nextFloat(),
             radiusDp = if (bright) 1.5f + rnd.nextFloat() * 0.6f else 0.4f + rnd.nextFloat() * 0.9f,
             alpha = if (bright) 0.95f else 0.2f + rnd.nextFloat() * 0.6f,
-            warm = rnd.nextInt(5) == 0,
+            warm = rnd.nextInt(5) < 2,
             sparkle = bright
         )
     }
 }
 
-/** Nebula: tiga gradien radial (ungu kanan-atas, cyan kiri-tengah, magenta kanan-bawah) di atas latar vertikal. */
+/** Batch 347: warna bintang — bara jingga (bintang "warm", 40%) dan krem hangat (sisanya). */
+private val SpaceStarEmber = Color(0xFFFFB066)
+private val SpaceStarCream = Color(0xFFFFEBD2)
+
+/** Nebula Cosmic Orange (Batch 347): amber kanan-atas, merah bara kiri-tengah, emas kanan-bawah, ungu-cokelat gelap kiri-atas (kedalaman), pita galaksi
+ *  miring di tengah, dan kilau bintang raksasa di pusat orbit. Seluruhnya dirender SEKALI ke bitmap kecil (lihat [renderLowRes]) = nol biaya per frame. */
 private fun DrawScope.drawSpaceNebulae() {
     val w = size.width
     val h = size.height
     drawRect(
         brush = Brush.radialGradient(
-            colors = listOf(Color(0x557C4DFF), Color(0x00000000)),
+            colors = listOf(Color(0x66FF7A1A), Color(0x00FF7A1A)),
             center = Offset(w * 0.86f, h * 0.12f),
             radius = w * 0.85f
         )
     )
     drawRect(
         brush = Brush.radialGradient(
-            colors = listOf(Color(0x3329D3FF), Color(0x00000000)),
+            colors = listOf(Color(0x40FF3D2E), Color(0x00FF3D2E)),
             center = Offset(w * 0.08f, h * 0.46f),
             radius = w * 0.8f
         )
     )
     drawRect(
         brush = Brush.radialGradient(
-            colors = listOf(Color(0x30FF4FB8), Color(0x00000000)),
+            colors = listOf(Color(0x33FFB347), Color(0x00FFB347)),
             center = Offset(w * 0.7f, h * 0.78f),
             radius = w * 0.7f
         )
+    )
+    drawRect(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x2E6A2A8C), Color(0x006A2A8C)),
+            center = Offset(w * 0.1f, h * 0.05f),
+            radius = w * 0.6f
+        )
+    )
+    rotate(degrees = -24f, pivot = Offset(w * 0.5f, h * 0.5f)) {
+        drawRect(
+            brush = Brush.linearGradient(
+                0.0f to Color(0x00FFB066),
+                0.5f to Color(0x2CFFB066),
+                1.0f to Color(0x00FFB066),
+                start = Offset(0f, h * 0.40f),
+                end = Offset(0f, h * 0.60f)
+            ),
+            topLeft = Offset(-w * 0.5f, h * 0.40f),
+            size = Size(w * 2f, h * 0.20f)
+        )
+    }
+    drawCircle(
+        brush = Brush.radialGradient(
+            colors = listOf(Color(0x66FFE0A0), Color(0x00FFE0A0)),
+            center = Offset(w * 0.86f, h * 0.12f),
+            radius = w * 0.14f
+        ),
+        radius = w * 0.14f,
+        center = Offset(w * 0.86f, h * 0.12f)
     )
 }
 
@@ -1052,7 +1090,7 @@ private fun DrawScope.drawSpaceStars() {
     val h = size.height
     for (star in SpaceStars) {
         val center = Offset(star.x * w, star.y * h)
-        val tint = if (star.warm) Color(0xFFFFE2B0) else Color(0xFFDCE8FF)
+        val tint = if (star.warm) SpaceStarEmber else SpaceStarCream
         val radius = star.radiusDp * density
         drawCircle(color = tint.copy(alpha = star.alpha), radius = radius, center = center)
         if (star.sparkle) {
@@ -1064,19 +1102,34 @@ private fun DrawScope.drawSpaceStars() {
     }
 }
 
-/** Cakrawala planet raksasa di dasar layar (badan gelap + cincin atmosfer cyan/ungu). Batch 330: dipisah dari orbit supaya planet bisa dirender ke bitmap (frekuensi rendah). */
+/** Gerhana planet raksasa di dasar layar: badan gelap dengan tepi jingga menyala + korona (halo lebar) di luar tepinya. Batch 330: dipisah dari orbit
+ *  supaya planet bisa dirender ke bitmap (frekuensi rendah). Batch 347: korona ditambahkan di bitmap yang SAMA (tanpa tekstur/panggilan gambar baru per frame). */
 private fun DrawScope.drawSpacePlanet() {
     val w = size.width
     val h = size.height
     val planetRadius = w * 1.25f
     val planetCenter = Offset(w * 0.5f, h + planetRadius * 0.82f)
+    val coronaRadius = planetRadius * 1.34f
     drawCircle(
         brush = Brush.radialGradient(
-            0.0f to Color(0xFF03040C),
-            0.9f to Color(0xFF03040C),
-            0.965f to Color(0x667DE3FF),
-            0.985f to Color(0x44B9A3FF),
-            1.0f to Color(0x00000000),
+            0.0f to Color(0x00FF9A3C),
+            0.76f to Color(0x00FF9A3C),
+            0.80f to Color(0x66FF9A3C),
+            0.88f to Color(0x33FF5A1F),
+            1.0f to Color(0x00FF5A1F),
+            center = planetCenter,
+            radius = coronaRadius
+        ),
+        radius = coronaRadius,
+        center = planetCenter
+    )
+    drawCircle(
+        brush = Brush.radialGradient(
+            0.0f to Color(0xFF050201),
+            0.9f to Color(0xFF050201),
+            0.955f to Color(0x99FF9A3C),
+            0.975f to Color(0x66FF5A1F),
+            1.0f to Color(0x00FF5A1F),
             center = planetCenter,
             radius = planetRadius * 1.06f
         ),
@@ -1085,18 +1138,29 @@ private fun DrawScope.drawSpacePlanet() {
     )
 }
 
-/** Satu orbit miring tipis di atas nebula ungu. Batch 330: SELALU digambar langsung (garis 1dp tipis akan kabur bila dirender ke bitmap beresolusi rendah). */
+/** Dua cincin orbit miring tipis di atas nebula amber + satu satelit emas di cincin dalam. Batch 330: SELALU digambar langsung (garis 1dp tipis akan
+ *  kabur bila dirender ke bitmap beresolusi rendah). Batch 347: cincin kedua + satelit = empat panggilan gambar (batas dijaga `SpaceBackdropTest`). */
 private fun DrawScope.drawSpaceOrbit() {
     val w = size.width
     val h = size.height
     val orbitCenter = Offset(w * 0.86f, h * 0.12f)
     rotate(degrees = -24f, pivot = orbitCenter) {
         drawOval(
-            color = Color(0x247DE3FF),
+            color = Color(0x24FF9A3C),
             topLeft = Offset(orbitCenter.x - w * 0.62f, orbitCenter.y - h * 0.045f),
             size = Size(w * 1.24f, h * 0.09f),
             style = Stroke(width = 1.dp.toPx())
         )
+        drawOval(
+            color = Color(0x1AFFC857),
+            topLeft = Offset(orbitCenter.x - w * 0.46f, orbitCenter.y - h * 0.032f),
+            size = Size(w * 0.92f, h * 0.064f),
+            style = Stroke(width = 1.dp.toPx())
+        )
+        // Satelit di sudut 200 derajat cincin dalam (cos = -0,9397; sin = -0,3420), tampak di sisi kiri pusat orbit.
+        val satellite = Offset(orbitCenter.x - w * 0.46f * 0.9397f, orbitCenter.y - h * 0.032f * 0.3420f)
+        drawCircle(color = Color(0x33FFC857), radius = 5.dp.toPx(), center = satellite)
+        drawCircle(color = Color(0xFFFFE08A), radius = 1.8.dp.toPx(), center = satellite)
     }
 }
 
@@ -1113,12 +1177,14 @@ private fun CacheDrawScope.renderLowRes(block: DrawScope.() -> Unit): ImageBitma
     return bitmap
 }
 
-/** Batch 324: latar kosmos Space (nebula -> bintang -> planet -> orbit), dipasang di Surface root `MainActivity` HANYA untuk tema Space.
- *  Batch 330 (laporan user: berat/fps drop saat tema Space + scroll cepat): sebelumnya SEMUA ini (3 gradien radial + gradien planet layar-penuh +
- *  150 bintang) direkam ulang dan digambar ulang tiap frame scroll, karena konten yang bergeser membuat layer akar digambar ulang. Kini nebula dan planet
- *  (frekuensi rendah) dirender SEKALI ke dua bitmap kecil (1/16 piksel layar, ±1,3 MB total) di `drawWithCache` (ulang hanya saat ukuran/densitas
- *  berubah), lalu tiap frame hanya dua lapis tekstur + 150 lingkaran kecil + 1 garis orbit. URUTAN lapis TETAP seperti B324 (bintang di BAWAH planet).
- *  Bintang dan orbit sengaja tetap digambar langsung supaya tajam. NOT VERIFIED di device. */
+/** Batch 324: latar kosmos Space/Cosmic Orange (nebula -> bintang -> planet -> orbit), dipasang di Surface root `MainActivity` HANYA untuk tema ini.
+ *  Batch 330 (laporan user: berat/fps drop saat tema Space + scroll cepat): sebelumnya SEMUA ini direkam ulang dan digambar ulang tiap frame scroll, karena
+ *  konten yang bergeser membuat layer akar digambar ulang. Kini nebula dan planet (frekuensi rendah) dirender SEKALI ke dua bitmap kecil (1/16 piksel
+ *  layar, ±1,3 MB total) di `drawWithCache` (ulang hanya saat ukuran/densitas berubah), lalu tiap frame hanya dua lapis tekstur + bintang + garis orbit.
+ *  URUTAN lapis TETAP seperti B324 (bintang di BAWAH planet). Bintang dan orbit sengaja tetap digambar langsung supaya tajam.
+ *  Batch 347 (Cosmic Orange): ornamen lebih megah TANPA menambah beban per frame — pita galaksi, nebula 4 warna, kilau raksasa dan korona planet masuk ke bitmap
+ *  yang sama; bintang 150 -> 120; tambahan live hanya satu cincin + satu satelit (4 panggilan gambar orbit, total ±130 panggilan gambar kecil per frame). Tanpa
+ *  animasi/state terus-menerus. NOT VERIFIED di device. */
 internal fun Modifier.spaceCosmosBackdrop(): Modifier = this.drawWithCache {
     val nebula = renderLowRes { drawSpaceNebulae() }
     val planet = renderLowRes { drawSpacePlanet() }
@@ -1343,8 +1409,9 @@ val OldMoneySkeuTokens = SkeuTokens(
     depth = OldMoneyDepth
 )
 
-/** Varian 7: "Space" (Batch 324) — pelat timbul gradien biru-void dgn tepi bercahaya cyan/ungu (`SpaceBorderBrush`), pojok orbit raksasa
- *  (`SpaceOrbitCorners`), kilau knob = emas bintang, glow aktif/tekan = ion-cyan. Dual-shadow lama Transparent (mesin `depth` menggantikannya). */
+/** Varian 7: "Space" (Batch 324), tampil sebagai "Cosmic Orange" sejak Batch 347 — pelat timbul gradien cokelat-bara dgn tepi bercahaya jingga/emas/merah
+ *  (`SpaceBorderBrush`), pojok orbit raksasa (`SpaceOrbitCorners`), kilau knob = emas bintang, glow aktif/tekan = jingga plasma. Dual-shadow lama
+ *  Transparent (mesin `depth` menggantikannya). */
 val SpaceSkeuTokens = SkeuTokens(
     mutedText = SpaceTextMuted,
     bevelBrush = SpaceCardBrush,
@@ -1371,7 +1438,8 @@ val SpaceSkeuTokens = SkeuTokens(
  *  `AMOLED_GLASS` ("Midnight Glass"). Batch 43: +`STUDIO_EQ` (varian ke-4).
  *  Batch 111: +`SERENE_M3` (varian ke-5, genuine Material 3).
  *  Batch 176: +`OLD_MONEY` (varian ke-6, serif klasik + burgundy/sage-hunter).
- *  Batch 324: +`SPACE` (varian ke-7, kosmos malam + kartu bersapuan orbit). */
+ *  Batch 324: +`SPACE` (varian ke-7, kosmos malam + kartu bersapuan orbit). Batch 347: tampil sebagai "Cosmic Orange" (palet jingga); id `SPACE` dan
+ *  kunci tersimpan "space" TIDAK diubah supaya pilihan user lama tetap valid. */
 enum class AppThemeStyle { AMOLED_GLASS, RADICAL_SKEUO, SKEUOMORPHISM, STUDIO_EQ, SERENE_M3, OLD_MONEY, SPACE }
 
 val LocalAppThemeStyle = compositionLocalOf { AppThemeStyle.AMOLED_GLASS }
@@ -1539,16 +1607,17 @@ private val OldMoneyDarkColors = darkColorScheme(
     outline = OldMoneyOutline
 )
 
-/** Batch 324: skema warna Space — primary ion-cyan, secondary ungu nebula, permukaan biru-void (kontras teks/aksen dihitung WCAG di blok palet). */
+/** Batch 324: skema warna Space; Batch 347 (Cosmic Orange): primary jingga plasma, secondary emas bintang, permukaan cokelat-void hangat (kontras teks/aksen
+ *  dihitung WCAG di blok palet; error dibuat merah muda-mawar supaya tak tertukar dengan aksen jingga). */
 private val SpaceDarkColors = darkColorScheme(
     primary = SpaceAccent,
-    onPrimary = Color(0xFF031018),
+    onPrimary = Color(0xFF1A0A02),
     primaryContainer = SpaceAccentDeep,
-    onPrimaryContainer = Color(0xFFD6F6FF),
+    onPrimaryContainer = Color(0xFFFFE2CC),
     secondary = SpaceSecondary,
-    onSecondary = Color(0xFF120C33),
+    onSecondary = Color(0xFF2A1800),
     secondaryContainer = SpaceSecondaryDeep,
-    onSecondaryContainer = Color(0xFFE6DEFF),
+    onSecondaryContainer = Color(0xFFFFEBC2),
     background = SpaceBackground,
     onBackground = SpaceTextPrimary,
     surface = SpaceSurface,
@@ -1556,10 +1625,10 @@ private val SpaceDarkColors = darkColorScheme(
     surfaceVariant = SpaceSurfaceRaised,
     onSurfaceVariant = SpaceTextSecondary,
     surfaceTint = SpaceAccent,
-    error = Color(0xFFFF6B6B),
+    error = Color(0xFFFF5C7A),
     onError = Color.White,
-    errorContainer = Color(0xFF4A1616),
-    onErrorContainer = Color(0xFFFFD8D8),
+    errorContainer = Color(0xFF4A1620),
+    onErrorContainer = Color(0xFFFFD8DE),
     outline = SpaceOutline
 )
 
