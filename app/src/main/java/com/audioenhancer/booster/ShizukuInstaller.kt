@@ -161,11 +161,14 @@ internal object ShizukuInstaller {
     }
 
     private suspend fun requestPermission(): Boolean = suspendCancellableCoroutine { cont ->
-        lateinit var listener: Shizuku.OnRequestPermissionResultListener
-        listener = Shizuku.OnRequestPermissionResultListener { requestCode, grantResult ->
-            if (requestCode == SilentInstallPolicy.REQUEST_CODE) {
-                Shizuku.removeRequestPermissionResultListener(listener)
-                if (cont.isActive) cont.resume(grantResult == PackageManager.PERMISSION_GRANTED)
+        // Batch 346: object expression (bukan `lateinit var` + lambda): pendengar melepas dirinya lewat `this` yang pasti terisi, tanpa slot
+        // `Ref.ObjectRef` yang di bytecode bernilai null saat dibuat (SpotBugs NP_NULL_PARAM_DEREF di tiga pemanggilan `remove...`, CI run 142).
+        val listener = object : Shizuku.OnRequestPermissionResultListener {
+            override fun onRequestPermissionResult(requestCode: Int, grantResult: Int) {
+                if (requestCode == SilentInstallPolicy.REQUEST_CODE) {
+                    Shizuku.removeRequestPermissionResultListener(this)
+                    if (cont.isActive) cont.resume(grantResult == PackageManager.PERMISSION_GRANTED)
+                }
             }
         }
         Shizuku.addRequestPermissionResultListener(listener)

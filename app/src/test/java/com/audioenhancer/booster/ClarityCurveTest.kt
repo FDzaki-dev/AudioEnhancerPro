@@ -144,7 +144,9 @@ class ClarityCurveTest {
     @Test
     fun `clarity setter rewrites only the post eq bands`() {
         val source = readSource("AudioEnhancerService.kt")
-        val setter = bodyBetween(source, "fun setClarity(", "private fun applyClarityBands(")
+        // Batch 346: akhir setter = penutup fungsi (`\n    }\n`), bukan `applyClarityBands`: sejak B340/B343 `setOutputGain`/`applyOutputGain` berada di antara
+        // keduanya dan memang memanggil `applyCompressorBands(` (sah), sehingga irisan lama ikut memuatnya dan tes ini gagal palsu (CI run 142).
+        val setter = bodyBetween(source, "fun setClarity(", "\n    }\n")
         assertTrue(setter.contains("PrefsHelper.setClarity(this, clamped)"))
         assertTrue(setter.contains("applyClarityBands()"))
         assertFalse("Clarity tidak boleh menulis ulang band kompresor", setter.contains("applyCompressorBands("))

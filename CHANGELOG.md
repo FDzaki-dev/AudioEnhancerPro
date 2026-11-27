@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 346: tes guard Clarity gagal palsu + listener izin Shizuku tanpa `lateinit` (CI run 142)
+
+Unggahan user: `AEP_laporan-untuk-claude_run142.zip` (CI B345), tanpa keterangan.
+
+- **B345 terverifikasi CI (run 142)**: kompilasi Kotlin (utama + tes) bersih, jadi galat tipe B344 yang dikhawatirkan tidak ada; ArchUnit 12/0, detekt 0, detekt typed 0, lint 0, peringatan kompilator 0, 378 dari 379 tes lulus. Sisa: 1 tes gagal + 3 temuan SpotBugs, keduanya di kode B340-B344 yang baru sekarang sampai ke tahap itu.
+- **Tes gagal `ClarityCurveTest.clarity setter rewrites only the post eq bands`** ("Clarity tidak boleh menulis ulang band kompresor"). Penyebab terbukti: tes mengiris sumber dari `fun setClarity(` sampai `private fun applyClarityBands(`; sejak B340/B343 `setOutputGain` dan `applyOutputGain` berada di antara keduanya dan `setOutputGain` memang memanggil `applyCompressorBands(` (sah: pelindung per band Gain Keluaran), sehingga irisan lama ikut memuatnya. `setClarity` sendiri tidak memanggilnya. Kode produksi benar; yang basi hanya penanda akhir irisan.
+- **Perbaikan tes**: penanda akhir irisan setter diganti penutup fungsi (`\n    }\n`, pola yang sama dengan tes ViewModel di berkas yang sama). Semua asersi tes itu disimulasikan terhadap sumber (7 PASS; irisan lama terbukti memuat `applyCompressorBands(`). Maksud tes (Clarity tidak menulis band MBC) tetap dijaga penuh.
+- **SpotBugs NP_NULL_PARAM_DEREF x3** di `ShizukuInstaller.kt` 167/172/177 (`Shizuku.removeRequestPermissionResultListener(listener)`, parameter `@NonNull`): `listener` adalah `lateinit var` yang di bytecode menjadi `Ref.ObjectRef` berisi null saat dibuat, sehingga SpotBugs menganggap null terkirim. Di alur nyata nilainya sudah terisi sebelum dipakai, tetapi itu bukan alasan menambah filter: bentuk kodenya diganti.
+- **Perbaikan**: `requestPermission` memakai `object : Shizuku.OnRequestPermissionResultListener` dan melepas dirinya lewat `this`; dua pemanggilan lain memakai `val listener` biasa. Perilaku sama (daftar -> hasil/batal/galat -> lepas). Tanda tangan `onRequestPermissionResult(int, int)` dan anotasi `@NonNull` pada `remove...` dicek dari sumber Shizuku API; sintaks diperiksa kotlinc 1.9.25 (tanpa galat sintaks).
+- **File** (2): `ShizukuInstaller.kt`, `ClarityCurveTest.kt` (+ docs).
+
+**Status**: NOT VERIFIED (kompilasi penuh, JUnit, SpotBugs, CI, perilaku Shizuku dan ubin di HP). Revert = `Boomly_v345.zip`.
+
 ## Batch 345: perbaiki gagal kompilasi KDoc `ShizukuInstaller` (CI run 379)
 
 Unggahan user: `log_fail_v379-debug-run379.zip` (build debug B344 gagal) dan `Boomly_v344.zip`, tanpa keterangan.
