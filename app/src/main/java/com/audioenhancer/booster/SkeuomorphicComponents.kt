@@ -914,27 +914,51 @@ private fun depthOctagon(w: Float, h: Float, inset: Float, k: Float): Path = Pat
     close()
 }
 
-/** Batch 348: geometri ornamen kartu hasil [buildCardOrnament]. Path dan gaya goresan dibuat SEKALI di cache gambar (ulang hanya saat
- *  ukuran/densitas pelat berubah); per frame cuma [drawCardOrnament]. */
+/** Batch 349: garis gradasi 1 titik awal -> 1 titik akhir (kilau tepi kartu). */
+private class OrnamentStreak(val brush: Brush, val start: Offset, val end: Offset, val width: Float)
+
+/** Batch 348/349: geometri ornamen kartu hasil [buildCardOrnament]. Path, brush gradasi dan gaya goresan dibuat SEKALI di cache gambar
+ *  (ulang hanya saat ukuran/densitas pelat berubah); per frame cuma [drawCardOrnament]. */
 private class CardOrnament(
     val spec: DepthOrnament,
+    val glow: Brush,
+    val glowRadius: Float,
+    val glowCenter: Offset,
     val limb: Rect?,
     val limbStart: Float,
     val limbStyle: Stroke,
     val limbGlowStyle: Stroke,
+    val streakA: OrnamentStreak?,
+    val streakB: OrnamentStreak?,
     val rings: Path,
     val ringStyle: Stroke,
     val satellite: Offset,
     val satelliteRadius: Float,
+    val brackets: Path,
+    val bracketStyle: Stroke,
     val links: Path?,
     val linkStyle: Stroke,
-    val stars: Path?
+    val dust: Path,
+    val stars: Path
 )
 
-/** Batch 348: susun ornamen pelat [w] x [h] px ([d] = px per dp): tiga cincin orbit berpusat di dekat pojok kanan-atas, satu satelit di cincin
- *  tengah, busur tepi planet mengikuti pojok besar ([bigCorner] px, 0 = tanpa busur; [bevel] = lebar bevel px) dan rasi bintang di tepi bawah
- *  (hanya bila pelat cukup lebar). [mirror] (kartu status, pojok besar kanan-bawah) memutar semua titik 180 derajat. Pelat terlalu kecil
- *  (snackbar, baris pendek) = null. */
+/** Batch 349: bintang 4 sudut (kilau) berpusat di ([x], [y]); [arm] = panjang lengan, [waist] = pinggang. */
+private fun Path.addSparkle(x: Float, y: Float, arm: Float, waist: Float) {
+    moveTo(x, y - arm)
+    lineTo(x + waist, y - waist)
+    lineTo(x + arm, y)
+    lineTo(x + waist, y + waist)
+    lineTo(x, y + arm)
+    lineTo(x - waist, y + waist)
+    lineTo(x - arm, y)
+    lineTo(x - waist, y - waist)
+    close()
+}
+
+/** Batch 348/349: susun ornamen pelat [w] x [h] px ([d] = px per dp): kilau radial + lima cincin orbit berpusat di dekat pojok atas dengan
+ *  dua satelit, busur tepi planet + dua garis kilau tepi (atas dan samping) dari pojok besar ([bigCorner] px, 0 = tanpa busur/garis; [bevel] =
+ *  lebar bevel px), braket emas di tiga pojok kecil, debu bintang + kilau 4 sudut di dalam kartu, dan rasi di tepi bawah (hanya bila lebar
+ *  cukup). [mirror] (kartu status, pojok besar kanan-bawah) memutar semua titik 180 derajat. Pelat terlalu kecil (snackbar, baris pendek) = null. */
 private fun buildCardOrnament(
     spec: DepthOrnament,
     w: Float,
@@ -949,68 +973,108 @@ private fun buildCardOrnament(
     fun py(y: Float): Float = if (mirror) h - y else y
     val cx = w - 10f * d
     val cy = 12f * d
+    val center = Offset(px(cx), py(cy))
     val rings = Path()
-    for (radiusDp in floatArrayOf(34f, 54f, 76f)) {
-        rings.addOval(Rect(Offset(px(cx), py(cy)), radiusDp * d))
+    for (radiusDp in floatArrayOf(30f, 46f, 64f, 84f, 106f)) {
+        rings.addOval(Rect(center, radiusDp * d))
     }
-    val satellite = Offset(px(cx - 0.82f * 54f * d), py(cy + 0.57f * 54f * d))
-    val limbRadius = bigCorner - (bevel + 0.8f * d)
+    val satellite = Offset(px(cx - 0.82f * 46f * d), py(cy + 0.57f * 46f * d))
+    val inset = bevel + 0.8f * d
+    val limbRadius = bigCorner - inset
     val limb: Rect? =
         if (limbRadius > 4f * d) {
             Rect(Offset(if (mirror) w - bigCorner else bigCorner, if (mirror) h - bigCorner else bigCorner), limbRadius)
         } else {
             null
         }
+    var streakA: OrnamentStreak? = null
+    var streakB: OrnamentStreak? = null
+    if (limb != null) {
+        val hot = spec.limb.copy(alpha = spec.limbAlpha * 0.95f)
+        val cold = spec.limb.copy(alpha = 0f)
+        val lenX = minOf(0.5f * w, 220f * d)
+        val lenY = minOf(0.55f * h, 160f * d)
+        val hx0 = px(bigCorner)
+        val hx1 = px(bigCorner + lenX)
+        val vy0 = py(bigCorner)
+        val vy1 = py(bigCorner + lenY)
+        streakA = OrnamentStreak(Brush.horizontalGradient(listOf(hot, cold), startX = hx0, endX = hx1), Offset(hx0, py(inset)), Offset(hx1, py(inset)), 1.4f * d)
+        streakB = OrnamentStreak(Brush.verticalGradient(listOf(hot, cold), startY = vy0, endY = vy1), Offset(px(inset), vy0), Offset(px(inset), vy1), 1.4f * d)
+    }
+    val brackets = Path()
+    val bi = 5f * d
+    val ba = 12f * d
+    brackets.moveTo(px(w - bi - ba), py(bi))
+    brackets.lineTo(px(w - bi), py(bi))
+    brackets.lineTo(px(w - bi), py(bi + ba))
+    brackets.moveTo(px(bi), py(h - bi - ba))
+    brackets.lineTo(px(bi), py(h - bi))
+    brackets.lineTo(px(bi + ba), py(h - bi))
+    brackets.moveTo(px(w - bi - ba), py(h - bi))
+    brackets.lineTo(px(w - bi), py(h - bi))
+    brackets.lineTo(px(w - bi), py(h - bi - ba))
+    val dust = Path()
+    val fx = floatArrayOf(0.08f, 0.19f, 0.31f, 0.43f, 0.52f, 0.63f, 0.71f, 0.84f, 0.93f, 0.12f, 0.37f, 0.58f, 0.77f, 0.90f)
+    val fy = floatArrayOf(0.62f, 0.34f, 0.82f, 0.30f, 0.70f, 0.14f, 0.56f, 0.42f, 0.78f, 0.90f, 0.52f, 0.88f, 0.26f, 0.64f)
+    val fr = floatArrayOf(0.9f, 0.7f, 1.1f, 0.8f, 1.0f, 0.7f, 0.9f, 1.1f, 0.8f, 0.7f, 0.9f, 0.8f, 1.0f, 0.7f)
+    for (i in fx.indices) {
+        dust.addOval(Rect(Offset(px(fx[i] * w), py(fy[i] * h)), fr[i] * d))
+    }
+    val stars = Path()
+    stars.addOval(Rect(Offset(px(cx - 0.96f * 84f * d), py(cy + 0.28f * 84f * d)), 1.7f * d))
+    stars.addSparkle(px(0.26f * w), py(0.40f * h), 4.5f * d, 1f * d)
+    stars.addSparkle(px(0.62f * w), py(0.22f * h), 3.5f * d, 0.8f * d)
+    stars.addSparkle(px(0.86f * w), py(0.72f * h), 4f * d, 0.9f * d)
     var links: Path? = null
-    var stars: Path? = null
     if (w >= 190f * d) {
         val dx = floatArrayOf(22f, 50f, 76f, 106f, 134f)
         val dy = floatArrayOf(8f, 14f, 7f, 13f, 8f)
         val radius = floatArrayOf(1.4f, 1.8f, 1.3f, 2.0f, 1.5f)
         val linkPath = Path()
-        val starPath = Path()
         for (i in dx.indices) {
             val x = px(w - dx[i] * d)
             val y = py(h - dy[i] * d)
             if (i == 0) linkPath.moveTo(x, y) else linkPath.lineTo(x, y)
-            starPath.addOval(Rect(Offset(x, y), radius[i] * d))
+            stars.addOval(Rect(Offset(x, y), radius[i] * d))
         }
-        val sx = px(w - dx[3] * d)
-        val sy = py(h - dy[3] * d)
-        val arm = 6f * d
-        val waist = 1.2f * d
-        starPath.moveTo(sx, sy - arm)
-        starPath.lineTo(sx + waist, sy - waist)
-        starPath.lineTo(sx + arm, sy)
-        starPath.lineTo(sx + waist, sy + waist)
-        starPath.lineTo(sx, sy + arm)
-        starPath.lineTo(sx - waist, sy + waist)
-        starPath.lineTo(sx - arm, sy)
-        starPath.lineTo(sx - waist, sy - waist)
-        starPath.close()
+        stars.addSparkle(px(w - dx[3] * d), py(h - dy[3] * d), 6f * d, 1.2f * d)
         links = linkPath
-        stars = starPath
     }
+    val bloom = Brush.radialGradient(
+        colors = listOf(spec.ring.copy(alpha = spec.ringAlpha * 0.55f), spec.ring.copy(alpha = 0f)),
+        center = center,
+        radius = 110f * d
+    )
     return CardOrnament(
         spec = spec,
+        glow = bloom,
+        glowRadius = 110f * d,
+        glowCenter = center,
         limb = limb,
         limbStart = if (mirror) 0f else 180f,
         limbStyle = Stroke(width = 1.3f * d),
         limbGlowStyle = Stroke(width = 4f * d),
+        streakA = streakA,
+        streakB = streakB,
         rings = rings,
         ringStyle = Stroke(width = 1.1f * d),
         satellite = satellite,
         satelliteRadius = 2.2f * d,
+        brackets = brackets,
+        bracketStyle = Stroke(width = 1f * d),
         links = links,
         linkStyle = Stroke(width = 0.8f * d),
+        dust = dust,
         stars = stars
     )
 }
 
-/** Batch 348: gambar ornamen kartu — maks 7 panggilan gambar kecil (2 busur, 1 path cincin, 2 lingkaran satelit, 1 path garis rasi, 1 path bintang),
- *  tanpa animasi, tanpa layer, tanpa blur. Dipanggil dari `depthPlateSurface` SESUDAH butiran dan SEBELUM alur ukir + bevel, di belakang konten. */
+/** Batch 348/349: gambar ornamen kartu — maks 12 panggilan gambar kecil (kilau radial, 2 busur, 2 garis kilau, 1 path cincin, 2 lingkaran satelit,
+ *  braket, garis rasi, debu, bintang), tanpa animasi, tanpa layer, tanpa blur. Dipanggil dari `depthPlateSurface` SESUDAH butiran dan SEBELUM
+ *  alur ukir + bevel, di belakang konten. */
 private fun DrawScope.drawCardOrnament(o: CardOrnament) {
     val spec = o.spec
+    drawCircle(brush = o.glow, radius = o.glowRadius, center = o.glowCenter)
     val limb = o.limb
     if (limb != null) {
         drawArc(
@@ -1032,13 +1096,67 @@ private fun DrawScope.drawCardOrnament(o: CardOrnament) {
             style = o.limbStyle
         )
     }
+    val a = o.streakA
+    if (a != null) drawLine(brush = a.brush, start = a.start, end = a.end, strokeWidth = a.width)
+    val b = o.streakB
+    if (b != null) drawLine(brush = b.brush, start = b.start, end = b.end, strokeWidth = b.width)
     drawPath(o.rings, spec.ring.copy(alpha = spec.ringAlpha), style = o.ringStyle)
     drawCircle(spec.star.copy(alpha = spec.starAlpha * 0.22f), radius = o.satelliteRadius * 2.6f, center = o.satellite)
     drawCircle(spec.star.copy(alpha = spec.starAlpha), radius = o.satelliteRadius, center = o.satellite)
+    drawPath(o.brackets, spec.star.copy(alpha = spec.starAlpha * 0.6f), style = o.bracketStyle)
     val links = o.links
     if (links != null) drawPath(links, spec.star.copy(alpha = spec.starAlpha * 0.38f), style = o.linkStyle)
-    val stars = o.stars
-    if (stars != null) drawPath(stars, spec.star.copy(alpha = spec.starAlpha))
+    drawPath(o.dust, spec.star.copy(alpha = spec.starAlpha * 0.5f))
+    drawPath(o.stars, spec.star.copy(alpha = spec.starAlpha))
+}
+
+/** Batch 349: orbit tipis di dalam knob daya — cincin, 4 titik penanda, satu satelit berhalo; hanya dipakai bila `DepthStyle.ornament` ada.
+ *  Geometri dibuat sekali di cache gambar, 4 panggilan gambar, tanpa animasi. */
+private fun Modifier.depthKnobOrbit(spec: DepthOrnament): Modifier = drawWithCache {
+    val d = density
+    val c = Offset(size.width / 2f, size.height / 2f)
+    val r = size.minDimension / 2f - 6f * d
+    val ticks = Path()
+    ticks.addOval(Rect(Offset(c.x + r, c.y), 1.2f * d))
+    ticks.addOval(Rect(Offset(c.x, c.y + r), 1.2f * d))
+    ticks.addOval(Rect(Offset(c.x - r, c.y), 1.2f * d))
+    ticks.addOval(Rect(Offset(c.x, c.y - r), 1.2f * d))
+    val sat = Offset(c.x + 0.77f * r, c.y - 0.64f * r)
+    val ringStyle = Stroke(width = 0.9f * d)
+    val ring = spec.ring.copy(alpha = (spec.ringAlpha * 1.4f).coerceAtMost(1f))
+    val star = spec.star.copy(alpha = spec.starAlpha)
+    onDrawBehind {
+        if (r > 4f * d) {
+            drawCircle(ring, radius = r, center = c, style = ringStyle)
+            drawPath(ticks, star.copy(alpha = spec.starAlpha * 0.7f))
+            drawCircle(star.copy(alpha = spec.starAlpha * 0.22f), radius = 5.5f * d, center = sat)
+            drawCircle(star, radius = 2.1f * d, center = sat)
+        }
+    }
+}
+
+/** Batch 349: garis hias di kanan label seksi (kilau 4 sudut di pangkal + garis jingga memudar); hanya dipakai bila `DepthStyle.ornament` ada.
+ *  2 panggilan gambar, tanpa animasi. */
+@Composable
+private fun SectionFlourish(spec: DepthOrnament, modifier: Modifier = Modifier) {
+    Box(
+        modifier.drawWithCache {
+            val d = density
+            val midY = size.height / 2f
+            val line = Brush.horizontalGradient(
+                colors = listOf(spec.ring.copy(alpha = 0.9f), spec.ring.copy(alpha = 0f)),
+                startX = 0f,
+                endX = size.width
+            )
+            val spark = Path()
+            spark.addSparkle(5f * d, midY, 5f * d, 1.1f * d)
+            val star = spec.star.copy(alpha = spec.starAlpha)
+            onDrawBehind {
+                drawLine(brush = line, start = Offset(12f * d, midY), end = Offset(size.width, midY), strokeWidth = 1f * d)
+                drawPath(spark, star)
+            }
+        }
+    )
 }
 
 /** Dekorasi pelat timbul: permukaan ter-bake + grain + alur ukir + bevel FACET 8 sisi (bentuk
@@ -2100,14 +2218,30 @@ internal fun SectionLabel(
     modifier: Modifier = Modifier,
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
-    Text(
-        text.uppercase(),
-        fontSize = 12.sp,
-        color = accentColor,
-        letterSpacing = 1.4.sp,
-        fontWeight = FontWeight.ExtraBold,
-        modifier = modifier.padding(start = 4.dp, bottom = 4.dp)
-    )
+    // Batch 349: tema berornamen (Cosmic Orange) = label + garis hias memudar; tema lain = Text polos PERSIS seperti sebelumnya.
+    val ornament = LocalSkeuTokens.current.depth?.ornament
+    if (ornament == null) {
+        Text(
+            text.uppercase(),
+            fontSize = 12.sp,
+            color = accentColor,
+            letterSpacing = 1.4.sp,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = modifier.padding(start = 4.dp, bottom = 4.dp)
+        )
+    } else {
+        Row(modifier = modifier.padding(start = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text.uppercase(),
+                fontSize = 12.sp,
+                color = accentColor,
+                letterSpacing = 1.4.sp,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Spacer(Modifier.width(8.dp))
+            SectionFlourish(ornament, Modifier.weight(1f).height(12.dp))
+        }
+    }
 }
 
 /** Power button — satu-satunya elemen "physical utility" bundar di app (guide poin
@@ -2193,6 +2327,11 @@ internal fun SkeuPowerButton(
         )
         if (depth != null && isDown) {
             Box(Modifier.matchParentSize().depthWellInner(shape, depth))
+        }
+        // Batch 349: orbit tipis di dalam knob (hanya tema berornamen); tanpa pointer input, klik tetap lewat ke tombol.
+        val knobOrnament = depth?.ornament
+        if (knobOrnament != null) {
+            Box(Modifier.matchParentSize().depthKnobOrbit(knobOrnament))
         }
     }
 }

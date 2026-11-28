@@ -112,11 +112,30 @@ class SpaceBackdropTest {
     fun `card ornament stays light and never animates`() {
         val draw = code(bodyOf(componentsSource, "private fun DrawScope.drawCardOrnament("))
         val calls = Regex("""\bdraw(Arc|Path|Circle|Line|Rect|Image|Oval|Points)\(""").findAll(draw).count()
-        assertTrue("panggilan gambar ornamen kartu = $calls", calls in 1..8)
+        assertTrue("panggilan gambar ornamen kartu = $calls", calls in 1..12)
         val region = code(bodyOf(componentsSource, "private fun buildCardOrnament(") + draw)
         listOf("InfiniteTransition", "withFrameNanos", "animate", "BlurMaskFilter", "graphicsLayer", "saveLayer").forEach {
             assertFalse("ornamen kartu tidak boleh memuat $it", region.contains(it))
         }
         assertTrue("pelat kecil (snackbar) dilewati", region.contains("if (w < 150f * d || h < 64f * d) return null"))
+    }
+
+    @Test
+    fun `section label and power knob get ornaments only when the depth style has one`() {
+        val src = code(componentsSource)
+        val label = bodyOf(src, "internal fun SectionLabel(")
+        assertTrue(label.contains("LocalSkeuTokens.current.depth?.ornament"))
+        assertTrue("tema tanpa ornamen = Text polos", label.contains("if (ornament == null) {"))
+        val power = bodyOf(src, "internal fun SkeuPowerButton(")
+        assertTrue(power.contains("val knobOrnament = depth?.ornament"))
+        assertTrue(power.contains("if (knobOrnament != null) {"))
+        listOf("private fun Modifier.depthKnobOrbit(", "private fun SectionFlourish(").forEach { marker ->
+            val fn = bodyOf(src, marker)
+            val calls = Regex("""\bdraw(Arc|Path|Circle|Line|Rect|Image|Oval|Points)\(""").findAll(fn).count()
+            assertTrue("$marker = $calls panggilan gambar", calls in 1..4)
+            listOf("InfiniteTransition", "withFrameNanos", "animate", "BlurMaskFilter", "graphicsLayer", "saveLayer").forEach {
+                assertFalse("$marker tidak boleh memuat $it", fn.contains(it))
+            }
+        }
     }
 }

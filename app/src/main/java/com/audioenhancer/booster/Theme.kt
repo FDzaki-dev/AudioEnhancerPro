@@ -989,15 +989,15 @@ val SpaceKnobShape: Shape = CutCornerShape(percent = 42)
 val SpaceChipShape: Shape = AbsoluteRoundedCornerShape(16.dp, 2.dp, 2.dp, 2.dp)
 val SpaceTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 1.dp, 1.dp, 1.dp)
 
-/** Batch 348: ornamen kartu Cosmic Orange — cincin jingga plasma, busur tepi planet jingga muda terang, satelit + rasi emas pucat.
+/** Batch 348/349: ornamen Cosmic Orange (kartu, label seksi, knob daya) — cincin jingga plasma, busur + garis kilau tepi planet jingga muda, satelit + rasi + debu bintang emas pucat.
  *  WAJIB di atas `SpaceDepth` (inisialisasi top-level berurutan). */
 val SpaceCardOrnament = DepthOrnament(
     ring = SpaceAccent,
-    ringAlpha = 0.34f,
+    ringAlpha = 0.42f,
     limb = Color(0xFFFFB066),
-    limbAlpha = 0.80f,
+    limbAlpha = 0.90f,
     star = SpaceGold,
-    starAlpha = 0.75f
+    starAlpha = 0.85f
 )
 
 /** Batch 324: profil kedalaman fisik Space — mesin SAMA dgn tema lain (lihat [DepthStyle]). Batch 347: sorot = krem hangat (cahaya bara),

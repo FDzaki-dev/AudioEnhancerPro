@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 349: ornamen Cosmic Orange diperkaya + diperluas ke komponen depan
+
+Permintaan user: "Masih sepi nih ornamen nya!!" (setelah Batch 348).
+
+- **Kartu** (`buildCardOrnament`/`drawCardOrnament`, ditulis ulang): kilau radial jingga di pusat cincin; 5 cincin orbit (30/46/64/84/106dp) + satelit emas berhalo + satelit kecil; busur tepi planet + 2 garis kilau memudar (atas dan samping) dari pojok besar; braket emas di 3 pojok kecil; 14 debu bintang + 3 kilau 4 sudut; rasi 5 bintang + kilau di tepi bawah (lebar >= 190dp). Kartu status = cermin 180 derajat. Pelat < 150 x 64dp dilewati.
+- **Label seksi** (`SectionLabel`): pada tema berornamen = label + garis hias jingga memudar dengan kilau 4 sudut (`SectionFlourish`); tema lain = `Text` polos persis seperti sebelumnya.
+- **Knob daya** (`SkeuPowerButton`): overlay `depthKnobOrbit` = cincin orbit tipis di dalam knob + 4 titik penanda + satelit berhalo; tanpa pointer input (klik tetap lewat).
+- **Lebih tegas**: alpha `SpaceCardOrnament` cincin 0,34 -> 0,42, busur 0,80 -> 0,90, bintang 0,75 -> 0,85.
+- **Tetap ringan**: geometri, brush gradasi, dan gaya goresan dibuat SEKALI di `drawWithCache`; kartu maks 12 panggilan gambar kecil, knob 4, label 2; tanpa animasi, layer offscreen, blur, atau bitmap baru. Semua tetap lewat `DepthStyle.ornament` (hanya `SpaceDepth`), 6 tema lain TIDAK berubah.
+- **Tes**: `SpaceBackdropTest` +1 (label/knob berornamen hanya bila `depth?.ornament` ada; <= 4 panggilan gambar; tanpa animasi/blur/layer) dan batas panggilan gambar kartu 8 -> 12. Total diharapkan 386 (385 + 1).
+- **Validasi**: asersi tes disimulasikan terhadap berkas: PASS. kotlinc 1.9.25: galat sama dengan v347 + tambahan "overload resolution ambiguity" dari `x * density` di blok `drawWithCache` baru (artefak tanpa classpath Compose), tanpa galat sintaks. NOT VERIFIED: kompilasi Gradle, JUnit, CI, tampilan dan fps di HP; angka alpha/posisi = tebakan awal.
+- **File** (3 kode): `Theme.kt`, `SkeuomorphicComponents.kt`, `SpaceBackdropTest.kt` (+ docs: `README.md`, `CHANGELOG.md`, `PROJECT_STATE.md`).
+
 ## Batch 348: ornamen Cosmic Orange di pelat kartu (bukan hanya latar layar)
 
 Permintaan user: "Ornamen kok di background doang. Mana paten!!" (+ `Boomly_v347.zip`).
