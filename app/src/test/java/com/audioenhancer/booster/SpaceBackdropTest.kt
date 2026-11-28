@@ -140,15 +140,18 @@ class SpaceBackdropTest {
     }
 
     @Test
-    fun `card ornament spreads along the plate length`() {
+    fun `card ornament stays sparse and varied instead of dense and uniform`() {
         val build = code(bodyOf(componentsSource, "private fun buildCardOrnament("))
-        listOf("moduleStep", "railStep", "dustCount", "sparkleCount", "OrnamentRng(").forEach {
+        listOf("midCount", "motif", "OrnamentRng(", "prevMotif").forEach {
             assertTrue("buildCardOrnament wajib memuat $it", build.contains(it))
         }
-        assertTrue("jumlah debu sebanding luas pelat", build.contains("(w / d) * (h / d)"))
-        assertTrue("modul tengah dibatasi", build.contains("glows.size < 7"))
+        listOf("railStep", "moduleStep", "glows", "drawPoints").forEach {
+            assertFalse("pola rapat/seragam $it sudah dibuang (B351)", build.contains(it))
+        }
+        assertTrue("aksen tengah dibatasi", build.contains("coerceIn(0, 6)"))
+        assertTrue("debu jarang dan dibatasi", build.contains("coerceIn(3, 22)"))
         val draw = code(bodyOf(componentsSource, "private fun DrawScope.drawCardOrnament("))
-        assertEquals("hanya loop kilau yang boleh berulang saat gambar", 1, Regex("""\bfor \(""").findAll(draw).count())
-        assertTrue("debu digambar sekali lewat drawPoints", draw.contains("drawPoints(o.dust"))
+        assertEquals("gambar ornamen tanpa loop", 0, Regex("""\bfor \(|\bwhile \(""").findAll(draw).count())
+        assertFalse(draw.contains("drawPoints"))
     }
 }

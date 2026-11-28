@@ -1,5 +1,18 @@
 # Changelog
 
+## Batch 351: ornamen kartu dikurangi, divariasikan, dimurahkan
+
+Permintaan user (screenshot tab Kontrol): "Terlalu rame dan seragam. Jadinya kurang estetik dan bikin stuttering!!"
+
+- **Koreksi arah**: B348-B350 menambah dan menyebar ornamen merata sepanjang pelat, hasilnya rame, seragam, dan berat digambar. B351 membalik arah: SEDIKIT, BERVARIASI, MURAH.
+- **Dibuang**: rel rasi zig-zag di tepi kiri/kanan, modul orbit tengah yang berulang tiap 180dp, 6 kilau radial tambahan, 130 debu (`drawPoints`), garis kilau tepi kiri sepanjang pelat (kini maks 130dp), 5 cincin -> 3 cincin.
+- **Variasi per kartu** (acak deterministik berbenih ukuran pelat): skala, pusat, dan arah satelit di pojok atas; 4-6 bintang rasi bawah dengan jarak dan tinggi acak; kartu berbeda ukuran = komposisi berbeda.
+- **Bagian tengah pelat tinggi**: hanya aksen langka, satu per ~340dp (0-6), tiap aksen memilih 1 dari 3 motif (orbit sebagian dari tepi, untai rasi vertikal di pita tepi, bintang nova + cincin kecil) dengan sisi, ukuran, dan urutan acak, tanpa motif sama berturut-turut; debu jarang 3-22.
+- **Lebih murah**: `drawCardOrnament` tetap 12 titik panggilan gambar berapa pun tinggi pelat, tanpa loop; 1 radial gradient per kartu (sebelumnya sampai 7); jumlah bentuk kecil turun dari ratusan ke puluhan pada kartu tinggi. Alpha cincin 0,42 -> 0,36, bintang 0,85 -> 0,80.
+- **Tes**: tes B350 diganti `card ornament stays sparse and varied instead of dense and uniform` (pola rel/modul/`drawPoints` terlarang, aksen tengah <= 6, debu <= 22, tanpa loop saat gambar). Total diharapkan tetap 387.
+- **Validasi**: asersi tes disimulasikan terhadap berkas: PASS. kotlinc 1.9.25: himpunan galat sama dengan B349, tanpa galat sintaks baru. NOT VERIFIED: kompilasi Gradle, JUnit, CI, tampilan dan fps di HP; penyebab stuttering BELUM terbukti dari ornamen (uji A/B bila masih patah-patah).
+- **File** (3 kode): `Theme.kt`, `SkeuomorphicComponents.kt`, `SpaceBackdropTest.kt` (+ docs: `README.md`, `CHANGELOG.md`, `PROJECT_STATE.md`).
+
 ## Batch 350: ornamen kartu menyebar mengikuti panjang pelat
 
 Permintaan user: "Masalahnya terdapat di pelat. Semakin panjang pelat nya, semakin sepi dibagian tengah nya!!"

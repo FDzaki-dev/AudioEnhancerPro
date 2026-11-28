@@ -993,11 +993,11 @@ val SpaceTrackShape: Shape = AbsoluteRoundedCornerShape(7.dp, 1.dp, 1.dp, 1.dp)
  *  WAJIB di atas `SpaceDepth` (inisialisasi top-level berurutan). */
 val SpaceCardOrnament = DepthOrnament(
     ring = SpaceAccent,
-    ringAlpha = 0.42f,
+    ringAlpha = 0.36f,
     limb = Color(0xFFFFB066),
     limbAlpha = 0.90f,
     star = SpaceGold,
-    starAlpha = 0.85f
+    starAlpha = 0.80f
 )
 
 /** Batch 324: profil kedalaman fisik Space — mesin SAMA dgn tema lain (lihat [DepthStyle]). Batch 347: sorot = krem hangat (cahaya bara),

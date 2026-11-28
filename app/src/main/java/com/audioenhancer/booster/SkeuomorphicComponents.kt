@@ -105,11 +105,9 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
-import androidx.compose.ui.graphics.PointMode
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -922,7 +920,7 @@ private class OrnamentStreak(val brush: Brush, val start: Offset, val end: Offse
 /** Batch 350: satu kilau radial ([brush] berpusat di [center], jari-jari [radius] px). */
 private class OrnamentGlow(val brush: Brush, val center: Offset, val radius: Float)
 
-/** Batch 350: pembangkit acak deterministik (LCG) — letak debu/kilau SAMA tiap gambar ulang, tanpa `kotlin.random`. */
+/** Batch 350: pembangkit acak deterministik (LCG) — letak ornamen SAMA tiap gambar ulang, tanpa `kotlin.random`. */
 private class OrnamentRng(private var seed: Int) {
     fun next(): Float {
         seed = seed * 1103515245 + 12345
@@ -930,11 +928,11 @@ private class OrnamentRng(private var seed: Int) {
     }
 }
 
-/** Batch 348-350: geometri ornamen kartu hasil [buildCardOrnament]. Path, brush gradasi, titik debu dan gaya goresan dibuat SEKALI di cache
- *  gambar (ulang hanya saat ukuran/densitas pelat berubah); per frame cuma [drawCardOrnament]. */
+/** Batch 348-351: geometri ornamen kartu hasil [buildCardOrnament]. Path, brush gradasi dan gaya goresan dibuat SEKALI di cache gambar
+ *  (ulang hanya saat ukuran/densitas pelat berubah); per frame cuma [drawCardOrnament]. */
 private class CardOrnament(
     val spec: DepthOrnament,
-    val glows: List<OrnamentGlow>,
+    val glow: OrnamentGlow,
     val limb: Rect?,
     val limbStart: Float,
     val limbStyle: Stroke,
@@ -949,8 +947,7 @@ private class CardOrnament(
     val bracketStyle: Stroke,
     val links: Path,
     val linkStyle: Stroke,
-    val dust: List<Offset>,
-    val dustWidth: Float,
+    val dust: Path,
     val stars: Path
 )
 
@@ -967,12 +964,13 @@ private fun Path.addSparkle(x: Float, y: Float, arm: Float, waist: Float) {
     close()
 }
 
-/** Batch 348-350: susun ornamen pelat [w] x [h] px ([d] = px per dp). Pojok/tepi: kilau radial + lima cincin orbit + dua satelit di dekat pojok atas,
- *  busur tepi planet + dua garis kilau dari pojok besar ([bigCorner] px, 0 = tanpa busur/garis; [bevel] = lebar bevel px), braket emas di tiga
- *  pojok kecil, rasi di tepi bawah (lebar >= 190dp). MENYEBAR MENGIKUTI PANJANG PELAT (B350, keluhan "makin panjang makin sepi di tengah"):
- *  modul orbit kecil bergantian kiri/kanan tiap 180dp tinggi, dua rel rasi (bintang + garis zig-zag) di sepanjang tepi kiri/kanan, debu bintang
- *  sebanding LUAS pelat dan kilau 4 sudut sebanding tinggi. [mirror] (kartu status, pojok besar kanan-bawah) memutar semua titik 180 derajat.
- *  Pelat terlalu kecil (snackbar, baris pendek) = null. */
+/** Batch 348-351: susun ornamen pelat [w] x [h] px ([d] = px per dp). B351 (keluhan "terlalu rame, seragam, bikin stuttering"): SEDIKIT, BERVARIASI,
+ *  MURAH. Dua ujung pelat jadi "pahlawan": pojok atas = kilau radial + 3 cincin + 2 satelit, busur tepi planet + 2 garis kilau dari pojok besar
+ *  ([bigCorner] px, 0 = tanpa busur/garis; [bevel] = lebar bevel px), braket emas di 3 pojok kecil; tepi bawah = rasi 4-6 bintang (lebar >= 190dp).
+ *  Bagian tengah pelat tinggi HANYA berisi [midCount] aksen langka (satu per ~340dp, 0-6) yang tiap kalinya memilih salah satu dari 3 motif
+ *  (orbit sebagian dari tepi, untai rasi vertikal di pita tepi, bintang "nova" + cincin kecil) dengan sisi, ukuran, dan urutan acak deterministik,
+ *  ditambah debu bintang jarang (3-22, tanpa rel/zig-zag/kilau tengah). Ukuran, posisi, dan bentuk tiap kartu berbeda (benih dari ukuran pelat).
+ *  [mirror] (kartu status, pojok besar kanan-bawah) memutar semua titik 180 derajat. Pelat terlalu kecil (snackbar, baris pendek) = null. */
 private fun buildCardOrnament(
     spec: DepthOrnament,
     w: Float,
@@ -985,41 +983,34 @@ private fun buildCardOrnament(
     if (w < 150f * d || h < 64f * d) return null
     fun px(x: Float): Float = if (mirror) w - x else x
     fun py(y: Float): Float = if (mirror) h - y else y
-    fun bloom(c: Offset, radius: Float, strength: Float): Brush =
-        Brush.radialGradient(
-            colors = listOf(spec.ring.copy(alpha = spec.ringAlpha * strength), spec.ring.copy(alpha = 0f)),
-            center = c,
-            radius = radius
-        )
-    val cx = w - 10f * d
-    val cy = 12f * d
-    val center = Offset(px(cx), py(cy))
+    val rng = OrnamentRng(((w / d).toInt() * 31 + (h / d).toInt()) xor 0x2F6B1A)
+    repeat(3) { rng.next() }
     val rings = Path()
     val stars = Path()
     val links = Path()
-    val glows = ArrayList<OrnamentGlow>()
-    for (radiusDp in floatArrayOf(30f, 46f, 64f, 84f, 106f)) {
-        rings.addOval(Rect(center, radiusDp * d))
+    val dust = Path()
+    // Pojok atas: ukuran, pusat, dan arah satelit bervariasi per kartu.
+    val scale = 0.85f + 0.3f * rng.next()
+    val cx = w - (8f + 8f * rng.next()) * d
+    val cy = (8f + 10f * rng.next()) * d
+    val center = Offset(px(cx), py(cy))
+    for (radiusDp in floatArrayOf(34f, 56f, 82f)) {
+        rings.addOval(Rect(center, radiusDp * scale * d))
     }
-    val satellite = Offset(px(cx - 0.82f * 46f * d), py(cy + 0.57f * 46f * d))
-    stars.addOval(Rect(Offset(px(cx - 0.96f * 84f * d), py(cy + 0.28f * 84f * d)), 1.7f * d))
-    glows.add(OrnamentGlow(bloom(center, 110f * d, 0.55f), center, 110f * d))
-    // Modul orbit tengah: bergantian kiri/kanan tiap moduleStep, selama masih ada ruang di atas rasi bawah.
-    val moduleStep = 180f * d
-    var moduleY = 176f * d
-    var side = 0
-    while (moduleY <= h - 120f * d && glows.size < 7) {
-        val left = side % 2 == 0
-        val mc = Offset(px(if (left) 10f * d else w - 10f * d), py(moduleY))
-        for (radiusDp in floatArrayOf(24f, 38f, 54f)) {
-            rings.addOval(Rect(mc, radiusDp * d))
-        }
-        val sx = (if (left) 10f + 0.82f * 38f else -10f - 0.82f * 38f) * d + (if (left) 0f else w)
-        stars.addOval(Rect(Offset(px(sx), py(moduleY - 0.57f * 38f * d)), 1.9f * d))
-        glows.add(OrnamentGlow(bloom(mc, 80f * d, 0.4f), mc, 80f * d))
-        moduleY += moduleStep
-        side++
-    }
+    val dirs = floatArrayOf(-0.82f, 0.57f, -0.57f, 0.82f, -0.94f, 0.34f, -0.34f, 0.94f)
+    val di = (rng.next() * 4f).toInt().coerceAtMost(3) * 2
+    val dj = (di + 2 + (rng.next() * 3f).toInt().coerceAtMost(2) * 2) % 8
+    val satellite = Offset(px(cx + dirs[di] * 56f * scale * d), py(cy + dirs[di + 1] * 56f * scale * d))
+    stars.addOval(Rect(Offset(px(cx + dirs[dj] * 82f * scale * d), py(cy + dirs[dj + 1] * 82f * scale * d)), 1.7f * d))
+    val glow = OrnamentGlow(
+        Brush.radialGradient(
+            colors = listOf(spec.ring.copy(alpha = spec.ringAlpha * 0.5f), spec.ring.copy(alpha = 0f)),
+            center = center,
+            radius = 100f * d
+        ),
+        center,
+        100f * d
+    )
     val inset = bevel + 0.8f * d
     val limbRadius = bigCorner - inset
     val limb: Rect? =
@@ -1032,21 +1023,15 @@ private fun buildCardOrnament(
     var streakB: OrnamentStreak? = null
     if (limb != null) {
         val hot = spec.limb.copy(alpha = spec.limbAlpha * 0.95f)
-        val warm = spec.limb.copy(alpha = spec.limbAlpha * 0.3f)
         val cold = spec.limb.copy(alpha = 0f)
         val lenX = minOf(0.5f * w, 220f * d)
-        val lenY = maxOf(h - bigCorner - 24f * d, 40f * d)
+        val lenY = minOf(0.3f * h, 130f * d)
         val hx0 = px(bigCorner)
         val hx1 = px(bigCorner + lenX)
         val vy0 = py(bigCorner)
         val vy1 = py(bigCorner + lenY)
         streakA = OrnamentStreak(Brush.horizontalGradient(listOf(hot, cold), startX = hx0, endX = hx1), Offset(hx0, py(inset)), Offset(hx1, py(inset)), 1.4f * d)
-        streakB = OrnamentStreak(
-            Brush.verticalGradient(0f to hot, 0.45f to warm, 1f to cold, startY = vy0, endY = vy1),
-            Offset(px(inset), vy0),
-            Offset(px(inset), vy1),
-            1.4f * d
-        )
+        streakB = OrnamentStreak(Brush.verticalGradient(listOf(hot, cold), startY = vy0, endY = vy1), Offset(px(inset), vy0), Offset(px(inset), vy1), 1.4f * d)
     }
     val brackets = Path()
     val bi = 5f * d
@@ -1060,54 +1045,75 @@ private fun buildCardOrnament(
     brackets.moveTo(px(w - bi - ba), py(h - bi))
     brackets.lineTo(px(w - bi), py(h - bi))
     brackets.lineTo(px(w - bi), py(h - bi - ba))
-    // Rel rasi di sepanjang tepi kiri dan kanan (di pita padding, tidak menyentuh teks): bintang + garis zig-zag tiap railStep.
-    val railStep = 26f * d
-    val railEnd = h - 26f * d
-    fun rail(fromRight: Boolean, yStart: Float) {
-        var y = yStart
-        var i = 0
-        while (y <= railEnd) {
-            val off = (if (i % 2 == 0) 7f else 12f) * d
-            val x = px(if (fromRight) w - off else off)
-            val yy = py(y)
-            if (i == 0) links.moveTo(x, yy) else links.lineTo(x, yy)
-            stars.addOval(Rect(Offset(x, yy), (1f + 0.3f * (i % 3)) * d))
-            y += railStep
-            i++
+    // Tengah pelat tinggi: aksen langka, motif/sisi/ukuran acak (tidak berulang seragam).
+    val midCount = (((h / d) - 260f) / 340f).toInt().coerceIn(0, 6)
+    var prevMotif = -1
+    for (k in 0 until midCount) {
+        val y = 170f * d + (h - 330f * d) * ((k + 0.25f + 0.5f * rng.next()) / midCount)
+        val left = rng.next() < 0.5f
+        var motif = (rng.next() * 3f).toInt().coerceAtMost(2)
+        if (motif == prevMotif) motif = (motif + 1) % 3
+        prevMotif = motif
+        val sc = 0.8f + 0.5f * rng.next()
+        val dir = if (left) 1f else -1f
+        val edge = if (left) 7f * d else w - 7f * d
+        when (motif) {
+            0 -> {
+                val c = Offset(px(edge), py(y))
+                rings.addOval(Rect(c, 26f * sc * d))
+                rings.addOval(Rect(c, 42f * sc * d))
+                stars.addOval(Rect(Offset(px(edge + dir * 0.8f * 42f * sc * d), py(y - 0.6f * 42f * sc * d)), 1.8f * d))
+            }
+            1 -> {
+                val xs = floatArrayOf(9f, 14f, 8f, 13f)
+                val ys = floatArrayOf(-30f, -10f, 10f, 30f)
+                for (i in xs.indices) {
+                    val x = px(if (left) xs[i] * d else w - xs[i] * d)
+                    val yy = py(y + ys[i] * sc * d)
+                    if (i == 0) links.moveTo(x, yy) else links.lineTo(x, yy)
+                    stars.addOval(Rect(Offset(x, yy), (1.2f + 0.3f * (i % 2)) * d))
+                }
+                stars.addSparkle(px(if (left) 8f * d else w - 8f * d), py(y + 10f * sc * d), 5f * d, 1f * d)
+            }
+            else -> {
+                val c = Offset(px(if (left) 12f * d else w - 12f * d), py(y))
+                stars.addSparkle(c.x, c.y, 7f * sc * d, 1.3f * d)
+                rings.addOval(Rect(c, 11f * sc * d))
+            }
         }
     }
-    rail(false, maxOf(bigCorner, 28f * d) + 8f * d)
-    rail(true, 40f * d)
-    // Debu bintang sebanding LUAS pelat + kilau 4 sudut sebanding TINGGI pelat, tersebar merata (acak deterministik).
-    val rng = OrnamentRng(0x2F6B1A)
-    val dustCount = ((w / d) * (h / d) / 2600f).toInt().coerceIn(10, 130)
-    val dust = ArrayList<Offset>(dustCount)
-    for (i in 0 until dustCount) {
-        val x = (0.05f + 0.90f * rng.next()) * w
-        val y = (0.04f + 0.92f * rng.next()) * h
-        dust.add(Offset(px(x), py(y)))
-    }
-    val sparkleCount = ((h / d) / 120f).toInt().coerceIn(3, 8)
-    for (i in 0 until sparkleCount) {
-        val x = (0.14f + 0.72f * rng.next()) * w
-        val y = (i + 0.2f + 0.6f * rng.next()) / sparkleCount * h
-        stars.addSparkle(px(x), py(y), (3.2f + 1.6f * rng.next()) * d, 0.9f * d)
-    }
+    // Rasi tepi bawah: 4-6 bintang, jarak dan tinggi acak, kilau di bintang terbesar.
     if (w >= 190f * d) {
-        val dx = floatArrayOf(22f, 50f, 76f, 106f, 134f)
-        val dy = floatArrayOf(8f, 14f, 7f, 13f, 8f)
-        val radius = floatArrayOf(1.4f, 1.8f, 1.3f, 2.0f, 1.5f)
-        for (i in dx.indices) {
-            val x = px(w - dx[i] * d)
-            val y = py(h - dy[i] * d)
+        val n = 4 + (rng.next() * 3f).toInt().coerceAtMost(2)
+        var xOff = 20f + 8f * rng.next()
+        var bestR = 0f
+        var bestX = 0f
+        var bestY = 0f
+        for (i in 0 until n) {
+            val x = px(w - xOff * d)
+            val y = py(h - (6f + 8f * rng.next()) * d)
+            val r = (1.2f + 0.8f * rng.next()) * d
             if (i == 0) links.moveTo(x, y) else links.lineTo(x, y)
-            stars.addOval(Rect(Offset(x, y), radius[i] * d))
+            stars.addOval(Rect(Offset(x, y), r))
+            if (r > bestR) {
+                bestR = r
+                bestX = x
+                bestY = y
+            }
+            xOff += 22f + 12f * rng.next()
         }
-        stars.addSparkle(px(w - dx[3] * d), py(h - dy[3] * d), 6f * d, 1.2f * d)
+        stars.addSparkle(bestX, bestY, 6f * d, 1.2f * d)
+    }
+    // Debu bintang JARANG (tidak lagi sebanding luas penuh): 3-22 titik kecil.
+    val dustCount = ((w / d) * (h / d) / 9000f).toInt().coerceIn(3, 22)
+    for (i in 0 until dustCount) {
+        val x = (0.06f + 0.88f * rng.next()) * w
+        val y = (0.05f + 0.90f * rng.next()) * h
+        dust.addOval(Rect(Offset(px(x), py(y)), (0.6f + 0.4f * rng.next()) * d))
     }
     return CardOrnament(
         spec = spec,
-        glows = glows,
+        glow = glow,
         limb = limb,
         limbStart = if (mirror) 0f else 180f,
         limbStyle = Stroke(width = 1.3f * d),
@@ -1123,21 +1129,16 @@ private fun buildCardOrnament(
         links = links,
         linkStyle = Stroke(width = 0.8f * d),
         dust = dust,
-        dustWidth = 1.5f * d,
         stars = stars
     )
 }
 
-/** Batch 348-350: gambar ornamen kartu — maks 12 titik panggilan gambar (kilau radial dalam 1 loop kecil, 2 busur, 2 garis kilau, 1 path cincin,
- *  2 lingkaran satelit, braket, rel/rasi, debu via `drawPoints`, bintang), banyak modul tengah/debu TIDAK menambah panggilan karena digabung ke
- *  Path/titik yang sama; tanpa animasi, tanpa layer, tanpa blur. Dipanggil dari `depthPlateSurface` SESUDAH butiran dan SEBELUM alur ukir + bevel,
- *  di belakang konten. */
+/** Batch 348-351: gambar ornamen kartu — 12 titik panggilan gambar TETAP berapa pun tinggi pelat (satu kilau radial, 2 busur, 2 garis kilau,
+ *  1 path cincin, 2 lingkaran satelit, braket, garis rasi, debu, bintang); tanpa loop, tanpa animasi, tanpa layer, tanpa blur. Dipanggil dari
+ *  `depthPlateSurface` SESUDAH butiran dan SEBELUM alur ukir + bevel, di belakang konten. */
 private fun DrawScope.drawCardOrnament(o: CardOrnament) {
     val spec = o.spec
-    for (i in o.glows.indices) {
-        val g = o.glows[i]
-        drawCircle(brush = g.brush, radius = g.radius, center = g.center)
-    }
+    drawCircle(brush = o.glow.brush, radius = o.glow.radius, center = o.glow.center)
     val limb = o.limb
     if (limb != null) {
         drawArc(
@@ -1168,7 +1169,7 @@ private fun DrawScope.drawCardOrnament(o: CardOrnament) {
     drawCircle(spec.star.copy(alpha = spec.starAlpha), radius = o.satelliteRadius, center = o.satellite)
     drawPath(o.brackets, spec.star.copy(alpha = spec.starAlpha * 0.6f), style = o.bracketStyle)
     drawPath(o.links, spec.star.copy(alpha = spec.starAlpha * 0.38f), style = o.linkStyle)
-    drawPoints(o.dust, PointMode.Points, spec.star.copy(alpha = spec.starAlpha * 0.4f), strokeWidth = o.dustWidth, cap = StrokeCap.Round)
+    drawPath(o.dust, spec.star.copy(alpha = spec.starAlpha * 0.4f))
     drawPath(o.stars, spec.star.copy(alpha = spec.starAlpha))
 }
 
