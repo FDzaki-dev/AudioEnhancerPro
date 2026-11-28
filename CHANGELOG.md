@@ -1,5 +1,20 @@
 # Changelog
 
+## Batch 350: ornamen kartu menyebar mengikuti panjang pelat
+
+Permintaan user: "Masalahnya terdapat di pelat. Semakin panjang pelat nya, semakin sepi dibagian tengah nya!!"
+
+- **Akar masalah**: ornamen kartu B348/349 tertambat di pojok dan tepi (cincin kanan-atas, rasi tepi bawah, 14 debu tetap), sehingga pelat tinggi kosong di bagian tengah.
+- **Modul orbit tengah**: tiap 180dp tinggi (mulai 176dp, selama ada 120dp ruang di atas rasi bawah) muncul modul kecil bergantian kiri/kanan: 3 cincin (24/38/54dp) + kilau radial jingga + satelit emas.
+- **Rel rasi**: dua rel bintang + garis zig-zag (tiap 26dp) di pita padding sepanjang tepi kiri dan kanan, tidak menyentuh teks.
+- **Debu + kilau sebanding ukuran**: debu bintang = luas/2600dp2 (10-130 titik, deterministik, digambar sekali via `drawPoints`); kilau 4 sudut = tinggi/120dp (3-8) tersebar merata.
+- **Garis kilau tepi kiri** dari pojok besar kini gradasi 3 titik sampai dasar pelat (bukan berhenti ~160dp).
+- **Tetap ringan**: `drawCardOrnament` tetap 12 titik panggilan gambar (modul, rel, debu digabung ke Path/titik yang sama); geometri dibuat sekali di `drawWithCache`; tanpa animasi, layer, atau blur. Tema lain tidak berubah.
+- **Tes**: `SpaceBackdropTest` +1 (ornamen menyebar mengikuti panjang pelat: modul, rel, debu sebanding luas, kilau sebanding tinggi, batas modul, hanya satu loop saat gambar). Total diharapkan 387 (386 + 1).
+- **Simulasi jumlah** (kartu lebar 328dp): tinggi 240dp = 0 modul/30 debu; 420dp = 1 modul/52 debu; 640dp = 2 modul/80 debu; 900dp = 4 modul/113 debu.
+- **Validasi**: asersi tes disimulasikan terhadap berkas: PASS. kotlinc 1.9.25: galat sama dengan B349 + 1 galat turunan dari `Offset` tak ter-resolve (tanpa classpath Compose), tanpa galat sintaks. NOT VERIFIED: kompilasi Gradle, JUnit, CI, tampilan dan fps di HP; angka kepadatan = tebakan awal.
+- **File** (2 kode): `SkeuomorphicComponents.kt`, `SpaceBackdropTest.kt` (+ docs: `README.md`, `CHANGELOG.md`, `PROJECT_STATE.md`).
+
 ## Batch 349: ornamen Cosmic Orange diperkaya + diperluas ke komponen depan
 
 Permintaan user: "Masih sepi nih ornamen nya!!" (setelah Batch 348).

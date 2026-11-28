@@ -138,4 +138,17 @@ class SpaceBackdropTest {
             }
         }
     }
+
+    @Test
+    fun `card ornament spreads along the plate length`() {
+        val build = code(bodyOf(componentsSource, "private fun buildCardOrnament("))
+        listOf("moduleStep", "railStep", "dustCount", "sparkleCount", "OrnamentRng(").forEach {
+            assertTrue("buildCardOrnament wajib memuat $it", build.contains(it))
+        }
+        assertTrue("jumlah debu sebanding luas pelat", build.contains("(w / d) * (h / d)"))
+        assertTrue("modul tengah dibatasi", build.contains("glows.size < 7"))
+        val draw = code(bodyOf(componentsSource, "private fun DrawScope.drawCardOrnament("))
+        assertEquals("hanya loop kilau yang boleh berulang saat gambar", 1, Regex("""\bfor \(""").findAll(draw).count())
+        assertTrue("debu digambar sekali lewat drawPoints", draw.contains("drawPoints(o.dust"))
+    }
 }
