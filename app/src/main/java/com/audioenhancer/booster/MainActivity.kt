@@ -38,6 +38,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.MaterialTheme
@@ -176,23 +177,36 @@ class MainActivity : ComponentActivity() {
                     AppThemeStyle.SPACE -> SpaceScreenBackgroundBrush
                     else -> ScreenBackgroundBrush
                 }
+                // Batch 352: latar tema Space (gradien + kosmos + butiran) = satu layer luring di Box SAUDARA di belakang konten
+                // (`SpaceBackdropLayer`), bukan modifier di Surface yang digambar ulang tiap frame scroll. Tema lain: latar tetap di Surface
+                // seperti sebelumnya. `safeDrawingPadding()` pindah ke Box isi (efek tata letak sama); struktur pohon SAMA untuk semua tema
+                // supaya ganti tema tidak mereset state layar (tab terpilih, posisi scroll).
+                val cachedBackdrop = appThemeStyle == AppThemeStyle.SPACE
+                val backdropGrain = LocalSkeuTokens.current.depth?.backdropGrain ?: 0f
                 Surface(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(screenBrush)
-                        // Batch 324: kosmos Space (nebula, cakrawala planet, medan bintang statis) hanya untuk tema Space.
-                        .then(if (appThemeStyle == AppThemeStyle.SPACE) Modifier.spaceCosmosBackdrop() else Modifier)
-                        // B182: butiran latar kulit gelap (Old Money). B187: ikut SEMUA tema yang punya profil
-                        // kedalaman (`depth != null`); kekuatannya = `depth.backdropGrain` per tema.
                         .then(
-                            LocalSkeuTokens.current.depth.let { d ->
-                                if (d != null) Modifier.skeuBackdropGrain(d.backdropGrain) else Modifier
+                            if (cachedBackdrop) {
+                                Modifier
+                            } else {
+                                // B182: butiran latar kulit gelap (Old Money). B187: ikut SEMUA tema yang punya profil
+                                // kedalaman (`depth != null`); kekuatannya = `depth.backdropGrain` per tema.
+                                Modifier
+                                    .background(screenBrush)
+                                    .then(
+                                        LocalSkeuTokens.current.depth.let { d ->
+                                            if (d != null) Modifier.skeuBackdropGrain(d.backdropGrain) else Modifier
+                                        }
+                                    )
                             }
-                        )
-                        .safeDrawingPadding(),
+                        ),
                     color = Color.Transparent,
                     contentColor = MaterialTheme.colorScheme.onBackground
                 ) {
+                  Box(Modifier.fillMaxSize()) {
+                    if (cachedBackdrop) SpaceBackdropLayer(screenBrush, backdropGrain)
+                    Box(Modifier.fillMaxSize().safeDrawingPadding()) {
                     // Batch 149: rememberSaveable — rotasi layar (Activity di-recreate, manifest tanpa
                     // configChanges) tidak lagi mereset layar Bantuan/Onboarding & Settings ke layar utama.
                     var showOnboarding by rememberSaveable {
@@ -322,6 +336,8 @@ class MainActivity : ComponentActivity() {
                             onUpdateDownloadFailedShown = { viewModel.dismissUpdateDownloadFailed() }
                         )
                     }
+                    }
+                  }
                 }
             }
         }

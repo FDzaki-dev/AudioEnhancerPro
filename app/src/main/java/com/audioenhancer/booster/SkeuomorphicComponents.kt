@@ -105,6 +105,8 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
@@ -2121,6 +2123,18 @@ private fun DepthSocket(
     }
 }
 
+/** Batch 352 (keluhan user: "Beban render masih sangat besar sehingga memicu stuttering"; log B333 = GPU-bound): pelat kartu tema berornamen
+ *  (Cosmic Orange) memuat ±50 operasi gambar (permukaan, butiran, ornamen, alur ukir, 20 facet bevel) PLUS seluruh isi kartu; GPU menjalankan semuanya
+ *  ulang di TIAP frame scroll. Blok ini = klip bentuk kartu (pengganti `clip(shape)`) + layer luring (`CompositingStrategy.Offscreen`): GPU merender kartu
+ *  ke satu tekstur dan hanya menempelkannya selama tak ada yang berubah di dalam kartu; hanya kartu yang isinya berubah (geser slider, ketuk chip) yang
+ *  dirender ulang. Hanya dipakai bila `DepthStyle.ornament != null`; tema lain TETAP `clip(shape)` seperti sebelumnya. Bayangan jatuh ada di Box LUAR
+ *  (di luar batas layer), jadi tidak terpotong. */
+private fun depthPlateLayer(cardShape: Shape): GraphicsLayerScope.() -> Unit = {
+    this.shape = cardShape
+    this.clip = true
+    this.compositingStrategy = CompositingStrategy.Offscreen
+}
+
 /** Kartu struktural — guide §2.5 mewajibkan material frosted-glass + midnight blue
  *  tint (bukan solid flat lagi), TAPI tetap "visually quiet" dibanding tactile control
  *  fisik (guide §8): tint subtle (`MidnightBlueGlassBrush`, alpha rendah), border tipis
@@ -2157,13 +2171,15 @@ internal fun SkeuCard(
     // cardRadius) = soket CEKUNG. 5 varian lain `depth == null` → lanjut ke kode lama di bawah.
     val depth = tokens.depth
     if (depth != null) {
+        // Batch 352: tema berornamen = pelat di-cache sebagai satu tekstur GPU (lihat [depthPlateLayer]); tema lain tak berubah.
+        val plateLayer = if (depth.ornament != null) remember(shape) { depthPlateLayer(shape) } else null
         if (radius != tokens.cardRadius) {
             DepthSocket(modifier, shape, depth, content)
         } else {
             Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, slice = true)) {
                 Column(
                     modifier = modifier
-                        .clip(shape)
+                        .then(if (plateLayer != null) Modifier.graphicsLayer(plateLayer) else Modifier.clip(shape))
                         .depthPlateSurface(depth, tokens.cardRadius, corners = leaf),
                     content = content
                 )
@@ -2218,10 +2234,12 @@ internal fun SkeuTintedCard(
     // kartu biasa.
     val depth = tokens.depth
     if (depth != null) {
+        // Batch 352: sama seperti [SkeuCard] — tema berornamen = pelat di-cache sebagai satu tekstur GPU.
+        val plateLayer = if (depth.ornament != null) remember(shape) { depthPlateLayer(shape) } else null
         Box(modifier = Modifier.depthCastShadow(shape, depth, DepthPlateShadow, slice = true)) {
             Column(
                 modifier = modifier
-                    .clip(shape)
+                    .then(if (plateLayer != null) Modifier.graphicsLayer(plateLayer) else Modifier.clip(shape))
                     .depthPlateSurface(depth, tokens.cardRadius, DepthPartsPlate, tint, corners = leaf),
                 content = content
             )

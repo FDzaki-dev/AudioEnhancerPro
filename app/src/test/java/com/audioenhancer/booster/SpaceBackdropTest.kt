@@ -154,4 +154,42 @@ class SpaceBackdropTest {
         assertEquals("gambar ornamen tanpa loop", 0, Regex("""\bfor \(|\bwhile \(""").findAll(draw).count())
         assertFalse(draw.contains("drawPoints"))
     }
+    // ---- Batch 352: beban render (keluhan stuttering) = lapisan statis di-cache sebagai tekstur GPU ----
+
+    private val mainSource: String by lazy { sourceOf("src/main/java/com/audioenhancer/booster/MainActivity.kt") }
+
+    @Test
+    fun `ornament theme cards are cached as one offscreen layer and other themes keep the plain clip`() {
+        val src = code(componentsSource)
+        val helper = bodyOf(src, "private fun depthPlateLayer(")
+        assertTrue(helper.contains("CompositingStrategy.Offscreen"))
+        assertTrue(helper.contains("this.clip = true"))
+        listOf("internal fun SkeuCard(", "internal fun SkeuTintedCard(").forEach { marker ->
+            val fn = bodyOf(src, marker)
+            assertTrue("$marker: layer hanya bila ada ornamen", fn.contains("if (depth.ornament != null) remember(shape) { depthPlateLayer(shape) } else null"))
+            assertTrue("$marker: tema lain tetap clip(shape)", fn.contains("Modifier.graphicsLayer(plateLayer) else Modifier.clip(shape)"))
+            assertTrue("$marker: bayangan di Box luar layer", fn.indexOf("depthCastShadow") in 0 until fn.indexOf("Modifier.graphicsLayer(plateLayer)"))
+        }
+    }
+
+    @Test
+    fun `cosmic backdrop is one offscreen layer in a sibling behind the content`() {
+        val layer = bodyOf(code(themeSource), "internal fun SpaceBackdropLayer(")
+        assertTrue(layer.contains("CompositingStrategy.Offscreen"))
+        assertTrue(layer.indexOf("background(screenBrush)") in 0 until layer.indexOf(".spaceCosmosBackdrop()"))
+        val main = code(mainSource)
+        assertTrue(main.contains("if (cachedBackdrop) SpaceBackdropLayer(screenBrush, backdropGrain)"))
+        assertEquals("kosmos tidak lagi dipasang di Surface", 0, Regex("""Modifier\.spaceCosmosBackdrop\(\)""").findAll(main).count())
+        val surface = main.substringAfter("Surface(").substringBefore("color = Color.Transparent")
+        assertFalse("padding aman pindah ke Box isi", surface.contains("safeDrawingPadding"))
+        assertTrue(main.indexOf("SpaceBackdropLayer(screenBrush") < main.indexOf("Box(Modifier.fillMaxSize().safeDrawingPadding())"))
+    }
+
+    @Test
+    fun `layer caching adds no animation and the plate layer is never inside the draw lambdas`() {
+        val draws = code(bodyOf(componentsSource, "private fun buildCardOrnament(") + bodyOf(componentsSource, "private fun DrawScope.drawCardOrnament("))
+        assertFalse(draws.contains("CompositingStrategy"))
+        val region = code(themeSource.substringAfter("// ===== Batch 324: varian ke-7").substringBefore("/** Token yang beda antar 5 varian desain"))
+        assertFalse(region.contains("InfiniteTransition"))
+    }
 }

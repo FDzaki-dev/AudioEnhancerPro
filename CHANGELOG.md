@@ -1,5 +1,16 @@
 # Changelog
 
+## Batch 352: beban render Cosmic Orange dikurangi (kartu dan latar di-cache sebagai tekstur GPU)
+
+Permintaan user: "Beban render masih sangat besar sehingga memicu stuttering. Dibenerin segera!!" (+ `Boomly_v351.zip` + `AEP_laporan-untuk-claude_run148.zip`).
+
+- **Akar masalah (dari kode + log B333)**: tema Cosmic Orange terbukti GPU-bound (UI thread ±1 ms, GPU ±15 ms/frame). Tiap frame scroll GPU menjalankan ulang SEMUA operasi gambar: latar = gradien + nebula + planet + butiran (±4 lapis layar penuh) + ±130 gambar kecil; tiap kartu = permukaan + butiran layar-kartu + ornamen (12 panggilan) + alur ukir + 20 facet bevel + isi kartu. Mengurangi ornamen (B351) hanya memangkas sebagian kecil.
+- **Latar**: `SpaceBackdropLayer` (`Theme.kt`) = satu layer luring (`CompositingStrategy.Offscreen`) di Box saudara di belakang konten (`MainActivity`): dirender sekali, tiap frame scroll cuma satu tekstur opak. `safeDrawingPadding()` pindah ke Box isi; pohon komposisi sama untuk semua tema (ganti tema tidak mereset tab/scroll); latar tema lain tetap di `Surface`.
+- **Kartu**: `SkeuCard`/`SkeuTintedCard` pada tema berornamen memakai `depthPlateLayer` (klip bentuk + layer luring) sebagai pengganti `clip(shape)`: kartu dirender ke tekstur dan ditempel selama isinya tak berubah; hanya kartu yang berubah (geser slider, ketuk chip) dirender ulang. Bayangan jatuh ada di Box luar, tidak terpotong. Tema tanpa ornamen TIDAK berubah.
+- **Tes**: +3 di `SpaceBackdropTest` (layer hanya untuk tema berornamen + fallback `clip(shape)`; latar = satu layer di saudara; tanpa animasi/layer di fungsi gambar ornamen). Total diharapkan 390 (387 + 3).
+- **Triase CI run 148 (B351)**: penanda cocok (BATCH_PROJECT_STATE=351, commit 6eec2b3); kompilasi bersih, ArchUnit 12/0, SpotBugs 0, detekt 0, typed 0, lint 0, peringatan 0 -> B351 STATIC-VERIFIED. Tes unit: 36 dari 387 GAGAL, SEMUANYA `Failed to fetch maven artifact org.robolectric:android-all-instrumented:14-...` (`AudioEnhancerServiceStateTest` 13 + `PrefsHelperTest` 23) = unduhan Maven gagal di runner (pola sama dengan run 139 yang lulus saat diulang), BUKAN asersi; 351 tes lain lulus. Status: 36 tes NOT VERIFIED (jalankan ulang CI).
+- **Validasi**: asersi tes baru dan tes lama yang membaca teks sumber disimulasikan PASS; kurung seimbang. NOT VERIFIED: kompilasi penuh, JUnit, CI, fps/tampilan di HP (belum pernah diukur; kemungkinan risiko: memori GPU +~25 MB untuk layer kartu).
+
 ## Batch 351: ornamen kartu dikurangi, divariasikan, dimurahkan
 
 Permintaan user (screenshot tab Kontrol): "Terlalu rame dan seragam. Jadinya kurang estetik dan bikin stuttering!!"

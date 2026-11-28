@@ -6,6 +6,9 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.foundation.shape.CutCornerShape
@@ -20,6 +23,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
@@ -28,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -1221,6 +1226,24 @@ internal fun Modifier.spaceCosmosBackdrop(): Modifier = this.drawWithCache {
         drawImage(planet, dstSize = target, filterQuality = FilterQuality.Low)
         drawSpaceOrbit()
     }
+}
+
+/** Batch 352 (keluhan user: "Beban render masih sangat besar sehingga memicu stuttering"; log B333 = GPU-bound, thread UI nyaris menganggur):
+ *  latar kosmos dulu digambar ulang TIAP frame scroll sebagai ±4 lapis layar penuh (gradien, nebula, planet, butiran) + ±130 gambar kecil.
+ *  Kini seluruh latar (gradien + kosmos + butiran) ada di SATU layer luring (`CompositingStrategy.Offscreen`) pada Box SAUDARA di belakang konten:
+ *  GPU merender layer itu sekali, lalu tiap frame scroll cuma menempelkan satu tekstur opak. Layer tidak berisi konten layar, jadi geseran
+ *  slider/scroll tidak pernah membuatnya dirender ulang; ia hanya dirender ulang saat ukuran layar berubah (rotasi). Butiran dilewati bila alpha 0.
+ *  Tanpa animasi apa pun. NOT VERIFIED di device (fps). */
+@Composable
+internal fun SpaceBackdropLayer(screenBrush: Brush, grainAlpha: Float, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxSize()
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .background(screenBrush)
+            .spaceCosmosBackdrop()
+            .then(if (grainAlpha > 0f) Modifier.skeuBackdropGrain(grainAlpha) else Modifier)
+    )
 }
 
 /** Token yang beda antar 5 varian desain (Batch 111: +1, sebelumnya 4), dibaca
